@@ -1,3 +1,5 @@
+import "./index.css";
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -5,12 +7,15 @@ import {
   RouterProvider,
   Navigate,
 } from "react-router-dom";
-import "./index.css";
+
+import { DataProvider } from "./context/DataContext";
 
 // 1. Import your Layout and Feature Pages
 import Layout from "./pages/Layout";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Login from "./pages/Login/Login";
+import Fleet from "./pages/Fleet/Fleet";
+import Users from "./pages/Users/Users";
 
 // 2. Configure the Routes
 const router = createBrowserRouter([
@@ -30,6 +35,14 @@ const router = createBrowserRouter([
         path: "dashboard",
         element: <Dashboard />,
       },
+      {
+        path: "fleet",
+        element: <Fleet />,
+      },
+      {
+        path: "users",
+        element: <Users />
+      }
     ],
   },
 ]);
@@ -37,6 +50,8 @@ const router = createBrowserRouter([
 // 3. Render the App with the RouterProvider
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <DataProvider>
+      <RouterProvider router={router} />
+    </DataProvider>
   </StrictMode>,
 );

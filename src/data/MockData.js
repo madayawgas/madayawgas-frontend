@@ -1,20 +1,25 @@
-export const initialTrucks = [
-  { id: 1, plate: "ABC-123", status: "Active", driver: "John Doe", odo: 45000 },
-  {
-    id: 2,
-    plate: "XYZ-987",
-    status: "Maintenance",
-    driver: "Jane Smith",
-    odo: 82000,
-  },
-];
 
-export const initialUsers = [
+
+export const initialTrucks = [
   {
     id: 1,
-    name: "Admin User",
-    email: "admin@madayawgas.com",
-    role: "Superadmin",
+    plate: "MDY-101",
+    driver: "Juan Dela Cruz",
+    status: "Active",
+    capacity: "1000L",
   },
-  { id: 2, name: "Driver Dan", email: "dan@madayawgas.com", role: "Driver" },
+  {
+    id: 2,
+    plate: "MDY-102",
+    driver: "Pedro Penduko",
+    status: "Maintenance",
+    capacity: "2000L",
+  },
+  {
+    id: 3,
+    plate: "MDY-103",
+    driver: "Unassigned",
+    status: "Available",
+    capacity: "1500L",
+  },
 ];

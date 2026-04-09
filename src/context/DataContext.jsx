@@ -1,55 +1,46 @@
+// src/context/DataContext.jsx
 import { createContext, useState } from "react";
-import { initialTrucks, initialUsers } from "../data/MockData";
+import { initialTrucks } from "../data/MockData";
 
-// 1. Create the Context
+// 1. Create the Context Blueprint
 export const DataContext = createContext();
 
-// 2. Create the Provider Component
 export const DataProvider = ({ children }) => {
-  // Load the raw data into React State
+  // 2. Load the mock data into React State
   const [trucks, setTrucks] = useState(initialTrucks);
-  const [users, setUsers] = useState(initialUsers);
 
-  // --- TRUCK METHODS ---
-  const updateTruck = (truckId, updatedData) => {
-    setTrucks((prevTrucks) =>
-      prevTrucks.map((truck) =>
-        truck.id === truckId ? { ...truck, ...updatedData } : truck,
-      ),
-    );
-  };
+  // --- THE METHODS ---
 
+  // CREATE
   const addTruck = (newTruck) => {
-    setTrucks((prevTrucks) => [...prevTrucks, { id: Date.now(), ...newTruck }]);
+    // Adds a new truck to the end of the array, generating a random ID
+    setTrucks((prev) => [...prev, { id: Date.now(), ...newTruck }]);
   };
 
-  // --- USER METHODS ---
-  const addUser = (newUser) => {
-    setUsers((prevUsers) => [...prevUsers, { id: Date.now(), ...newUser }]);
-  };
-
-  const updateUser = (userId, updatedData) => {
-    setUsers((prevUsers) =>
-      prevUsers.map((user) =>
-        user.id === userId ? { ...user, ...updatedData } : user,
+  // UPDATE
+  const updateTruck = (id, updatedData) => {
+    // Maps through the array. If the ID matches, it overwrites the specific fields.
+    setTrucks((prev) =>
+      prev.map((truck) =>
+        truck.id === id ? { ...truck, ...updatedData } : truck,
       ),
     );
   };
 
-  const deleteUser = (userId) => {
-    setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userId));
+  // DELETE
+  const deleteTruck = (id) => {
+    // Filters the array to keep everything EXCEPT the one with the matching ID
+    setTrucks((prev) => prev.filter((truck) => truck.id !== id));
   };
 
-  // 3. Bundle everything up to give to the rest of the app
+  // 3. Bundle it all together
   const value = {
     trucks,
-    updateTruck,
     addTruck,
-    users,
-    addUser,
-    updateUser,
-    deleteUser,
+    updateTruck,
+    deleteTruck,
   };
 
+  // 4. Wrap the application
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };
