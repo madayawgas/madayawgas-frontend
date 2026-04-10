@@ -1,7 +1,7 @@
 // src/pages/Dashboard.jsx
-import StatCard from "../../components/StatCard";
-import TruckList from "../../components/TruckList";
-import SalesGraph from "../../components/SalesGraph";
+import StatCard from "../../components/dashboard/StatCard";
+import TruckList from "../../components/dashboard/TruckList";
+import SalesGraph from "../../components/dashboard/SalesGraph";
 
 export default function Dashboard() {
   // Mock Data
@@ -22,8 +22,8 @@ export default function Dashboard() {
         <div className="flex-1 flex flex-col gap-6">
           {/* Top Row Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <StatCard title="Gross Income" value="₱ 123,456" />
-            <StatCard title="Cost Per Can" value="₱ 789,100" />
+            <StatCard title="Gross Income" value="₱ 123,456.00" />
+            <StatCard title="Cost Per Can" value="₱ 789,100.00" />
           </div>
 
           {/* Graph Section */}
