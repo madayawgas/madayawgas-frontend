@@ -51,7 +51,7 @@ export default function Dashboard() {
             status="available"
           />
           <TruckList
-            title={`On Maintenance (${trucksUnderMaintenanceCount})`}
+            title={`Under Maintenance (${trucksUnderMaintenanceCount})`}
             trucks={maintenanceTrucksList.map((truck) => truck.plateNumber)}
             status="maintenance"
           />
