@@ -5,14 +5,14 @@ export const initialTrucks = [
     id: 1,
     plate: "MDY-101",
     driver: "Juan Dela Cruz",
-    status: "Active",
+    status: "In Use",
     capacity: "1000L",
   },
   {
     id: 2,
     plate: "MDY-102",
     driver: "Pedro Penduko",
-    status: "Maintenance",
+    status: "Under Repair",
     capacity: "2000L",
   },
   {

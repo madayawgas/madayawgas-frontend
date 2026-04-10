@@ -1,76 +1,77 @@
-
-import { useContext } from "react";
+// src/pages/Fleet/Fleet.jsx
+import { useContext, useState } from "react";
 import { DataContext } from "../../context/DataContext";
+import FleetHeader from "../../components/fleet/FleetHeader";
+import TruckCard from "../../components/fleet/TruckCard";
+import TruckModal from "../../components/fleet/TruckModal";
+import DeleteConfirmationModal from "../../components/fleet/DeleteConfirmationModal";
 
 export default function Fleet() {
-  const { trucks, addTruck, updateTruck, deleteTruck } =
-    useContext(DataContext);
+  const { trucks, addTruck, deleteTruck, updateTruck } = useContext(DataContext);
+  
+  const [selectedTruck, setSelectedTruck] = useState(null);
+  const [truckToDelete, setTruckToDelete] = useState(null);
 
+  // Mock Data
   const handleAddNewTruck = () => {
     addTruck({
-      plate: `MDY-${Math.floor(100 + Math.random() * 900)}`,
-      driver: "Pending",
-      status: "Available",
+      plate: `Truck #${Math.floor(100 + Math.random() * 900)}`,
+      driver: "Pending", 
+      status: "Available", 
       capacity: "1000L",
+      currentOdometer: "0 KM",
+      lastOdometer: "0 KM",
+      maintenanceStatus: "Minor", 
+      lastInspectionDate: new Date().toISOString().split('T')[0], 
+      lastUpdated: new Date().toISOString().split('T')[0],
     });
   };
 
-  const handleToggleStatus = (truck) => {
-    const newStatus = truck.status === "Active" ? "Maintenance" : "Active";
-    updateTruck(truck.id, { status: newStatus });
+  const handleUpdateTruck = (truckId, updatedData) => {
+    updateTruck(truckId, updatedData);
+    setSelectedTruck(null); 
+  };
+
+  const handleDeleteTruck = (truckId) => {
+    deleteTruck(truckId);
+    setTruckToDelete(null);
+    setSelectedTruck(null);
   };
 
   return (
-    <div className="border-2 border-slate-300 rounded-lg p-6 m-4 bg-white">
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
-        <h2 className="text-2xl font-bold">Fleet Board</h2>
-        <button
-          onClick={handleAddNewTruck}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-        >
-          + Add Truck
-        </button>
-      </div>
+    <div className="w-full max-w-[1400px] mx-auto relative h-screen">
+      
+      {/* 1. Header */}
+      <FleetHeader onAddTruck={handleAddNewTruck} />
 
-      {/* THE GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* 2. Layout Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {trucks.map((truck) => (
-          // INDIVIDUAL TRUCK CONTAINER (Box with a border)
-          <div key={truck.id} className="border border-slate-400 rounded p-4">
-            <h3 className="font-bold text-lg border-b border-slate-200 mb-2 pb-1">
-              {truck.plate}
-            </h3>
-
-            <div className="text-sm mb-4 space-y-1">
-              <p>
-                <strong>Status:</strong> {truck.status}
-              </p>
-              <p>
-                <strong>Driver:</strong> {truck.driver}
-              </p>
-              <p>
-                <strong>Capacity:</strong> {truck.capacity}
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleToggleStatus(truck)}
-                className="flex-1 bg-slate-200 text-slate-800 py-1 rounded text-sm hover:bg-slate-300"
-              >
-                Toggle Status
-              </button>
-              <button
-                onClick={() => deleteTruck(truck.id)}
-                className="flex-1 bg-red-500 text-white py-1 rounded text-sm hover:bg-red-600"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
+          <TruckCard 
+            key={truck.id} 
+            truck={truck} 
+            onClick={() => setSelectedTruck(truck)} 
+          />
         ))}
       </div>
+
+      {/* 3. Modals */}
+      {selectedTruck && (
+        <TruckModal 
+          truck={selectedTruck} 
+          onClose={() => setSelectedTruck(null)} 
+          onUpdate={handleUpdateTruck}
+          onDeleteClick={(truck) => setTruckToDelete(truck)}
+        />
+      )}
+
+      {truckToDelete && (
+        <DeleteConfirmationModal
+          truck={truckToDelete}
+          onConfirm={() => handleDeleteTruck(truckToDelete.id)}
+          onClose={() => setTruckToDelete(null)}
+        />
+      )}
     </div>  
   );
 }
