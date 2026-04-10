@@ -1,5 +1,4 @@
 import "./index.css";
-
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -8,8 +7,7 @@ import {
   Navigate,
 } from "react-router-dom";
 
-// import { DataProvider } from "./context/DataContext";  
-
+import { DataProvider } from "./context/DataContext";
 
 import Layout from "./pages/Layout";
 import Dashboard from "./pages/Dashboard/Dashboard";
@@ -17,7 +15,7 @@ import Login from "./pages/Login/Login";
 import Fleet from "./pages/Fleet/Fleet";
 import Users from "./pages/Users/Users";
 
-// 2. Configure the Routes
+// Configure the Routes
 const router = createBrowserRouter([
   {
     path: "/login",
@@ -41,15 +39,17 @@ const router = createBrowserRouter([
       },
       {
         path: "users",
-        element: <Users />
-      }
+        element: <Users />,
+      },
     ],
   },
 ]);
 
-
+// 2. WRAP THE ROUTER WITH YOUR DATA PROVIDER
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <DataProvider>
+      <RouterProvider router={router} />
+    </DataProvider>
   </StrictMode>,
 );
