@@ -95,10 +95,10 @@ export default function Layout() {
           <div className="flex items-center gap-3">
             <UserCircle size={38} className="text-[#FFDF2C]"/>
             <div className="leading-tight">
-              <p className="text-[13px] md:text-[16px] font-semibold">
+              <p className="text-[14px] md:text-[16px] font-semibold">
                 Alejandro Doe
               </p>
-              <div className="text-[13px] md:text-[16px] font-medium opacity-90">
+              <div className="text-[12px] md:text-[14px] font-medium opacity-90">
                 System Admin
               </div>
             </div>
