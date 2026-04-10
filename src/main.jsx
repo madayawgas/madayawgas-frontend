@@ -8,9 +8,9 @@ import {
   Navigate,
 } from "react-router-dom";
 
-import { DataProvider } from "./context/DataContext";
+// import { DataProvider } from "./context/DataContext";  
 
-// 1. Import your Layout and Feature Pages
+
 import Layout from "./pages/Layout";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Login from "./pages/Login/Login";
@@ -47,11 +47,9 @@ const router = createBrowserRouter([
   },
 ]);
 
-// 3. Render the App with the RouterProvider
+
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <DataProvider>
-      <RouterProvider router={router} />
-    </DataProvider>
+    <RouterProvider router={router} />
   </StrictMode>,
 );
