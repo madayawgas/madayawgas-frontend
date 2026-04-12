@@ -28,22 +28,25 @@ npm run dev
 ```
 
 ## Project Structure
+
 ```text
 src/
-├── assets/      # Static assets (images, svgs)
-├── components/  # Reusable UI components
-│   ├── dashboard/
-│   ├── fleet/
-│   ├── layout/
-│   └── elements/
-├── context/     # React Context (State Management)
-├── data/        # Mock data for development
-├── pages/       # Route-level components
-│   ├── Dashboard/
-│   ├── Fleet/
-│   ├── Login/
-│   └── Users/
-└── App.jsx      # Main application component & routes
+├── assets/          # Static files such as images (hero.png, logo.svg) and global SVGs.
+├── components/      # Reusable UI components categorized by feature or utility:
+│   ├── dashboard/   # Components specific to the dashboard (e.g., SalesGraph, StatCard).
+│   ├── fleet/       # Fleet management components (e.g., TruckCard, MaintenanceStatus, Modals).
+│   ├── layout/      # Layout-specific components like navigation bars and sidebars.
+│   └── elements/    # Generic, reusable atoms or small UI elements.
+├── context/         # React Context providers (e.g., DataContext.jsx) for global state management.
+├── data/            # Local mock data files (trucks, users, dashboard stats) used for development and testing.
+├── pages/           # High-level route components representing different views:
+│   ├── Dashboard/   # The main analytics and overview page.
+│   ├── Fleet/       # Fleet monitoring and management view.
+│   ├── Login/       # User authentication and entry point.
+│   └── Users/       # User management and permissions view.
+├── App.jsx          # Root component that defines the application's routing and main structure.
+├── index.css        # Global CSS, including Tailwind CSS imports and custom resets.
+└── main.jsx         # Entry point for the React application that renders the App component.
 ```
 
 ## Available Scripts
