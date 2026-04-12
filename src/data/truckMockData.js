@@ -25,13 +25,13 @@ export const trucks = [
   {
     truckId: 103,
     plateNumber: "DEF-4567",
-    model: "Hino 300 Series",
+    model: "Hino 500 Series",
     yearModel: 2019,
     currentOdometer: 120500,
     lastPMOdometer: 120000, // Due for maintenance!
     status: "UNDER_MAINTENANCE",
     assignedDriverId: 5, // Apolinario Mabini
-    activeRepair: "Replacing brake pads and rotors", // Added so you have something to show for down trucks
+    activeRepair: "Replacing brake pads and rotors", 
   },
   {
     truckId: 104,

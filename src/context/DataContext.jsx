@@ -24,7 +24,7 @@ export const DataProvider = ({ children }) => {
   });
 
   // ==========================================================================
-  // 2. LOCAL STORAGE SYNC (The Magic)
+  // 2. LOCAL STORAGE SYNC
   // ==========================================================================
 
   // Every time 'users' changes, save the new list to localStorage

@@ -1,16 +1,53 @@
-# React + Vite
+# MadayawGas Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React-based dashboard for managing fleet operations for MadayawGas.
 
-Currently, two official plugins are available:
+## Tech Stack
+- **Framework:** React 19 (Vite)
+- **Styling:** Tailwind CSS 4
+- **Routing:** React Router 7
+- **Charts:** Recharts
+- **Icons:** Lucide React
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Getting Started
 
-## React Compiler
+### 1. Clone the repository
+```bash
+git clone <repository-url>
+cd madayawgas-frontend
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 2. Install dependencies
+```bash
+npm install
+```
 
-## Expanding the ESLint configuration
+### 3. Start development server
+```bash
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Project Structure
+```text
+src/
+├── assets/      # Static assets (images, svgs)
+├── components/  # Reusable UI components
+│   ├── dashboard/
+│   ├── fleet/
+│   ├── layout/
+│   └── elements/
+├── context/     # React Context (State Management)
+├── data/        # Mock data for development
+├── pages/       # Route-level components
+│   ├── Dashboard/
+│   ├── Fleet/
+│   ├── Login/
+│   └── Users/
+└── App.jsx      # Main application component & routes
+```
+
+## Available Scripts
+- `npm run dev`: Starts the development server.
+- `npm run build`: Builds the app for production.
+- `npm run lint`: Runs ESLint for code quality.
+- `npm run preview`: Previews the production build locally.
