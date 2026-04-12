@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import Card from "../ui/Card";
 
 // --- MOCK DATA ---
 const monthlyData = [
@@ -23,13 +24,11 @@ const annualData = [
 ];
 
 export default function SalesGraph() {
-  // State to toggle between Monthly and Annually data
   const [timeframe, setTimeframe] = useState("monthly");
-
   const activeData = timeframe === "monthly" ? monthlyData : annualData;
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex-1 flex flex-col min-h-[350px]">
+    <Card className="flex-1 flex flex-col min-h-[350px]">
       
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
@@ -82,10 +81,8 @@ export default function SalesGraph() {
             data={activeData}
             margin={{ top: 10, right: 20, left: -40, bottom: 0 }}
           >
-            {/* Horizontal grid lines only */}
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
             
-            {/* X Axis without tick lines to keep it clean */}
             <XAxis 
               dataKey="name" 
               axisLine={false} 
@@ -94,7 +91,6 @@ export default function SalesGraph() {
               dy={10}
             />
             
-            {/* Y Axis hidden */}
             <YAxis 
               axisLine={false} 
               tickLine={false} 
@@ -105,7 +101,6 @@ export default function SalesGraph() {
               contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
             />
 
-            {/* Graph Lines */}
             <Line
               type="monotone"
               dataKey="param1"
@@ -126,6 +121,6 @@ export default function SalesGraph() {
         </ResponsiveContainer>
       </div>
       
-    </div>
+    </Card>
   );
 }

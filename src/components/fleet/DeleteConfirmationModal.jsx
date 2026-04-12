@@ -1,15 +1,14 @@
 // src/components/DeleteConfirmationModal.jsx
 import { AlertCircle } from "lucide-react";
+import Modal from "../ui/Modal";
+import Button from "../ui/Button";
 
 export default function DeleteConfirmationModal({ truck, onConfirm, onClose }) {
   if (!truck) return null;
 
   return (
-    // Overlay background
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      {/* Modal Box */}
-      <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl relative text-center">
-        
+    <Modal isOpen={true} onClose={onClose} maxWidth="max-w-sm">
+      <div className="text-center">
         {/* Warning Icon */}
         <div className="flex justify-center mb-6">
           <AlertCircle size={60} className="text-red-500" />
@@ -22,25 +21,19 @@ export default function DeleteConfirmationModal({ truck, onConfirm, onClose }) {
 
         {/* Message */}
         <p className="text-gray-700 text-sm mb-8">
-          Are you sure you want to delete <span className="font-semibold text-gray-900">{truck.plate || `Truck #${truck.id}`}</span>? This action cannot be undone.
+          Are you sure you want to delete <span className="font-semibold text-gray-900">{truck.plateNumber || `Truck #${truck.truckId}`}</span>? This action cannot be undone.
         </p>
 
         {/* Action Buttons */}
         <div className="flex justify-center gap-4">
-          <button
-            onClick={onConfirm}
-            className="bg-red-600 text-white font-semibold px-8 py-2 rounded-lg hover:bg-red-700 transition"
-          >
+          <Button variant="danger" className="px-8" onClick={onConfirm}>
             DELETE
-          </button>
-          <button 
-            onClick={onClose}
-            className="bg-gray-200 text-gray-700 font-semibold px-8 py-2 rounded-lg hover:bg-gray-300 border border-gray-300 transition"
-          >
+          </Button>
+          <Button variant="secondary" className="px-8" onClick={onClose}>
             CANCEL
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
