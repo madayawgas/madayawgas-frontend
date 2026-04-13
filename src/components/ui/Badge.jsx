@@ -8,6 +8,7 @@ export default function Badge({
     warning: "bg-[#FEF7E0] text-[#B06000] border-[#FCE8B2]", // Yellow
     danger: "bg-[#FCE8E6] text-[#D93025] border-[#FAD2CF]",   // Red
     info: "bg-[#E8F0FE] text-[#1967D2] border-[#D2E3FC]",     // Blue
+    maintenance: "bg-[#F3E5F5] text-[#8E24AA] border-[#CE93D8]", // Purple
     neutral: "bg-gray-100 text-gray-700 border-gray-200",     // Gray
   };
 

@@ -7,8 +7,8 @@ export default function TruckCard({ truck, onClick }) {
   const getBadgeVariant = (status) => {
     switch(status) {
       case "AVAILABLE": return "success";
-      case "UNDER_MAINTENANCE": return "danger";
-      case "IN_SHOP": return "danger";
+      case "UNDER_MAINTENANCE": return "maintenance";
+      case "IN_SHOP": return "neutral";
       case "IN_USE": return "info";
       default: return "warning";
     }
