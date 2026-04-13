@@ -20,18 +20,22 @@ import SalesAndDelivery from "./pages/SalesAndDelivery/SalesAndDelivery";
 
 // Configure the Routes
 const router = createBrowserRouter([
-  // {
-  //   path: "/login",
-  //   element: <Login />,
-  // },
+  {
+    path: "/login",
+    element: <Login />,
+  },
+   {
+    path: "/",
+    element: <Navigate to="/login" replace />,
+  },
   {
     path: "/",
     element: <Layout />,
     children: [
-      {
-        index: true,
-        element: <Navigate to="/dashboard" replace />,
-      },
+      // {
+      //   index: true,
+      //   element: <Navigate to="/dashboard" replace />,
+      // },
       {
         path: "dashboard",
         element: <Dashboard />,
