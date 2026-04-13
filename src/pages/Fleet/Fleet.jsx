@@ -14,20 +14,9 @@ export default function Fleet() {
   const [truckToDelete, setTruckToDelete] = useState(null);
 
 
+  // Placeholder for adding a new truck - this can be expanded to open a modal for input
   const handleAddNewTruck = () => {
-    // Generates a mock truck matching your new schema
-    addTruck({
-      truckId: Math.floor(1000 + Math.random() * 9000),
-      plateNumber: `NEW-${Math.floor(1000 + Math.random() * 9000)}`,
-      model: "Unknown Model",
-      yearModel: new Date().getFullYear(),
-      currentOdometer: 0,
-      lastPMOdometer: 0,
-      status: "AVAILABLE",
-      assignedDriverId: null, // Unassigned by default
-      driverName: "Unassigned",
-      activeRepair: "",
-    });
+    
   };
 
   const handleUpdateTruck = (truckId, updatedData) => {
