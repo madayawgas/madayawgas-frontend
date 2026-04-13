@@ -1,7 +1,17 @@
 // src/pages/Layout.jsx
 import { useState } from "react";
 import { Outlet, NavLink } from "react-router-dom";
-import { LayoutDashboard, Truck, Users, LogOut, UserCircle, Menu } from "lucide-react";
+import {
+  LayoutDashboard,
+  Truck,
+  Users,
+  LogOut,
+  UserCircle,
+  Menu,
+  Route,
+  ClipboardList,
+  ReceiptText,
+} from "lucide-react";
 import logo from "../assets/logo-outlined.svg";
 
 export default function Layout() {
@@ -9,19 +19,16 @@ export default function Layout() {
 
   // Navigation active state (yellow background when active)
   const navClass = ({ isActive }) =>
-  `flex items-center gap-3 px-4 py-3 rounded-xl mb-2 text-[13px] md:text-[16px] font-semibold transition ${
-      isActive
-        ? "bg-[#FFDF2C] text-[#0F7AB2]"
-        : "text-white hover:bg-white/10"
+    `flex items-center gap-3 px-4 py-3 rounded-xl mb-2 text-[13px] md:text-[16px] font-semibold transition ${
+      isActive ? "bg-[#FFDF2C] text-[#0F7AB2]" : "text-white hover:bg-white/10"
     }`;
 
   return (
     // MAIN WRAPPER
     <div className="flex h-screen w-full bg-[#F2F2F2] font-sans overflow-hidden">
-      
       {/* SIDEBAR (Blue background) */}
       <aside
-        className={`fixed md:static z-30 top-0 left-0 h-full w-[350] bg-[#0F7AB2] flex flex-col justify-between text-white transform transition-transform duration-300
+        className={`fixed md:static z-30 top-0 left-0 h-full w-[350px] bg-[#0F7AB2] flex flex-col justify-between text-white transform transition-transform duration-300
         ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
       >
         {/* Top Section */}
@@ -48,7 +55,22 @@ export default function Layout() {
 
             <NavLink to="/fleet" className={navClass}>
               <Truck size={26} />
-              <span>Fleet Board</span>
+              <span>Fleet and Maintenance</span>
+            </NavLink>
+
+            <NavLink to="/route-dispatch" className={navClass}>
+              <Route size={26} />
+              <span>Route Dispatch</span>
+            </NavLink>
+
+            <NavLink to="/inventory" className={navClass}>
+              <ClipboardList size={26} />
+              <span>Inventory</span>
+            </NavLink>
+
+            <NavLink to="/sales-delivery" className={navClass}>
+              <ReceiptText size={26} />
+              <span>Sales and Delivery</span>
             </NavLink>
 
             <NavLink to="/users" className={navClass}>
