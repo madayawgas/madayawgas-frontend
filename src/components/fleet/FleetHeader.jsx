@@ -4,14 +4,12 @@ import { Plus, Filter, ChevronDown } from "lucide-react";
 import Button from "../ui/Button";
 import SearchBar from "../ui/SearchBar";
 
-export default function FleetHeader({ onAddTruck, onFilterChange, searchTerm, onSearchChange }) {
+export default function FleetHeader({ onAddTruck, onFilterChange, searchTerm, onSearchChange, selectedStatus }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState("All");
 
   const truckStatuses = ["All", "AVAILABLE", "IN_USE", "IN_SHOP", "UNDER_MAINTENANCE"];
 
   const handleSelect = (status) => {
-    setSelectedStatus(status);
     setIsOpen(false);
     if (onFilterChange) onFilterChange(status);
   };

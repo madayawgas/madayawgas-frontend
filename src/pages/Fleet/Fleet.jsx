@@ -12,7 +12,8 @@ export default function Fleet() {
   
   const [selectedTruck, setSelectedTruck] = useState(null);
   const [truckToDelete, setTruckToDelete] = useState(null);
-
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
 
   // Placeholder for adding a new truck - this can be expanded to open a modal for input
   const handleAddNewTruck = () => {
@@ -30,12 +31,28 @@ export default function Fleet() {
     setSelectedTruck(null); 
   };
 
+  const filteredTrucks = trucks.filter((truck) => {
+    const matchesSearch = 
+      truck.plateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (truck.driverName && truck.driverName.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesStatus = statusFilter === "All" || truck.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
   return (
     <div className="w-full max-w-[1400px] mx-auto relative h-screen">
-      <FleetHeader onAddTruck={handleAddNewTruck} />
+      <FleetHeader 
+        onAddTruck={handleAddNewTruck} 
+        searchTerm={searchTerm}
+        onSearchChange={(e) => setSearchTerm(e.target.value)}
+        selectedStatus={statusFilter}
+        onFilterChange={setStatusFilter}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {trucks.map((truck) => (
+        {filteredTrucks.map((truck) => (
           <TruckCard 
             key={truck.truckId} // Updated to truckId
             truck={truck} 
