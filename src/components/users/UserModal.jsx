@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Modal from "../ui/Modal";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
@@ -11,22 +11,50 @@ const roleOptions = [
 ];
 
 export default function UserModal({ isOpen, onClose, onSave, user }) {
-  const [formData, setFormData] = useState(
-    user || {
-      firstName: "",
-      lastName: "",
-      role: "",
-      contactNumber: "",
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    role: "",
+    contactNumber: "",
+  });
+
+  useEffect(() => {
+    if (user) {
+      setFormData(user);
+    } else {
+      setFormData({
+        firstName: "",
+        lastName: "",
+        role: "",
+        contactNumber: "",
+      });
     }
-  );
+  }, [user, isOpen]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // Strict 11-digit numeric validation for contact number
+    if (name === "contactNumber") {
+      const numericValue = value.replace(/\D/g, ""); // Remove non-digits
+      if (numericValue.length <= 11) {
+        setFormData((prev) => ({ ...prev, [name]: numericValue }));
+      }
+      return;
+    }
+
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Final validation check
+    if (formData.contactNumber.length !== 11) {
+      alert("Contact number must be exactly 11 digits.");
+      return;
+    }
+
     onSave(formData);
     onClose();
   };
@@ -60,7 +88,12 @@ export default function UserModal({ isOpen, onClose, onSave, user }) {
           name="contactNumber"
           value={formData.contactNumber}
           onChange={handleChange}
-          placeholder="Enter contact number"
+          placeholder="e.g. 09123456789"
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]{11}"
+          title="Exactly 11 digits required"
+          maxLength={11}
           required
         />
         <Select
