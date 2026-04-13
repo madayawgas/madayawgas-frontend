@@ -20,10 +20,10 @@ import SalesAndDelivery from "./pages/SalesAndDelivery/SalesAndDelivery";
 
 // Configure the Routes
 const router = createBrowserRouter([
-  {
-    path: "/login",
-    element: <Login />,
-  },
+  // {
+  //   path: "/login",
+  //   element: <Login />,
+  // },
   {
     path: "/",
     element: <Layout />,

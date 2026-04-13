@@ -1,5 +1,18 @@
 // src/data/userMockData.js
 
+export const PERMISSIONS = {
+  ADMIN: [
+    "dashboard",
+    "fleet",
+    "route-dispatch",
+    "inventory",
+    "sales-delivery",
+    "users",
+  ],
+  FLEET_MANAGER: ["dashboard", "fleet", "route-dispatch", "inventory"],
+  DRIVER: ["sales-delivery"],
+};
+
 export const roles = [
   { roleId: 1, roleName: "ADMIN" },
   { roleId: 2, roleName: "FLEET_MANAGER" },
