@@ -1,8 +1,7 @@
-// src/context/DataContext.jsx
 import React, { createContext, useState, useEffect, useContext } from "react";
 
 // Import your initial static mock data
-import { allUsers, roles as initialRoles, PERMISSIONS as initialPermissions } from "../data/userMockData";
+import { allUsers, PERMISSIONS } from "../data/userMockData"; // Make sure PERMISSIONS is exported in userMockData.js
 import { trucks as rawTrucks } from "../data/truckMockData";
 import { allSalesRecords } from "../data/salesMockData";
 
@@ -10,7 +9,16 @@ const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
   // ==========================================================================
-  // 1. APPLICATION STATE
+  // 1. AUTHENTICATION STATE
+  // ==========================================================================
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem("madayaw_active_user");
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState(!!currentUser);
+
+  // ==========================================================================
+  // 2. APPLICATION DATA STATE
   // ==========================================================================
   const [users, setUsers] = useState(() => {
     const savedUsers = localStorage.getItem("mockApp_users");
@@ -35,15 +43,43 @@ export const DataProvider = ({ children }) => {
   const [salesRecords] = useState(allSalesRecords);
 
   // ==========================================================================
-  // 2. SALES DATA HELPERS
+  // 3. AUTHENTICATION METHODS
   // ==========================================================================
+  const login = (username, password) => {
+    const user = users.find(u => u.username === username && u.password === password);
+    
+    if (user) {
+      if (!user.isActive) return { success: false, message: "Account disabled" };
+      
+      // Attach the Role Name for easier RBAC later
+      const rolesMap = { 1: "ADMIN", 2: "FLEET_MANAGER", 3: "DRIVER" };
+      const hydratedUser = { ...user, roleName: rolesMap[user.roleId] };
 
-  /**
-   * Filter and aggregate sales data based on period
-   * @param {string} period - "weekly", "monthly", "annual"
-   */
+      setCurrentUser(hydratedUser);
+      setIsAuthenticated(true);
+      localStorage.setItem("madayaw_active_user", JSON.stringify(hydratedUser));
+      return { success: true, user: hydratedUser };
+    }
+    return { success: false, message: "Invalid username or password" };
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem("madayaw_active_user");
+  };
+
+  const hasPermission = (moduleName) => {
+    if (!currentUser || !currentUser.roleName) return false;
+    const userPermissions = PERMISSIONS[currentUser.roleName] || [];
+    return userPermissions.includes(moduleName);
+  };
+
+  // ==========================================================================
+  // 4. SALES DATA HELPERS
+  // ==========================================================================
   const getSalesByPeriod = (period) => {
-    const now = new Date("2026-04-13"); // Context current date
+    const now = new Date("2026-04-13"); // Remember to change to new Date() for production!
 
     let filtered = [...salesRecords];
 
@@ -59,17 +95,13 @@ export const DataProvider = ({ children }) => {
 
     return filtered.map((record) => ({
       ...record,
-      // Cost per can: gross sales / fuel consumption (as requested)
       costPerCan: (record.totalGrossSales / record.fuelConsumption).toFixed(2),
-      // Fuel efficiency
-      salesPerLiter: (record.totalGrossSales / record.fuelConsumption).toFixed(
-        2,
-      ),
+      salesPerLiter: (record.totalGrossSales / record.fuelConsumption).toFixed(2),
     }));
   };
 
   // ==========================================================================
-  // 3. LOCAL STORAGE SYNC
+  // 5. LOCAL STORAGE SYNC (For CRUD persistence)
   // ==========================================================================
   useEffect(() => {
     localStorage.setItem("mockApp_users", JSON.stringify(users));
@@ -88,7 +120,7 @@ export const DataProvider = ({ children }) => {
   }, [trucks]);
 
   // ==========================================================================
-  // 4. DYNAMIC HYDRATION (Trucks)
+  // 6. DYNAMIC HYDRATION (Trucks) & CRUD
   // ==========================================================================
   const activeHydratedTrucks = trucks.map((truck) => {
     const driver = users.find((u) => u.userId === truck.assignedDriverId);
@@ -99,9 +131,6 @@ export const DataProvider = ({ children }) => {
     };
   });
 
-  // ==========================================================================
-  // 5. CRUD METHODS
-  // ==========================================================================
   const addUser = (userData) => {
     const newUser = { ...userData, userId: Date.now(), isActive: true };
     setUsers((prev) => [...prev, newUser]);
@@ -109,9 +138,7 @@ export const DataProvider = ({ children }) => {
 
   const updateUser = (userId, updatedData) => {
     setUsers((prev) =>
-      prev.map((user) =>
-        user.userId === userId ? { ...user, ...updatedData } : user,
-      ),
+      prev.map((user) => (user.userId === userId ? { ...user, ...updatedData } : user))
     );
   };
 
@@ -149,9 +176,7 @@ export const DataProvider = ({ children }) => {
 
   const updateTruck = (truckId, updatedData) => {
     setTrucks((prev) =>
-      prev.map((truck) =>
-        truck.truckId === truckId ? { ...truck, ...updatedData } : truck,
-      ),
+      prev.map((truck) => (truck.truckId === truckId ? { ...truck, ...updatedData } : truck))
     );
   };
 
@@ -162,10 +187,8 @@ export const DataProvider = ({ children }) => {
   const updateTruckStatus = (truckId, newStatus, activeRepair = "") => {
     setTrucks((prev) =>
       prev.map((truck) =>
-        truck.truckId === truckId
-          ? { ...truck, status: newStatus, activeRepair }
-          : truck,
-      ),
+        truck.truckId === truckId ? { ...truck, status: newStatus, activeRepair } : truck
+      )
     );
   };
 
@@ -185,7 +208,7 @@ export const DataProvider = ({ children }) => {
   };
 
   // ==========================================================================
-  // 6. LIVE DASHBOARD METRICS
+  // 7. LIVE DASHBOARD METRICS
   // ==========================================================================
   const lastRecord = salesRecords[salesRecords.length - 1];
 
@@ -194,44 +217,40 @@ export const DataProvider = ({ children }) => {
     costPerCan: (lastRecord?.totalGrossSales / lastRecord?.fuelConsumption || 0).toFixed(2),
     totalUsers: users.length,
     totalTrucks: activeHydratedTrucks.length,
-    availableTrucksCount: activeHydratedTrucks.filter(
-      (t) => t.status === "AVAILABLE",
-    ).length,
-    trucksUnderMaintenanceCount: activeHydratedTrucks.filter(
-      (t) => t.status === "UNDER_MAINTENANCE",
-    ).length,
-    availableTrucksList: activeHydratedTrucks.filter(
-      (t) => t.status === "AVAILABLE",
-    ),
-    maintenanceTrucksList: activeHydratedTrucks.filter(
-      (t) => t.status === "UNDER_MAINTENANCE",
-    ),
+    availableTrucksCount: activeHydratedTrucks.filter((t) => t.status === "AVAILABLE").length,
+    trucksUnderMaintenanceCount: activeHydratedTrucks.filter((t) => t.status === "UNDER_MAINTENANCE").length,
+    availableTrucksList: activeHydratedTrucks.filter((t) => t.status === "AVAILABLE"),
+    maintenanceTrucksList: activeHydratedTrucks.filter((t) => t.status === "UNDER_MAINTENANCE"),
   };
 
   // ==========================================================================
-  // 7. EXPORTING THE CONTEXT
+  // 8. EXPORTING THE CONTEXT
   // ==========================================================================
   const value = {
+    // Auth & Permissions
+    currentUser,
+    isAuthenticated,
+    login,
+    logout,
+    hasPermission,
+
+    // Data
     users,
     roles,
     permissions,
     trucks: activeHydratedTrucks,
     salesRecords,
-    getSalesByPeriod,
     dashboardMetrics,
 
+    // Methods
+    getSalesByPeriod,
     addUser,
     updateUser,
     deleteUser,
-
-    updateRolePermissions,
-    toggleRolePermission,
-
     addTruck,
     updateTruck,
     deleteTruck,
     updateTruckStatus,
-
     getDriverOptions,
     resetData,
   };
