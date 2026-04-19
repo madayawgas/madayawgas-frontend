@@ -25,6 +25,16 @@ export const DataProvider = ({ children }) => {
     return savedUsers ? JSON.parse(savedUsers) : allUsers;
   });
 
+  const [roles, setRoles] = useState(() => {
+    const savedRoles = localStorage.getItem("mockApp_roles");
+    return savedRoles ? JSON.parse(savedRoles) : initialRoles;
+  });
+
+  const [permissions, setPermissions] = useState(() => {
+    const savedPermissions = localStorage.getItem("mockApp_permissions");
+    return savedPermissions ? JSON.parse(savedPermissions) : initialPermissions;
+  });
+
   const [trucks, setTrucks] = useState(() => {
     const savedTrucks = localStorage.getItem("mockApp_trucks");
     return savedTrucks ? JSON.parse(savedTrucks) : rawTrucks;
@@ -98,6 +108,14 @@ export const DataProvider = ({ children }) => {
   }, [users]);
 
   useEffect(() => {
+    localStorage.setItem("mockApp_roles", JSON.stringify(roles));
+  }, [roles]);
+
+  useEffect(() => {
+    localStorage.setItem("mockApp_permissions", JSON.stringify(permissions));
+  }, [permissions]);
+
+  useEffect(() => {
     localStorage.setItem("mockApp_trucks", JSON.stringify(trucks));
   }, [trucks]);
 
@@ -126,6 +144,24 @@ export const DataProvider = ({ children }) => {
 
   const deleteUser = (userId) => {
     setUsers((prev) => prev.filter((user) => user.userId !== userId));
+  };
+
+  // ROLE & PERMISSION METHODS
+  const updateRolePermissions = (roleName, newPermissions) => {
+    setPermissions((prev) => ({
+      ...prev,
+      [roleName]: newPermissions,
+    }));
+  };
+
+  const toggleRolePermission = (roleName, permission) => {
+    setPermissions((prev) => {
+      const current = prev[roleName] || [];
+      const updated = current.includes(permission)
+        ? current.filter((p) => p !== permission)
+        : [...current, permission];
+      return { ...prev, [roleName]: updated };
+    });
   };
 
   const addTruck = (truckData) => {
@@ -163,8 +199,12 @@ export const DataProvider = ({ children }) => {
   const resetData = () => {
     setUsers(allUsers);
     setTrucks(rawTrucks);
+    setRoles(initialRoles);
+    setPermissions(initialPermissions);
     localStorage.removeItem("mockApp_users");
     localStorage.removeItem("mockApp_trucks");
+    localStorage.removeItem("mockApp_roles");
+    localStorage.removeItem("mockApp_permissions");
   };
 
   // ==========================================================================
@@ -196,6 +236,8 @@ export const DataProvider = ({ children }) => {
 
     // Data
     users,
+    roles,
+    permissions,
     trucks: activeHydratedTrucks,
     salesRecords,
     dashboardMetrics,
