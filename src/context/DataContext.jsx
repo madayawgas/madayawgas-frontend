@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 
 // Import your initial static mock data
-import { allUsers, PERMISSIONS } from "../data/userMockData"; // Make sure PERMISSIONS is exported in userMockData.js
+import { allUsers, PERMISSIONS, roles as rolesData } from "../data/userMockData"; 
 import { trucks as rawTrucks } from "../data/truckMockData";
 import { allSalesRecords } from "../data/salesMockData";
 
@@ -27,12 +27,12 @@ export const DataProvider = ({ children }) => {
 
   const [roles, setRoles] = useState(() => {
     const savedRoles = localStorage.getItem("mockApp_roles");
-    return savedRoles ? JSON.parse(savedRoles) : initialRoles;
+    return savedRoles ? JSON.parse(savedRoles) : rolesData;
   });
 
   const [permissions, setPermissions] = useState(() => {
     const savedPermissions = localStorage.getItem("mockApp_permissions");
-    return savedPermissions ? JSON.parse(savedPermissions) : initialPermissions;
+    return savedPermissions ? JSON.parse(savedPermissions) : PERMISSIONS;
   });
 
   const [trucks, setTrucks] = useState(() => {
@@ -199,8 +199,8 @@ export const DataProvider = ({ children }) => {
   const resetData = () => {
     setUsers(allUsers);
     setTrucks(rawTrucks);
-    setRoles(initialRoles);
-    setPermissions(initialPermissions);
+    setRoles(rolesData);
+    setPermissions(PERMISSIONS);
     localStorage.removeItem("mockApp_users");
     localStorage.removeItem("mockApp_trucks");
     localStorage.removeItem("mockApp_roles");

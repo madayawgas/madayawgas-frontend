@@ -15,17 +15,17 @@ export default function Modal({
     if (isOpen) {
       setShouldRender(true);
       setIsAnimatingOut(false);
-    } else if (shouldRender) {
+    } else {
       setIsAnimatingOut(true);
       const timer = setTimeout(() => {
         setShouldRender(false);
         setIsAnimatingOut(false);
-      }, 150); // Match animation duration
+      }, 150);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, shouldRender]);
+  }, [isOpen]);
 
-  if (!shouldRender) return null;
+  if (!shouldRender && !isOpen) return null;
 
   return (
     <div 
