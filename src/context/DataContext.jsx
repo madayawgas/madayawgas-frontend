@@ -2,7 +2,7 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 
 // Import your initial static mock data
-import { allUsers } from "../data/userMockData";
+import { allUsers, roles as initialRoles, PERMISSIONS as initialPermissions } from "../data/userMockData";
 import { trucks as rawTrucks } from "../data/truckMockData";
 import { allSalesRecords } from "../data/salesMockData";
 
@@ -15,6 +15,16 @@ export const DataProvider = ({ children }) => {
   const [users, setUsers] = useState(() => {
     const savedUsers = localStorage.getItem("mockApp_users");
     return savedUsers ? JSON.parse(savedUsers) : allUsers;
+  });
+
+  const [roles, setRoles] = useState(() => {
+    const savedRoles = localStorage.getItem("mockApp_roles");
+    return savedRoles ? JSON.parse(savedRoles) : initialRoles;
+  });
+
+  const [permissions, setPermissions] = useState(() => {
+    const savedPermissions = localStorage.getItem("mockApp_permissions");
+    return savedPermissions ? JSON.parse(savedPermissions) : initialPermissions;
   });
 
   const [trucks, setTrucks] = useState(() => {
@@ -66,6 +76,14 @@ export const DataProvider = ({ children }) => {
   }, [users]);
 
   useEffect(() => {
+    localStorage.setItem("mockApp_roles", JSON.stringify(roles));
+  }, [roles]);
+
+  useEffect(() => {
+    localStorage.setItem("mockApp_permissions", JSON.stringify(permissions));
+  }, [permissions]);
+
+  useEffect(() => {
     localStorage.setItem("mockApp_trucks", JSON.stringify(trucks));
   }, [trucks]);
 
@@ -81,7 +99,9 @@ export const DataProvider = ({ children }) => {
     };
   });
 
-  // (rest of CRUD methods remain same...)
+  // ==========================================================================
+  // 5. CRUD METHODS
+  // ==========================================================================
   const addUser = (userData) => {
     const newUser = { ...userData, userId: Date.now(), isActive: true };
     setUsers((prev) => [...prev, newUser]);
@@ -97,6 +117,24 @@ export const DataProvider = ({ children }) => {
 
   const deleteUser = (userId) => {
     setUsers((prev) => prev.filter((user) => user.userId !== userId));
+  };
+
+  // ROLE & PERMISSION METHODS
+  const updateRolePermissions = (roleName, newPermissions) => {
+    setPermissions((prev) => ({
+      ...prev,
+      [roleName]: newPermissions,
+    }));
+  };
+
+  const toggleRolePermission = (roleName, permission) => {
+    setPermissions((prev) => {
+      const current = prev[roleName] || [];
+      const updated = current.includes(permission)
+        ? current.filter((p) => p !== permission)
+        : [...current, permission];
+      return { ...prev, [roleName]: updated };
+    });
   };
 
   const addTruck = (truckData) => {
@@ -138,12 +176,16 @@ export const DataProvider = ({ children }) => {
   const resetData = () => {
     setUsers(allUsers);
     setTrucks(rawTrucks);
+    setRoles(initialRoles);
+    setPermissions(initialPermissions);
     localStorage.removeItem("mockApp_users");
     localStorage.removeItem("mockApp_trucks");
+    localStorage.removeItem("mockApp_roles");
+    localStorage.removeItem("mockApp_permissions");
   };
 
   // ==========================================================================
-  // 5. LIVE DASHBOARD METRICS
+  // 6. LIVE DASHBOARD METRICS
   // ==========================================================================
   const lastRecord = salesRecords[salesRecords.length - 1];
 
@@ -167,10 +209,12 @@ export const DataProvider = ({ children }) => {
   };
 
   // ==========================================================================
-  // 6. EXPORTING THE CONTEXT
+  // 7. EXPORTING THE CONTEXT
   // ==========================================================================
   const value = {
     users,
+    roles,
+    permissions,
     trucks: activeHydratedTrucks,
     salesRecords,
     getSalesByPeriod,
@@ -179,6 +223,9 @@ export const DataProvider = ({ children }) => {
     addUser,
     updateUser,
     deleteUser,
+
+    updateRolePermissions,
+    toggleRolePermission,
 
     addTruck,
     updateTruck,
