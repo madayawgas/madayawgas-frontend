@@ -4,15 +4,14 @@ import React, { createContext, useState, useEffect, useContext } from "react";
 // Import your initial static mock data
 import { allUsers } from "../data/userMockData";
 import { trucks as rawTrucks } from "../data/truckMockData";
+import { allSalesRecords } from "../data/salesMockData";
 
 const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
   // ==========================================================================
-  // 1. APPLICATION STATE (WITH LOCAL STORAGE CAPABILITY)
+  // 1. APPLICATION STATE
   // ==========================================================================
-
-  // We use a function inside useState so it only checks localStorage on the very first load
   const [users, setUsers] = useState(() => {
     const savedUsers = localStorage.getItem("mockApp_users");
     return savedUsers ? JSON.parse(savedUsers) : allUsers;
@@ -23,24 +22,56 @@ export const DataProvider = ({ children }) => {
     return savedTrucks ? JSON.parse(savedTrucks) : rawTrucks;
   });
 
+  const [salesRecords] = useState(allSalesRecords);
+
   // ==========================================================================
-  // 2. LOCAL STORAGE SYNC
+  // 2. SALES DATA HELPERS
   // ==========================================================================
 
-  // Every time 'users' changes, save the new list to localStorage
+  /**
+   * Filter and aggregate sales data based on period
+   * @param {string} period - "weekly", "monthly", "annual"
+   */
+  const getSalesByPeriod = (period) => {
+    const now = new Date("2026-04-13"); // Context current date
+
+    let filtered = [...salesRecords];
+
+    if (period === "weekly") {
+      const lastWeek = new Date(now);
+      lastWeek.setDate(now.getDate() - 14); // 2 weeks back
+      filtered = salesRecords.filter((r) => new Date(r.date) >= lastWeek);
+    } else if (period === "monthly") {
+      const lastYear = new Date(now);
+      lastYear.setFullYear(now.getFullYear() - 1);
+      filtered = salesRecords.filter((r) => new Date(r.date) >= lastYear);
+    }
+
+    return filtered.map((record) => ({
+      ...record,
+      // Cost per can: gross sales / fuel consumption (as requested)
+      costPerCan: (record.totalGrossSales / record.fuelConsumption).toFixed(2),
+      // Fuel efficiency
+      salesPerLiter: (record.totalGrossSales / record.fuelConsumption).toFixed(
+        2,
+      ),
+    }));
+  };
+
+  // ==========================================================================
+  // 3. LOCAL STORAGE SYNC
+  // ==========================================================================
   useEffect(() => {
     localStorage.setItem("mockApp_users", JSON.stringify(users));
   }, [users]);
 
-  // Every time 'trucks' changes, save the new list to localStorage
   useEffect(() => {
     localStorage.setItem("mockApp_trucks", JSON.stringify(trucks));
   }, [trucks]);
 
   // ==========================================================================
-  // 3. DYNAMIC HYDRATION
+  // 4. DYNAMIC HYDRATION (Trucks)
   // ==========================================================================
-
   const activeHydratedTrucks = trucks.map((truck) => {
     const driver = users.find((u) => u.userId === truck.assignedDriverId);
     return {
@@ -50,10 +81,7 @@ export const DataProvider = ({ children }) => {
     };
   });
 
-  // ==========================================================================
-  // 4. USER CRUD METHODS
-  // ==========================================================================
-
+  // (rest of CRUD methods remain same...)
   const addUser = (userData) => {
     const newUser = { ...userData, userId: Date.now(), isActive: true };
     setUsers((prev) => [...prev, newUser]);
@@ -70,10 +98,6 @@ export const DataProvider = ({ children }) => {
   const deleteUser = (userId) => {
     setUsers((prev) => prev.filter((user) => user.userId !== userId));
   };
-
-  // ==========================================================================
-  // 5. TRUCK CRUD METHODS
-  // ==========================================================================
 
   const addTruck = (truckData) => {
     const newTruck = {
@@ -107,15 +131,10 @@ export const DataProvider = ({ children }) => {
     );
   };
 
-  // ==========================================================================
-  // 6. HELPER METHODS
-  // ==========================================================================
-
   const getDriverOptions = () => {
     return users.filter((user) => user.roleId === 3 && user.isActive);
   };
 
-  // Emergency reset switch! Deletes local storage and restores the default mock files.
   const resetData = () => {
     setUsers(allUsers);
     setTrucks(rawTrucks);
@@ -124,12 +143,13 @@ export const DataProvider = ({ children }) => {
   };
 
   // ==========================================================================
-  // 7. LIVE DASHBOARD METRICS
+  // 5. LIVE DASHBOARD METRICS
   // ==========================================================================
+  const lastRecord = salesRecords[salesRecords.length - 1];
 
   const dashboardMetrics = {
-    grossIncome: 676767.5,
-    costPerCan: 0.1212,
+    grossIncome: lastRecord?.totalGrossSales || 0,
+    costPerCan: (lastRecord?.totalGrossSales / lastRecord?.fuelConsumption || 0).toFixed(2),
     totalUsers: users.length,
     totalTrucks: activeHydratedTrucks.length,
     availableTrucksCount: activeHydratedTrucks.filter(
@@ -147,12 +167,13 @@ export const DataProvider = ({ children }) => {
   };
 
   // ==========================================================================
-  // 8. EXPORTING THE CONTEXT
+  // 6. EXPORTING THE CONTEXT
   // ==========================================================================
-
   const value = {
     users,
     trucks: activeHydratedTrucks,
+    salesRecords,
+    getSalesByPeriod,
     dashboardMetrics,
 
     addUser,
