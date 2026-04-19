@@ -14,10 +14,16 @@ export default function Fleet() {
   const [truckToDelete, setTruckToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [isAddingTruck, setIsAddingTruck] = useState(false);
 
   // Placeholder for adding a new truck - this can be expanded to open a modal for input
   const handleAddNewTruck = () => {
-    
+    setIsAddingTruck(true);
+  };
+
+  const handleAddTruck = (newTruckData) => {
+    addTruck(newTruckData);
+    setIsAddingTruck(false);
   };
 
   const handleUpdateTruck = (truckId, updatedData) => {
@@ -67,6 +73,14 @@ export default function Fleet() {
           onClose={() => setSelectedTruck(null)} 
           onUpdate={handleUpdateTruck}
           onDeleteClick={(truck) => setTruckToDelete(truck)}
+        />
+      )}
+
+      {isAddingTruck && (
+        <TruckModal
+          isAdding={true}
+          onClose={() => setIsAddingTruck(false)}
+          onAdd={handleAddTruck}
         />
       )}
 
