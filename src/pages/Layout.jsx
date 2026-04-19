@@ -128,7 +128,7 @@ export default function Layout() {
         </header>
 
         {/* The Actual Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 animate-fade-in">
           {/* This is where the Fleet or Dashboard component gets injected */}
           <Outlet />
         </main>
