@@ -1,4 +1,5 @@
 // src/pages/Dashboard.jsx
+import { useContext } from "react";
 import StatCard from "../../components/dashboard/StatCard";
 import TruckList from "../../components/dashboard/TruckList";
 import SalesGraph from "../../components/dashboard/SalesGraph";
