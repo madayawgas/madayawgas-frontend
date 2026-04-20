@@ -1,12 +1,12 @@
 // src/pages/Dashboard.jsx
-import { useContext } from "react";
 import StatCard from "../../components/dashboard/StatCard";
 import TruckList from "../../components/dashboard/TruckList";
 import SalesGraph from "../../components/dashboard/SalesGraph";
-import { getDashboardMetrics } from "../../data/dashboardMockData"; // Adjust path if needed
+import { useData } from "../../context/DataContext"; // Adjust path if needed
 
 export default function Dashboard() {
   //Extract the lists directly from the mock database function
+  const { dashboardMetrics } = useData();
   const {
     grossIncome,
     costPerCan,
@@ -31,7 +31,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <StatCard
               title="Gross Income"
-              value={`₱ ${grossIncome.toLocaleString()}`}
+              value={`₱ ${grossIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             />
             <StatCard
               title="Cost Per Can"
