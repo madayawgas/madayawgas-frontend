@@ -14,7 +14,7 @@ export default function Dashboard() {
     trucksUnderMaintenanceCount,
     availableTrucksList,
     maintenanceTrucksList,
-  } = getDashboardMetrics();
+  } = dashboardMetrics;
 
   return (
     <div className="w-full max-w-[1400px] mx-auto">
