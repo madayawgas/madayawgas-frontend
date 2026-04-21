@@ -67,7 +67,7 @@ export const getHydratedTrucks = () => {
     // Return the truck info WITH the driver's name directly attached
     return {
       ...truck,
-      driverName: driver ? driver.name : "Unassigned",
+      driverName: driver ? `${driver.firstName} ${driver.lastName}`.trim() : "Unassigned",
       driverLicense: driver ? driver.licenseNo : "N/A",
     };
   });

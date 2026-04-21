@@ -140,7 +140,9 @@ export const DataProvider = ({ children }) => {
     const driver = users.find((u) => u.userId === truck.assignedDriverId);
     return {
       ...truck,
-      driverName: driver ? `${driver.firstName} ${driver.lastName}`.trim() : "Unassigned",
+      driverName: driver 
+        ? `${driver.firstName || ""} ${driver.lastName || ""}`.trim() || "Unknown Driver"
+        : "Unassigned",
       driverLicense: driver ? driver.licenseNo : "N/A",
     };
   });
@@ -150,26 +152,14 @@ export const DataProvider = ({ children }) => {
       ...userData, 
       userId: Date.now(), 
       isActive: true,
-      dateCreated: new Date().toISOString().split('T')[0],
-      // Use firstName, but keep name alias for Users.jsx compatibility
-      name: userData.firstName 
+      dateCreated: new Date().toISOString().split('T')[0]
     };
     setUsers((prev) => [...prev, newUser]);
   };
 
   const updateUser = (userId, updatedData) => {
     setUsers((prev) =>
-      prev.map((user) => {
-        if (user.userId === userId) {
-          const newData = { ...user, ...updatedData };
-          // If firstName changed, sync the name alias
-          if (updatedData.firstName) {
-            newData.name = updatedData.firstName;
-          }
-          return newData;
-        }
-        return user;
-      })
+      prev.map((user) => (user.userId === userId ? { ...user, ...updatedData } : user))
     );
   };
 

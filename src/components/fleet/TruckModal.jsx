@@ -131,14 +131,14 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
     if (!validate()) return;
 
     // Use users list for driver name lookup if needed, or get it from availableDrivers
-    const selectedDriver = [...availableDrivers, ...(truck?.assignedDriverId ? [{ userId: truck.assignedDriverId, name: truck.driverName }] : [])].find(d => d.userId === formData.assignedDriverId);
+    const selectedDriver = [...availableDrivers, ...(truck?.assignedDriverId ? [{ userId: truck.assignedDriverId, firstName: truck.driverName.split(' ')[0], lastName: truck.driverName.split(' ').slice(1).join(' ') }] : [])].find(d => d.userId === formData.assignedDriverId);
     
     const currentDate = new Date();
     const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}-${currentDate.getFullYear()} ${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}:${String(currentDate.getSeconds()).padStart(2, '0')}`;
 
     const finalData = {
       ...formData,
-      driverName: selectedDriver ? selectedDriver.name : "Unassigned",
+      driverName: selectedDriver ? `${selectedDriver.firstName} ${selectedDriver.lastName}`.trim() : "Unassigned",
       assignedDriverId: formData.assignedDriverId || null,
       lastUpdated: formattedDate
     };
@@ -154,7 +154,7 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
   // Prepare driver options with "Unassigned" option
   const driverOptions = [
     { value: "", label: "Unassigned" },
-    ...availableDrivers.map(d => ({ value: d.userId, label: d.name }))
+    ...availableDrivers.map(d => ({ value: d.userId, label: `${d.firstName} ${d.lastName}`.trim() }))
   ];
 
   // If editing and has a current driver, ensure they are in the options if not already

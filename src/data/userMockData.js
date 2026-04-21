@@ -120,8 +120,7 @@ export const getHydratedUsers = () => {
     const role = roles.find((r) => r.roleId === user.roleId);
     return { 
       ...user, 
-      roleName: role ? role.roleName : "UNKNOWN",
-      name: user.firstName // Alias for backward compatibility with Users.jsx
+      roleName: role ? role.roleName : "UNKNOWN"
     };
   });
 };
