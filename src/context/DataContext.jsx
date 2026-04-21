@@ -85,7 +85,7 @@ export const DataProvider = ({ children }) => {
 
   const hasPermission = (moduleName) => {
     if (!currentUser || !currentUser.roleName) return false;
-    const userPermissions = PERMISSIONS[currentUser.roleName] || [];
+    const userPermissions = permissions[currentUser.roleName] || [];
     return userPermissions.includes(moduleName);
   };
 
