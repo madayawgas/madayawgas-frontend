@@ -39,9 +39,15 @@ const TruckStatusSelector = ({ currentStatus, onSelect }) => {
   );
 };
 
+<<<<<<< HEAD
+const TruckEditForm = ({ truck, onSave, onCancel, isAdding }) => {
+  const { getDriverOptions, trucks } = useData();
+  const availableDrivers = getDriverOptions(truck?.assignedDriverId);
+=======
 export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, onAdd, isAdding = false }) {
   const { getDriverOptions } = useData();
   const availableDrivers = getDriverOptions();
+>>>>>>> master
   
   const [isEditing, setIsEditing] = useState(isAdding);
   const [formData, setFormData] = useState({ 
@@ -49,18 +55,78 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
     ...(truck || {}) 
   });
 
+<<<<<<< HEAD
+  const [errors, setErrors] = useState({});
+=======
   if (!truck && !isAdding) return null;
+>>>>>>> master
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    const parsedValue = (name === "currentOdometer" || name === "lastPMOdometer" || name === "assignedDriverId" || name === "yearModel") 
-      ? Number(value) 
-      : value;
+    let parsedValue = value;
+    
+    if (["currentOdometer", "lastPMOdometer", "assignedDriverId", "yearModel", "capacity"].includes(name)) {
+      parsedValue = value === "" ? "" : Number(value);
+    }
+
     setFormData((prev) => ({ ...prev, [name]: parsedValue }));
+    
+    // Clear error when user types
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+
+  const validate = () => {
+    const newErrors = {};
+
+    // 1. Unique Plate Handling
+    if (!formData.plateNumber) {
+      newErrors.plateNumber = "Plate number is required";
+    } else {
+      const plateExists = trucks.find(t => 
+        t.plateNumber.toLowerCase() === formData.plateNumber.toLowerCase() && 
+        t.truckId !== truck?.truckId
+      );
+      if (plateExists) {
+        newErrors.plateNumber = "This plate number already exists";
+      }
+    }
+
+    // 2. Capacity and Odometer inputs should not accept negative number inputs
+    if (formData.currentOdometer < 0) {
+      newErrors.currentOdometer = "Cannot be negative";
+    }
+    if (formData.lastPMOdometer < 0) {
+      newErrors.lastPMOdometer = "Cannot be negative";
+    }
+    if (formData.capacity < 0) {
+      newErrors.capacity = "Cannot be negative";
+    }
+    if (formData.yearModel < 0) {
+      newErrors.yearModel = "Cannot be negative";
+    }
+
+    // 3. Status Check: A truck cannot be saved as "Active" if the driver is "Unassigned"
+    // Assuming "AVAILABLE" and "IN_USE" are active statuses
+    if ((formData.status === "AVAILABLE" || formData.status === "IN_USE") && !formData.assignedDriverId) {
+      newErrors.assignedDriverId = "Active trucks must have an assigned driver";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const submitSave = () => {
-    const selectedDriver = availableDrivers.find(d => d.userId === formData.assignedDriverId);
+    if (!validate()) return;
+
+    const selectedDriver = availableDrivers.find(d => d.userId === formData.assignedDriverId) || 
+                          (truck?.assignedDriverId === formData.assignedDriverId ? { name: truck.driverName } : null);
+    
     const currentDate = new Date();
     const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}-${currentDate.getFullYear()} ${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}:${String(currentDate.getSeconds()).padStart(2, '0')}`;
 
@@ -78,6 +144,128 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
     setIsEditing(false);
   };
 
+<<<<<<< HEAD
+  const driverOptions = [
+    { value: "", label: "Unassigned" },
+    ...availableDrivers.map(d => ({ value: d.userId, label: d.name }))
+  ];
+
+  return (
+    <div className="space-y-4 mb-4 text-left">
+      <div className="flex gap-4">
+        <Input 
+          label="Plate Number" 
+          name="plateNumber" 
+          value={formData.plateNumber || ""} 
+          onChange={handleInputChange} 
+          placeholder="e.g. ABC-1234" 
+          error={errors.plateNumber}
+        />
+        <Input 
+          label="Year Model" 
+          type="number" 
+          name="yearModel" 
+          value={formData.yearModel || ""} 
+          onChange={handleInputChange} 
+          placeholder="e.g. 2023" 
+          error={errors.yearModel}
+        />
+      </div>
+      
+      <div className="flex gap-4">
+        <Select 
+          label="Assign Driver" 
+          name="assignedDriverId" 
+          value={formData.assignedDriverId || ""} 
+          onChange={handleInputChange} 
+          options={driverOptions} 
+          error={errors.assignedDriverId}
+        />
+        <Input 
+          label="Capacity (Cans)" 
+          type="number" 
+          name="capacity" 
+          value={formData.capacity || ""} 
+          onChange={handleInputChange} 
+          placeholder="e.g. 250" 
+          error={errors.capacity}
+        />
+      </div>
+
+      <Input label="Truck Model" name="model" value={formData.model || ""} onChange={handleInputChange} placeholder="e.g. Isuzu Elf 250" />
+      
+      <div className="flex gap-4">
+        <Input 
+          label="Current Odometer" 
+          type="number" 
+          name="currentOdometer" 
+          value={formData.currentOdometer || ""} 
+          onChange={handleInputChange} 
+          error={errors.currentOdometer}
+        />
+        <Input 
+          label="Last PM Odometer" 
+          type="number" 
+          name="lastPMOdometer" 
+          value={formData.lastPMOdometer || ""} 
+          onChange={handleInputChange} 
+          error={errors.lastPMOdometer}
+        />
+      </div>
+      
+      <div className="w-full flex flex-col gap-1.5 mt-2">
+        <label className="text-gray-800 font-medium text-sm">Truck Status</label>
+        <TruckStatusSelector 
+          currentStatus={formData.status} 
+          onSelect={(status) => setFormData((prev) => ({ ...prev, status: status }))} 
+        />
+      </div>
+      
+      <div className="w-full flex flex-col gap-1.5 mt-2">
+        <label className="text-gray-800 font-medium text-sm">Active Repair Notes</label>
+        <textarea name="activeRepair" rows={2} value={formData.activeRepair || ""} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 text-sm text-gray-800 focus:ring-2 focus:ring-[#0F7AB2]/30 outline-none resize-none" placeholder="Enter maintenance details if applicable..." />
+      </div>
+
+      {!isAdding && (
+        <div className="text-gray-600 text-sm mt-4">
+          <p>Last updated: <span className="font-medium">{truck.lastUpdated || "N/A"}</span></p>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+        <Button variant="secondary" onClick={onCancel}>CANCEL</Button>
+        <Button variant="primary" onClick={submitSave}>{isAdding ? "ADD TRUCK" : "SAVE"}</Button>
+      </div>
+    </div>
+  );
+};
+
+const TruckViewDetails = ({ truck, onEditClick, onDeleteClick, onClose }) => (
+  <div className="text-left">
+    <div className="space-y-4 text-gray-800 mb-8">
+      <p>Assigned Driver: <span className="font-medium">{truck.driverName}</span></p>
+      <p>Truck Model: <span className="font-medium">{truck.yearModel} {truck.model}</span></p>
+      <p>Capacity: <span className="font-medium">{truck.capacity || "N/A"} Cans</span></p>
+      <p>Current Odometer: <span className="font-medium">{truck.currentOdometer?.toLocaleString()} KM</span></p>
+      <p>Last PM Odometer: <span className="font-medium">{truck.lastPMOdometer?.toLocaleString()} KM</span></p>
+      
+      <div className="flex items-center gap-2">
+        <p>Truck Status:</p>
+        <Badge variant={getBadgeVariant(truck.status)}>
+          {truck.status.replace("_", " ")}
+        </Badge>
+      </div>
+
+      {truck.activeRepair && (
+        <div className="bg-red-50 text-red-800 p-4 rounded-lg text-sm border border-red-100 mt-2">
+          <p className="font-bold mb-1">Active Repair:</p>
+          <p>{truck.activeRepair}</p>
+        </div>
+      )}
+
+      <p className="pt-2 text-gray-600 text-sm">Last updated: <span className="font-medium">{truck.lastUpdated || "N/A"}</span></p>
+    </div>
+=======
   const driverOptions = availableDrivers.map(d => ({ value: d.userId, label: d.name }));
   const displayTruck = truck || {};
 
@@ -87,6 +275,7 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
       <Button variant="primary" onClick={submitSave}>{isAdding ? "ADD TRUCK" : "SAVE"}</Button>
     </div>
   );
+>>>>>>> master
 
   const viewFooter = (
     <div className="flex justify-center gap-3">
