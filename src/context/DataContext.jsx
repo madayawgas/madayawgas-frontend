@@ -277,6 +277,8 @@ export const DataProvider = ({ children }) => {
     deleteTruck,
     updateTruckStatus,
     getDriverOptions,
+    updateRolePermissions,
+    toggleRolePermission,
     resetData,
   };
 

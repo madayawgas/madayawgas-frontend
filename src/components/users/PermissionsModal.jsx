@@ -1,13 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Select from '../ui/Select'; 
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import { useData } from '../../context/DataContext';
 
 export default function PermissionsModal({ isOpen, onClose }) {
-  const [selectedRole, setSelectedRole] = useState('Driver');
+  const { permissions: allPermissions, updateRolePermissions } = useData();
+  const [selectedRole, setSelectedRole] = useState('DRIVER');
   
-  const [permissions, setPermissions] = useState({
-    dashboard: true,
+  // Internal mapping of UI keys to DataContext keys
+  const permissionMapping = [
+    { key: 'dashboard', label: 'Dashboard', dataKey: 'dashboard' },
+    { key: 'fleetAndMaintenance', label: 'Fleet & Maintenance', dataKey: 'fleet' },
+    { key: 'routeDispatch', label: 'Route Dispatch', dataKey: 'route-dispatch' },
+    { key: 'inventory', label: 'Inventory', dataKey: 'inventory' },
+    { key: 'salesAndDelivery', label: 'Sales & Delivery', dataKey: 'sales-delivery' },
+    { key: 'manageUsers', label: 'Manage Users', dataKey: 'users' },
+  ];
+
+  const [localPermissions, setLocalPermissions] = useState({
+    dashboard: false,
     fleetAndMaintenance: false,
     routeDispatch: false,
     inventory: false,
@@ -15,17 +27,39 @@ export default function PermissionsModal({ isOpen, onClose }) {
     manageUsers: false,
   });
 
+  // Load permissions when role changes or modal opens
+  useEffect(() => {
+    if (isOpen && allPermissions[selectedRole]) {
+      const rolePerms = allPermissions[selectedRole];
+      const newLocalPerms = {};
+      permissionMapping.forEach(item => {
+        newLocalPerms[item.key] = rolePerms.includes(item.dataKey);
+      });
+      setLocalPermissions(newLocalPerms);
+    }
+  }, [selectedRole, isOpen, allPermissions]);
+
   const roleOptions = [
-    { value: 'Admin', label: 'Admin' },
-    { value: 'Manager', label: 'Manager' },
-    { value: 'Driver', label: 'Driver' }
+    { value: 'ADMIN', label: 'Admin' },
+    { value: 'FLEET_MANAGER', label: 'Manager' },
+    { value: 'DRIVER', label: 'Driver' }
   ];
 
   const handleToggle = (key) => {
-    setPermissions((prev) => ({
+    setLocalPermissions((prev) => ({
       ...prev,
       [key]: !prev[key],
     }));
+  };
+
+  const handleSave = () => {
+    // Convert back to array of dataKeys
+    const updatedPermsArray = permissionMapping
+      .filter(item => localPermissions[item.key])
+      .map(item => item.dataKey);
+    
+    updateRolePermissions(selectedRole, updatedPermsArray);
+    onClose();
   };
 
   const footer = (
@@ -37,7 +71,7 @@ export default function PermissionsModal({ isOpen, onClose }) {
         </Button>
         <Button 
           variant="primary"
-          onClick={onClose}
+          onClick={handleSave}
         >
           SAVE CHANGES
         </Button>
@@ -75,14 +109,7 @@ export default function PermissionsModal({ isOpen, onClose }) {
           <h3 className="text-[#104e7a] font-bold text-lg mb-4">Can View</h3>
           
           <div className="space-y-4">
-            {[
-              { key: 'dashboard', label: 'Dashboard' },
-              { key: 'fleetAndMaintenance', label: 'Fleet & Maintenance' },
-              { key: 'routeDispatch', label: 'Route Dispatch' },
-              { key: 'inventory', label: 'Inventory' },
-              { key: 'salesAndDelivery', label: 'Sales & Delivery' },
-              { key: 'manageUsers', label: 'Manage Users' },
-            ].map((item) => (
+            {permissionMapping.map((item) => (
               <div key={item.key} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-100">
                 <span className="text-[#104e7a] text-sm font-semibold">{item.label}</span>
                 
@@ -91,14 +118,14 @@ export default function PermissionsModal({ isOpen, onClose }) {
                   type="button"
                   onClick={() => handleToggle(item.key)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full border-2 transition-colors focus:outline-none ${
-                    permissions[item.key] 
+                    localPermissions[item.key] 
                       ? 'bg-[#0F7AB2] border-[#0F7AB2]' 
                       : 'bg-white border-gray-300' 
                   }`}
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
-                      permissions[item.key]
+                      localPermissions[item.key]
                         ? 'translate-x-5'
                         : 'translate-x-0.5'
                     }`}
