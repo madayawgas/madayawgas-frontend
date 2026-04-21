@@ -40,8 +40,8 @@ const TruckStatusSelector = ({ currentStatus, onSelect }) => {
 };
 
 export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, onAdd, isAdding = false }) {
-  const { getDriverOptions } = useData();
-  const availableDrivers = getDriverOptions();
+  const { getDriverOptions, trucks } = useData();
+  const availableDrivers = getDriverOptions(truck?.assignedDriverId);
   
   const [isEditing, setIsEditing] = useState(isAdding);
   const [errors, setErrors] = useState({});
@@ -65,7 +65,13 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
     let parsedValue = value;
     
     // Handle numeric fields
-    if (["currentOdometer", "lastPMOdometer", "assignedDriverId", "yearModel", "capacity"].includes(name)) {
+    if (["currentOdometer", "lastPMOdometer", "yearModel", "capacity"].includes(name)) {
+      // Prevent negative numbers on change
+      if (value !== "" && Number(value) < 0) return;
+      parsedValue = value === "" ? "" : Number(value);
+    }
+
+    if (name === "assignedDriverId") {
       parsedValue = value === "" ? "" : Number(value);
     }
 
@@ -89,7 +95,7 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
       newErrors.plateNumber = "Plate number is required";
     } else {
       const plateExists = trucks.find(t => 
-        t.plateNumber.toLowerCase() === formData.plateNumber.toString().toLowerCase() && 
+        t.plateNumber.toString().toLowerCase() === formData.plateNumber.toString().toLowerCase() && 
         t.truckId !== truck?.truckId
       );
       if (plateExists) {
@@ -124,7 +130,8 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
   const submitSave = () => {
     if (!validate()) return;
 
-    const selectedDriver = availableDrivers.find(d => d.userId === formData.assignedDriverId);
+    // Use users list for driver name lookup if needed, or get it from availableDrivers
+    const selectedDriver = [...availableDrivers, ...(truck?.assignedDriverId ? [{ userId: truck.assignedDriverId, name: truck.driverName }] : [])].find(d => d.userId === formData.assignedDriverId);
     
     const currentDate = new Date();
     const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}-${currentDate.getFullYear()} ${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}:${String(currentDate.getSeconds()).padStart(2, '0')}`;
@@ -132,6 +139,7 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
     const finalData = {
       ...formData,
       driverName: selectedDriver ? selectedDriver.name : "Unassigned",
+      assignedDriverId: formData.assignedDriverId || null,
       lastUpdated: formattedDate
     };
 
@@ -143,7 +151,23 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
     setIsEditing(false);
   };
 
-  const driverOptions = availableDrivers.map(d => ({ value: d.userId, label: d.name }));
+  // Prepare driver options with "Unassigned" option
+  const driverOptions = [
+    { value: "", label: "Unassigned" },
+    ...availableDrivers.map(d => ({ value: d.userId, label: d.name }))
+  ];
+
+  // If editing and has a current driver, ensure they are in the options if not already
+  if (formData.assignedDriverId && !driverOptions.some(opt => opt.value === formData.assignedDriverId)) {
+    // This case happens when the current driver is not in "availableDrivers" (which is correct as they are already assigned to THIS truck)
+    // We already passed truck?.assignedDriverId to getDriverOptions, so they should be there.
+    // But just in case:
+    const currentDriver = trucks.find(t => t.truckId === truck?.truckId)?.driverName;
+    if (currentDriver && currentDriver !== "Unassigned") {
+       // Driver should be in the list because of getDriverOptions(truck?.assignedDriverId)
+    }
+  }
+
   const displayTruck = truck || {};
 
   const editFooter = (
