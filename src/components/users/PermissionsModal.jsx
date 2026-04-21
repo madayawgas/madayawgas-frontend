@@ -120,7 +120,7 @@ export default function PermissionsModal({ isOpen, onClose }) {
                   className={`relative inline-flex h-6 w-11 items-center rounded-full border-2 transition-colors focus:outline-none ${
                     localPermissions[item.key] 
                       ? 'bg-[#0F7AB2] border-[#0F7AB2]' 
-                      : 'bg-white border-gray-300' 
+                      : 'bg-gray-200 border-gray-200' 
                   }`}
                 >
                   <span
