@@ -3,11 +3,14 @@ import SearchBar from "../../components/ui/SearchBar";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Select from "../../components/ui/Select";
+import { useData } from "../../context/DataContext";
 import { Trash, Edit, Funnel, Plus, Settings } from "lucide-react";
 
 export default function Users() {
     
     const [filterRole, setFilterRole] = useState("all");
+    const { users, deleteUser } = useData();
+    const filteredUsers = filterRole === "all" ? users : users.filter(user => user.role === filterRole);
 
     return (
         <Card>
@@ -79,12 +82,13 @@ export default function Users() {
                         </tr>
                     </thead>
                     <tbody className="min-w-full">
-                        <tr>
-                            <td className="first-name p-2 text-center">Alejandro</td>
-                            <td className="last-name p-2 text-center">Doe</td>
-                            <td className="contact-number p-2 text-center">123-456-7890</td>
-                            <td className="role p-2 text-center">Admin</td>
-                            <td className="date-created p-2 text-center">2026-01-01</td>
+                        {filteredUsers.map((user) => (
+                        <tr key={user.userId} className="border border-gray-200 hover:bg-gray-50 transition-colors">
+                            <td className="first-name p-2 text-center">{user.name}</td>
+                            <td className="last-name p-2 text-center">{user.lastName}</td>
+                            <td className="contact-number p-2 text-center">{user.contactNumber}</td>
+                            <td className="role p-2 text-center">{user.role}</td>
+                            <td className="date-created p-2 text-center">{user.dateCreated}</td>
                             <td class="px-6 py-4 items-center flex justify-center">
                                 <div class="flex items-center gap-4">
                                     {/* Edit Icon Button */}
@@ -93,12 +97,13 @@ export default function Users() {
                                     </button>
 
                                     {/* Trash Icon Button */}
-                                    <button className="text-slate-400 hover:text-red-600 transition-colors">
+                                    <button onClick={() => deleteUser(user.userId)} className="text-slate-400 hover:text-red-600 transition-colors">
                                         <Trash size={18} strokeWidth={2.5} />
                                     </button>
                                 </div>
                             </td>
                         </tr>
+                        ))}
                     </tbody>
                 </table>
             </div>
