@@ -27,10 +27,10 @@ const router = createBrowserRouter([
   },
   {
     path: "/",
-    element: <Layout />, // Layout acts as the wrapper and security bouncer
+    element: <Layout />, // Layout handles the security!
     children: [
       {
-        index: true, // If they go to exactly "/", redirect to dashboard
+        index: true, // If they go to exactly "localhost:5173/", redirect to dashboard
         element: <Navigate to="/dashboard" replace />,
       },
       {
@@ -64,7 +64,7 @@ const router = createBrowserRouter([
     ],
   },
   {
-    // Catch-all route for any undefined URLs (e.g., /random-page)
+    // Catch-all route: If they type a URL that doesn't exist, kick to login
     path: "*",
     element: <Navigate to="/login" replace />,
   },
@@ -72,9 +72,7 @@ const router = createBrowserRouter([
 
 // 2. WRAP THE ROUTER WITH YOUR DATA PROVIDER
 createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <DataProvider>
-      <RouterProvider router={router} />
-    </DataProvider>
-  </StrictMode>
+  <DataProvider>
+    <RouterProvider router={router} />
+  </DataProvider>
 );
