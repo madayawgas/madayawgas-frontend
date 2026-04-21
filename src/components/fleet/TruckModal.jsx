@@ -44,8 +44,17 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
   const availableDrivers = getDriverOptions();
   
   const [isEditing, setIsEditing] = useState(isAdding);
+  const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({ 
     status: "AVAILABLE",
+    plateNumber: "",
+    yearModel: "",
+    assignedDriverId: "",
+    model: "",
+    currentOdometer: "",
+    lastPMOdometer: "",
+    capacity: "",
+    activeRepair: "",
     ...(truck || {}) 
   });
 
@@ -55,6 +64,7 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
     const { name, value } = e.target;
     let parsedValue = value;
     
+    // Handle numeric fields
     if (["currentOdometer", "lastPMOdometer", "assignedDriverId", "yearModel", "capacity"].includes(name)) {
       parsedValue = value === "" ? "" : Number(value);
     }
@@ -79,7 +89,7 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
       newErrors.plateNumber = "Plate number is required";
     } else {
       const plateExists = trucks.find(t => 
-        t.plateNumber.toLowerCase() === formData.plateNumber.toLowerCase() && 
+        t.plateNumber.toLowerCase() === formData.plateNumber.toString().toLowerCase() && 
         t.truckId !== truck?.truckId
       );
       if (plateExists) {
@@ -98,11 +108,11 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
       newErrors.capacity = "Cannot be negative";
     }
     if (formData.yearModel < 0) {
-      newErrors.yearModel = "Cannot be negative";
+      newErrors.yearModel = "Invalid year";
     }
 
     // 3. Status Check: A truck cannot be saved as "Active" if the driver is "Unassigned"
-    // Assuming "AVAILABLE" and "IN_USE" are active statuses
+    // "AVAILABLE" and "IN_USE" are considered active statuses
     if ((formData.status === "AVAILABLE" || formData.status === "IN_USE") && !formData.assignedDriverId) {
       newErrors.assignedDriverId = "Active trucks must have an assigned driver";
     }
@@ -114,8 +124,7 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
   const submitSave = () => {
     if (!validate()) return;
 
-    const selectedDriver = availableDrivers.find(d => d.userId === formData.assignedDriverId) || 
-                          (truck?.assignedDriverId === formData.assignedDriverId ? { name: truck.driverName } : null);
+    const selectedDriver = availableDrivers.find(d => d.userId === formData.assignedDriverId);
     
     const currentDate = new Date();
     const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}-${currentDate.getFullYear()} ${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}:${String(currentDate.getSeconds()).padStart(2, '0')}`;
@@ -163,16 +172,20 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
       {isEditing || isAdding ? (
         <div className="space-y-4 text-left py-2">
           <div className="flex gap-4">
-            <Input label="Plate Number" name="plateNumber" value={formData.plateNumber || ""} onChange={handleInputChange} placeholder="e.g. ABC-1234" />
-            <Input label="Year Model" type="number" name="yearModel" value={formData.yearModel || ""} onChange={handleInputChange} placeholder="e.g. 2023" />
+            <Input label="Plate Number" name="plateNumber" value={formData.plateNumber || ""} onChange={handleInputChange} placeholder="e.g. ABC-1234" error={errors.plateNumber} />
+            <Input label="Year Model" type="number" name="yearModel" value={formData.yearModel || ""} onChange={handleInputChange} placeholder="e.g. 2023" error={errors.yearModel} />
           </div>
           
-          <Select label="Assign Driver" name="assignedDriverId" value={formData.assignedDriverId || ""} onChange={handleInputChange} options={driverOptions} />
-          <Input label="Truck Model" name="model" value={formData.model || ""} onChange={handleInputChange} placeholder="e.g. Isuzu Elf 250" />
+          <Select label="Assign Driver" name="assignedDriverId" value={formData.assignedDriverId || ""} onChange={handleInputChange} options={driverOptions} error={errors.assignedDriverId} />
           
           <div className="flex gap-4">
-            <Input label="Current Odometer" type="number" name="currentOdometer" value={formData.currentOdometer || ""} onChange={handleInputChange} />
-            <Input label="Last PM Odometer" type="number" name="lastPMOdometer" value={formData.lastPMOdometer || ""} onChange={handleInputChange} />
+            <Input label="Truck Model" name="model" value={formData.model || ""} onChange={handleInputChange} placeholder="e.g. Isuzu Elf 250" error={errors.model} />
+            <Input label="Capacity (L/T)" type="number" name="capacity" value={formData.capacity || ""} onChange={handleInputChange} placeholder="e.g. 500" error={errors.capacity} />
+          </div>
+          
+          <div className="flex gap-4">
+            <Input label="Current Odometer" type="number" name="currentOdometer" value={formData.currentOdometer || ""} onChange={handleInputChange} error={errors.currentOdometer} />
+            <Input label="Last PM Odometer" type="number" name="lastPMOdometer" value={formData.lastPMOdometer || ""} onChange={handleInputChange} error={errors.lastPMOdometer} />
           </div>
           
           <div className="w-full flex flex-col gap-1.5 mt-2">
@@ -205,6 +218,7 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
         <div className="text-left space-y-4 text-gray-800 py-2">
           <p>Assigned Driver: <span className="font-medium">{displayTruck.driverName}</span></p>
           <p>Truck Model: <span className="font-medium">{displayTruck.yearModel} {displayTruck.model}</span></p>
+          <p>Capacity: <span className="font-medium">{displayTruck.capacity} L/T</span></p>
           <p>Current Odometer: <span className="font-medium">{displayTruck.currentOdometer?.toLocaleString()} KM</span></p>
           <p>Last PM Odometer: <span className="font-medium">{displayTruck.lastPMOdometer?.toLocaleString()} KM</span></p>
           
