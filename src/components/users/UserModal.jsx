@@ -59,14 +59,26 @@ export default function UserModal({ isOpen, onClose, onSave, user }) {
     onClose();
   };
 
+  const footer = (
+    <div className="flex justify-end gap-3">
+      <Button type="button" variant="secondary" onClick={onClose}>
+        CANCEL
+      </Button>
+      <Button type="submit" form="user-form" variant="primary">
+        {user ? "UPDATE USER" : "ADD USER"}
+      </Button>
+    </div>
+  );
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={user ? "Edit User" : "Add New User"}
       maxWidth="max-w-md"
+      footer={footer}
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="user-form" onSubmit={handleSubmit} className="space-y-4 py-2">
         <Input
           label="First Name"
           name="firstName"
@@ -104,14 +116,6 @@ export default function UserModal({ isOpen, onClose, onSave, user }) {
           options={roleOptions}
           required
         />
-        <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 mt-6">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            CANCEL
-          </Button>
-          <Button type="submit" variant="primary">
-            {user ? "UPDATE USER" : "ADD USER"}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

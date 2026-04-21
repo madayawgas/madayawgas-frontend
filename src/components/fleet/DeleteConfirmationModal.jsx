@@ -6,9 +6,20 @@ import Button from "../ui/Button";
 export default function DeleteConfirmationModal({ truck, onConfirm, onClose }) {
   if (!truck) return null;
 
+  const footer = (
+    <div className="flex justify-center gap-4">
+      <Button variant="danger" className="px-8" onClick={onConfirm}>
+        DELETE
+      </Button>
+      <Button variant="secondary" className="px-8" onClick={onClose}>
+        CANCEL
+      </Button>
+    </div>
+  );
+
   return (
-    <Modal isOpen={true} onClose={onClose} maxWidth="max-w-sm">
-      <div className="text-center">
+    <Modal isOpen={true} onClose={onClose} maxWidth="max-w-sm" footer={footer}>
+      <div className="text-center py-4">
         {/* Warning Icon */}
         <div className="flex justify-center mb-6">
           <AlertCircle size={60} className="text-red-500" />
@@ -20,19 +31,9 @@ export default function DeleteConfirmationModal({ truck, onConfirm, onClose }) {
         </h2>
 
         {/* Message */}
-        <p className="text-gray-700 text-sm mb-8">
+        <p className="text-gray-700 text-sm">
           Are you sure you want to delete <span className="font-semibold text-gray-900">{truck.plateNumber || `Truck #${truck.truckId}`}</span>? This action cannot be undone.
         </p>
-
-        {/* Action Buttons */}
-        <div className="flex justify-center gap-4">
-          <Button variant="danger" className="px-8" onClick={onConfirm}>
-            DELETE
-          </Button>
-          <Button variant="secondary" className="px-8" onClick={onClose}>
-            CANCEL
-          </Button>
-        </div>
       </div>
     </Modal>
   );
