@@ -1,31 +1,17 @@
+// src/components/dashboard/SalesGraph.jsx
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import Card from "../ui/Card";
-
-// --- MOCK DATA ---
-const monthlyData = [
-  { name: "Jan", param1: 4000, param2: 2400 },
-  { name: "Feb", param1: 3000, param2: 1398 },
-  { name: "Mar", param1: 2000, param2: 9800 },
-  { name: "Apr", param1: 2780, param2: 3908 },
-  { name: "May", param1: 1890, param2: 4800 },
-  { name: "Jun", param1: 2390, param2: 3800 },
-  { name: "Jul", param1: 3490, param2: 4300 },
-];
-
-const annualData = [
-  { name: "2018", param1: 24000, param2: 14000 },
-  { name: "2019", param1: 13000, param2: 23000 },
-  { name: "2020", param1: 38000, param2: 18000 },
-  { name: "2021", param1: 39000, param2: 42000 },
-  { name: "2022", param1: 48000, param2: 38000 },
-  { name: "2023", param1: 38000, param2: 43000 },
-  { name: "2024", param1: 43000, param2: 55000 },
-];
+import { useData } from "../../context/DataContext"; 
 
 export default function SalesGraph() {
   const [timeframe, setTimeframe] = useState("monthly");
-  const activeData = timeframe === "monthly" ? monthlyData : annualData;
+  const { weeklySales, monthlySales, annualSales } = useData();
+
+  const activeData = 
+    timeframe === "weekly" ? weeklySales :
+    timeframe === "monthly" ? monthlySales : 
+    annualSales;
 
   return (
     <Card className="flex-1 flex flex-col min-h-[350px]">
@@ -38,38 +24,35 @@ export default function SalesGraph() {
         
         {/* Toggle Pills */}
         <div className="flex items-center gap-2 text-sm font-semibold">
-          <button
-            onClick={() => setTimeframe("monthly")}
-            className={`px-4 py-1.5 rounded-full transition ${
-              timeframe === "monthly"
-                ? "bg-[#D8E6F0] text-[#0F7AB2]"
-                : "text-[#0F7AB2] hover:bg-gray-50"
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            onClick={() => setTimeframe("annually")}
-            className={`px-4 py-1.5 rounded-full transition ${
-              timeframe === "annually"
-                ? "bg-[#D8E6F0] text-[#0F7AB2]"
-                : "text-[#0F7AB2] hover:bg-gray-50"
-            }`}
-          >
-            Annually
-          </button>
+          {["weekly", "monthly", "annually"].map((tf) => (
+            <button
+              key={tf}
+              onClick={() => setTimeframe(tf)}
+              className={`px-4 py-1.5 rounded-full transition capitalize ${
+                timeframe === tf
+                  ? "bg-[#D8E6F0] text-[#0F7AB2]"
+                  : "text-[#0F7AB2] hover:bg-gray-50"
+              }`}
+            >
+              {tf}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Custom HTML Legend */}
-      <div className="flex items-center gap-6 mb-6">
-        <div className="flex items-center gap-2 text-sm text-[#0F7AB2] font-medium">
-          <span className="w-6 h-1.5 bg-[#7CB3D1] rounded-full"></span>
-          Parameter 1
-        </div>
+      <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-6">
         <div className="flex items-center gap-2 text-sm text-[#0F7AB2] font-medium">
           <span className="w-6 h-1.5 bg-[#B8D4E5] rounded-full"></span>
-          Parameter 2
+          Butane Canister
+        </div>
+        <div className="flex items-center gap-2 text-sm text-[#0F7AB2] font-medium">
+          <span className="w-6 h-1.5 bg-[#7CB3D1] rounded-full"></span>
+          11 kg LPG
+        </div>
+        <div className="flex items-center gap-2 text-sm text-[#0F7AB2] font-medium">
+          <span className="w-6 h-1.5 bg-[#0F7AB2] rounded-full"></span>
+          50 kg LPG
         </div>
       </div>
 
@@ -101,31 +84,24 @@ export default function SalesGraph() {
               contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
             />
 
-            {/*<Line
-              type="monotone"
-              dataKey="param1"
-              stroke="#7CB3D1"
-              strokeWidth={2}
-              dot={{ r: 3, fill: "#7CB3D1", strokeWidth: 0 }}
-              activeDot={{ r: 6 }}
+            <Bar 
+              dataKey="butane" 
+              name="Butane Canister"
+              fill="#B8D4E5" 
+              barSize={12} 
+              radius={[4, 4, 0, 0]} 
             />
-            <Line
-              type="monotone"
-              dataKey="param2"
-              stroke="#B8D4E5"
-              strokeWidth={2}
-              dot={{ r: 3, fill: "#B8D4E5", strokeWidth: 0 }}
-              activeDot={{ r: 6 }}
-            />*/}
-             <Bar 
-              dataKey="param1" 
+            <Bar 
+              dataKey="lpg11kg" 
+              name="11 kg LPG"
               fill="#7CB3D1" 
               barSize={12} 
               radius={[4, 4, 0, 0]} 
             />
-             <Bar 
-              dataKey="param2" 
-              fill="#B8D4E5" 
+            <Bar 
+              dataKey="lpg50kg" 
+              name="50 kg LPG"
+              fill="#0F7AB2" 
               barSize={12} 
               radius={[4, 4, 0, 0]} 
             />
