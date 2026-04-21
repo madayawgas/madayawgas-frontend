@@ -40,8 +40,8 @@ const TruckStatusSelector = ({ currentStatus, onSelect }) => {
 };
 
 export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, onAdd, isAdding = false }) {
-  const { trucks, getDriverOptions } = useData();
-  const availableDrivers = getDriverOptions(truck?.assignedDriverId);
+  const { getDriverOptions } = useData();
+  const availableDrivers = getDriverOptions();
   
   const [isEditing, setIsEditing] = useState(isAdding);
   const [errors, setErrors] = useState({});
@@ -143,10 +143,7 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
     setIsEditing(false);
   };
 
-  const driverOptions = [
-    { value: "", label: "Unassigned" },
-    ...availableDrivers.map(d => ({ value: d.userId, label: d.name }))
-  ];
+  const driverOptions = availableDrivers.map(d => ({ value: d.userId, label: d.name }));
   const displayTruck = truck || {};
 
   const editFooter = (
