@@ -62,7 +62,8 @@ export default function Users() {
                         options={[
                             { value: "all", label: "All Roles" },
                             { value: "admin", label: "Admin" },
-                            { value: "user", label: "User" },
+                            { value: "driver", label: "Driver" },
+                            { value: "manager", label: "Manager" },
                         ]}
                         className="pl-10"
                     />
@@ -84,7 +85,7 @@ export default function Users() {
                     <tbody className="min-w-full">
                         {filteredUsers.map((user) => (
                         <tr key={user.userId} className="border border-gray-200 hover:bg-gray-50 transition-colors">
-                            <td className="first-name p-2 text-center">{user.name}</td>
+                            <td className="first-name p-2 text-center">{user.firstName}</td>
                             <td className="last-name p-2 text-center">{user.lastName}</td>
                             <td className="contact-number p-2 text-center">{user.contactNumber}</td>
                             <td className="role p-2 text-center">{user.role}</td>
