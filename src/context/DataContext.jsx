@@ -131,8 +131,16 @@ export const DataProvider = ({ children }) => {
     );
   };
 
-  const getDriverOptions = () => {
-    return users.filter((user) => user.roleId === 3 && user.isActive);
+  const getDriverOptions = (currentDriverId = null) => {
+    const assignedDriverIds = trucks
+      .map(t => t.assignedDriverId)
+      .filter(id => id !== null && id !== undefined && id !== currentDriverId);
+
+    return users.filter((user) => 
+      user.roleId === 3 && 
+      user.isActive && 
+      !assignedDriverIds.includes(user.userId)
+    );
   };
 
   const resetData = () => {
