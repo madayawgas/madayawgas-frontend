@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useData } from "../../context/DataContext";
 import Button from "../ui/Button";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
@@ -6,19 +7,11 @@ import Modal from "../ui/Modal";
 import Badge from "../ui/Badge";
 import TruckStatus from "./TruckStatus";
 
-const availableDrivers = [
-  { id: 3, name: "Andres Bonifacio" },
-  { id: 4, name: "Jose Rizal" },
-  { id: 5, name: "Apolinario Mabini" },
-  { id: 6, name: "Emilio Aguinaldo" },
-  { id: 7, name: "Antonio Luna" },
-];
-
 const getBadgeVariant = (status) => {
   switch(status) {
     case "AVAILABLE": return "success";
-    case "UNDER_MAINTENANCE": return "danger";
-    case "IN_SHOP": return "danger";
+    case "UNDER_MAINTENANCE": return "maintenance";
+    case "IN_SHOP": return "neutral";
     case "IN_USE": return "info";
     default: return "warning";
   }
@@ -46,124 +39,135 @@ const TruckStatusSelector = ({ currentStatus, onSelect }) => {
   );
 };
 
-const TruckEditForm = ({ truck, onSave, onCancel }) => {
-  const [formData, setFormData] = useState({ ...truck });
+export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, onAdd, isAdding = false }) {
+  const { getDriverOptions } = useData();
+  const availableDrivers = getDriverOptions();
+  
+  const [isEditing, setIsEditing] = useState(isAdding);
+  const [formData, setFormData] = useState({ 
+    status: "AVAILABLE",
+    ...(truck || {}) 
+  });
+
+  if (!truck && !isAdding) return null;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    const parsedValue = (name === "currentOdometer" || name === "lastPMOdometer" || name === "assignedDriverId") 
+    const parsedValue = (name === "currentOdometer" || name === "lastPMOdometer" || name === "assignedDriverId" || name === "yearModel") 
       ? Number(value) 
       : value;
     setFormData((prev) => ({ ...prev, [name]: parsedValue }));
   };
 
   const submitSave = () => {
-    const selectedDriver = availableDrivers.find(d => d.id === formData.assignedDriverId);
+    const selectedDriver = availableDrivers.find(d => d.userId === formData.assignedDriverId);
     const currentDate = new Date();
     const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}-${currentDate.getFullYear()} ${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}:${String(currentDate.getSeconds()).padStart(2, '0')}`;
 
-    onSave({
+    const finalData = {
       ...formData,
       driverName: selectedDriver ? selectedDriver.name : "Unassigned",
       lastUpdated: formattedDate
-    });
+    };
+
+    if (isAdding) {
+      onAdd(finalData);
+    } else {
+      onUpdate(truck.truckId, finalData); 
+    }
+    setIsEditing(false);
   };
 
-  const driverOptions = availableDrivers.map(d => ({ value: d.id, label: d.name }));
+  const driverOptions = availableDrivers.map(d => ({ value: d.userId, label: d.name }));
+  const displayTruck = truck || {};
 
-  return (
-    <div className="space-y-4 mb-4 text-left">
-      <Select label="Assign Driver" name="assignedDriverId" value={formData.assignedDriverId || ""} onChange={handleInputChange} options={driverOptions} />
-      <Input label="Truck Model" name="model" value={formData.model || ""} onChange={handleInputChange} />
-      
-      <div className="flex gap-4">
-        <Input label="Current Odometer" type="number" name="currentOdometer" value={formData.currentOdometer || ""} onChange={handleInputChange} />
-        <Input label="Last PM Odometer" type="number" name="lastPMOdometer" value={formData.lastPMOdometer || ""} onChange={handleInputChange} />
-      </div>
-      
-      <div className="w-full flex flex-col gap-1.5 mt-2">
-        <label className="text-gray-800 font-medium text-sm">Truck Status</label>
-        <TruckStatusSelector 
-          currentStatus={formData.status} 
-          onSelect={(status) => setFormData((prev) => ({ ...prev, status: status }))} 
-        />
-      </div>
-      
-      <div className="w-full flex flex-col gap-1.5 mt-2">
-        <label className="text-gray-800 font-medium text-sm">Active Repair Notes</label>
-        <textarea name="activeRepair" rows={2} value={formData.activeRepair || ""} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 text-sm text-gray-800 focus:ring-2 focus:ring-[#0F7AB2]/30 outline-none resize-none" placeholder="Enter maintenance details if applicable..." />
-      </div>
-
-      <div className="text-gray-600 text-sm mt-4">
-        <p>Last updated: <span className="font-medium">{truck.lastUpdated || "N/A"}</span></p>
-      </div>
-
-      <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-        <Button variant="secondary" onClick={onCancel}>CANCEL</Button>
-        <Button variant="primary" onClick={submitSave}>SAVE</Button>
-      </div>
+  const editFooter = (
+    <div className="flex justify-end gap-3">
+      <Button variant="secondary" onClick={onClose}>CANCEL</Button>
+      <Button variant="primary" onClick={submitSave}>{isAdding ? "ADD TRUCK" : "SAVE"}</Button>
     </div>
   );
-};
 
-const TruckViewDetails = ({ truck, onEditClick, onDeleteClick, onClose }) => (
-  <div className="text-left">
-    <div className="space-y-4 text-gray-800 mb-8">
-      <p>Assigned Driver: <span className="font-medium">{truck.driverName}</span></p>
-      <p>Truck Model: <span className="font-medium">{truck.yearModel} {truck.model}</span></p>
-      <p>Current Odometer: <span className="font-medium">{truck.currentOdometer?.toLocaleString()} KM</span></p>
-      <p>Last PM Odometer: <span className="font-medium">{truck.lastPMOdometer?.toLocaleString()} KM</span></p>
-      
-      <div className="flex items-center gap-2">
-        <p>Truck Status:</p>
-        <Badge variant={getBadgeVariant(truck.status)}>
-          {truck.status.replace("_", " ")}
-        </Badge>
-      </div>
-
-      {truck.activeRepair && (
-        <div className="bg-red-50 text-red-800 p-4 rounded-lg text-sm border border-red-100 mt-2">
-          <p className="font-bold mb-1">Active Repair:</p>
-          <p>{truck.activeRepair}</p>
-        </div>
-      )}
-
-      <p className="pt-2 text-gray-600 text-sm">Last updated: <span className="font-medium">{truck.lastUpdated || "N/A"}</span></p>
-    </div>
-
+  const viewFooter = (
     <div className="flex justify-center gap-3">
-      <Button variant="primary" className="px-8" onClick={onEditClick}>EDIT</Button>
-      <Button variant="danger" onClick={() => onDeleteClick(truck)}>DELETE</Button>
+      <Button variant="primary" className="px-8" onClick={() => setIsEditing(true)}>EDIT</Button>
+      <Button variant="danger" onClick={() => onDeleteClick(displayTruck)}>DELETE</Button>
       <Button variant="secondary" onClick={onClose}>CLOSE</Button>
     </div>
-  </div>
-);
-
-export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick }) {
-  const [isEditing, setIsEditing] = useState(false);
-
-  if (!truck) return null;
+  );
 
   return (
     <Modal 
       isOpen={true} 
       onClose={onClose} 
-      title={truck.plateNumber || `Truck #${truck.truckId}`}
-      maxWidth={isEditing ? "max-w-xl" : "max-w-md"}
+      title={isAdding ? "Add New Truck" : (isEditing ? "Edit Truck" : (displayTruck.plateNumber || `Truck #${displayTruck.truckId}`))}
+      maxWidth={(isEditing || isAdding) ? "max-w-xl" : "max-w-md"}
+      footer={isEditing || isAdding ? editFooter : viewFooter}
     >
-      {isEditing ? (
-        <TruckEditForm 
-          truck={truck} 
-          onSave={(data) => { onUpdate(truck.truckId, data); setIsEditing(false); }} 
-          onCancel={() => setIsEditing(false)} 
-        />
+      {isEditing || isAdding ? (
+        <div className="space-y-4 text-left py-2">
+          <div className="flex gap-4">
+            <Input label="Plate Number" name="plateNumber" value={formData.plateNumber || ""} onChange={handleInputChange} placeholder="e.g. ABC-1234" />
+            <Input label="Year Model" type="number" name="yearModel" value={formData.yearModel || ""} onChange={handleInputChange} placeholder="e.g. 2023" />
+          </div>
+          
+          <Select label="Assign Driver" name="assignedDriverId" value={formData.assignedDriverId || ""} onChange={handleInputChange} options={driverOptions} />
+          <Input label="Truck Model" name="model" value={formData.model || ""} onChange={handleInputChange} placeholder="e.g. Isuzu Elf 250" />
+          
+          <div className="flex gap-4">
+            <Input label="Current Odometer" type="number" name="currentOdometer" value={formData.currentOdometer || ""} onChange={handleInputChange} />
+            <Input label="Last PM Odometer" type="number" name="lastPMOdometer" value={formData.lastPMOdometer || ""} onChange={handleInputChange} />
+          </div>
+          
+          <div className="w-full flex flex-col gap-1.5 mt-2">
+            <label className="text-gray-800 font-medium text-sm">Truck Status</label>
+            <TruckStatusSelector 
+              currentStatus={formData.status} 
+              onSelect={(status) => setFormData((prev) => ({ ...prev, status: status }))} 
+            />
+          </div>
+          
+          <div className="w-full flex flex-col gap-1.5 mt-2">
+            <label className="text-gray-800 font-medium text-sm">Active Repair Notes</label>
+            <textarea 
+              name="activeRepair" 
+              rows={2} 
+              value={formData.activeRepair || ""} 
+              onChange={handleInputChange} 
+              className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 text-sm text-gray-800 focus:ring-2 focus:ring-[#0F7AB2]/30 outline-none resize-none" 
+              placeholder="Enter maintenance details if applicable..." 
+            />
+          </div>
+
+          {!isAdding && (
+            <div className="text-gray-600 text-sm mt-4">
+              <p>Last updated: <span className="font-medium">{displayTruck.lastUpdated || "N/A"}</span></p>
+            </div>
+          )}
+        </div>
       ) : (
-        <TruckViewDetails 
-          truck={truck} 
-          onEditClick={() => setIsEditing(true)} 
-          onDeleteClick={onDeleteClick} 
-          onClose={onClose} 
-        />
+        <div className="text-left space-y-4 text-gray-800 py-2">
+          <p>Assigned Driver: <span className="font-medium">{displayTruck.driverName}</span></p>
+          <p>Truck Model: <span className="font-medium">{displayTruck.yearModel} {displayTruck.model}</span></p>
+          <p>Current Odometer: <span className="font-medium">{displayTruck.currentOdometer?.toLocaleString()} KM</span></p>
+          <p>Last PM Odometer: <span className="font-medium">{displayTruck.lastPMOdometer?.toLocaleString()} KM</span></p>
+          
+          <div className="flex items-center gap-2">
+            <p>Truck Status:</p>
+            <Badge variant={getBadgeVariant(displayTruck.status)}>
+              {displayTruck.status.replace("_", " ")}
+            </Badge>
+          </div>
+
+          {displayTruck.activeRepair && (
+            <div className="bg-red-50 text-red-800 p-4 rounded-lg text-sm border border-red-100 mt-2">
+              <p className="font-bold mb-1">Active Repair:</p>
+              <p>{displayTruck.activeRepair}</p>
+            </div>
+          )}
+
+          <p className="pt-2 text-gray-600 text-sm">Last updated: <span className="font-medium">{displayTruck.lastUpdated || "N/A"}</span></p>
+        </div>
       )}
     </Modal>
   );

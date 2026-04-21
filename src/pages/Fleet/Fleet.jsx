@@ -14,21 +14,16 @@ export default function Fleet() {
   const [truckToDelete, setTruckToDelete] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [isAddingTruck, setIsAddingTruck] = useState(false);
 
+  // Placeholder for adding a new truck - this can be expanded to open a modal for input
   const handleAddNewTruck = () => {
-    // Generates a mock truck matching your new schema
-    addTruck({
-      truckId: Math.floor(1000 + Math.random() * 9000),
-      plateNumber: `NEW-${Math.floor(1000 + Math.random() * 9000)}`,
-      model: "Unknown Model",
-      yearModel: new Date().getFullYear(),
-      currentOdometer: 0,
-      lastPMOdometer: 0,
-      status: "AVAILABLE",
-      assignedDriverId: null, // Unassigned by default
-      driverName: "Unassigned",
-      activeRepair: "",
-    });
+    setIsAddingTruck(true);
+  };
+
+  const handleAddTruck = (newTruckData) => {
+    addTruck(newTruckData);
+    setIsAddingTruck(false);
   };
 
   const handleUpdateTruck = (truckId, updatedData) => {
@@ -78,6 +73,14 @@ export default function Fleet() {
           onClose={() => setSelectedTruck(null)} 
           onUpdate={handleUpdateTruck}
           onDeleteClick={(truck) => setTruckToDelete(truck)}
+        />
+      )}
+
+      {isAddingTruck && (
+        <TruckModal
+          isAdding={true}
+          onClose={() => setIsAddingTruck(false)}
+          onAdd={handleAddTruck}
         />
       )}
 

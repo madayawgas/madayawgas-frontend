@@ -19,7 +19,7 @@ export default function TruckList({ title, trucks, status }) {
         {trucks.map((truck, index) => (
           <div
             key={index}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-semibold shrink-0 ${containerBg} ${textColor}`}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-semibold shrink-0 transition-transform duration-200 hover:scale-[1.02] ${containerBg} ${textColor}`}
           >
             <Truck size={20} />
             <span>{truck}</span>
