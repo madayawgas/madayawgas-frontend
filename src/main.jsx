@@ -17,8 +17,9 @@ import Users from "./pages/Users/Users";
 import RouteDispatch from "./pages/RouteDispatch/RouteDispatch";
 import Inventory from "./pages/Inventory/Inventory";
 import SalesAndDelivery from "./pages/SalesAndDelivery/SalesAndDelivery";
+import TestPage from "./pages/TestPage/TestPage";
 
-// Configure the Routes
+// 1. Configure the Routes
 const router = createBrowserRouter([
   {
     path: "/login",
@@ -26,14 +27,10 @@ const router = createBrowserRouter([
   },
   {
     path: "/",
-    element: <Navigate to="/dashboard" replace />,
-  },
-  {
-    path: "/",
-    element: <Layout />,
+    element: <Layout />, // Layout handles the security!
     children: [
       {
-        index: true,
+        index: true, // If they go to exactly "localhost:5173/", redirect to dashboard
         element: <Navigate to="/dashboard" replace />,
       },
       {
@@ -60,15 +57,22 @@ const router = createBrowserRouter([
         path: "users",
         element: <Users />,
       },
+      {
+        path: "test",
+        element: <TestPage />,
+      },
     ],
+  },
+  {
+    // Catch-all route: If they type a URL that doesn't exist, kick to login
+    path: "*",
+    element: <Navigate to="/login" replace />,
   },
 ]);
 
 // 2. WRAP THE ROUTER WITH YOUR DATA PROVIDER
 createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <DataProvider>
-      <RouterProvider router={router} />
-    </DataProvider>
-  </StrictMode>,
+  <DataProvider>
+    <RouterProvider router={router} />
+  </DataProvider>
 );

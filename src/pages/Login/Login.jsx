@@ -19,7 +19,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = async () => {
+ const handleLogin = async () => {
     if (loading) return;
 
     setLoading(true);
@@ -30,9 +30,13 @@ export default function Login() {
       const result = login(username, password);
 
       if (result.success) {
-        navigate("/app/dashboard");
+        if (result.user.roleName === "DRIVER") {
+          navigate("/sales-delivery"); 
+        } else {
+          navigate("/dashboard"); 
+        }
       } else {
-        setError("Invalid username or password");
+        setError(result.message || "Invalid username or password");
       }
 
       setLoading(false);

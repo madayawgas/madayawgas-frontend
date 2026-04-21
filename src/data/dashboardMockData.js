@@ -1,17 +1,25 @@
 // src/data/dashboardMockData.js
 import { allUsers } from "./userMockData";
 import { allHydratedTrucks } from "./truckMockData";
+import { annualSales, mockFuelConsumption } from "./salesMockData";
 
-// Constants for the dashboard financial numbers
-const grossIncome = 676767.5;
-const costPerCan = 0.1234;
+// Calculate total gross sales based on the annual array
+const grossIncome = annualSales.reduce(
+  (total, year) => total + year.butane + year.lpg11kg + year.lpg50kg,
+  0
+);
 
-export const getDashboardMetrics = () => {
+// Gross sales divided by fuel consumption
+const costPerCan = mockFuelConsumption > 0 
+  ? grossIncome / mockFuelConsumption 
+  : 0;
+
+export const getDashboardMetrics = (users = allUsers, trucks = allHydratedTrucks) => {
   // Split the hydrated trucks into their respective lists
-  const availableTrucksList = allHydratedTrucks.filter(
+  const availableTrucksList = trucks.filter(
     (t) => t.status === "AVAILABLE",
   );
-  const maintenanceTrucksList = allHydratedTrucks.filter(
+  const maintenanceTrucksList = trucks.filter(
     (t) => t.status === "UNDER_MAINTENANCE",
   );
 
@@ -21,8 +29,8 @@ export const getDashboardMetrics = () => {
     costPerCan,
 
     // Counts for Stat Cards
-    totalUsers: allUsers.length,
-    totalTrucks: allHydratedTrucks.length,
+    totalUsers: users.length,
+    totalTrucks: trucks.length,
     availableTrucksCount: availableTrucksList.length,
     trucksUnderMaintenanceCount: maintenanceTrucksList.length,
 
@@ -30,6 +38,6 @@ export const getDashboardMetrics = () => {
     maintenanceTrucksList,
 
     // Pass the full user list in case you need it for a "Manage Users" widget
-    usersList: allUsers,
+    usersList: users,
   };
 };
