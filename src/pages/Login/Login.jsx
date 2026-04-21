@@ -19,7 +19,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = async () => {
+ const handleLogin = async () => {
     if (loading) return;
 
     setLoading(true);
@@ -29,14 +29,15 @@ export default function Login() {
     setTimeout(() => {
       const result = login(username, password);
 
-     if (result.success) {
-        // Look at the role of the user who just logged in!
+      if (result.success) {
         if (result.user.roleName === "DRIVER") {
-          navigate("/sales-delivery"); // Send drivers to their delivery page
+          navigate("/sales-delivery"); 
         } else {
-          navigate("/dashboard"); // Send Admins and Managers to the dashboard
+          navigate("/dashboard"); 
         }
-      } else 
+      } else {
+        setError(result.message || "Invalid username or password");
+      }
 
       setLoading(false);
     }, 500);

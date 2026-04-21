@@ -23,6 +23,14 @@ export const DataProvider = ({ children }) => {
   });
   const [isAuthenticated, setIsAuthenticated] = useState(!!currentUser);
 
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem("madayaw_active_user", JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem("madayaw_active_user");
+    }
+  }, [currentUser]);
+ 
   // ==========================================================================
   // 2. APPLICATION DATA STATE
   // ==========================================================================
