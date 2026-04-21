@@ -1,8 +1,7 @@
-// src/context/DataContext.jsx
 import React, { createContext, useState, useEffect, useContext } from "react";
 
 // Import your initial static mock data
-import { allUsers } from "../data/userMockData";
+import { allUsers, PERMISSIONS as initialPermissions } from "../data/userMockData";
 import { trucks as rawTrucks } from "../data/truckMockData";
 import { allSalesRecords } from "../data/salesMockData";
 
@@ -24,22 +23,22 @@ export const DataProvider = ({ children }) => {
 
   const [salesRecords] = useState(allSalesRecords);
 
+  // --- NEW PERMISSIONS STATE FOR THE ASSIGNED TASK ---
+  const [rolePermissions, setRolePermissions] = useState(() => {
+    const saved = localStorage.getItem("mockApp_permissions");
+    return saved ? JSON.parse(saved) : initialPermissions;
+  });
+
   // ==========================================================================
   // 2. SALES DATA HELPERS
   // ==========================================================================
-
-  /**
-   * Filter and aggregate sales data based on period
-   * @param {string} period - "weekly", "monthly", "annual"
-   */
   const getSalesByPeriod = (period) => {
-    const now = new Date("2026-04-13"); // Context current date
-
+    const now = new Date("2026-04-13"); 
     let filtered = [...salesRecords];
 
     if (period === "weekly") {
       const lastWeek = new Date(now);
-      lastWeek.setDate(now.getDate() - 14); // 2 weeks back
+      lastWeek.setDate(now.getDate() - 14);
       filtered = salesRecords.filter((r) => new Date(r.date) >= lastWeek);
     } else if (period === "monthly") {
       const lastYear = new Date(now);
@@ -49,12 +48,8 @@ export const DataProvider = ({ children }) => {
 
     return filtered.map((record) => ({
       ...record,
-      // Cost per can: gross sales / fuel consumption (as requested)
       costPerCan: (record.totalGrossSales / record.fuelConsumption).toFixed(2),
-      // Fuel efficiency
-      salesPerLiter: (record.totalGrossSales / record.fuelConsumption).toFixed(
-        2,
-      ),
+      salesPerLiter: (record.totalGrossSales / record.fuelConsumption).toFixed(2),
     }));
   };
 
@@ -69,8 +64,35 @@ export const DataProvider = ({ children }) => {
     localStorage.setItem("mockApp_trucks", JSON.stringify(trucks));
   }, [trucks]);
 
+  // --- NEW SYNC FOR PERMISSIONS ---
+  useEffect(() => {
+    localStorage.setItem("mockApp_permissions", JSON.stringify(rolePermissions));
+  }, [rolePermissions]);
+
   // ==========================================================================
-  // 4. DYNAMIC HYDRATION (Trucks)
+  // 4. NEW METHOD FOR ASSIGNED TASK (BACKEND LOGIC)
+  // ==========================================================================
+  /**
+   * Toggles a permission for a specific role and saves it
+   */
+  const updateRolePermissions = (roleName, permissionKey) => {
+    setRolePermissions((prev) => {
+      const currentRoleList = prev[roleName] || [];
+      const isCurrentlyEnabled = currentRoleList.includes(permissionKey);
+
+      const updatedList = isCurrentlyEnabled
+        ? currentRoleList.filter((p) => p !== permissionKey) // Remove (Toggle OFF)
+        : [...currentRoleList, permissionKey]; // Add (Toggle ON)
+
+      return {
+        ...prev,
+        [roleName]: updatedList,
+      };
+    });
+  };
+
+  // ==========================================================================
+  // 5. EXISTING DYNAMIC HYDRATION & CRUD (DO NOT MODIFY)
   // ==========================================================================
   const activeHydratedTrucks = trucks.map((truck) => {
     const driver = users.find((u) => u.userId === truck.assignedDriverId);
@@ -81,7 +103,6 @@ export const DataProvider = ({ children }) => {
     };
   });
 
-  // (rest of CRUD methods remain same...)
   const addUser = (userData) => {
     const newUser = { ...userData, userId: Date.now(), isActive: true };
     setUsers((prev) => [...prev, newUser]);
@@ -89,9 +110,7 @@ export const DataProvider = ({ children }) => {
 
   const updateUser = (userId, updatedData) => {
     setUsers((prev) =>
-      prev.map((user) =>
-        user.userId === userId ? { ...user, ...updatedData } : user,
-      ),
+      prev.map((user) => (user.userId === userId ? { ...user, ...updatedData } : user))
     );
   };
 
@@ -111,9 +130,7 @@ export const DataProvider = ({ children }) => {
 
   const updateTruck = (truckId, updatedData) => {
     setTrucks((prev) =>
-      prev.map((truck) =>
-        truck.truckId === truckId ? { ...truck, ...updatedData } : truck,
-      ),
+      prev.map((truck) => (truck.truckId === truckId ? { ...truck, ...updatedData } : truck))
     );
   };
 
@@ -124,10 +141,8 @@ export const DataProvider = ({ children }) => {
   const updateTruckStatus = (truckId, newStatus, activeRepair = "") => {
     setTrucks((prev) =>
       prev.map((truck) =>
-        truck.truckId === truckId
-          ? { ...truck, status: newStatus, activeRepair }
-          : truck,
-      ),
+        truck.truckId === truckId ? { ...truck, status: newStatus, activeRepair } : truck
+      )
     );
   };
 
@@ -138,36 +153,29 @@ export const DataProvider = ({ children }) => {
   const resetData = () => {
     setUsers(allUsers);
     setTrucks(rawTrucks);
+    setRolePermissions(initialPermissions);
     localStorage.removeItem("mockApp_users");
     localStorage.removeItem("mockApp_trucks");
+    localStorage.removeItem("mockApp_permissions");
   };
 
   // ==========================================================================
-  // 5. LIVE DASHBOARD METRICS
+  // 6. DASHBOARD METRICS
   // ==========================================================================
   const lastRecord = salesRecords[salesRecords.length - 1];
-
   const dashboardMetrics = {
     grossIncome: lastRecord?.totalGrossSales || 0,
     costPerCan: (lastRecord?.totalGrossSales / lastRecord?.fuelConsumption || 0).toFixed(2),
     totalUsers: users.length,
     totalTrucks: activeHydratedTrucks.length,
-    availableTrucksCount: activeHydratedTrucks.filter(
-      (t) => t.status === "AVAILABLE",
-    ).length,
-    trucksUnderMaintenanceCount: activeHydratedTrucks.filter(
-      (t) => t.status === "UNDER_MAINTENANCE",
-    ).length,
-    availableTrucksList: activeHydratedTrucks.filter(
-      (t) => t.status === "AVAILABLE",
-    ),
-    maintenanceTrucksList: activeHydratedTrucks.filter(
-      (t) => t.status === "UNDER_MAINTENANCE",
-    ),
+    availableTrucksCount: activeHydratedTrucks.filter((t) => t.status === "AVAILABLE").length,
+    trucksUnderMaintenanceCount: activeHydratedTrucks.filter((t) => t.status === "UNDER_MAINTENANCE").length,
+    availableTrucksList: activeHydratedTrucks.filter((t) => t.status === "AVAILABLE"),
+    maintenanceTrucksList: activeHydratedTrucks.filter((t) => t.status === "UNDER_MAINTENANCE"),
   };
 
   // ==========================================================================
-  // 6. EXPORTING THE CONTEXT
+  // 7. EXPORTING THE CONTEXT
   // ==========================================================================
   const value = {
     users,
@@ -175,16 +183,15 @@ export const DataProvider = ({ children }) => {
     salesRecords,
     getSalesByPeriod,
     dashboardMetrics,
-
+    rolePermissions,       // NEW
+    updateRolePermissions, // NEW
     addUser,
     updateUser,
     deleteUser,
-
     addTruck,
     updateTruck,
     deleteTruck,
     updateTruckStatus,
-
     getDriverOptions,
     resetData,
   };
@@ -194,8 +201,6 @@ export const DataProvider = ({ children }) => {
 
 export const useData = () => {
   const context = useContext(DataContext);
-  if (!context) {
-    throw new Error("useData must be used within a DataProvider");
-  }
+  if (!context) throw new Error("useData must be used within a DataProvider");
   return context;
 };

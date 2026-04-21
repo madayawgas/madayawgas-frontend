@@ -1,18 +1,11 @@
 import { useState } from "react";
+import { useData } from "../../context/DataContext";
 import Button from "../ui/Button";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
 import Modal from "../ui/Modal";
 import Badge from "../ui/Badge";
 import TruckStatus from "./TruckStatus";
-
-const availableDrivers = [
-  { id: 3, name: "Andres Bonifacio" },
-  { id: 4, name: "Jose Rizal" },
-  { id: 5, name: "Apolinario Mabini" },
-  { id: 6, name: "Emilio Aguinaldo" },
-  { id: 7, name: "Antonio Luna" },
-];
 
 const getBadgeVariant = (status) => {
   switch(status) {
@@ -46,19 +39,25 @@ const TruckStatusSelector = ({ currentStatus, onSelect }) => {
   );
 };
 
-const TruckEditForm = ({ truck, onSave, onCancel }) => {
-  const [formData, setFormData] = useState({ ...truck });
+const TruckEditForm = ({ truck, onSave, onCancel, isAdding }) => {
+  const { getDriverOptions } = useData();
+  const availableDrivers = getDriverOptions();
+  
+  const [formData, setFormData] = useState({ 
+    status: "AVAILABLE",
+    ...truck 
+  });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    const parsedValue = (name === "currentOdometer" || name === "lastPMOdometer" || name === "assignedDriverId") 
+    const parsedValue = (name === "currentOdometer" || name === "lastPMOdometer" || name === "assignedDriverId" || name === "yearModel") 
       ? Number(value) 
       : value;
     setFormData((prev) => ({ ...prev, [name]: parsedValue }));
   };
 
   const submitSave = () => {
-    const selectedDriver = availableDrivers.find(d => d.id === formData.assignedDriverId);
+    const selectedDriver = availableDrivers.find(d => d.userId === formData.assignedDriverId);
     const currentDate = new Date();
     const formattedDate = `${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}-${currentDate.getFullYear()} ${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}:${String(currentDate.getSeconds()).padStart(2, '0')}`;
 
@@ -69,12 +68,17 @@ const TruckEditForm = ({ truck, onSave, onCancel }) => {
     });
   };
 
-  const driverOptions = availableDrivers.map(d => ({ value: d.id, label: d.name }));
+  const driverOptions = availableDrivers.map(d => ({ value: d.userId, label: d.name }));
 
   return (
     <div className="space-y-4 mb-4 text-left">
+      <div className="flex gap-4">
+        <Input label="Plate Number" name="plateNumber" value={formData.plateNumber || ""} onChange={handleInputChange} placeholder="e.g. ABC-1234" />
+        <Input label="Year Model" type="number" name="yearModel" value={formData.yearModel || ""} onChange={handleInputChange} placeholder="e.g. 2023" />
+      </div>
+      
       <Select label="Assign Driver" name="assignedDriverId" value={formData.assignedDriverId || ""} onChange={handleInputChange} options={driverOptions} />
-      <Input label="Truck Model" name="model" value={formData.model || ""} onChange={handleInputChange} />
+      <Input label="Truck Model" name="model" value={formData.model || ""} onChange={handleInputChange} placeholder="e.g. Isuzu Elf 250" />
       
       <div className="flex gap-4">
         <Input label="Current Odometer" type="number" name="currentOdometer" value={formData.currentOdometer || ""} onChange={handleInputChange} />
@@ -94,13 +98,15 @@ const TruckEditForm = ({ truck, onSave, onCancel }) => {
         <textarea name="activeRepair" rows={2} value={formData.activeRepair || ""} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-300 rounded-lg p-2.5 text-sm text-gray-800 focus:ring-2 focus:ring-[#0F7AB2]/30 outline-none resize-none" placeholder="Enter maintenance details if applicable..." />
       </div>
 
-      <div className="text-gray-600 text-sm mt-4">
-        <p>Last updated: <span className="font-medium">{truck.lastUpdated || "N/A"}</span></p>
-      </div>
+      {!isAdding && (
+        <div className="text-gray-600 text-sm mt-4">
+          <p>Last updated: <span className="font-medium">{truck.lastUpdated || "N/A"}</span></p>
+        </div>
+      )}
 
       <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
         <Button variant="secondary" onClick={onCancel}>CANCEL</Button>
-        <Button variant="primary" onClick={submitSave}>SAVE</Button>
+        <Button variant="primary" onClick={submitSave}>{isAdding ? "ADD TRUCK" : "SAVE"}</Button>
       </div>
     </div>
   );
@@ -139,27 +145,37 @@ const TruckViewDetails = ({ truck, onEditClick, onDeleteClick, onClose }) => (
   </div>
 );
 
-export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick }) {
-  const [isEditing, setIsEditing] = useState(false);
+export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, onAdd, isAdding = false }) {
+  const [isEditing, setIsEditing] = useState(isAdding);
 
-  if (!truck) return null;
+  if (!truck && !isAdding) return null;
+
+  const displayTruck = truck || {};
 
   return (
     <Modal 
       isOpen={true} 
       onClose={onClose} 
-      title={truck.plateNumber || `Truck #${truck.truckId}`}
-      maxWidth={isEditing ? "max-w-xl" : "max-w-md"}
+      title={isAdding ? "Add New Truck" : (displayTruck.plateNumber || `Truck #${displayTruck.truckId}`)}
+      maxWidth={(isEditing || isAdding) ? "max-w-xl" : "max-w-md"}
     >
-      {isEditing ? (
+      {isEditing || isAdding ? (
         <TruckEditForm 
-          truck={truck} 
-          onSave={(data) => { onUpdate(truck.truckId, data); setIsEditing(false); }} 
-          onCancel={() => setIsEditing(false)} 
+          truck={displayTruck} 
+          isAdding={isAdding}
+          onSave={(data) => { 
+            if (isAdding) {
+              onAdd(data);
+            } else {
+              onUpdate(displayTruck.truckId, data); 
+            }
+            setIsEditing(false); 
+          }} 
+          onCancel={onClose} 
         />
       ) : (
         <TruckViewDetails 
-          truck={truck} 
+          truck={displayTruck} 
           onEditClick={() => setIsEditing(true)} 
           onDeleteClick={onDeleteClick} 
           onClose={onClose} 

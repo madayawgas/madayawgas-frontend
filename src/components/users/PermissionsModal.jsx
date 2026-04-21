@@ -1,31 +1,29 @@
 import React, { useState } from 'react';
 import Select from '../ui/Select'; 
+import { useData } from '../../context/DataContext'; // 1. Import the hook
 
 export default function PermissionsModal({ isOpen, onClose }) {
-  // CHANGED: Defaulting back to 'Driver' since the placeholder is removed
-  const [selectedRole, setSelectedRole] = useState('Driver');
+  // 2. Consume the new state and method from DataContext
+  const { rolePermissions, updateRolePermissions } = useData();
   
-  const [permissions, setPermissions] = useState({
-    dashboard: true,
-    fleetAndMaintenance: false,
-    routeDispatch: false,
-    inventory: false,
-    salesAndDelivery: false,
-    manageUsers: false,
-  });
+  // Keep selectedRole as local state so we know which role the user is looking at
+  const [selectedRole, setSelectedRole] = useState('DRIVER');
 
-  // CHANGED: Removed the 'Select an option...' object from the array
   const roleOptions = [
-    { value: 'Admin', label: 'Admin' },
-    { value: 'Manager', label: 'Manager' },
-    { value: 'Driver', label: 'Driver' }
+    { value: 'ADMIN', label: 'Admin' },
+    { value: 'FLEET_MANAGER', label: 'Manager' },
+    { value: 'DRIVER', label: 'Driver' }
   ];
 
+  // 3. Helper to check if a toggle should be "ON"
+  // We check if the key exists in the array for the selected role
+  const isEnabled = (key) => {
+    return rolePermissions[selectedRole]?.includes(key);
+  };
+
+  // 4. Update the toggle handler to call the "Backend" logic
   const handleToggle = (key) => {
-    setPermissions((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+    updateRolePermissions(selectedRole, key);
   };
 
   if (!isOpen) return null;
@@ -68,35 +66,35 @@ export default function PermissionsModal({ isOpen, onClose }) {
 
           <hr className="border-gray-200 mb-6" />
 
-          {/* Permissions Section (Can View) */}
+          {/* Permissions Section */}
           <div className="mb-12">
             <h3 className="text-[#104e7a] font-bold text-lg mb-4">Can View</h3>
             
             <div className="space-y-3 max-w-lg">
               {[
                 { key: 'dashboard', label: 'Dashboard' },
-                { key: 'fleetAndMaintenance', label: 'Fleet & Maintenance' },
-                { key: 'routeDispatch', label: 'Route Dispatch' },
+                { key: 'fleet', label: 'Fleet & Maintenance' },
+                { key: 'route-dispatch', label: 'Route Dispatch' },
                 { key: 'inventory', label: 'Inventory' },
-                { key: 'salesAndDelivery', label: 'Sales & Delivery' },
-                { key: 'manageUsers', label: 'Manage Users' },
+                { key: 'sales-delivery', label: 'Sales & Delivery' },
+                { key: 'users', label: 'Manage Users' },
               ].map((item) => (
                 <div key={item.key} className="flex items-center justify-between">
                   <span className="text-[#104e7a] text-sm font-medium">{item.label}</span>
                   
-                  {/* Custom Toggle Switch */}
+                  {/* Toggle Switch */}
                   <button
                     type="button"
                     onClick={() => handleToggle(item.key)}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full border-2 transition-colors focus:outline-none ${
-                      permissions[item.key] 
-                        ? 'bg-[#6D8AA2] border-[#6D8AA2]' // Updated "ON" state color
-                        : 'bg-white border-[#6D8AA2]' // Updated "OFF" state color
+                      isEnabled(item.key) 
+                        ? 'bg-[#6D8AA2] border-[#6D8AA2]' 
+                        : 'bg-white border-[#6D8AA2]'
                     }`}
                   >
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-[#DCE5EC] transition-transform duration-200 ease-in-out ${
-                        permissions[item.key]
+                        isEnabled(item.key)
                           ? 'translate-x-5'
                           : 'translate-x-0.5'
                       }`}
