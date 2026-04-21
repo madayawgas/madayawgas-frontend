@@ -29,11 +29,14 @@ export default function Login() {
     setTimeout(() => {
       const result = login(username, password);
 
-      if (result.success) {
-        navigate("/app/dashboard");
-      } else {
-        setError("Invalid username or password");
-      }
+     if (result.success) {
+        // Look at the role of the user who just logged in!
+        if (result.user.roleName === "DRIVER") {
+          navigate("/sales-delivery"); // Send drivers to their delivery page
+        } else {
+          navigate("/dashboard"); // Send Admins and Managers to the dashboard
+        }
+      } else 
 
       setLoading(false);
     }, 500);
