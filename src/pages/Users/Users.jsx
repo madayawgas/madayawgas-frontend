@@ -5,6 +5,7 @@ import Button from "../../components/ui/Button";
 import Select from "../../components/ui/Select";
 import UserModal from "../../components/users/UserModal";
 import SharedModal from "../../components/ui/Modal";
+import PermissionsModal from "../../components/users/PermissionsModal";
 import { useData } from "../../context/DataContext";
 import { Trash, Edit, Funnel, Plus, Settings, AlertCircle } from "lucide-react";
 
@@ -17,6 +18,7 @@ export default function Users() {
     const [isAddingUser, setIsAddingUser] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [userToDelete, setUserToDelete] = useState(null);
+    const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
 
     const processedUsers = useMemo(() => {
         let result = [...users];
@@ -89,7 +91,7 @@ export default function Users() {
                 </div>
 
                 <div className="user-management-buttons flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
-                    <Button variant="primary">
+                    <Button variant="primary" onClick={() => setIsPermissionsModalOpen(true)}>
                         <Settings size={20} color="yellow" />
                         Manage Roles & Permissions
                     </Button>
@@ -134,6 +136,12 @@ export default function Users() {
             </div>
 
             <div className="user-table overflow-hidden border border-gray-400 rounded rounded-md">
+
+                {/* Permissions Modal */}
+                <PermissionsModal 
+                    isOpen={isPermissionsModalOpen} 
+                    onClose={() => setIsPermissionsModalOpen(false)} 
+                />
 
                 {/* Shared Modal for Adding and Editing */}
                 <UserModal 
