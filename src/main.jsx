@@ -17,7 +17,6 @@ import Users from "./pages/Users/Users";
 import RouteDispatch from "./pages/RouteDispatch/RouteDispatch";
 import Inventory from "./pages/Inventory/Inventory";
 import SalesAndDelivery from "./pages/SalesAndDelivery/SalesAndDelivery";
-import TestPage from "./pages/TestPage/TestPage";
 
 // 1. Configure the Routes
 const router = createBrowserRouter([
@@ -56,10 +55,6 @@ const router = createBrowserRouter([
       {
         path: "users",
         element: <Users />,
-      },
-      {
-        path: "test",
-        element: <TestPage />,
       },
     ],
   },

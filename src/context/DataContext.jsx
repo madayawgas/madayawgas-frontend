@@ -36,7 +36,25 @@ export const DataProvider = ({ children }) => {
   // ==========================================================================
   const [users, setUsers] = useState(() => {
     const savedUsers = localStorage.getItem("mockApp_users");
-    return savedUsers ? JSON.parse(savedUsers) : allUsers;
+    const parsedUsers = savedUsers ? JSON.parse(savedUsers) : allUsers;
+    
+    const roleMap = { "Admin": 1, "Manager": 2, "Driver": 3, "ADMIN": 1, "FLEET_MANAGER": 2, "DRIVER": 3 };
+
+    return parsedUsers.map(u => {
+      let updated = { ...u };
+      // Migration: Split name into firstName/lastName
+      if (u.name && !u.firstName) {
+        const parts = u.name.split(" ");
+        updated.firstName = parts[0];
+        updated.lastName = parts.slice(1).join(" ");
+        updated.name = undefined;
+      }
+      // Migration: Ensure roleId is set based on role string
+      if (u.role && !u.roleId) {
+        updated.roleId = roleMap[u.role] || 3;
+      }
+      return updated;
+    });
   });
 
   const [roles, setRoles] = useState(() => {
@@ -148,8 +166,19 @@ export const DataProvider = ({ children }) => {
   });
 
   const addUser = (userData) => {
+    // Map role string to roleId for consistency
+    const roleMap = { "Admin": 1, "Manager": 2, "Driver": 3 };
+    const roleId = roleMap[userData.role] || 3;
+
+    // Generate username: first letter of firstName + lastName (all lowercase, no spaces)
+    const firstLetter = userData.firstName.charAt(0).toLowerCase();
+    const cleanLastName = userData.lastName.replace(/\s+/g, '').toLowerCase();
+    const generatedUsername = `${firstLetter}${cleanLastName}`;
+
     const newUser = { 
       ...userData, 
+      roleId,
+      username: userData.username || generatedUsername,
       userId: Date.now(), 
       isActive: true,
       dateCreated: new Date().toISOString().split('T')[0]
@@ -158,8 +187,15 @@ export const DataProvider = ({ children }) => {
   };
 
   const updateUser = (userId, updatedData) => {
+    // Map role string to roleId if role is being updated
+    const roleMap = { "Admin": 1, "Manager": 2, "Driver": 3 };
+    const mappedUpdate = { ...updatedData };
+    if (updatedData.role) {
+      mappedUpdate.roleId = roleMap[updatedData.role] || updatedData.roleId;
+    }
+
     setUsers((prev) =>
-      prev.map((user) => (user.userId === userId ? { ...user, ...updatedData } : user))
+      prev.map((user) => (user.userId === userId ? { ...user, ...mappedUpdate } : user))
     );
   };
 
