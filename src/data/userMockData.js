@@ -10,7 +10,7 @@ export const PERMISSIONS = {
     "users",
   ],
   FLEET_MANAGER: ["dashboard", "fleet", "route-dispatch", "inventory"],
-  DRIVER: ["sales-delivery" ,"dashboard"],
+  DRIVER: ["sales-delivery", "dashboard"],
 };
 
 export const roles = [
@@ -19,11 +19,11 @@ export const roles = [
   { roleId: 3, roleName: "DRIVER" },
 ];
 
-export const users = [
+const rawUsers = [
   // Management
   {
     userId: 1,
-    firstName: "Juan", 
+    firstName: "Juan",
     lastName: "Dela Cruz",
     contactNumber: "09123456789",
     role: "Admin",
@@ -114,15 +114,11 @@ export const users = [
   },
 ];
 
-// Helper to get users with their role names attached
-export const getHydratedUsers = () => {
-  return users.map((user) => {
-    const role = roles.find((r) => r.roleId === user.roleId);
-    return { 
-      ...user, 
-      roleName: role ? role.roleName : "UNKNOWN"
-    };
-  });
-};
-
-export const allUsers = getHydratedUsers();
+// Hydrate users with role names
+export const allUsers = rawUsers.map((user) => {
+  const role = roles.find((r) => r.roleId === user.roleId);
+  return {
+    ...user,
+    roleName: role ? role.roleName : "UNKNOWN",
+  };
+});

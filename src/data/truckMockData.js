@@ -1,7 +1,7 @@
 // src/data/truckMockData.js
 import { allUsers } from "./userMockData";
 
-export const trucks = [
+const rawTrucks = [
   {
     truckId: 101,
     plateNumber: "ABC-1234",
@@ -57,20 +57,14 @@ export const trucks = [
 ];
 
 // Helper to join the driver data into the truck data for easy frontend use
-export const getHydratedTrucks = () => {
-  return trucks.map((truck) => {
-    // Find the driver assigned to this truck
-    const driver = allUsers.find(
-      (user) => user.userId === truck.assignedDriverId,
-    );
+export const allHydratedTrucks = rawTrucks.map((truck) => {
+  const driver = allUsers.find(
+    (user) => user.userId === truck.assignedDriverId,
+  );
 
-    // Return the truck info WITH the driver's name directly attached
-    return {
-      ...truck,
-      driverName: driver ? `${driver.firstName} ${driver.lastName}`.trim() : "Unassigned",
-      driverLicense: driver ? driver.licenseNo : "N/A",
-    };
-  });
-};
-
-export const allHydratedTrucks = getHydratedTrucks();
+  return {
+    ...truck,
+    driverName: driver ? `${driver.firstName} ${driver.lastName}`.trim() : "Unassigned",
+    driverLicense: driver ? driver.licenseNo : "N/A",
+  };
+});
