@@ -9,8 +9,8 @@ export const PERMISSIONS = {
     "sales-delivery",
     "users",
   ],
-  FLEET_MANAGER: ["dashboard", "fleet", "route-dispatch", "inventory"],
-  DRIVER: ["sales-delivery", "dashboard"],
+  FLEET_MANAGER: ["fleet", "route-dispatch", "inventory"],
+  DRIVER: ["sales-delivery", "inventory"],
 };
 
 export const roles = [
