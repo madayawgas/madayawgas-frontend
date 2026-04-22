@@ -105,26 +105,7 @@ export const DataProvider = ({ children }) => {
   // ==========================================================================
   const [users, setUsers] = useState(() => {
     const saved = localStorage.getItem("mockApp_users");
-    const parsed = saved ? JSON.parse(saved) : allUsers;
-
-    return parsed.map((u) => {
-      const updated = { ...u };
-
-      // Migration: name -> firstName/lastName
-      if (u.name && !u.firstName) {
-        const parts = u.name.split(" ");
-        updated.firstName = parts[0];
-        updated.lastName = parts.slice(1).join(" ");
-        updated.name = undefined;
-      }
-
-      // Migration: role string -> roleId
-      if (u.role && !u.roleId) {
-        updated.roleId = roleMap[u.role] || 3;
-      }
-
-      return updated;
-    });
+    return saved ? JSON.parse(saved) : allUsers;
   });
 
   const [roles, setRoles] = useState(() => {
