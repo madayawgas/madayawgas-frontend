@@ -51,7 +51,7 @@ export default function Login() {
       style={{ backgroundImage: `url(${bgImage})` }}
     >
       
-      <div className="absolute inset-0 bg-[#0F7AB2]/0 backdrop-blur-[0px]"></div>
+      <div className="absolute inset-0 bg-[#0F7AB2]/0 backdrop-blur-[3px]"></div>
 
     <Card className="w-full max-w-md p-8 relative z-10 bg-white rounded-2xl border border-gray-300 shadow-xl">
 
