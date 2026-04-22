@@ -23,7 +23,7 @@ import { createPortal } from "react-dom";
         );
     };
 export default function Users() {
-    const { users, deleteUser , updateUser} = useData();
+    const { users, deleteUser , updateUser, currentUser} = useData();
     
     const [filterRole, setFilterRole] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
@@ -100,6 +100,26 @@ export default function Users() {
         addUser(newUser); // Sends to context
         setIsAddingUser(false); // Close form
         setNewUser({ firstName: "", lastName: "", contactNumber: "", role: "Driver", username: "", password: "password123" }); // Reset
+    };
+
+    const canDelete = (targetUser) => {
+        if (!currentUser) return false;
+
+        const myRole = currentUser.role;
+        const targetRole = targetUser.role;
+
+        // Rule 1: Admins can delete Managers and Drivers (but not other Admins)
+        if (myRole === "Admin") {
+            return targetRole === "Manager" || targetRole === "Driver";
+        }
+
+        // Rule 2: Managers can delete only Drivers
+        if (myRole === "Manager") {
+            return targetRole === "Driver";
+        }
+
+        // Rule 3: Drivers cannot delete anyone (returns false by default)
+        return false;
     };
 
     return (
@@ -343,7 +363,9 @@ export default function Users() {
                                     <td className="p-2 text-center">{user.dateCreated}</td>
                                     <td className="px-6 py-4 flex justify-center gap-4">
                                         <button onClick={() => setEditingUser(user)} className="text-slate-400 hover:text-blue-600"><Edit size={18} /></button>
-                                        <button onClick={() => setUserToDelete(user)} className="text-slate-400 hover:text-red-600"><Trash size={18} /></button>
+                                        {canDelete(user) && (
+                                            <button onClick={() => setUserToDelete(user)} className="text-slate-400 hover:text-red-600"><Trash size={18} /></button>
+                                        )}
                                     </td>
                                 </tr>
                             ))
