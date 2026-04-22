@@ -303,7 +303,7 @@ export const DataProvider = ({ children }) => {
     roles,
     permissions,
     trucks: activeHydratedTrucks,
-    dashboardMetrics: getDashboardMetrics(users, activeHydratedTrucks),
+    dashboardMetrics: getDashboardMetrics(activeHydratedTrucks),
     weeklySales: mockWeeklySales,
     monthlySales: mockMonthlySales,
     annualSales: mockAnnualSales,

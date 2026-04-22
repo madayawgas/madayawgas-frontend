@@ -14,7 +14,7 @@ const costPerCan = mockFuelConsumption > 0
   ? grossIncome / mockFuelConsumption 
   : 0;
 
-export const getDashboardMetrics = (users = allUsers, trucks = allHydratedTrucks) => {
+export const getDashboardMetrics = (trucks = allHydratedTrucks) => {
   const availableTrucksList = trucks.filter(
     (t) => t.status === "AVAILABLE",
   );
