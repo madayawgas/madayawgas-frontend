@@ -3,6 +3,7 @@ import Modal from "../ui/Modal";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
 import Button from "../ui/Button";
+import { useData } from "../../context/DataContext";
 
 const roleOptions = [
   { value: "Admin", label: "Admin" },
@@ -10,23 +11,31 @@ const roleOptions = [
   { value: "Driver", label: "Driver" },
 ];
 
-export default function UserModal({ isOpen, onClose, onSave, user }) {
+export default function UserModal({ isOpen, onClose, user }) {
+  const { addUser, updateUser } = useData();
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
-    role: "",
+    role: "Driver",
     contactNumber: "",
+    username: "",
+    password: "password123"
   });
 
   useEffect(() => {
     if (user) {
-      setFormData(user);
+      setFormData({
+        ...user,
+        role: user.role || "Driver"
+      });
     } else {
       setFormData({
         firstName: "",
         lastName: "",
-        role: "",
+        role: "Driver",
         contactNumber: "",
+        username: "",
+        password: "password123"
       });
     }
   }, [user, isOpen]);
@@ -34,9 +43,8 @@ export default function UserModal({ isOpen, onClose, onSave, user }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    // Strict 11-digit numeric validation for contact number
     if (name === "contactNumber") {
-      const numericValue = value.replace(/\D/g, ""); // Remove non-digits
+      const numericValue = value.replace(/\D/g, "");
       if (numericValue.length <= 11) {
         setFormData((prev) => ({ ...prev, [name]: numericValue }));
       }
@@ -49,13 +57,16 @@ export default function UserModal({ isOpen, onClose, onSave, user }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Final validation check
     if (formData.contactNumber.length !== 11) {
       alert("Contact number must be exactly 11 digits.");
       return;
     }
 
-    onSave(formData);
+    if (user) {
+      updateUser(user.userId, formData);
+    } else {
+      addUser(formData);
+    }
     onClose();
   };
 

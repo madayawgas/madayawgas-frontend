@@ -3,6 +3,7 @@ import SearchBar from "../../components/ui/SearchBar";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Select from "../../components/ui/Select";
+import UserModal from "../../components/users/UserModal";
 import { useData } from "../../context/DataContext";
 import { Trash, Edit, Funnel, Plus, Settings } from "lucide-react";
 import { createPortal } from "react-dom";
@@ -23,7 +24,7 @@ import { createPortal } from "react-dom";
         );
     };
 export default function Users() {
-    const { users, deleteUser , updateUser} = useData();
+    const { users, deleteUser } = useData();
     
     const [filterRole, setFilterRole] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
@@ -31,16 +32,6 @@ export default function Users() {
     const [isAddingUser, setIsAddingUser] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [userToDelete, setUserToDelete] = useState(null);
-    const [newUser, setNewUser] = useState({
-        firstName: "",
-        lastName: "",
-        contactNumber: "",
-        role: "Driver", // Default role
-        username: "",
-        password: "password123" // Default password for new accounts
-    });
-
-    const { addUser } = useData();
 
     const processedUsers = useMemo(() => {
         let result = [...users];
@@ -82,26 +73,6 @@ export default function Users() {
         }));
     };
 
-    const handleUpdate = (e) => {
-        e.preventDefault();
-        if (editingUser) {
-            updateUser(editingUser.userId, editingUser); // Updates the user in context and localStorage
-            setEditingUser(null); // Close the edit mode
-            console.log("User updated successfully");
-        }
-    };
-
-    const handleAddUser = (e) => {
-        e.preventDefault();
-    
-        // Simple validation
-        if (!newUser.firstName || !newUser.lastName) return alert("Please fill in the names");
-
-        addUser(newUser); // Sends to context
-        setIsAddingUser(false); // Close form
-        setNewUser({ firstName: "", lastName: "", contactNumber: "", role: "Driver", username: "", password: "password123" }); // Reset
-    };
-
     return (
         <Card>
             <div className="header  flex flex-col md:flex-row md:items-end justify-between border-b border-gray-200 pb-4 mb-6">
@@ -122,25 +93,15 @@ export default function Users() {
                 </div>
             </div>
 
-            {/* <hr className="my-6 border-t-2 border-gray-200" /> */}
-
             <div className="header  flex md:flex-row md:items-end justify-between pb-4 mb-6">
                 <div className="search-bar">
                     <SearchBar 
                         placeholder="Search users..."
                         className="md:w-100" 
-                        // Connect SearchBar to State
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-
-                {/* <div>
-                    <Select>
-                        <Funnel size={15} />
-                        <span>Filter Roles</span>
-                    </Select>
-                </div> */}
 
                 <div className="relative w-48">
                     <Funnel size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
@@ -167,108 +128,15 @@ export default function Users() {
 
             <div className="user-table overflow-hidden border border-gray-400 rounded rounded-md">
 
-                {isAddingUser && (
-                    <Modal title="Add New User" onClose={() => setIsAddingUser(false)}>
-                        <form onSubmit={handleAddUser} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                            <input 
-                            className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={newUser.firstName}
-                            onChange={(e) => setNewUser({...newUser, firstName: e.target.value})}
-                            required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                            <input 
-                            className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={newUser.lastName}
-                            onChange={(e) => setNewUser({...newUser, lastName: e.target.value})}
-                            required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
-                            <input 
-                            className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={newUser.contactNumber}
-                            onChange={(e) => setNewUser({...newUser, contactNumber: e.target.value})}
-                            required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                            <select 
-                            className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={newUser.role}
-                            onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                            >
-                            <option value="Admin">Admin</option>
-                            <option value="Manager">Manager</option>
-                            <option value="Driver">Driver</option>
-                            </select>
-                        </div>
-                        <div className="flex justify-end gap-3 pt-4">
-                            <button type="button" onClick={() => {
-                                setIsAddingUser(false);
-                                setNewUser({ firstName: "", lastName: "", contactNumber: "", role: "Driver", username: "", password: "password123" });
-                            }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md transition">CANCEL</button>
-                            <button type="submit" className="px-6 py-2 bg-[#007AB8] text-white rounded-md hover:bg-[#005f8d] transition font-bold">ADD</button>
-                        </div>
-                        </form>
-                    </Modal>
-                )}
-
-                {editingUser && (
-                    <Modal title="Edit User Details" onClose={() => setEditingUser(null)}>
-                        <form onSubmit={handleUpdate} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                                <input 
-                                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                                    value={editingUser.firstName}
-                                    onChange={(e) => setEditingUser({...editingUser, firstName: e.target.value})}
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                                <input 
-                                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                                    value={editingUser.lastName}
-                                    onChange={(e) => setEditingUser({...editingUser, lastName: e.target.value})}
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
-                                <input 
-                                    className="w-full p-2 border rounded-md"
-                                    value={editingUser.contactNumber}
-                                    onChange={(e) => setEditingUser({...editingUser, contactNumber: e.target.value})}
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                                <select 
-                                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
-                                    value={editingUser.role}
-                                    onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
-                                >
-                                    <option value="Admin">Admin</option>
-                                    <option value="Manager">Manager</option>
-                                    <option value="Driver">Driver</option>
-                                </select>
-                            </div>
-                            <div className="flex justify-end gap-3 pt-4">
-                                <button type="button" onClick={() => setEditingUser(null)} className="px-4 py-2 text-gray-600 rounded-md">CANCEL</button>
-                                <button type="submit" className="px-6 py-2 bg-[#007AB8] text-white rounded-md font-bold">SAVE CHANGES</button>
-                            </div>
-                        </form>
-                    </Modal>
-                )}
+                {/* Shared Modal for Adding and Editing */}
+                <UserModal 
+                    isOpen={isAddingUser || !!editingUser} 
+                    onClose={() => {
+                        setIsAddingUser(false);
+                        setEditingUser(null);
+                    }}
+                    user={editingUser}
+                />
 
                 {userToDelete && (
                     <Modal title="Confirm Deletion" onClose={() => setUserToDelete(null)}>
@@ -295,7 +163,7 @@ export default function Users() {
                                     type="button" 
                                     onClick={() => {
                                         deleteUser(userToDelete.userId);
-                                        setUserToDelete(null); // Close modal after deleting
+                                        setUserToDelete(null);
                                     }} 
                                     className="px-8 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-bold shadow-md uppercase text-sm"
                                 >
