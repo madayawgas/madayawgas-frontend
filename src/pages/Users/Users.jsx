@@ -10,7 +10,7 @@ import { useData } from "../../context/DataContext";
 import { Trash, Edit, Funnel, Plus, Settings, AlertCircle } from "lucide-react";
 
 export default function Users() {
-    const { users, deleteUser } = useData();
+    const { users, deleteUser, currentUser } = useData();
     
     const [filterRole, setFilterRole] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
