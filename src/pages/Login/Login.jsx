@@ -7,6 +7,7 @@ import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 
 import logo from "../../assets/logo.svg";
+import bgImage from "../../assets/BG-Madayaw3.png";
 
 export default function Login() {
   const { login } = useData();
@@ -14,21 +15,17 @@ export default function Login() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
- const handleLogin = async () => {
+  const handleLogin = async () => {
     if (loading) return;
-
     setLoading(true);
     setError("");
 
-    // simulate slight delay (feels real)
     setTimeout(() => {
       const result = login(username, password);
-
       if (result.success) {
         if (result.user.roleName === "DRIVER") {
           navigate("/sales-delivery"); 
@@ -38,7 +35,6 @@ export default function Login() {
       } else {
         setError(result.message || "Invalid username or password");
       }
-
       setLoading(false);
     }, 500);
   };
@@ -50,9 +46,14 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 px-6">
+    <div 
+      className="min-h-screen flex items-center justify-center px-6 bg-cover bg-center bg-no-repeat relative"
+      style={{ backgroundImage: `url(${bgImage})` }}
+    >
+      
+      <div className="absolute inset-0 bg-[#0F7AB2]/0 backdrop-blur-[0px]"></div>
 
-      <Card className="w-full max-w-md p-8">
+    <Card className="w-full max-w-md p-8 relative z-10 bg-white rounded-2xl border border-gray-300 shadow-xl">
 
         {/* ================= HEADER ================= */}
         <div className="flex flex-col items-center text-center mb-10">
@@ -72,7 +73,6 @@ export default function Login() {
 
         {/* ================= FORM ================= */}
         <div className="flex flex-col gap-5">
-
           <Input
             label="Username"
             value={username}
@@ -86,7 +86,6 @@ export default function Login() {
             error={!!error}
           />
 
-          {/* PASSWORD FIELD */}
           <div className="relative">
             <Input
               label="Password"
@@ -111,14 +110,12 @@ export default function Login() {
             </button>
           </div>
 
-          {/* ERROR */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-3 rounded-lg">
               {error}
             </div>
           )}
 
-          {/* BUTTON */}
           <Button
             variant="primary"
             className="w-full py-3 text-base mt-3"
