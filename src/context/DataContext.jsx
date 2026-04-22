@@ -1,26 +1,36 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
 
-// Import your initial static mock data
-import { allUsers, PERMISSIONS, roles as rolesData } from "../data/userMockData"; 
+// ============================================================================
+// MOCK DATA IMPORTS
+// ============================================================================
+import {
+  allUsers,
+  PERMISSIONS,
+  roles as rolesData,
+} from "../data/userMockData";
 import { trucks as rawTrucks } from "../data/truckMockData";
-import { 
-  allSalesRecords, 
-  weeklySales as mockWeeklySales, 
-  monthlySales as mockMonthlySales, 
-  annualSales as mockAnnualSales 
+import {
+  allSalesRecords,
+  weeklySales as mockWeeklySales,
+  monthlySales as mockMonthlySales,
+  annualSales as mockAnnualSales,
 } from "../data/salesMockData";
 import { getDashboardMetrics } from "../data/dashboardMockData";
 
+// ============================================================================
+// CONTEXT SETUP
+// ============================================================================
 const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
   // ==========================================================================
-  // 1. AUTHENTICATION STATE
+  // AUTH STATE
   // ==========================================================================
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem("madayaw_active_user");
     return saved ? JSON.parse(saved) : null;
   });
+
   const [isAuthenticated, setIsAuthenticated] = useState(!!currentUser);
 
   useEffect(() => {
@@ -30,69 +40,96 @@ export const DataProvider = ({ children }) => {
       localStorage.removeItem("madayaw_active_user");
     }
   }, [currentUser]);
- 
+
   // ==========================================================================
-  // 2. APPLICATION DATA STATE
+  // ROLE MAPPING HELPERS
+  // ==========================================================================
+  const roleMap = {
+    Admin: 1,
+    Manager: 2,
+    Driver: 3,
+    ADMIN: 1,
+    FLEET_MANAGER: 2,
+    DRIVER: 3,
+  };
+
+  const rolesReverseMap = {
+    1: "ADMIN",
+    2: "FLEET_MANAGER",
+    3: "DRIVER",
+  };
+
+  // ==========================================================================
+  // APPLICATION STATE (USERS / ROLES / PERMISSIONS / TRUCKS)
   // ==========================================================================
   const [users, setUsers] = useState(() => {
-    const savedUsers = localStorage.getItem("mockApp_users");
-    const parsedUsers = savedUsers ? JSON.parse(savedUsers) : allUsers;
-    
-    const roleMap = { "Admin": 1, "Manager": 2, "Driver": 3, "ADMIN": 1, "FLEET_MANAGER": 2, "DRIVER": 3 };
+    const saved = localStorage.getItem("mockApp_users");
+    const parsed = saved ? JSON.parse(saved) : allUsers;
 
-    return parsedUsers.map(u => {
-      let updated = { ...u };
-      // Migration: Split name into firstName/lastName
+    return parsed.map((u) => {
+      const updated = { ...u };
+
+      // Migration: name -> firstName/lastName
       if (u.name && !u.firstName) {
         const parts = u.name.split(" ");
         updated.firstName = parts[0];
         updated.lastName = parts.slice(1).join(" ");
         updated.name = undefined;
       }
-      // Migration: Ensure roleId is set based on role string
+
+      // Migration: role string -> roleId
       if (u.role && !u.roleId) {
         updated.roleId = roleMap[u.role] || 3;
       }
+
       return updated;
     });
   });
 
   const [roles, setRoles] = useState(() => {
-    const savedRoles = localStorage.getItem("mockApp_roles");
-    return savedRoles ? JSON.parse(savedRoles) : rolesData;
+    const saved = localStorage.getItem("mockApp_roles");
+    return saved ? JSON.parse(saved) : rolesData;
   });
 
   const [permissions, setPermissions] = useState(() => {
-    const savedPermissions = localStorage.getItem("mockApp_permissions");
-    return savedPermissions ? JSON.parse(savedPermissions) : PERMISSIONS;
+    const saved = localStorage.getItem("mockApp_permissions");
+    return saved ? JSON.parse(saved) : PERMISSIONS;
   });
 
   const [trucks, setTrucks] = useState(() => {
-    const savedTrucks = localStorage.getItem("mockApp_trucks");
-    return savedTrucks ? JSON.parse(savedTrucks) : rawTrucks;
+    const saved = localStorage.getItem("mockApp_trucks");
+    return saved ? JSON.parse(saved) : rawTrucks;
   });
 
   const [salesRecords] = useState(allSalesRecords);
 
   // ==========================================================================
-  // 3. AUTHENTICATION METHODS
+  // AUTH METHODS
   // ==========================================================================
   const login = (username, password) => {
-    const user = users.find(u => u.username === username && u.password === password);
-    
-    if (user) {
-      if (!user.isActive) return { success: false, message: "Account disabled" };
-      
-      // Attach the Role Name for easier RBAC later
-      const rolesMap = { 1: "ADMIN", 2: "FLEET_MANAGER", 3: "DRIVER" };
-      const hydratedUser = { ...user, roleName: rolesMap[user.roleId] };
+    const user = users.find(
+      (u) => u.username === username && u.password === password,
+    );
 
-      setCurrentUser(hydratedUser);
-      setIsAuthenticated(true);
-      localStorage.setItem("madayaw_active_user", JSON.stringify(hydratedUser));
-      return { success: true, user: hydratedUser };
+    if (!user) {
+      return { success: false, message: "Invalid username or password" };
     }
-    return { success: false, message: "Invalid username or password" };
+
+    if (!user.isActive) {
+      return { success: false, message: "Account disabled" };
+    }
+
+    const hydratedUser = {
+      ...user,
+      roleName: rolesReverseMap[user.roleId],
+    };
+
+    setCurrentUser(hydratedUser);
+    setIsAuthenticated(true);
+
+    localStorage.setItem("madayaw_active_user", JSON.stringify(hydratedUser));
+
+    return { success: true, user: hydratedUser };
   };
 
   const logout = () => {
@@ -102,22 +139,21 @@ export const DataProvider = ({ children }) => {
   };
 
   const hasPermission = (moduleName) => {
-    if (!currentUser || !currentUser.roleName) return false;
+    if (!currentUser?.roleName) return false;
     const userPermissions = permissions[currentUser.roleName] || [];
     return userPermissions.includes(moduleName);
   };
 
   // ==========================================================================
-  // 4. SALES DATA HELPERS
+  // SALES HELPERS
   // ==========================================================================
   const getSalesByPeriod = (period) => {
-    const now = new Date("2026-04-13"); // Remember to change to new Date() for production!
-
+    const now = new Date("2026-04-13");
     let filtered = [...salesRecords];
 
     if (period === "weekly") {
       const lastWeek = new Date(now);
-      lastWeek.setDate(now.getDate() - 14); // 2 weeks back
+      lastWeek.setDate(now.getDate() - 14);
       filtered = salesRecords.filter((r) => new Date(r.date) >= lastWeek);
     } else if (period === "monthly") {
       const lastYear = new Date(now);
@@ -128,12 +164,14 @@ export const DataProvider = ({ children }) => {
     return filtered.map((record) => ({
       ...record,
       costPerCan: (record.totalGrossSales / record.fuelConsumption).toFixed(2),
-      salesPerLiter: (record.totalGrossSales / record.fuelConsumption).toFixed(2),
+      salesPerLiter: (record.totalGrossSales / record.fuelConsumption).toFixed(
+        2,
+      ),
     }));
   };
 
   // ==========================================================================
-  // 5. LOCAL STORAGE SYNC (For CRUD persistence)
+  // LOCAL STORAGE SYNC
   // ==========================================================================
   useEffect(() => {
     localStorage.setItem("mockApp_users", JSON.stringify(users));
@@ -152,50 +190,54 @@ export const DataProvider = ({ children }) => {
   }, [trucks]);
 
   // ==========================================================================
-  // 6. DYNAMIC HYDRATION (Trucks) & CRUD
+  // HYDRATED TRUCK DATA
   // ==========================================================================
   const activeHydratedTrucks = trucks.map((truck) => {
     const driver = users.find((u) => u.userId === truck.assignedDriverId);
+
     return {
       ...truck,
-      driverName: driver 
-        ? `${driver.firstName || ""} ${driver.lastName || ""}`.trim() || "Unknown Driver"
+      driverName: driver
+        ? `${driver.firstName || ""} ${driver.lastName || ""}`.trim() ||
+          "Unknown Driver"
         : "Unassigned",
       driverLicense: driver ? driver.licenseNo : "N/A",
     };
   });
 
+  // ==========================================================================
+  // USER CRUD
+  // ==========================================================================
   const addUser = (userData) => {
-    // Map role string to roleId for consistency
-    const roleMap = { "Admin": 1, "Manager": 2, "Driver": 3 };
     const roleId = roleMap[userData.role] || 3;
 
-    // Generate username: first letter of firstName + lastName (all lowercase, no spaces)
-    const firstLetter = userData.firstName.charAt(0).toLowerCase();
-    const cleanLastName = userData.lastName.replace(/\s+/g, '').toLowerCase();
-    const generatedUsername = `${firstLetter}${cleanLastName}`;
+    const generatedUsername = `${userData.firstName
+      .charAt(0)
+      .toLowerCase()}${userData.lastName.replace(/\s+/g, "").toLowerCase()}`;
 
-    const newUser = { 
-      ...userData, 
+    const newUser = {
+      ...userData,
       roleId,
       username: userData.username || generatedUsername,
-      userId: Date.now(), 
+      userId: Date.now(),
       isActive: true,
-      dateCreated: new Date().toISOString().split('T')[0]
+      dateCreated: new Date().toISOString().split("T")[0],
     };
+
     setUsers((prev) => [...prev, newUser]);
   };
 
   const updateUser = (userId, updatedData) => {
-    // Map role string to roleId if role is being updated
-    const roleMap = { "Admin": 1, "Manager": 2, "Driver": 3 };
     const mappedUpdate = { ...updatedData };
+
     if (updatedData.role) {
       mappedUpdate.roleId = roleMap[updatedData.role] || updatedData.roleId;
     }
 
     setUsers((prev) =>
-      prev.map((user) => (user.userId === userId ? { ...user, ...mappedUpdate } : user))
+      prev.map((user) =>
+        user.userId === userId ? { ...user, ...mappedUpdate } : user,
+      ),
     );
   };
 
@@ -203,7 +245,9 @@ export const DataProvider = ({ children }) => {
     setUsers((prev) => prev.filter((user) => user.userId !== userId));
   };
 
-  // ROLE & PERMISSION METHODS
+  // ==========================================================================
+  // ROLE & PERMISSION MANAGEMENT
+  // ==========================================================================
   const updateRolePermissions = (roleName, newPermissions) => {
     setPermissions((prev) => ({
       ...prev,
@@ -214,13 +258,18 @@ export const DataProvider = ({ children }) => {
   const toggleRolePermission = (roleName, permission) => {
     setPermissions((prev) => {
       const current = prev[roleName] || [];
+
       const updated = current.includes(permission)
         ? current.filter((p) => p !== permission)
         : [...current, permission];
+
       return { ...prev, [roleName]: updated };
     });
   };
 
+  // ==========================================================================
+  // TRUCK CRUD
+  // ==========================================================================
   const addTruck = (truckData) => {
     const newTruck = {
       ...truckData,
@@ -228,12 +277,15 @@ export const DataProvider = ({ children }) => {
       status: truckData.status || "AVAILABLE",
       currentOdometer: truckData.currentOdometer || 0,
     };
+
     setTrucks((prev) => [...prev, newTruck]);
   };
 
   const updateTruck = (truckId, updatedData) => {
     setTrucks((prev) =>
-      prev.map((truck) => (truck.truckId === truckId ? { ...truck, ...updatedData } : truck))
+      prev.map((truck) =>
+        truck.truckId === truckId ? { ...truck, ...updatedData } : truck,
+      ),
     );
   };
 
@@ -244,20 +296,26 @@ export const DataProvider = ({ children }) => {
   const updateTruckStatus = (truckId, newStatus, activeRepair = "") => {
     setTrucks((prev) =>
       prev.map((truck) =>
-        truck.truckId === truckId ? { ...truck, status: newStatus, activeRepair } : truck
-      )
+        truck.truckId === truckId
+          ? { ...truck, status: newStatus, activeRepair }
+          : truck,
+      ),
     );
   };
 
+  // ==========================================================================
+  // DRIVER UTILITIES
+  // ==========================================================================
   const getDriverOptions = (currentDriverId = null) => {
     const assignedDriverIds = trucks
-      .map(t => t.assignedDriverId)
-      .filter(id => id !== null && id !== undefined && id !== currentDriverId);
+      .map((t) => t.assignedDriverId)
+      .filter((id) => id && id !== currentDriverId);
 
-    return users.filter((user) => 
-      user.roleId === 3 && 
-      user.isActive && 
-      !assignedDriverIds.includes(user.userId)
+    return users.filter(
+      (user) =>
+        user.roleId === 3 &&
+        user.isActive &&
+        !assignedDriverIds.includes(user.userId),
     );
   };
 
@@ -266,6 +324,7 @@ export const DataProvider = ({ children }) => {
     setTrucks(rawTrucks);
     setRoles(rolesData);
     setPermissions(PERMISSIONS);
+
     localStorage.removeItem("mockApp_users");
     localStorage.removeItem("mockApp_trucks");
     localStorage.removeItem("mockApp_roles");
@@ -273,7 +332,7 @@ export const DataProvider = ({ children }) => {
   };
 
   // ==========================================================================
-  // 7. DASHBOARD DATA
+  // DASHBOARD DATA
   // ==========================================================================
   const weeklySales = mockWeeklySales;
   const monthlySales = mockMonthlySales;
@@ -282,17 +341,15 @@ export const DataProvider = ({ children }) => {
   const dashboardMetrics = getDashboardMetrics(users, activeHydratedTrucks);
 
   // ==========================================================================
-  // 8. EXPORTING THE CONTEXT
+  // CONTEXT VALUE
   // ==========================================================================
   const value = {
-    // Auth & Permissions
     currentUser,
     isAuthenticated,
     login,
     logout,
     hasPermission,
 
-    // Data
     users,
     roles,
     permissions,
@@ -303,28 +360,37 @@ export const DataProvider = ({ children }) => {
     monthlySales,
     annualSales,
 
-    // Methods
     getSalesByPeriod,
+
     addUser,
     updateUser,
     deleteUser,
+
     addTruck,
     updateTruck,
     deleteTruck,
     updateTruckStatus,
+
     getDriverOptions,
+
     updateRolePermissions,
     toggleRolePermission,
+
     resetData,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };
 
+// ============================================================================
+// CONTEXT HOOK
+// ============================================================================
 export const useData = () => {
   const context = useContext(DataContext);
+
   if (!context) {
     throw new Error("useData must be used within a DataProvider");
   }
+
   return context;
 };
