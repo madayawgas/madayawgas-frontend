@@ -131,7 +131,7 @@ export default function Layout() {
             <UserCircle size={38} className="text-[#FFDF2C]"/>
             <div className="leading-tight">
               <p className="text-[14px] md:text-[16px] font-semibold">
-                {currentUser?.name || "Loading..."}
+                {currentUser?.firstName + " " + currentUser?.lastName || "Loading..."}
               </p>
               <div className="text-[12px] md:text-[14px] font-medium opacity-90 tracking-wide text-[#FFDF2C]">
                 {currentUser?.roleName?.replace('_', ' ') || ""}

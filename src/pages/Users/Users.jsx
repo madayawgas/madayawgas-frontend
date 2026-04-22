@@ -1,44 +1,236 @@
+import { useState, useMemo } from "react";
+import SearchBar from "../../components/ui/SearchBar";
+import Card from "../../components/ui/Card";
+import Button from "../../components/ui/Button";
+import Select from "../../components/ui/Select";
+import UserModal from "../../components/users/UserModal";
+import SharedModal from "../../components/ui/Modal";
+import PermissionsModal from "../../components/users/PermissionsModal";
+import { useData } from "../../context/DataContext";
+import { Trash, Edit, Funnel, Plus, Settings, AlertCircle } from "lucide-react";
+
 export default function Users() {
+    const { users, deleteUser } = useData();
+    
+    const [filterRole, setFilterRole] = useState("all");
+    const [searchTerm, setSearchTerm] = useState("");
+    const [sortConfig, setSortConfig] = useState({ key: 'firstName', direction: 'asc' });
+    const [isAddingUser, setIsAddingUser] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
+    const [userToDelete, setUserToDelete] = useState(null);
+    const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
+
+    const processedUsers = useMemo(() => {
+        let result = [...users];
+
+        // 1. Role Filter
+        if (filterRole !== "all") {
+            result = result.filter(user => 
+                user.role.toLowerCase() === filterRole.toLowerCase()
+            );
+        }
+
+        // 2. Search Filter
+        if (searchTerm) {
+            const lowerSearch = searchTerm.toLowerCase();
+            result = result.filter(user => 
+                user.firstName.toLowerCase().includes(lowerSearch) ||
+                user.lastName.toLowerCase().includes(lowerSearch) ||
+                user.contactNumber.includes(lowerSearch)
+            );
+        }
+
+        // 3. Sorting Logic
+        result.sort((a, b) => {
+            const aValue = a[sortConfig.key]?.toString().toLowerCase() || "";
+            const bValue = b[sortConfig.key]?.toString().toLowerCase() || "";
+            
+            if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return result;
+    }, [users, searchTerm, filterRole, sortConfig]);
+
+    const handleSort = (key) => {
+        setSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
+
+    const deleteFooter = (
+        <div className="flex justify-center gap-4">
+            <Button 
+                variant="danger" 
+                className="px-8" 
+                onClick={() => {
+                    deleteUser(userToDelete.userId);
+                    setUserToDelete(null);
+                }}
+            >
+                DELETE
+            </Button>
+            <Button 
+                variant="secondary" 
+                className="px-8" 
+                onClick={() => setUserToDelete(null)}
+            >
+                CANCEL
+            </Button>
+        </div>
+    );
 
     return (
-        <div className="user-management-page bg-white border rounded-md p-6">
-            <div className="user-management-header">
-                <h2 className="text-1xl md:text-[25px] font-bold text-[#1B4B75] mb-6">Users Management</h2>
-                <p className="text-[#6D8AA2]">Manage user ......</p>
+        <Card>
+            <div className="header  flex flex-col md:flex-row md:items-end justify-between border-b border-gray-200 pb-4 mb-6">
+                <div className="user-management-header">
+                    <h2 className="text-1xl md:text-[25px] font-bold text-[#1B4B75] mb-1">Users Management</h2>
+                    <p className="text-[#6D8AA2]">Manage user accounts and their permissions.</p>
+                </div>
+
+                <div className="user-management-buttons flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
+                    <Button variant="primary" onClick={() => setIsPermissionsModalOpen(true)}>
+                        <Settings size={20} color="yellow" />
+                        Manage Roles & Permissions
+                    </Button>
+                    <Button variant="primary"onClick={() => setIsAddingUser(true)}>
+                        <Plus size={18} />
+                        Add New User
+                    </Button>
+                </div>
             </div>
-            <div className="user-management-buttons flex gap-4">
-                <button className="bg-[#0F7AB2] text-white px-4 py-2 rounded-lg hover:bg-[#0A4B6E] transition duration-300">Manage Roles & Permissions</button>
-                <button className="bg-[#0F7AB2] text-white px-4 py-2 rounded-lg hover:bg-[#0A4B6E] transition duration-300">Add New User</button>
+
+            <div className="header  flex md:flex-row md:items-end justify-between pb-4 mb-6">
+                <div className="search-bar">
+                    <SearchBar 
+                        placeholder="Search users..."
+                        className="md:w-100" 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+
+                <div className="relative w-48">
+                    <Funnel size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
+                    {!filterRole && (
+                        <span className="absolute left-10 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none z-10">
+                            Filter Roles
+                        </span>
+                    )}
+
+                    <Select
+                        id="role-filter"
+                        value={filterRole}
+                        onChange={(e) => setFilterRole(e.target.value)}
+                        options={[
+                            { value: "all", label: "All Roles" },
+                            { value: "admin", label: "Admin" },
+                            { value: "driver", label: "Driver" },
+                            { value: "manager", label: "Manager" },
+                        ]}
+                        className="pl-10"
+                    />
+                </div>
             </div>
-            <hr className="my-6 border-t-2 border-gray-200" />
-            <div className="search-bar">
-                <input type="text" placeholder="Search users..." className="bg-[#DCE5EC] border border-gray-300 rounded-lg px-10 py-1.5" />
-            </div>
-            <div className="user-table">
-                <table className="min-w-full bg-white border border-gray-200">
-                    <thead>
+
+            <div className="user-table overflow-hidden border border-gray-400 rounded rounded-md">
+
+                {/* Permissions Modal */}
+                <PermissionsModal 
+                    isOpen={isPermissionsModalOpen} 
+                    onClose={() => setIsPermissionsModalOpen(false)} 
+                />
+
+                {/* Shared Modal for Adding and Editing */}
+                <UserModal 
+                    isOpen={isAddingUser || !!editingUser} 
+                    onClose={() => {
+                        setIsAddingUser(false);
+                        setEditingUser(null);
+                    }}
+                    user={editingUser}
+                />
+
+                {/* Delete Confirmation Modal */}
+                {userToDelete && (
+                    <SharedModal 
+                        isOpen={true} 
+                        onClose={() => setUserToDelete(null)} 
+                        maxWidth="max-w-sm" 
+                        footer={deleteFooter}
+                    >
+                        <div className="text-center py-4">
+                            {/* Warning Icon */}
+                            <div className="flex justify-center mb-6">
+                                <AlertCircle size={60} className="text-red-500" />
+                            </div>
+
+                            {/* Title */}
+                            <h2 className="text-[#1B4B75] text-xl font-bold mb-3">
+                                Confirm Deletion
+                            </h2>
+
+                            {/* Message */}
+                            <p className="text-gray-700 text-sm">
+                                Are you sure you want to delete <span className="font-semibold text-gray-900">{userToDelete.firstName} {userToDelete.lastName}</span>? This action cannot be undone.
+                            </p>
+                        </div>
+                    </SharedModal>
+                )}
+
+                <table className="min-w-full  shadow-sm">
+                    <thead className="min-w-full border border-gray-200 bg-[#DCE5EC] border-b-2">
                         <tr>
-                            <th className="first-name">First Name</th>
-                            <th className="last-name">Last Name</th>
-                            <th className="role">Role</th>
-                            <th className="date-created">Date Created</th>
-                            <th className="actions">Actions</th>
+                            <th className="cursor-pointer text-[#1B4B75] py-2 font-semibold hover:bg-gray-200" onClick={() => handleSort('firstName')}>
+                                First Name {sortConfig.key === 'firstName' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                            </th>
+                            <th className="cursor-pointer text-[#1B4B75] py-2 font-semibold hover:bg-gray-200" onClick={() => handleSort('lastName')}>
+                                Last Name {sortConfig.key === 'lastName' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                            </th>
+                            <th className="text-[#1B4B75] py-2 font-semibold">Contact Number</th>
+                            <th className="cursor-pointer text-[#1B4B75] py-2 font-semibold hover:bg-gray-200" onClick={() => handleSort('role')}>
+                                Role {sortConfig.key === 'role' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                            </th>
+                            <th className="cursor-pointer text-[#1B4B75] py-2 font-semibold hover:bg-gray-200" onClick={() => handleSort('dateCreated')}>
+                                Date Created {sortConfig.key === 'dateCreated' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                            </th>
+                            <th className="text-[#1B4B75] py-2 font-semibold">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr>
-                            <td className="first-name">Alejandro</td>
-                            <td className="last-name">Doe</td>
-                            <td className="role">Admin</td>
-                            <td className="date-created">2026-01-01</td>
-                            <td className="actions">
-                                <button className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300 mr-2">Edit</button>
-                                <button className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition duration-300">Delete</button>
-                            </td>
-                        </tr>
+                    <tbody className="min-w-full">
+                        {processedUsers.length > 0 ? (
+                            processedUsers.map((user) => (
+                                <tr key={user.userId} className="border border-gray-200 hover:bg-gray-50 transition-colors">
+                                    <td className="p-2 text-center">{user.firstName}</td>
+                                    <td className="p-2 text-center">{user.lastName}</td>
+                                    <td className="p-2 text-center">{user.contactNumber}</td>
+                                    <td className="p-2 text-center">
+                                        {/* Optional: Add a badge style for the role */}
+                                        <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                            user.role === 'Admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                                        }`}>
+                                            {user.role}
+                                        </span>
+                                    </td>
+                                    <td className="p-2 text-center">{user.dateCreated}</td>
+                                    <td className="px-6 py-4 flex justify-center gap-4">
+                                        <button onClick={() => setEditingUser(user)} className="text-slate-400 hover:text-blue-600"><Edit size={18} /></button>
+                                        <button onClick={() => setUserToDelete(user)} className="text-slate-400 hover:text-red-600"><Trash size={18} /></button>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan="6" className="p-10 text-center text-gray-500 italic">
+                                    No users match your search or filter.
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>
-        </div>
+        </Card>
     )
 }
