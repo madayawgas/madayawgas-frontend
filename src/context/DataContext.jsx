@@ -10,7 +10,6 @@ import {
 } from "../data/userMockData";
 import { trucks as rawTrucks } from "../data/truckMockData";
 import {
-  allSalesRecords,
   weeklySales as mockWeeklySales,
   monthlySales as mockMonthlySales,
   annualSales as mockAnnualSales,
@@ -40,6 +39,47 @@ export const DataProvider = ({ children }) => {
       localStorage.removeItem("madayaw_active_user");
     }
   }, [currentUser]);
+
+  // ==========================================================================
+  // ROLE MAPPING HELPERS
+  // ==========================================================================
+  const roleMap = {
+    Admin: 1,
+    Manager: 2,
+    Driver: 3,
+    ADMIN: 1,
+    FLEET_MANAGER: 2,
+    DRIVER: 3,
+  };
+
+  const rolesReverseMap = {
+    1: "ADMIN",
+    2: "FLEET_MANAGER",
+    3: "DRIVER",
+  };
+
+  // ==========================================================================
+  // APPLICATION STATE (USERS / ROLES / PERMISSIONS / TRUCKS)
+  // ==========================================================================
+  const [users, setUsers] = useState(() => {
+    const saved = localStorage.getItem("mockApp_users");
+    return saved ? JSON.parse(saved) : allUsers;
+  });
+
+  const [roles, setRoles] = useState(() => {
+    const saved = localStorage.getItem("mockApp_roles");
+    return saved ? JSON.parse(saved) : rolesData;
+  });
+
+  const [permissions, setPermissions] = useState(() => {
+    const saved = localStorage.getItem("mockApp_permissions");
+    return saved ? JSON.parse(saved) : PERMISSIONS;
+  });
+
+  const [trucks, setTrucks] = useState(() => {
+    const saved = localStorage.getItem("mockApp_trucks");
+    return saved ? JSON.parse(saved) : rawTrucks;
+  });
 
   // ==========================================================================
   // AUTH METHODS
@@ -83,75 +123,6 @@ export const DataProvider = ({ children }) => {
   };
 
   // ==========================================================================
-  // ROLE MAPPING HELPERS
-  // ==========================================================================
-  const roleMap = {
-    Admin: 1,
-    Manager: 2,
-    Driver: 3,
-    ADMIN: 1,
-    FLEET_MANAGER: 2,
-    DRIVER: 3,
-  };
-
-  const rolesReverseMap = {
-    1: "ADMIN",
-    2: "FLEET_MANAGER",
-    3: "DRIVER",
-  };
-
-  // ==========================================================================
-  // APPLICATION STATE (USERS / ROLES / PERMISSIONS / TRUCKS)
-  // ==========================================================================
-  const [users, setUsers] = useState(() => {
-    const saved = localStorage.getItem("mockApp_users");
-    return saved ? JSON.parse(saved) : allUsers;
-  });
-
-  const [roles, setRoles] = useState(() => {
-    const saved = localStorage.getItem("mockApp_roles");
-    return saved ? JSON.parse(saved) : rolesData;
-  });
-
-  const [permissions, setPermissions] = useState(() => {
-    const saved = localStorage.getItem("mockApp_permissions");
-    return saved ? JSON.parse(saved) : PERMISSIONS;
-  });
-
-  const [trucks, setTrucks] = useState(() => {
-    const saved = localStorage.getItem("mockApp_trucks");
-    return saved ? JSON.parse(saved) : rawTrucks;
-  });
-
-  const [salesRecords] = useState(allSalesRecords);
-
-  // ==========================================================================
-  // SALES HELPERS
-  // ==========================================================================
-  const getSalesByPeriod = (period) => {
-    const now = new Date("2026-04-13");
-    let filtered = [...salesRecords];
-
-    if (period === "weekly") {
-      const lastWeek = new Date(now);
-      lastWeek.setDate(now.getDate() - 14);
-      filtered = salesRecords.filter((r) => new Date(r.date) >= lastWeek);
-    } else if (period === "monthly") {
-      const lastYear = new Date(now);
-      lastYear.setFullYear(now.getFullYear() - 1);
-      filtered = salesRecords.filter((r) => new Date(r.date) >= lastYear);
-    }
-
-    return filtered.map((record) => ({
-      ...record,
-      costPerCan: (record.totalGrossSales / record.fuelConsumption).toFixed(2),
-      salesPerLiter: (record.totalGrossSales / record.fuelConsumption).toFixed(
-        2,
-      ),
-    }));
-  };
-
-  // ==========================================================================
   // LOCAL STORAGE SYNC
   // ==========================================================================
   useEffect(() => {
@@ -187,17 +158,35 @@ export const DataProvider = ({ children }) => {
   });
 
   // ==========================================================================
+  // HELPERS
+  // ==========================================================================
+  const formatName = (name) => {
+    if (!name) return "";
+    return name
+      .trim()
+      .split(/\s+/)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+  };
+
+  // ==========================================================================
   // USER CRUD
   // ==========================================================================
   const addUser = (userData) => {
     const roleId = roleMap[userData.role] || 3;
 
-    const generatedUsername = `${userData.firstName
-      .charAt(0)
-      .toLowerCase()}${userData.lastName.replace(/\s+/g, "").toLowerCase()}`;
+    // Proper case names
+    const firstName = formatName(userData.firstName);
+    const lastName = formatName(userData.lastName);
+
+    const generatedUsername = `${firstName.charAt(0).toLowerCase()}${lastName
+      .replace(/\s+/g, "")
+      .toLowerCase()}`;
 
     const newUser = {
       ...userData,
+      firstName,
+      lastName,
       roleId,
       username: userData.username || generatedUsername,
       userId: Date.now(),
@@ -210,6 +199,9 @@ export const DataProvider = ({ children }) => {
 
   const updateUser = (userId, updatedData) => {
     const mappedUpdate = { ...updatedData };
+
+    if (updatedData.firstName) mappedUpdate.firstName = formatName(updatedData.firstName);
+    if (updatedData.lastName) mappedUpdate.lastName = formatName(updatedData.lastName);
 
     if (updatedData.role) {
       mappedUpdate.roleId = roleMap[updatedData.role] || updatedData.roleId;
@@ -335,13 +327,10 @@ export const DataProvider = ({ children }) => {
     roles,
     permissions,
     trucks: activeHydratedTrucks,
-    salesRecords,
     dashboardMetrics,
     weeklySales,
     monthlySales,
     annualSales,
-
-    getSalesByPeriod,
 
     addUser,
     updateUser,
@@ -361,7 +350,7 @@ export const DataProvider = ({ children }) => {
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
-};;
+};
 
 // ============================================================================
 // CONTEXT HOOK
