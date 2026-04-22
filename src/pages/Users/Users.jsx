@@ -4,25 +4,10 @@ import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Select from "../../components/ui/Select";
 import UserModal from "../../components/users/UserModal";
+import SharedModal from "../../components/ui/Modal";
 import { useData } from "../../context/DataContext";
-import { Trash, Edit, Funnel, Plus, Settings } from "lucide-react";
-import { createPortal } from "react-dom";
+import { Trash, Edit, Funnel, Plus, Settings, AlertCircle } from "lucide-react";
 
-    const Modal = ({ title, children }) => {
-        return createPortal(
-            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-                    <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                        <h3 className="text-xl font-bold text-[#1B4B75]">{title}</h3>
-                    </div>
-                    <div className="p-8">
-                        {children}
-                    </div>
-                </div>
-            </div>,
-            document.body
-        );
-    };
 export default function Users() {
     const { users, deleteUser } = useData();
     
@@ -72,6 +57,28 @@ export default function Users() {
             direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
         }));
     };
+
+    const deleteFooter = (
+        <div className="flex justify-center gap-4">
+            <Button 
+                variant="danger" 
+                className="px-8" 
+                onClick={() => {
+                    deleteUser(userToDelete.userId);
+                    setUserToDelete(null);
+                }}
+            >
+                DELETE
+            </Button>
+            <Button 
+                variant="secondary" 
+                className="px-8" 
+                onClick={() => setUserToDelete(null)}
+            >
+                CANCEL
+            </Button>
+        </div>
+    );
 
     return (
         <Card>
@@ -138,40 +145,31 @@ export default function Users() {
                     user={editingUser}
                 />
 
+                {/* Delete Confirmation Modal */}
                 {userToDelete && (
-                    <Modal title="Confirm Deletion" onClose={() => setUserToDelete(null)}>
-                        <div className="space-y-6">
-                            <div className="text-center">
-                                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                                    <Trash className="h-6 w-6 text-red-600" />
-                                </div>
-                                <p className="text-gray-600">
-                                    Are you sure you want to delete <strong>{userToDelete.firstName} {userToDelete.lastName}</strong>? 
-                                    This action cannot be undone.
-                                </p>
+                    <SharedModal 
+                        isOpen={true} 
+                        onClose={() => setUserToDelete(null)} 
+                        maxWidth="max-w-sm" 
+                        footer={deleteFooter}
+                    >
+                        <div className="text-center py-4">
+                            {/* Warning Icon */}
+                            <div className="flex justify-center mb-6">
+                                <AlertCircle size={60} className="text-red-500" />
                             </div>
 
-                            <div className="flex justify-center gap-4 pt-4">
-                                <button 
-                                    type="button" 
-                                    onClick={() => setUserToDelete(null)} 
-                                    className="px-6 py-2 text-gray-500 font-semibold hover:text-gray-700 transition-colors uppercase text-sm"
-                                >
-                                    Cancel
-                                </button>
-                                <button 
-                                    type="button" 
-                                    onClick={() => {
-                                        deleteUser(userToDelete.userId);
-                                        setUserToDelete(null);
-                                    }} 
-                                    className="px-8 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-bold shadow-md uppercase text-sm"
-                                >
-                                    Confirm
-                                </button>
-                            </div>
+                            {/* Title */}
+                            <h2 className="text-[#1B4B75] text-xl font-bold mb-3">
+                                Confirm Deletion
+                            </h2>
+
+                            {/* Message */}
+                            <p className="text-gray-700 text-sm">
+                                Are you sure you want to delete <span className="font-semibold text-gray-900">{userToDelete.firstName} {userToDelete.lastName}</span>? This action cannot be undone.
+                            </p>
                         </div>
-                    </Modal>
+                    </SharedModal>
                 )}
 
                 <table className="min-w-full  shadow-sm">
