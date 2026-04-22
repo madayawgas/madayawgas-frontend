@@ -14,8 +14,7 @@ const costPerCan = mockFuelConsumption > 0
   ? grossIncome / mockFuelConsumption 
   : 0;
 
-export const getDashboardMetrics = (users = allUsers, trucks = allHydratedTrucks) => {
-  // Split the hydrated trucks into their respective lists
+export const getDashboardMetrics = (trucks = allHydratedTrucks) => {
   const availableTrucksList = trucks.filter(
     (t) => t.status === "AVAILABLE",
   );
@@ -24,20 +23,11 @@ export const getDashboardMetrics = (users = allUsers, trucks = allHydratedTrucks
   );
 
   return {
-    // Financials
     grossIncome,
     costPerCan,
-
-    // Counts for Stat Cards
-    totalUsers: users.length,
-    totalTrucks: trucks.length,
     availableTrucksCount: availableTrucksList.length,
     trucksUnderMaintenanceCount: maintenanceTrucksList.length,
-
     availableTrucksList,
     maintenanceTrucksList,
-
-    // Pass the full user list in case you need it for a "Manage Users" widget
-    usersList: users,
   };
 };
