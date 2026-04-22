@@ -42,6 +42,47 @@ export const DataProvider = ({ children }) => {
   }, [currentUser]);
 
   // ==========================================================================
+  // AUTH METHODS
+  // ==========================================================================
+  const login = (username, password) => {
+    const user = users.find(
+      (u) => u.username === username && u.password === password,
+    );
+
+    if (!user) {
+      return { success: false, message: "Invalid username or password" };
+    }
+
+    if (!user.isActive) {
+      return { success: false, message: "Account disabled" };
+    }
+
+    const hydratedUser = {
+      ...user,
+      roleName: rolesReverseMap[user.roleId],
+    };
+
+    setCurrentUser(hydratedUser);
+    setIsAuthenticated(true);
+
+    localStorage.setItem("madayaw_active_user", JSON.stringify(hydratedUser));
+
+    return { success: true, user: hydratedUser };
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem("madayaw_active_user");
+  };
+
+  const hasPermission = (moduleName) => {
+    if (!currentUser?.roleName) return false;
+    const userPermissions = permissions[currentUser.roleName] || [];
+    return userPermissions.includes(moduleName);
+  };
+
+  // ==========================================================================
   // ROLE MAPPING HELPERS
   // ==========================================================================
   const roleMap = {
@@ -102,47 +143,6 @@ export const DataProvider = ({ children }) => {
   });
 
   const [salesRecords] = useState(allSalesRecords);
-
-  // ==========================================================================
-  // AUTH METHODS
-  // ==========================================================================
-  const login = (username, password) => {
-    const user = users.find(
-      (u) => u.username === username && u.password === password,
-    );
-
-    if (!user) {
-      return { success: false, message: "Invalid username or password" };
-    }
-
-    if (!user.isActive) {
-      return { success: false, message: "Account disabled" };
-    }
-
-    const hydratedUser = {
-      ...user,
-      roleName: rolesReverseMap[user.roleId],
-    };
-
-    setCurrentUser(hydratedUser);
-    setIsAuthenticated(true);
-
-    localStorage.setItem("madayaw_active_user", JSON.stringify(hydratedUser));
-
-    return { success: true, user: hydratedUser };
-  };
-
-  const logout = () => {
-    setCurrentUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem("madayaw_active_user");
-  };
-
-  const hasPermission = (moduleName) => {
-    if (!currentUser?.roleName) return false;
-    const userPermissions = permissions[currentUser.roleName] || [];
-    return userPermissions.includes(moduleName);
-  };
 
   // ==========================================================================
   // SALES HELPERS
@@ -380,7 +380,7 @@ export const DataProvider = ({ children }) => {
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
-};
+};;
 
 // ============================================================================
 // CONTEXT HOOK
