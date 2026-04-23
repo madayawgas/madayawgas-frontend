@@ -48,7 +48,10 @@ export default function Fleet() {
   });
 
   return (
-    <div className="w-full max-w-[1400px] mx-auto relative h-screen">
+    <div className="min-h-screen bg-white p-8 rounded-[12px] shadow-sm overflow-hidden min-h-[85vh]">
+    <div className="w-full max-w-[1400px] mx-auto">
+
+      <div className="border-b border-gray-200">
       <FleetHeader 
         onAddTruck={handleAddNewTruck} 
         searchTerm={searchTerm}
@@ -56,8 +59,8 @@ export default function Fleet() {
         selectedStatus={statusFilter}
         onFilterChange={setStatusFilter}
       />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-10">
         {filteredTrucks.map((truck) => (
           <TruckCard 
             key={truck.truckId} // Updated to truckId
@@ -92,5 +95,6 @@ export default function Fleet() {
         />
       )}
     </div>  
+    </div>
   );
 }
