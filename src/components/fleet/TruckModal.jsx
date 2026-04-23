@@ -19,7 +19,6 @@ const getBadgeVariant = (status) => {
 
 /**
  * Sub-component: A custom selector that uses our TruckStatus badges as interactive buttons.
- * This makes the UI more intuitive than a standard dropdown.
  */
 const TruckStatusSelector = ({ currentStatus, onSelect }) => {
   const statuses = ["AVAILABLE", "UNDER_MAINTENANCE", "IN_USE", "IN_SHOP"];

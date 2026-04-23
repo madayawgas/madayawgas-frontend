@@ -1,8 +1,5 @@
 // src/data/salesMockData.js
 
-// ==========================================================================
-// MOCK SALES DATA (Moved from DataContext)
-// ==========================================================================
 export const weeklySales = [
   { name: "Mon", butane: 1200, lpg11kg: 800, lpg50kg: 400 },
   { name: "Tue", butane: 1300, lpg11kg: 850, lpg50kg: 420 },
@@ -31,4 +28,4 @@ export const annualSales = [
   { name: "2024", butane: 350000, lpg11kg: 250000, lpg50kg: 110000 },
 ];
 
-export const mockFuelConsumption = 125000;
+export const mockFuelConsumption = 1205000;

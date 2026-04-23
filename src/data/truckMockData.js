@@ -28,7 +28,7 @@ const rawTrucks = [
     model: "Hino 500 Series",
     yearModel: 2019,
     currentOdometer: 120500,
-    lastPMOdometer: 120000, // Due for maintenance!
+    lastPMOdometer: 120000, 
     status: "UNDER_MAINTENANCE",
     assignedDriverId: 5, // Apolinario Mabini
     activeRepair: "Replacing brake pads and rotors", 
