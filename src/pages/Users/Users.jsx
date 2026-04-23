@@ -106,8 +106,8 @@ export default function Users() {
         <Card>
             <div className="header  flex flex-col md:flex-row md:items-end justify-between border-b border-gray-200 pb-4 mb-6">
                 <div className="user-management-header">
-                    <h2 className="text-1xl md:text-[25px] font-bold text-[#1B4B75] mb-1">Users Management</h2>
-                    <p className="text-[#6D8AA2]">Manage user accounts and their permissions.</p>
+                    <h1 className="text-1xl md:text-[25px] font-bold text-[#1B4B75] mb-1">Users Management</h1>
+                    <p className="text-[#6D8AA2] text-sm">Manage user accounts and their permissions.</p>
                 </div>
 
                 <div className="user-management-buttons flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">

@@ -16,11 +16,7 @@ export default function TruckCard({ truck, onClick }) {
   };
 
   return (
-    /* Interactive Card: The 'hover' classes add a subtle "lift" effect for better UX.
-       'onClick' allows the user to view more details about this specific truck. */
-    <Card onClick={() => onClick(truck)} className="flex flex-col h-full hover:-translate-y-1 transition-transform duration-200">
-      
-      {/* Card Header: Displays a Truck icon and identifies the truck by Plate or ID */}
+    <Card onClick={() => onClick(truck)} className="flex flex-col h-full bg-[#F1F5F9]! hover:-translate-y-1 transition-transform duration-200">
       <div className="flex items-center gap-3 text-[#1B4B75] mb-2">
         <Truck size={24} />
         <h3 className="font-bold text-lg">{truck.plateNumber || `Truck #${truck.truckId}`}</h3>

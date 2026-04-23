@@ -18,14 +18,13 @@ export default function FleetHeader({ onAddTruck, onFilterChange, searchTerm, on
   };
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-6">
-      {/* Responsive layout: switches from vertical stack to horizontal row on large screens */}
+    <div className="w-full mb-6">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         
         {/* Left Side: Header Branding */}
         <div>
           <h2 className="text-2xl font-bold text-[#1B4B75] mb-1">Fleet Board</h2>
-          <p className="text-gray-500 text-sm">Manage Fleet details and information</p>
+          <p className="text-[#6D8AA2] text-sm">Manage Fleet details and information</p>
         </div>
         
         {/* Right Side: Interactive Controls */}
