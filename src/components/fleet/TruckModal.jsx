@@ -17,6 +17,10 @@ const getBadgeVariant = (status) => {
   }
 };
 
+/**
+ * Sub-component: A custom selector that uses our TruckStatus badges as interactive buttons.
+ * This makes the UI more intuitive than a standard dropdown.
+ */
 const TruckStatusSelector = ({ currentStatus, onSelect }) => {
   const statuses = ["AVAILABLE", "UNDER_MAINTENANCE", "IN_USE", "IN_SHOP"];
   return (
@@ -43,8 +47,11 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
   const { getDriverOptions, trucks } = useData();
   const availableDrivers = getDriverOptions(truck?.assignedDriverId);
   
+  // State: 'isEditing' toggles between a 'Read-Only' view and a 'Form' view
   const [isEditing, setIsEditing] = useState(isAdding);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState({}); // Stores validation error messages
+  
+  // Form State: Initialized with existing truck data or empty strings for a new truck
   const [formData, setFormData] = useState({ 
     status: "AVAILABLE",
     plateNumber: "",
@@ -58,15 +65,17 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
     ...(truck || {}) 
   });
 
+  // Guard Clause: Don't render anything if there is no data and we aren't adding a new entry
   if (!truck && !isAdding) return null;
 
+
+  // Change Handler: Processes all text and number inputs dynamically
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     let parsedValue = value;
     
-    // Handle numeric fields
+    // Numeric Validation: Automatically convert strings to Numbers and prevent negatives
     if (["currentOdometer", "lastPMOdometer", "yearModel", "capacity"].includes(name)) {
-      // Prevent negative numbers on change
       if (value !== "" && Number(value) < 0) return;
       parsedValue = value === "" ? "" : Number(value);
     }
@@ -77,7 +86,7 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
 
     setFormData((prev) => ({ ...prev, [name]: parsedValue }));
     
-    // Clear error when user types
+    // UX: Clear specific error message as soon as the user starts correcting it
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -87,6 +96,10 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
     }
   };
 
+    /**
+   * Validation Logic: Ensures data integrity before saving to the database.
+   * Checks for duplicate plates and business rules (e.g., Active trucks must have drivers).
+   */
   const validate = () => {
     const newErrors = {};
 
@@ -127,6 +140,7 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
     return Object.keys(newErrors).length === 0;
   };
 
+    // Submit Handler: Formats final data (timestamps/names) before sending to the parent
   const submitSave = () => {
     if (!validate()) return;
 
@@ -151,7 +165,7 @@ export default function TruckModal({ truck, onClose, onUpdate, onDeleteClick, on
     setIsEditing(false);
   };
 
-  // Prepare driver options with "Unassigned" option
+  // Prepare driver dropdown options with "Unassigned" option
   const driverOptions = [
     { value: "", label: "Unassigned" },
     ...availableDrivers.map(d => ({ value: d.userId, label: `${d.firstName} ${d.lastName}`.trim() }))
