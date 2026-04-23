@@ -4,6 +4,7 @@ import Card from "../ui/Card";
 import Badge from "../ui/Badge";
 
 export default function TruckCard({ truck, onClick }) {
+  // Helper function to map database status strings to specific visual themes (variants)
   const getBadgeVariant = (status) => {
     switch(status) {
       case "AVAILABLE": return "success";
@@ -15,20 +16,28 @@ export default function TruckCard({ truck, onClick }) {
   };
 
   return (
+    /* Interactive Card: The 'hover' classes add a subtle "lift" effect for better UX.
+       'onClick' allows the user to view more details about this specific truck. */
     <Card onClick={() => onClick(truck)} className="flex flex-col h-full hover:-translate-y-1 transition-transform duration-200">
+      
+      {/* Card Header: Displays a Truck icon and identifies the truck by Plate or ID */}
       <div className="flex items-center gap-3 text-[#1B4B75] mb-2">
         <Truck size={24} />
         <h3 className="font-bold text-lg">{truck.plateNumber || `Truck #${truck.truckId}`}</h3>
       </div>
       
+      {/* Decorative Divider: Separates the title from the truck specifications */}
       <hr className="border-[#1B4B75] border-t-2 opacity-20 mb-4" />
 
+      {/* Main Content Area: Displays key data points using dynamic values from the 'truck' object */}
       <div className="text-sm text-gray-800 space-y-2 mb-6 flex-1">
         <p>Driver Name: <span className="font-medium">{truck.driverName}</span></p>
         <p>Truck Model: <span className="font-medium">{truck.yearModel} {truck.model}</span></p>
+        {/* Data Formatting: 'toLocaleString' adds commas to numbers (e.g., 10,000 KM instead of 10000 KM) */}
         <p>Odometer: <span className="font-medium">{truck.currentOdometer?.toLocaleString() || 0} KM</span></p>
       </div>
 
+      {/* Footer: Uses 'mt-auto' to push the status badge to the bottom of the card regardless of content length */}
       <div className="mt-auto">
         <Badge variant={getBadgeVariant(truck.status)}>
           {truck.status.replace("_", " ")}
