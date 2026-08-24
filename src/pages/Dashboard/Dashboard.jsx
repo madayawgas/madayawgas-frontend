@@ -2,10 +2,10 @@
 import StatCard from "../../components/dashboard/StatCard";
 import TruckList from "../../components/dashboard/TruckList";
 import SalesGraph from "../../components/dashboard/SalesGraph";
-import { useData } from "../../context/DataContext"; // Adjust path if needed
+import { useData } from "../../context/DataContext"; 
+import bgHeader from "../../assets/BG-Madayaw5.png";
 
 export default function Dashboard() {
-  //Extract the lists directly from the mock database function
   const { dashboardMetrics } = useData();
   const {
     grossIncome,
@@ -17,45 +17,104 @@ export default function Dashboard() {
   } = dashboardMetrics;
 
   return (
-    <div className="w-full max-w-[1400px] mx-auto">
-      {/* Page Title */}
-      <h2 className="text-2xl md:text-[28px] font-bold text-[#1B4B75] mb-6">
-        Welcome, System Admin
-      </h2>
+    <div className="w-full max-w-[1400px] mx-auto flex flex-col gap-6 p-4">
+      {/* ================= TOP HEADER BANNER & STAT CARDS ================= */}
+      <div 
+        className="w-full bg-cover bg-center rounded-[2rem] p-6 md:p-8 relative overflow-hidden shadow-sm"
+        style={{ backgroundImage: `url(${bgHeader})` }}
+      >
+        {/* Header Title */}
+        <h1 className="text-3xl md:text-4xl font-bold text-white mb-6 relative z-10">
+          Welcome, System Admin
+        </h1>
 
-      {/* Layout Grid */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Left Column (Cards + Graph) */}
-        <div className="flex-1 flex flex-col gap-6">
-          {/* Top Row Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <StatCard
-              title="Gross Income"
-              value={`₱ ${grossIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            />
-            <StatCard
-              title="Cost Per Can"
-              value={`₱ ${costPerCan.toFixed(4)}`}
-            />
+        {/* Top Metric Cards Row (Overlaying Header) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
+          <StatCard 
+            title="Gross Income"
+            value={`₱ ${grossIncome.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`}
+          />
+          <StatCard
+            title="Cost per can"
+            value={`₱ ${costPerCan.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`}
+          />
+          <StatCard
+            title="Gross Income"
+            value={`₱ ${grossIncome.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`}
+          />
+          <StatCard
+            title="Gross Income"
+            value={`₱ ${grossIncome.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`}
+          />
+        </div>
+      </div>
+
+      {/* ================= MAIN CONTENT SECTION ================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* LEFT / TOP SIDE: TRUCK STATUS SUMMARY GRID (4 COLUMNS) */}
+        <div className="lg:col-span-5 grid grid-cols-2 gap-4">
+          {/* Available */}
+          <div className="bg-[#FFF9D6] p-12 rounded-2xl flex items-center justify-between shadow-sm">
+            <div>
+              <p className="text-sm font-semibold text-[#8C6D00]">Available</p>
+              <h3 className="text-3xl font-bold text-[#8C6D00] mt-1">{availableTrucksCount}</h3>
+            </div>
+            <div className="w-12 h-12 bg-[#FFE866] rounded-xl flex items-center justify-center text-2xl">
+              🚚
+            </div>
           </div>
 
-          {/* Graph Section */}
-          <SalesGraph />
+          {/* In Use */}
+          <div className="bg-[#E6F4FA] p-12 rounded-2xl flex items-center justify-between shadow-sm">
+            <div>
+              <p className="text-sm font-semibold text-[#0F7AB2]">In Use</p>
+              <h3 className="text-3xl font-bold text-[#0F7AB2] mt-1">3</h3>
+            </div>
+            <div className="w-12 h-12 bg-[#FFE866] rounded-xl flex items-center justify-center text-2xl">
+              🚚
+            </div>
+          </div>
+
+          {/* In Shop */}
+          <div className="bg-[#E6F4FA] p-10 rounded-2xl flex items-center justify-between shadow-sm">
+            <div>
+              <p className="text-sm font-semibold text-[#0F7AB2]">In Shop</p>
+              <h3 className="text-3xl font-bold text-[#0F7AB2] mt-1">{trucksUnderMaintenanceCount}</h3>
+            </div>
+            <div className="w-12 h-12 bg-[#FFE866] rounded-xl flex items-center justify-center text-2xl">
+              🔧
+            </div>
+          </div>
+
+          {/* Under Repair */}
+          <div className="bg-[#FFF9D6] p-10 rounded-2xl flex items-center justify-between shadow-sm">
+            <div>
+              <p className="text-sm font-semibold text-[#8C6D00]">Under Repair</p>
+              <h3 className="text-3xl font-bold text-[#8C6D00] mt-1">1</h3>
+            </div>
+            <div className="w-12 h-12 bg-[#FFE866] rounded-xl flex items-center justify-center text-2xl">
+              🔧
+            </div>
+          </div>
+
+          {/* Original Truck Lists for detailed plate numbers */}
+          {/* <div className="col-span-2 flex flex-col gap-4 mt-2">
+            <TruckList
+              title={`Available (${availableTrucksCount})`}
+              trucks={availableTrucksList.map((truck) => truck.plateNumber)}
+              status="available"
+            />
+            <TruckList
+              title={`Under Maintenance (${trucksUnderMaintenanceCount})`}
+              trucks={maintenanceTrucksList.map((truck) => truck.plateNumber)}
+              status="maintenance"
+            />
+          </div> */}
         </div>
 
-        {/* Right Column (Truck Lists) */}
-        <div className="w-full lg:w-[320px] flex flex-col gap-6">
-          <TruckList
-            title={`Available (${availableTrucksCount})`} //Added the count to the title!
-            // used plate numbers instead of Truck numbers
-            trucks={availableTrucksList.map((truck) => truck.plateNumber)}
-            status="available"
-          />
-          <TruckList
-            title={`Under Maintenance (${trucksUnderMaintenanceCount})`}
-            trucks={maintenanceTrucksList.map((truck) => truck.plateNumber)}
-            status="maintenance"
-          />
+        {/* RIGHT SIDE: SALES GRAPH */}
+        <div className="lg:col-span-7">
+          <SalesGraph />
         </div>
       </div>
     </div>

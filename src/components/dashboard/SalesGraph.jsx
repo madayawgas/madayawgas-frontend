@@ -14,7 +14,7 @@ export default function SalesGraph() {
     annualSales;
 
   return (
-    <Card className="flex-1 flex flex-col min-h-[350px]">
+    <Card className="flex-1 flex p-4 md:p-5 flex-col min-h-[280px]">
       
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
@@ -30,8 +30,8 @@ export default function SalesGraph() {
               onClick={() => setTimeframe(tf)}
               className={`px-4 py-1.5 rounded-full transition capitalize ${
                 timeframe === tf
-                  ? "bg-[#D8E6F0] text-[#0F7AB2]"
-                  : "text-[#0F7AB2] hover:bg-gray-50"
+                  ? "bg-[#0A4B6E] text-[#ffffff]"
+                  : "bg-[#F3F4F6] text-[#0F7AB2] hover:bg-gray-50"
               }`}
             >
               {tf}
@@ -43,21 +43,21 @@ export default function SalesGraph() {
       {/* Custom HTML Legend */}
       <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-6">
         <div className="flex items-center gap-2 text-sm text-[#0F7AB2] font-medium">
-          <span className="w-6 h-1.5 bg-[#B8D4E5] rounded-full"></span>
+          <span className="w-6 h-1.5 bg-[#93B5D0] rounded-full"></span>
           Butane Canister
         </div>
         <div className="flex items-center gap-2 text-sm text-[#0F7AB2] font-medium">
-          <span className="w-6 h-1.5 bg-[#7CB3D1] rounded-full"></span>
+          <span className="w-6 h-1.5 bg-[#0F7AB2] rounded-full"></span>
           11 kg LPG
         </div>
         <div className="flex items-center gap-2 text-sm text-[#0F7AB2] font-medium">
-          <span className="w-6 h-1.5 bg-[#0F7AB2] rounded-full"></span>
+          <span className="w-6 h-1.5 bg-[#FFDF2C] rounded-full"></span>
           50 kg LPG
         </div>
       </div>
 
       {/* Chart Area */}
-      <div className="w-full h-[250px] md:h-[300px]">
+      <div className="w-full border border-gray-300 rounded-xl h-[200px] md:h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             key={timeframe}
@@ -87,22 +87,22 @@ export default function SalesGraph() {
             <Bar 
               dataKey="butane" 
               name="Butane Canister"
-              fill="#B8D4E5" 
-              barSize={12} 
+              fill="#93B5D0" 
+              barSize={14} 
               radius={[4, 4, 0, 0]} 
             />
             <Bar 
               dataKey="lpg11kg" 
               name="11 kg LPG"
-              fill="#7CB3D1" 
-              barSize={12} 
+              fill="#0F7AB2" 
+              barSize={14} 
               radius={[4, 4, 0, 0]} 
             />
             <Bar 
               dataKey="lpg50kg" 
               name="50 kg LPG"
-              fill="#0F7AB2" 
-              barSize={12} 
+              fill="#FFDF2C" 
+              barSize={14} 
               radius={[4, 4, 0, 0]} 
             />
           </BarChart>
