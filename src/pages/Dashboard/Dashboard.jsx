@@ -20,11 +20,11 @@ export default function Dashboard() {
     <div className="w-full max-w-[1400px] mx-auto flex flex-col gap-6 p-4">
       {/* ================= TOP HEADER BANNER & STAT CARDS ================= */}
       <div 
-        className="w-full bg-cover bg-center rounded-[2rem] p-6 md:p-8 relative overflow-hidden shadow-sm"
+        className="w-full bg-cover bg-center rounded-[2rem] p-6 md:p-10 relative overflow-hidden shadow-sm"
         style={{ backgroundImage: `url(${bgHeader})` }}
       >
         {/* Header Title */}
-        <h1 className="text-3xl md:text-4xl font-bold text-white mb-6 relative z-10">
+        <h1 className="text-3xl md:text-4xl font-semibold text-white mb-6 relative z-10">
           Welcome, System Admin
         </h1>
 
@@ -54,9 +54,9 @@ export default function Dashboard() {
         {/* LEFT / TOP SIDE: TRUCK STATUS SUMMARY GRID (4 COLUMNS) */}
         <div className="lg:col-span-5 grid grid-cols-2 gap-4">
           {/* Available */}
-          <div className="bg-[#FFF9D6] p-12 rounded-2xl flex items-center justify-between shadow-sm">
+          <div className="bg-[#FFF9D6] p-10 rounded-2xl flex items-center justify-between shadow-sm">
             <div>
-              <p className="text-sm font-semibold text-[#8C6D00]">Available</p>
+              <p className="text-md font-bold text-[#8C6D00]">Available</p>
               <h3 className="text-3xl font-bold text-[#8C6D00] mt-1">{availableTrucksCount}</h3>
             </div>
             <div className="w-12 h-12 bg-[#FFE866] rounded-xl flex items-center justify-center text-2xl">
@@ -65,9 +65,9 @@ export default function Dashboard() {
           </div>
 
           {/* In Use */}
-          <div className="bg-[#E6F4FA] p-12 rounded-2xl flex items-center justify-between shadow-sm">
+          <div className="bg-[#E6F4FA] p-11 rounded-2xl flex items-center justify-between shadow-sm">
             <div>
-              <p className="text-sm font-semibold text-[#0F7AB2]">In Use</p>
+              <p className="text-md font-bold text-[#0F7AB2]">In Use</p>
               <h3 className="text-3xl font-bold text-[#0F7AB2] mt-1">3</h3>
             </div>
             <div className="w-12 h-12 bg-[#FFE866] rounded-xl flex items-center justify-center text-2xl">
@@ -76,9 +76,9 @@ export default function Dashboard() {
           </div>
 
           {/* In Shop */}
-          <div className="bg-[#E6F4FA] p-10 rounded-2xl flex items-center justify-between shadow-sm">
+          <div className="bg-[#E6F4FA] p-11 rounded-2xl flex items-center justify-between shadow-sm">
             <div>
-              <p className="text-sm font-semibold text-[#0F7AB2]">In Shop</p>
+              <p className="text-md font-bold text-[#0F7AB2]">In Shop</p>
               <h3 className="text-3xl font-bold text-[#0F7AB2] mt-1">{trucksUnderMaintenanceCount}</h3>
             </div>
             <div className="w-12 h-12 bg-[#FFE866] rounded-xl flex items-center justify-center text-2xl">
@@ -87,9 +87,9 @@ export default function Dashboard() {
           </div>
 
           {/* Under Repair */}
-          <div className="bg-[#FFF9D6] p-10 rounded-2xl flex items-center justify-between shadow-sm">
+          <div className="bg-[#FFF9D6] p-9 rounded-2xl flex items-center justify-between shadow-sm">
             <div>
-              <p className="text-sm font-semibold text-[#8C6D00]">Under Repair</p>
+              <p className="text-md font-bold text-[#8C6D00]">Under Repair</p>
               <h3 className="text-3xl font-bold text-[#8C6D00] mt-1">1</h3>
             </div>
             <div className="w-12 h-12 bg-[#FFE866] rounded-xl flex items-center justify-center text-2xl">

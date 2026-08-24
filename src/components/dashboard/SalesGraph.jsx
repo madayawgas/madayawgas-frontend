@@ -57,7 +57,7 @@ export default function SalesGraph() {
       </div>
 
       {/* Chart Area */}
-      <div className="w-full border border-gray-300 rounded-xl h-[200px] md:h-[200px]">
+      <div className="w-full border border-gray-300 rounded-xl h-[180px] md:h-[180px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             key={timeframe}
@@ -88,21 +88,21 @@ export default function SalesGraph() {
               dataKey="butane" 
               name="Butane Canister"
               fill="#93B5D0" 
-              barSize={14} 
+              barSize={16} 
               radius={[4, 4, 0, 0]} 
             />
             <Bar 
               dataKey="lpg11kg" 
               name="11 kg LPG"
               fill="#0F7AB2" 
-              barSize={14} 
+              barSize={16} 
               radius={[4, 4, 0, 0]} 
             />
             <Bar 
               dataKey="lpg50kg" 
               name="50 kg LPG"
               fill="#FFDF2C" 
-              barSize={14} 
+              barSize={16} 
               radius={[4, 4, 0, 0]} 
             />
           </BarChart>
