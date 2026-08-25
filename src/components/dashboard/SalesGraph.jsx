@@ -57,7 +57,7 @@ export default function SalesGraph() {
       </div>
 
       {/* Chart Area */}
-      <div className="w-full border border-gray-300 rounded-xl h-[180px] md:h-[180px]">
+      <div className="w-full border border-gray-300 rounded-xl h-[190px] md:h-[190px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             key={timeframe}

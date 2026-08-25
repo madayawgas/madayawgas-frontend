@@ -4,6 +4,7 @@ import TruckList from "../../components/dashboard/TruckList";
 import SalesGraph from "../../components/dashboard/SalesGraph";
 import { useData } from "../../context/DataContext"; 
 import bgHeader from "../../assets/BG-Madayaw5.png";
+import {Truck, Wrench} from "lucide-react";
 
 export default function Dashboard() {
   const { dashboardMetrics } = useData();
@@ -60,7 +61,7 @@ export default function Dashboard() {
               <h3 className="text-3xl font-bold text-[#8C6D00] mt-1">{availableTrucksCount}</h3>
             </div>
             <div className="w-12 h-12 bg-[#FFE866] rounded-xl flex items-center justify-center text-2xl">
-              🚚
+              <Truck className="w-6 h-6 text-[#0F7AB2]" />
             </div>
           </div>
 
@@ -71,7 +72,7 @@ export default function Dashboard() {
               <h3 className="text-3xl font-bold text-[#0F7AB2] mt-1">3</h3>
             </div>
             <div className="w-12 h-12 bg-[#FFE866] rounded-xl flex items-center justify-center text-2xl">
-              🚚
+              <Truck className="w-6 h-6 text-[#0F7AB2]" />
             </div>
           </div>
 
@@ -82,7 +83,7 @@ export default function Dashboard() {
               <h3 className="text-3xl font-bold text-[#0F7AB2] mt-1">{trucksUnderMaintenanceCount}</h3>
             </div>
             <div className="w-12 h-12 bg-[#FFE866] rounded-xl flex items-center justify-center text-2xl">
-              🔧
+              <Wrench size={24} color="#8C6D00" />
             </div>
           </div>
 
@@ -93,7 +94,7 @@ export default function Dashboard() {
               <h3 className="text-3xl font-bold text-[#8C6D00] mt-1">1</h3>
             </div>
             <div className="w-12 h-12 bg-[#FFE866] rounded-xl flex items-center justify-center text-2xl">
-              🔧
+              <Wrench size={24} color="#8C6D00" />
             </div>
           </div>
 
