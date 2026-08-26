@@ -55,7 +55,7 @@ export const authApi = {
   /**
    * Get currently authenticated user profile and permissions.
    * Used on page refresh to verify active session cookie.
-   * @returns {Promise<object>} Current user object
+   * @returns {Promise<object|null>} Current user object or null if unauthenticated
    */
   async getMe() {
     if (isMock) {
@@ -66,11 +66,11 @@ export const authApi = {
           try {
             return JSON.parse(saved);
           } catch {
-            // Ignore JSON parse error and fallback
+            // Ignore JSON parse error
           }
         }
       }
-      return mockMe.data.user;
+      return null;
     }
 
     const result = await apiClient("/users/me");

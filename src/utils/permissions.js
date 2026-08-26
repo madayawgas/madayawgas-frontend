@@ -60,3 +60,20 @@ export function canAny(user, permissionsList = []) {
   if (!user || !Array.isArray(user.permissions)) return false;
   return permissionsList.some((p) => user.permissions.includes(p));
 }
+
+/**
+ * Determine the optimal landing page for a user based on their granted permissions.
+ *
+ * @param {object|null} user
+ * @returns {string} Target path (e.g. '/dashboard', '/sales-delivery', '/fleet')
+ */
+export function getDefaultRoute(user) {
+  if (!user || !Array.isArray(user.permissions)) return "/login";
+  if (can(user, PERMISSIONS.DASHBOARD_VIEW)) return "/dashboard";
+  if (can(user, PERMISSIONS.SALES_VIEW) || can(user, PERMISSIONS.SALES_VIEW_OWN)) return "/sales-delivery";
+  if (can(user, PERMISSIONS.FLEET_VIEW)) return "/fleet";
+  if (can(user, PERMISSIONS.ROUTE_VIEW) || can(user, PERMISSIONS.ROUTE_VIEW_OWN)) return "/route-dispatch";
+  if (can(user, PERMISSIONS.INVENTORY_VIEW)) return "/inventory";
+  if (can(user, PERMISSIONS.USERS_VIEW)) return "/users";
+  return "/dashboard";
+}

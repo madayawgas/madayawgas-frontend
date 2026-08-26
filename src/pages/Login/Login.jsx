@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { getDefaultRoute } from "../../utils/permissions.js";
 
 import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
@@ -10,7 +11,7 @@ import logo from "../../assets/logo.svg";
 import bgImage from "../../assets/BG-Madayaw5.png";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, isAuthenticated, currentUser } = useAuth();
   const navigate = useNavigate();
 
   const [username, setUsername] = useState("");
@@ -19,6 +20,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // If already authenticated, redirect directly to user's landing page
+  if (isAuthenticated && currentUser) {
+    return <Navigate to={getDefaultRoute(currentUser)} replace />;
+  }
+
   const handleLogin = async () => {
     if (loading) return;
     setLoading(true);
@@ -26,11 +32,8 @@ export default function Login() {
 
     try {
       const user = await login(username, password);
-      if (user.role === "Sales Person" || user.role === "DRIVER") {
-        navigate("/sales-delivery");
-      } else {
-        navigate("/dashboard");
-      }
+      const destination = getDefaultRoute(user);
+      navigate(destination, { replace: true });
     } catch (err) {
       setError(err.message || "Invalid username or password");
     } finally {

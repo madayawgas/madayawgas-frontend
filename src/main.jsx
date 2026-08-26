@@ -8,6 +8,9 @@ import {
 } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext.jsx";
+import { PERMISSIONS } from "./utils/permissions.js";
+import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
+import DynamicHomeRedirect from "./components/auth/DynamicHomeRedirect.jsx";
 
 import Layout from "./pages/Layout";
 import Dashboard from "./pages/Dashboard/Dashboard";
@@ -18,7 +21,7 @@ import RouteDispatch from "./pages/RouteDispatch/RouteDispatch";
 import Inventory from "./pages/Inventory/Inventory";
 import SalesAndDelivery from "./pages/SalesAndDelivery/SalesAndDelivery";
 
-// 1. Configure the Routes
+// 1. Configure Protected Routes
 const router = createBrowserRouter([
   {
     path: "/login",
@@ -26,46 +29,73 @@ const router = createBrowserRouter([
   },
   {
     path: "/",
-    element: <Layout />, // Layout handles the security!
+    element: <Layout />,
     children: [
       {
-        index: true, // If they go to exactly "localhost:5173/", redirect to dashboard
-        element: <Navigate to="/dashboard" replace />,
+        index: true,
+        element: <DynamicHomeRedirect />,
       },
       {
         path: "dashboard",
-        element: <Dashboard />,
+        element: (
+          <ProtectedRoute permission={PERMISSIONS.DASHBOARD_VIEW}>
+            <Dashboard />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "fleet",
-        element: <Fleet />,
+        element: (
+          <ProtectedRoute permission={PERMISSIONS.FLEET_VIEW}>
+            <Fleet />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "route-dispatch",
-        element: <RouteDispatch />,
+        element: (
+          <ProtectedRoute
+            permission={[PERMISSIONS.ROUTE_VIEW, PERMISSIONS.ROUTE_VIEW_OWN]}
+          >
+            <RouteDispatch />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "inventory",
-        element: <Inventory />,
+        element: (
+          <ProtectedRoute permission={PERMISSIONS.INVENTORY_VIEW}>
+            <Inventory />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "sales-delivery",
-        element: <SalesAndDelivery />,
+        element: (
+          <ProtectedRoute
+            permission={[PERMISSIONS.SALES_VIEW, PERMISSIONS.SALES_VIEW_OWN]}
+          >
+            <SalesAndDelivery />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "users",
-        element: <Users />,
+        element: (
+          <ProtectedRoute permission={PERMISSIONS.USERS_VIEW}>
+            <Users />
+          </ProtectedRoute>
+        ),
       },
     ],
   },
   {
-    // Catch-all route: If they type a URL that doesn't exist, kick to login
     path: "*",
     element: <Navigate to="/login" replace />,
   },
 ]);
 
-// 2. WRAP THE ROUTER WITH AUTH PROVIDER
+// 2. Wrap router with AuthProvider
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <AuthProvider>
