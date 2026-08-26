@@ -10,13 +10,16 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { usersApi } from "../../api/users.js";
 import { PERMISSIONS } from "../../utils/permissions.js";
 import {
-  Trash,
-  Edit,
+  Trash2,
+  Pencil,
   Funnel,
   Plus,
   Settings,
   AlertCircle,
   KeyRound,
+  ArrowLeft,
+  EyeOff,
+  Eye,
 } from "lucide-react";
 
 export default function Users() {
@@ -35,6 +38,18 @@ export default function Users() {
   const [userToDelete, setUserToDelete] = useState(null);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [createdUserCredentials, setCreatedUserCredentials] = useState(null);
+
+
+  //basig makalimut ko oemji
+  const [userToReactivate, setUserToReactivate] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [showPasswordText, setShowPasswordText] = useState(false);
+
+
+
+
+
 
   useEffect(() => {
     async function loadData() {
@@ -135,6 +150,22 @@ export default function Users() {
     setUserToDelete(null);
   };
 
+
+
+
+
+
+  //oemji basig makalimut ko
+  const handleReactivateUser = (user) => {
+    alert(`Reactivated ${user.firstName} ${user.lastName}`);
+    setUserToReactivate(null);
+  };
+
+
+
+
+
+
   const deleteFooter = (
     <div className="flex justify-center gap-4">
       <Button
@@ -160,23 +191,20 @@ export default function Users() {
     <Card>
       <div className="header flex flex-col md:flex-row md:items-end justify-between border-b border-gray-200 pb-4 mb-6">
         <div className="user-management-header">
-          <h1 className="text-1xl md:text-[25px] font-bold text-[#1B4B75] mb-1">
-            Users Management
+          <h1 className="text-2xl md:text-[28px] font-bold text-[#1B4B75]">
+            User Management
           </h1>
-          <p className="text-[#6D8AA2] text-sm">
-            Manage user accounts and their permissions.
-          </p>
         </div>
 
         <div className="user-management-buttons flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
           <Button
-            variant="primary"
+            variant="yellow"
             onClick={() => setIsPermissionsModalOpen(true)}
           >
-            <Settings size={20} color="yellow" />
+            <Settings size={20} color="#0B4A6E" />
             Manage Roles & Permissions
           </Button>
-          <Button variant="primary" onClick={() => setIsAddingUser(true)}>
+          <Button variant="blue" onClick={() => setIsAddingUser(true)}>
             <Plus size={18} />
             Add New User
           </Button>
@@ -286,6 +314,105 @@ export default function Users() {
           </SharedModal>
         )}
 
+
+
+
+
+
+
+
+
+
+
+
+
+        {/* oemji aaaaaaaa */}
+        {/* STEP 2: Render Reactivation Modal */}
+        {userToReactivate && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-xl border border-gray-100 flex flex-col items-center">
+              <h2 className="text-2xl font-bold text-[#0B4A6E] mb-4">
+                Reactivate User?
+              </h2>
+              <p className="text-black text-sm mb-6 leading-relaxed">
+                {userToReactivate.firstName} {userToReactivate.lastName}'s account will be reactivated and will regain access to the system.
+              </p>
+              <Button
+                variant="red"
+                onClick={() => handleReactivateUser(userToReactivate)}
+              >
+                CONTINUE
+              </Button>
+              <Button
+                variant="cancel"
+                onClick={() => setUserToReactivate(null)}
+              >
+                CANCEL
+              </Button>
+            </div>
+          </div>
+        )}
+        {/* oemji tabang */}
+        {showPasswordModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-xl border border-gray-100 relative">
+
+              {/* Top Header Row with Title and Back Arrow */}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-[#0B4A6E]">
+                  Input Password
+                </h2>
+                <button
+                  onClick={() => setShowPasswordModal(false)}
+                  className="text-[#0B4A6E] hover:opacity-75 transition-opacity p-1"
+                >
+                  <ArrowLeft size={24} />
+                </button>
+              </div>
+
+              {/* Description */}
+              <p className="text-gray-600 text-sm mb-6 leading-relaxed text-left">
+                For security, please enter your password to confirm this action.
+              </p>
+
+              {/* Password Input Field */}
+              <div className="relative mb-6">
+                <input
+                  type={showPasswordText ? "text" : "password"}
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  placeholder="••••••••••••••••"
+                  className="w-full bg-[#F3F5F5] text-gray-800 text-sm px-5 py-3 rounded-full outline-none pr-12 focus:ring-2 focus:ring-[#0B4A6E]/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordText(!showPasswordText)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#0B4A6E] hover:opacity-75"
+                >
+                  {showPasswordText ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+
+              {/* Proceed Button */}
+              <Button
+                variant="red"
+                onClick={() => {
+                  alert("Password submitted!");
+                  setShowPasswordModal(false);
+                }}
+              >
+                PROCEED
+              </Button>
+
+            </div>
+          </div>
+        )}
+
+
+
+
+
+
         {/* Delete Confirmation Modal */}
         {userToDelete && (
           <SharedModal
@@ -312,11 +439,11 @@ export default function Users() {
           </SharedModal>
         )}
 
-        <table className="min-w-full shadow-sm">
-          <thead className="min-w-full border border-gray-200 bg-[#DCE5EC] border-b-2">
+        <table className="min-w-full border-[#6D8AA2] text-center bg-white rounded-2xl border-collapse">
+          <thead className="min-w-full bg-[#0D4B6E] text-white">
             <tr>
               <th
-                className="cursor-pointer text-[#1B4B75] py-2 font-semibold hover:bg-gray-200"
+                className="cursor-pointer text-sm text-white py-3 font-normal hover:bg-gray-200 hover:text-[#0D4B6E]"
                 onClick={() => handleSort("firstName")}
               >
                 First Name{" "}
@@ -327,7 +454,7 @@ export default function Users() {
                   : ""}
               </th>
               <th
-                className="cursor-pointer text-[#1B4B75] py-2 font-semibold hover:bg-gray-200"
+                className="cursor-pointer text-sm text-white py-3 font-normal hover:bg-gray-200 hover:text-[#0D4B6E]"
                 onClick={() => handleSort("lastName")}
               >
                 Last Name{" "}
@@ -337,11 +464,11 @@ export default function Users() {
                     : "▼"
                   : ""}
               </th>
-              <th className="text-[#1B4B75] py-2 font-semibold">
+              {/* <th className="text-white text-sm py-2 font-normal">
                 Contact Number
-              </th>
+              </th> */}
               <th
-                className="cursor-pointer text-[#1B4B75] py-2 font-semibold hover:bg-gray-200"
+                className="cursor-pointer text-sm text-white py-3 font-normal hover:bg-gray-200 hover:text-[#0D4B6E]"
                 onClick={() => handleSort("role")}
               >
                 Role{" "}
@@ -351,8 +478,11 @@ export default function Users() {
                     : "▼"
                   : ""}
               </th>
+              <th className="text-sm text-white py-3 font-normal">
+                Status
+              </th>
               <th
-                className="cursor-pointer text-[#1B4B75] py-2 font-semibold hover:bg-gray-200"
+                className="cursor-pointer text-sm text-white py-3 font-normal hover:bg-gray-200 hover:text-[#0D4B6E]"
                 onClick={() => handleSort("createdAt")}
               >
                 Date Created{" "}
@@ -362,7 +492,7 @@ export default function Users() {
                     : "▼"
                   : ""}
               </th>
-              <th className="text-[#1B4B75] py-2 font-semibold">Actions</th>
+              <th className="text-sm text-white py-3 font-normal">Actions</th>
             </tr>
           </thead>
           <tbody className="min-w-full">
@@ -372,23 +502,32 @@ export default function Users() {
                   key={user.id || user.userId}
                   className="border border-gray-200 hover:bg-gray-50 transition-colors"
                 >
-                  <td className="p-2 text-center">{user.firstName}</td>
-                  <td className="p-2 text-center">{user.lastName}</td>
-                  <td className="p-2 text-center">
+                  <td className="p-2 text-sm text-center">{user.firstName}</td>
+                  <td className="p-2 text-sm text-center">{user.lastName}</td>
+                  {/* <td className="p-2 text-sm text-center">
                     {user.phone || user.contactNumber || "N/A"}
+                  </td> */}
+                  <td className="p-2 text-sm text-center">
+                    {/* <span
+                      className={`px-2 py-1 rounded text-xs font-bold ${user.role === "Super Admin" || user.role === "Admin"
+                        ? "bg-[#1B9D53] rounded-full font-semibold text-white"
+                        : "bg-gray-100 text-gray-700"
+                        }`}
+                    > */}
+                    {user.role}
+                    {/* </span> */}
                   </td>
-                  <td className="p-2 text-center">
+                  <td className="p-2 text-sm text-center">
                     <span
-                      className={`px-2 py-1 rounded text-xs font-bold ${
-                        user.role === "Super Admin" || user.role === "Admin"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-gray-100 text-gray-700"
-                      }`}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${user.userId % 2 === 0
+                        ? "bg-[#1B9D53] text-white"
+                        : "bg-black text-white"
+                        }`}
                     >
-                      {user.role}
+                      {user.userId % 2 === 0 ? "Activated" : "Deactivated"}
                     </span>
                   </td>
-                  <td className="p-2 text-center">
+                  <td className="p-2 text-xs text-center italic text-[#6D8AA2]">
                     {user.createdAt
                       ? new Date(user.createdAt).toLocaleDateString()
                       : user.dateCreated || "N/A"}
@@ -399,7 +538,7 @@ export default function Users() {
                         onClick={() => setEditingUser(user)}
                         className="text-slate-400 hover:text-blue-600"
                       >
-                        <Edit size={18} />
+                        <Pencil size={18} />
                       </button>
                     )}
                     {canManage && user.role !== "Super Admin" && (
@@ -407,7 +546,7 @@ export default function Users() {
                         onClick={() => setUserToDelete(user)}
                         className="text-slate-400 hover:text-red-600"
                       >
-                        <Trash size={18} />
+                        <Trash2 size={18} />
                       </button>
                     )}
                   </td>
