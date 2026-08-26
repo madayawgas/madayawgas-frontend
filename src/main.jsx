@@ -7,7 +7,7 @@ import {
   Navigate,
 } from "react-router-dom";
 
-import { DataProvider } from "./context/DataContext";
+import { AuthProvider } from "./context/AuthContext.jsx";
 
 import Layout from "./pages/Layout";
 import Dashboard from "./pages/Dashboard/Dashboard";
@@ -65,9 +65,11 @@ const router = createBrowserRouter([
   },
 ]);
 
-// 2. WRAP THE ROUTER WITH YOUR DATA PROVIDER
+// 2. WRAP THE ROUTER WITH AUTH PROVIDER
 createRoot(document.getElementById("root")).render(
-  <DataProvider>
-    <RouterProvider router={router} />
-  </DataProvider>
+  <StrictMode>
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  </StrictMode>
 );

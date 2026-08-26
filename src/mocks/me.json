@@ -1,0 +1,39 @@
+{
+  "status": "success",
+  "data": {
+    "user": {
+      "id": "08df2719-0473-4a31-8b5c-dc977d6006c5",
+      "username": "superadmin",
+      "firstName": "Super",
+      "lastName": "Admin",
+      "phone": "+639170000001",
+      "birthdate": null,
+      "role": "Super Admin",
+      "roleId": "d710521e-2549-43dd-a890-470fc0988ef8",
+      "isActive": true,
+      "isBlocked": false,
+      "mustChangePassword": false,
+      "permissions": [
+        "dashboard.view",
+        "fleet.view",
+        "fleet.manage",
+        "route.view",
+        "route.view_own",
+        "route.manage",
+        "inventory.view",
+        "inventory.manage",
+        "sales.view",
+        "sales.view_own",
+        "sales.create",
+        "sales.update",
+        "sales.delete",
+        "delivery.view",
+        "delivery.view_own",
+        "delivery.update",
+        "delivery.update_own",
+        "users.view",
+        "users.manage"
+      ]
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "status": "success",
+  "data": {
+    "roles": [
+      {
+        "id": "69f0702c-4731-4821-827c-472a1e05244a",
+        "name": "Admin",
+        "description": "Administrator with management access to users, fleet, and inventory."
+      },
+      {
+        "id": "5f60e166-8de5-4dd9-bfdb-58e71ec5244b",
+        "name": "Fleet Manager",
+        "description": "Manages vehicle fleet, maintenance schedules, and route dispatches."
+      },
+      {
+        "id": "98b3be70-2bd5-4a6d-be32-a9174cb1cb84",
+        "name": "Sales Person",
+        "description": "Handles daily sales orders, customer deliveries, and billing records."
+      },
+      {
+        "id": "d710521e-2549-43dd-a890-470fc0988ef8",
+        "name": "Super Admin",
+        "description": "System owner with unrestricted configuration and user administration access."
+      }
+    ]
+  }
+}
