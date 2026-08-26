@@ -1,49 +1,63 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Modal from "../ui/Modal";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
 import Button from "../ui/Button";
-import { useData } from "../../context/DataContext";
 
-const roleOptions = [
-  { value: "Admin", label: "Admin" },
-  { value: "Manager", label: "Manager" },
-  { value: "Driver", label: "Driver" },
-];
-
-export default function UserModal({ isOpen, onClose, user }) {
-  const { addUser, updateUser } = useData();
+export default function UserModal({
+  isOpen,
+  onClose,
+  user,
+  roles = [],
+  onSave,
+}) {
+  const [prevUser, setPrevUser] = useState(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
-    role: "Driver",
-    contactNumber: "",
-    username: "",
-    password: "password123"
+    phone: "",
+    birthdate: "",
+    roleId: roles[0]?.id || "",
   });
 
-  useEffect(() => {
-    if (user) {
-      setFormData({
-        ...user,
-        role: user.role || "Driver"
-      });
-    } else {
-      setFormData({
-        firstName: "",
-        lastName: "",
-        role: "Driver",
-        contactNumber: "",
-        username: "",
-        password: "password123"
-      });
-    }
-  }, [user, isOpen]);
+  // Adjust state during render when user prop changes (React recommended pattern)
+  if (user !== prevUser) {
+    setPrevUser(user);
+    setFormData(
+      user
+        ? {
+            firstName: user.firstName || "",
+            lastName: user.lastName || "",
+            phone: user.phone || user.contactNumber || "",
+            birthdate: user.birthdate || "",
+            roleId:
+              user.roleId ||
+              roles.find(
+                (r) =>
+                  r.name?.toLowerCase() === (user.role || "").toLowerCase()
+              )?.id ||
+              roles[0]?.id ||
+              "",
+          }
+        : {
+            firstName: "",
+            lastName: "",
+            phone: "",
+            birthdate: "",
+            roleId: roles[0]?.id || "",
+          }
+    );
+  }
+
+  const roleOptions = roles.map((r) => ({
+    value: r.id,
+    label: r.name,
+  }));
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
-    if (name === "contactNumber") {
+
+    if (name === "phone") {
       const numericValue = value.replace(/\D/g, "");
       if (numericValue.length <= 11) {
         setFormData((prev) => ({ ...prev, [name]: numericValue }));
@@ -54,18 +68,16 @@ export default function UserModal({ isOpen, onClose, user }) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (formData.contactNumber.length !== 11) {
+
+    if (formData.phone && formData.phone.length !== 11) {
       alert("Contact number must be exactly 11 digits.");
       return;
     }
 
-    if (user) {
-      updateUser(user.userId, formData);
-    } else {
-      addUser(formData);
+    if (onSave) {
+      await onSave(formData, user?.id || user?.userId);
     }
     onClose();
   };
@@ -108,8 +120,8 @@ export default function UserModal({ isOpen, onClose, user }) {
         />
         <Input
           label="Contact Number"
-          name="contactNumber"
-          value={formData.contactNumber}
+          name="phone"
+          value={formData.phone}
           onChange={handleChange}
           placeholder="e.g. 09123456789"
           type="text"
@@ -121,8 +133,8 @@ export default function UserModal({ isOpen, onClose, user }) {
         />
         <Select
           label="Role"
-          name="role"
-          value={formData.role}
+          name="roleId"
+          value={formData.roleId}
           onChange={handleChange}
           options={roleOptions}
           required

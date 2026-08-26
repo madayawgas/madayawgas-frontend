@@ -1,37 +1,49 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Select from "../ui/Select";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
-import { useData } from "../../context/DataContext";
+import { PERMISSIONS } from "../../utils/permissions.js";
 
-export default function PermissionsModal({ isOpen, onClose }) {
-  const { permissions: allPermissions, updateRolePermissions } = useData();
-  const [selectedRole, setSelectedRole] = useState("DRIVER");
+const DEFAULT_PERMISSION_MAPPING = [
+  {
+    key: "fleetAndMaintenance",
+    label: "Fleet & Maintenance",
+    dataKey: PERMISSIONS.FLEET_VIEW,
+  },
+  {
+    key: "routeDispatch",
+    label: "Route Dispatch",
+    dataKey: PERMISSIONS.ROUTE_VIEW,
+  },
+  {
+    key: "inventory",
+    label: "Inventory",
+    dataKey: PERMISSIONS.INVENTORY_VIEW,
+  },
+  {
+    key: "salesAndDelivery",
+    label: "Sales & Delivery",
+    dataKey: PERMISSIONS.SALES_VIEW,
+  },
+  {
+    key: "manageUsers",
+    label: "Manage Users",
+    dataKey: PERMISSIONS.USERS_VIEW,
+  },
+];
 
-  // Internal mapping of UI keys to DataContext keys
-  const permissionMapping = [
-    // { key: "dashboard", label: "Dashboard", dataKey: "dashboard" },
-    {
-      key: "fleetAndMaintenance",
-      label: "Fleet & Maintenance",
-      dataKey: "fleet",
-    },
-    {
-      key: "routeDispatch",
-      label: "Route Dispatch",
-      dataKey: "route-dispatch",
-    },
-    { key: "inventory", label: "Inventory", dataKey: "inventory" },
-    {
-      key: "salesAndDelivery",
-      label: "Sales & Delivery",
-      dataKey: "sales-delivery",
-    },
-    { key: "manageUsers", label: "Manage Users", dataKey: "users" },
-  ];
-
+export default function PermissionsModal({
+  isOpen,
+  onClose,
+  roles = [],
+  permissionsMap = {},
+  onSavePermissions,
+}) {
+  const [selectedRole, setSelectedRole] = useState(
+    roles[0]?.name || "Fleet Manager"
+  );
+  const [prevSyncKey, setPrevSyncKey] = useState("");
   const [localPermissions, setLocalPermissions] = useState({
-    dashboard: false,
     fleetAndMaintenance: false,
     routeDispatch: false,
     inventory: false,
@@ -39,23 +51,23 @@ export default function PermissionsModal({ isOpen, onClose }) {
     manageUsers: false,
   });
 
-  // Load permissions when role changes or modal opens
-  useEffect(() => {
-    if (isOpen && allPermissions[selectedRole]) {
-      const rolePerms = allPermissions[selectedRole];
+  const syncKey = `${isOpen}-${selectedRole}`;
+  if (syncKey !== prevSyncKey) {
+    setPrevSyncKey(syncKey);
+    if (isOpen) {
+      const rolePerms = permissionsMap[selectedRole] || [];
       const newLocalPerms = {};
-      permissionMapping.forEach((item) => {
+      DEFAULT_PERMISSION_MAPPING.forEach((item) => {
         newLocalPerms[item.key] = rolePerms.includes(item.dataKey);
       });
       setLocalPermissions(newLocalPerms);
     }
-  }, [selectedRole, isOpen, allPermissions]);
+  }
 
-  const roleOptions = [
-    // { value: "ADMIN", label: "Admin" },
-    { value: "FLEET_MANAGER", label: "Manager" },
-    { value: "DRIVER", label: "Driver" },
-  ];
+  const roleOptions = roles.map((r) => ({
+    value: r.name,
+    label: r.name,
+  }));
 
   const handleToggle = (key) => {
     setLocalPermissions((prev) => ({
@@ -65,12 +77,13 @@ export default function PermissionsModal({ isOpen, onClose }) {
   };
 
   const handleSave = () => {
-    // Convert back to array of dataKeys
-    const updatedPermsArray = permissionMapping
-      .filter((item) => localPermissions[item.key])
-      .map((item) => item.dataKey);
+    const updatedPermsArray = DEFAULT_PERMISSION_MAPPING.filter(
+      (item) => localPermissions[item.key]
+    ).map((item) => item.dataKey);
 
-    updateRolePermissions(selectedRole, updatedPermsArray);
+    if (onSavePermissions) {
+      onSavePermissions(selectedRole, updatedPermsArray);
+    }
     onClose();
   };
 
@@ -109,7 +122,15 @@ export default function PermissionsModal({ isOpen, onClose }) {
             label="Select Role"
             name="role"
             value={selectedRole}
-            options={roleOptions}
+            options={
+              roleOptions.length > 0
+                ? roleOptions
+                : [
+                    { value: "Fleet Manager", label: "Fleet Manager" },
+                    { value: "Sales Person", label: "Sales Person" },
+                    { value: "Admin", label: "Admin" },
+                  ]
+            }
             onChange={(e) => setSelectedRole(e.target.value)}
           />
           <p className="text-gray-400 text-xs mt-2">
@@ -124,7 +145,7 @@ export default function PermissionsModal({ isOpen, onClose }) {
           <h3 className="text-[#104e7a] font-bold text-lg mb-4">Can View</h3>
 
           <div className="space-y-4">
-            {permissionMapping.map((item) => (
+            {DEFAULT_PERMISSION_MAPPING.map((item) => (
               <div
                 key={item.key}
                 className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-100"

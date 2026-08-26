@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet, NavLink, Navigate, useNavigate } from "react-router-dom";
-import { useData } from "../context/DataContext"; 
+import { useAuth } from "../context/AuthContext.jsx";
+import { PERMISSIONS } from "../utils/permissions.js";
 import {
   LayoutDashboard,
   Truck,
@@ -16,28 +17,38 @@ import logo from "../assets/logo-outlined.svg";
 
 export default function Layout() {
   const [open, setOpen] = useState(false);
-  
-  const { isAuthenticated, currentUser, hasPermission, logout } = useData();
+
+  const { isAuthenticated, currentUser, can, logout, loading } = useAuth();
   const navigate = useNavigate();
+
+  // If loading session check on refresh, show lightweight fallback
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#F2F2F2]">
+        <p className="text-[#0F7AB2] font-semibold">Loading session...</p>
+      </div>
+    );
+  }
 
   // SECURITY Bouncer
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/login");
   };
 
   const navClass = ({ isActive }) =>
     `flex items-center gap-3 px-4 py-3 rounded-xl mb-2 text-[13px] md:text-[16px] font-semibold transition ${
-      isActive ? "bg-[#FFDF2C] text-[#0F7AB2]" : "text-white hover:bg-white/10"
+      isActive
+        ? "bg-[#FFDF2C] text-[#0F7AB2]"
+        : "text-white hover:bg-white/10"
     }`;
 
   return (
     <div className="flex h-screen w-full bg-[#F2F2F2] font-sans overflow-hidden">
-      
       {/* SIDEBAR */}
       <aside
         className={`fixed md:static z-30 top-0 left-0 h-full w-[350px] bg-[#0F7AB2] flex flex-col justify-between text-white transform transition-transform duration-300
@@ -56,45 +67,69 @@ export default function Layout() {
             </div>
           </div>
 
-          {/* EXACT ROUTE LINKS - NO /APP ALLOWED */}
+          {/* EXACT ROUTE LINKS */}
           <nav className="mt-4 px-2">
-            {hasPermission("dashboard") && (
-              <NavLink to="/dashboard" className={navClass} onClick={() => setOpen(false)}>
+            {can(PERMISSIONS.DASHBOARD_VIEW) && (
+              <NavLink
+                to="/dashboard"
+                className={navClass}
+                onClick={() => setOpen(false)}
+              >
                 <LayoutDashboard size={26} />
                 <span>Dashboard</span>
               </NavLink>
             )}
 
-            {hasPermission("fleet") && (
-              <NavLink to="/fleet" className={navClass} onClick={() => setOpen(false)}>
+            {can(PERMISSIONS.FLEET_VIEW) && (
+              <NavLink
+                to="/fleet"
+                className={navClass}
+                onClick={() => setOpen(false)}
+              >
                 <Truck size={26} />
                 <span>Fleet and Maintenance</span>
               </NavLink>
             )}
 
-            {hasPermission("route-dispatch") && (
-              <NavLink to="/route-dispatch" className={navClass} onClick={() => setOpen(false)}>
+            {can(PERMISSIONS.ROUTE_VIEW) && (
+              <NavLink
+                to="/route-dispatch"
+                className={navClass}
+                onClick={() => setOpen(false)}
+              >
                 <Route size={26} />
                 <span>Route Dispatch</span>
               </NavLink>
             )}
 
-            {hasPermission("inventory") && (
-              <NavLink to="/inventory" className={navClass} onClick={() => setOpen(false)}>
+            {can(PERMISSIONS.INVENTORY_VIEW) && (
+              <NavLink
+                to="/inventory"
+                className={navClass}
+                onClick={() => setOpen(false)}
+              >
                 <ClipboardList size={26} />
                 <span>Inventory</span>
               </NavLink>
             )}
 
-            {hasPermission("sales-delivery") && (
-              <NavLink to="/sales-delivery" className={navClass} onClick={() => setOpen(false)}>
+            {can(PERMISSIONS.SALES_VIEW) && (
+              <NavLink
+                to="/sales-delivery"
+                className={navClass}
+                onClick={() => setOpen(false)}
+              >
                 <ReceiptText size={26} />
                 <span>Sales and Delivery</span>
               </NavLink>
             )}
 
-            {hasPermission("users") && (
-              <NavLink to="/users" className={navClass} onClick={() => setOpen(false)}>
+            {can(PERMISSIONS.USERS_VIEW) && (
+              <NavLink
+                to="/users"
+                className={navClass}
+                onClick={() => setOpen(false)}
+              >
                 <Users size={26} />
                 <span>Manage Users</span>
               </NavLink>
@@ -104,7 +139,7 @@ export default function Layout() {
 
         {/* LOGOUT */}
         <div className="px-4 pb-5">
-          <button 
+          <button
             onClick={handleLogout}
             className="flex items-center gap-3 text-[13px] md:text-[16px] font-semibold hover:opacity-80 transition-opacity w-full text-left"
           >
@@ -115,7 +150,10 @@ export default function Layout() {
       </aside>
 
       {open && (
-        <div className="fixed inset-0 bg-black/30 z-20 md:hidden" onClick={() => setOpen(false)} />
+        <div
+          className="fixed inset-0 bg-black/30 z-20 md:hidden"
+          onClick={() => setOpen(false)}
+        />
       )}
 
       {/* MAIN CONTENT AREA */}
@@ -128,13 +166,15 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-3">
-            <UserCircle size={38} className="text-[#FFDF2C]"/>
+            <UserCircle size={38} className="text-[#FFDF2C]" />
             <div className="leading-tight">
               <p className="text-[14px] md:text-[16px] font-semibold">
-                {currentUser?.firstName + " " + currentUser?.lastName || "Loading..."}
+                {currentUser?.firstName && currentUser?.lastName
+                  ? `${currentUser.firstName} ${currentUser.lastName}`
+                  : "Super Admin"}
               </p>
               <div className="text-[12px] md:text-[14px] font-medium opacity-90 tracking-wide text-[#FFDF2C]">
-                {currentUser?.roleName?.replace('_', ' ') || ""}
+                {currentUser?.role || "Super Admin"}
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useData } from "../../context/DataContext";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
@@ -10,7 +10,7 @@ import logo from "../../assets/logo.svg";
 import bgImage from "../../assets/BG-Madayaw5.png";
 
 export default function Login() {
-  const { login } = useData();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const [username, setUsername] = useState("");
@@ -24,19 +24,18 @@ export default function Login() {
     setLoading(true);
     setError("");
 
-    setTimeout(() => {
-      const result = login(username, password);
-      if (result.success) {
-        if (result.user.roleName === "DRIVER") {
-          navigate("/sales-delivery"); 
-        } else {
-          navigate("/dashboard"); 
-        }
+    try {
+      const user = await login(username, password);
+      if (user.role === "Sales Person" || user.role === "DRIVER") {
+        navigate("/sales-delivery");
       } else {
-        setError(result.message || "Invalid username or password");
+        navigate("/dashboard");
       }
+    } catch (err) {
+      setError(err.message || "Invalid username or password");
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -46,7 +45,7 @@ export default function Login() {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen flex items-center justify-center p-6 bg-cover bg-center bg-no-repeat relative"
       style={{ backgroundImage: `url(${bgImage})` }}
     >
@@ -54,7 +53,6 @@ export default function Login() {
 
       {/* Main Container Card using your custom Card component */}
       <Card className="w-full max-w-4xl p-6 md:p-8 relative z-10 bg-white rounded-[3rem] border border-gray-300 shadow-2xl grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch min-h-[520px]">
-        
         {/* ================= LEFT BRANDING PANEL ================= */}
         <div className="bg-[#0F7AB2] rounded-2xl p-8 flex flex-col justify-between relative overflow-hidden text-white min-h-[350px]">
           <div className="z-10">
@@ -80,11 +78,14 @@ export default function Login() {
 
         {/* ================= RIGHT FORM PANEL ================= */}
         <div className="flex flex-col justify-center px-2 md:px-4">
-          
           {/* HEADER */}
           <div className="flex flex-col items-start mb-6">
             <div className="w-16 h-16 mb-2">
-              <img src={logo} alt="Logo" className="w-full h-full object-contain" />
+              <img
+                src={logo}
+                alt="Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
 
             <h2 className="text-3xl font-bold text-gray-800">
@@ -153,7 +154,10 @@ export default function Login() {
             </Button>
 
             <div className="text-center mt-3">
-              <a href="#forgot" className="text-xs text-[#0F7AB2] hover:underline">
+              <a
+                href="#forgot"
+                className="text-xs text-[#0F7AB2] hover:underline"
+              >
                 Forgot Password?
               </a>
             </div>
@@ -165,9 +169,7 @@ export default function Login() {
               Madayaw Gas Fleet System © {new Date().getFullYear()}
             </p>
           </div>
-
         </div>
-
       </Card>
     </div>
   );

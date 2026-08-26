@@ -1,39 +1,51 @@
 import { useEffect, useState } from "react";
 
-export default function Modal({ 
-  isOpen, 
-  onClose, 
-  title, 
-  children, 
+export default function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
   footer,
-  maxWidth = "max-w-md" 
+  maxWidth = "max-w-md",
 }) {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
 
   useEffect(() => {
+    let timer;
     if (isOpen) {
-      setShouldRender(true);
-      setIsAnimatingOut(false);
+      // Defer render flag without synchronous effect cascade
+      const frame = requestAnimationFrame(() => {
+        setShouldRender(true);
+        setIsAnimatingOut(false);
+      });
+      return () => cancelAnimationFrame(frame);
     } else {
-      setIsAnimatingOut(true);
-      const timer = setTimeout(() => {
+      const frame = requestAnimationFrame(() => {
+        setIsAnimatingOut(true);
+      });
+      timer = setTimeout(() => {
         setShouldRender(false);
         setIsAnimatingOut(false);
       }, 150);
-      return () => clearTimeout(timer);
+      return () => {
+        cancelAnimationFrame(frame);
+        clearTimeout(timer);
+      };
     }
   }, [isOpen]);
 
   if (!shouldRender && !isOpen) return null;
 
   return (
-    <div 
+    <div
+      onClick={onClose}
       className={`fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 ${
         isAnimatingOut ? "animate-fade-out" : "animate-fade-in"
       }`}
     >
-      <div 
+      <div
+        onClick={(e) => e.stopPropagation()}
         className={`bg-white rounded-2xl w-full shadow-2xl relative flex flex-col max-h-[90vh] ${maxWidth} ${
           isAnimatingOut ? "animate-scale-out" : "animate-scale-in"
         }`}

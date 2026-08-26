@@ -1,27 +1,38 @@
 // src/components/dashboard/SalesGraph.jsx
 import { useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import Card from "../ui/Card";
-import { useData } from "../../context/DataContext"; 
 
-export default function SalesGraph() {
+export default function SalesGraph({ salesData }) {
   const [timeframe, setTimeframe] = useState("monthly");
-  const { weeklySales, monthlySales, annualSales } = useData();
 
-  const activeData = 
-    timeframe === "weekly" ? weeklySales :
-    timeframe === "monthly" ? monthlySales : 
-    annualSales;
+  const weeklySales = salesData?.weekly || [];
+  const monthlySales = salesData?.monthly || [];
+  const annualSales = salesData?.annually || [];
+
+  const activeData =
+    timeframe === "weekly"
+      ? weeklySales
+      : timeframe === "monthly"
+      ? monthlySales
+      : annualSales;
 
   return (
     <Card className="flex-1 flex p-4 md:p-5 flex-col min-h-[280px]">
-      
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <h3 className="text-[16px] md:text-[18px] font-semibold text-gray-800">
           Sales Overview
         </h3>
-        
+
         {/* Toggle Pills */}
         <div className="flex items-center gap-2 text-sm font-semibold">
           {["weekly", "monthly", "annually"].map((tf) => (
@@ -64,51 +75,54 @@ export default function SalesGraph() {
             data={activeData}
             margin={{ top: 10, right: 20, left: -40, bottom: 0 }}
           >
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-            
-            <XAxis 
-              dataKey="name" 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fill: '#6B7280', fontSize: 12 }}
-              dy={10}
-            />
-            
-            <YAxis 
-              axisLine={false} 
-              tickLine={false} 
-              tick={false}
-            />
-            
-            <Tooltip 
-              contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+            <CartesianGrid
+              strokeDasharray="3 3"
+              vertical={false}
+              stroke="#E5E7EB"
             />
 
-            <Bar 
-              dataKey="butane" 
+            <XAxis
+              dataKey="name"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: "#6B7280", fontSize: 12 }}
+              dy={10}
+            />
+
+            <YAxis axisLine={false} tickLine={false} tick={false} />
+
+            <Tooltip
+              contentStyle={{
+                borderRadius: "8px",
+                border: "none",
+                boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+              }}
+            />
+
+            <Bar
+              dataKey="butane"
               name="Butane Canister"
-              fill="#93B5D0" 
-              barSize={16} 
-              radius={[4, 4, 0, 0]} 
+              fill="#93B5D0"
+              barSize={16}
+              radius={[4, 4, 0, 0]}
             />
-            <Bar 
-              dataKey="lpg11kg" 
+            <Bar
+              dataKey="lpg11kg"
               name="11 kg LPG"
-              fill="#0F7AB2" 
-              barSize={16} 
-              radius={[4, 4, 0, 0]} 
+              fill="#0F7AB2"
+              barSize={16}
+              radius={[4, 4, 0, 0]}
             />
-            <Bar 
-              dataKey="lpg50kg" 
+            <Bar
+              dataKey="lpg50kg"
               name="50 kg LPG"
-              fill="#FFDF2C" 
-              barSize={16} 
-              radius={[4, 4, 0, 0]} 
+              fill="#FFDF2C"
+              barSize={16}
+              radius={[4, 4, 0, 0]}
             />
           </BarChart>
         </ResponsiveContainer>
       </div>
-      
     </Card>
   );
 }
