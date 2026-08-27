@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Funnel } from "lucide-react";
 
 export default function FilterDropdown({
@@ -8,14 +8,28 @@ export default function FilterDropdown({
   onChange,
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   const handleSelect = (option) => {
     setIsOpen(false);
     if (onChange) onChange(option);
   };
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   return (
-    <div className="relative">
+    <div ref={dropdownRef} className="relative">
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
@@ -37,6 +51,7 @@ export default function FilterDropdown({
           h-[38px]
           min-w-[140px]
           justify-between
+          cursor-pointer
         "
       >
         <span>
@@ -45,7 +60,8 @@ export default function FilterDropdown({
 
         <Funnel
           size={16}
-          className={` text-[#0A4B6E] `}/>
+          className="text-[#0A4B6E]" 
+        />
       </button>
 
       <div
@@ -87,6 +103,7 @@ export default function FilterDropdown({
               transition-colors
               duration-150
               hover:bg-gray-50
+              cursor-pointer
               ${
                 value === option
                   ? "text-[#0F7AB2] font-semibold bg-[#F8FBFC]"

@@ -51,13 +51,6 @@ export default function FleetHeader({ onAddTruck, onFilterChange, searchTerm, on
                 Add Truck
               </Button>
           </div>
-
-
-            {/* Main CTA: Triggers the onAddTruck function to open a creation form */}
-            <Button variant="primary" onClick={onAddTruck} className="whitespace-nowrap h-[38px] text-sm">
-              <Plus size={18} />
-              Add Truck
-            </Button>
           </div>
         </div>
       </div> 
