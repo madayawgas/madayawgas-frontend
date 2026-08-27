@@ -20,18 +20,18 @@ export default function FilterDropdown({
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         className="
-          bg-[#EEF2F6]
-          text-gray-600
+          bg-[#FCFEFE]
+          text-[#0A4B6E]
           px-4
           py-2
-          rounded-lg
+          rounded-full
           text-sm
           border
-          border-[#D1D9E2]
+          border-[#0A4B6E]
           flex
           items-center
           gap-2
-          hover:bg-gray-200
+          hover:bg-gray-100
           transition-all
           duration-200
           h-[38px]
@@ -45,7 +45,7 @@ export default function FilterDropdown({
 
         <Funnel
           size={16}
-          className={` text-gray-500 `}/>
+          className={` text-[#0A4B6E] `}/>
       </button>
 
       <div
@@ -56,7 +56,7 @@ export default function FilterDropdown({
           w-48
           bg-white
           border
-          border-gray-100
+          border-[#0A4B6E]
           rounded-xl
           shadow-lg
           z-20
