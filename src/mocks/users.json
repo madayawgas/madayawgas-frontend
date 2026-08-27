@@ -33,7 +33,9 @@
           "delivery.update",
           "delivery.update_own",
           "users.view",
-          "users.manage"
+          "users.manage",
+          "history.view",
+          "history.manage"
         ],
         "createdAt": "2026-08-25T08:00:00.000Z"
       },
@@ -64,7 +66,9 @@
           "delivery.view",
           "delivery.update",
           "users.view",
-          "users.manage"
+          "users.manage",
+          "history.view",
+          "history.manage"
         ],
         "createdAt": "2026-08-25T08:30:00.000Z"
       },

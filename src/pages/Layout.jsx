@@ -51,7 +51,7 @@ export default function Layout() {
     <div className="flex h-screen w-full bg-[#F2F2F2] font-sans overflow-hidden">
       {/* SIDEBAR */}
       <aside
-        className={`fixed md:static z-30 top-0 left-0 h-full w-[350px] bg-[#0F7AB2] flex flex-col justify-between text-white transform transition-transform duration-300
+        className={`fixed md:static z-30 top-0 left-0 h-full w-[350px] bg-[#0A4B6E] flex flex-col justify-between text-white transform transition-transform duration-300
         ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
       >
         <div>
@@ -158,7 +158,7 @@ export default function Layout() {
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col h-screen">
-        <header className="h-[80px] bg-[#0F7AB2] flex items-center justify-between px-6 text-white">
+        <header className="h-[80px] bg-[#0A4B6E] flex items-center justify-between px-6 text-white">
           <div className="flex items-center gap-3">
             <button className="md:hidden" onClick={() => setOpen(true)}>
               <Menu size={28} />

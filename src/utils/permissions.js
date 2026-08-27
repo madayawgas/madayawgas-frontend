@@ -23,6 +23,8 @@ export const PERMISSIONS = {
   DELIVERY_UPDATE_OWN: "delivery.update_own",
   USERS_VIEW: "users.view",
   USERS_MANAGE: "users.manage",
+  HISTORY_VIEW: "history.view",
+  HISTORY_MANAGE: "history.manage",
 };
 
 /**
@@ -75,5 +77,6 @@ export function getDefaultRoute(user) {
   if (can(user, PERMISSIONS.ROUTE_VIEW) || can(user, PERMISSIONS.ROUTE_VIEW_OWN)) return "/route-dispatch";
   if (can(user, PERMISSIONS.INVENTORY_VIEW)) return "/inventory";
   if (can(user, PERMISSIONS.USERS_VIEW)) return "/users";
+  if (can(user, PERMISSIONS.HISTORY_VIEW)) return "/history";
   return "/dashboard";
 }
