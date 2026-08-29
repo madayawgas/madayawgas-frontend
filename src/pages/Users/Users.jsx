@@ -178,7 +178,6 @@ export default function Users() {
     }
   };
 
-  // UPDATE STATUS TO DEACTIVATED (INSTEAD OF REMOVING FROM TABLE)
   const handleDeactivateUser = async (user) => {
     const targetId = user.id || user.userId;
 
@@ -230,7 +229,7 @@ export default function Users() {
   const canManage = can(PERMISSIONS.USERS_MANAGE) || can("users.manage");
 
   return (
-    <div className="w-full">
+    <div className="p-8">
       <UsersHeader
         onOpenPermissions={() => setIsPermissionsModalOpen(true)}
         onAddUser={() => setIsAddingUser(true)}
