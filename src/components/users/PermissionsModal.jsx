@@ -40,7 +40,7 @@ export default function PermissionsModal({
   onSavePermissions,
 }) {
   const [selectedRole, setSelectedRole] = useState(
-    roles[0]?.name || "Fleet Manager"
+    roles[0]?.name || "Super Admin"
   );
   const [prevSyncKey, setPrevSyncKey] = useState("");
   const [localPermissions, setLocalPermissions] = useState({
@@ -126,9 +126,12 @@ export default function PermissionsModal({
               roleOptions.length > 0
                 ? roleOptions
                 : [
-                    { value: "Fleet Manager", label: "Fleet Manager" },
-                    { value: "Sales Person", label: "Sales Person" },
+                    { value: "Super Admin", label: "Super Admin" },
                     { value: "Admin", label: "Admin" },
+                    { value: "Fleet Manager", label: "Fleet Manager" },
+                    { value: "Driver", label: "Driver" },
+                    { value: "Sales Manager", label: "Sales Manager" },
+                    { value: "Sales Person", label: "Sales Person" },
                   ]
             }
             onChange={(e) => setSelectedRole(e.target.value)}

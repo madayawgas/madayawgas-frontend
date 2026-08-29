@@ -23,6 +23,7 @@ export default function FilterRole({
     "Super Admin",
     "Admin",
     "Fleet Manager",
+    "Driver",
     "Sales Manager",
     "Sales Person",
   ];
