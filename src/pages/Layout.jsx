@@ -131,32 +131,45 @@ export default function Layout() {
                 className={navClass}
                 onClick={() => setOpen(false)}
               >
-                <Users size={26} />
+                <Users size={24} />
                 <span>Manage Users</span>
               </NavLink>
             )}
 
             {can(PERMISSIONS.HISTORY_VIEW) && (
-            <NavLink
-              to="/history-log"
-              className={navClass}
-              onClick={() => setOpen(false)}
-            >
-              <History size={26} />
-              <span>History Log</span>
-            </NavLink>
-          )}
+              <NavLink
+                to="/history-log"
+                className={navClass}
+                onClick={() => setOpen(false)}
+              >
+                <History size={24} />
+                <span>History Log</span>
+              </NavLink>
+            )}
           </nav>
         </div>
 
-        {/* LOGOUT */}
-        <div className="px-4 pb-5">
+        {/* BOTTOM ACTIONS: PROFILE & LOGOUT */}
+        <div className="px-6 pb-8 flex items-center justify-center gap-20">
+          <NavLink
+            to="/profile"
+            onClick={() => setOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center gap-2.5 text-[14px] md:text-[16px] font-semibold transition ${
+                isActive ? "text-[#FFDF2C]" : "text-white hover:opacity-80"
+              }`
+            }
+          >
+            <UserCircle size={28} />
+            <span>Profile</span>
+          </NavLink>
+
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 text-[13px] md:text-[16px] font-semibold hover:opacity-80 transition-opacity w-full text-left"
+            className="flex items-center gap-2.5 text-[14px] md:text-[16px] font-semibold text-white hover:opacity-80 transition cursor-pointer"
           >
-            <LogOut size={24} />
-            Logout
+            <LogOut size={26} />
+            <span>Logout</span>
           </button>
         </div>
       </aside>

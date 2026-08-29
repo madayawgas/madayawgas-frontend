@@ -21,6 +21,7 @@ import RouteDispatch from "./pages/RouteDispatch/RouteDispatch";
 import Inventory from "./pages/Inventory/Inventory";
 import SalesAndDelivery from "./pages/SalesAndDelivery/SalesAndDelivery";
 import HistoryLog from "./pages/HistoryLog/HistoryLog";
+import Profile from "./pages/Profile/Profile";
 
 // 1. Configure Protected Routes
 const router = createBrowserRouter([
@@ -96,6 +97,14 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+      {
+        path: "profile",
+        element: (
+          <ProtectedRoute permission={PERMISSIONS.PROFILE_VIEW}>
+            <Profile />
+          </ProtectedRoute>
+        ),
+      }
     ],
   },
   {

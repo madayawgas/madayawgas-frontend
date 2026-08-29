@@ -78,5 +78,6 @@ export function getDefaultRoute(user) {
   if (can(user, PERMISSIONS.INVENTORY_VIEW)) return "/inventory";
   if (can(user, PERMISSIONS.USERS_VIEW)) return "/users";
   if (can(user, PERMISSIONS.HISTORY_VIEW)) return "/history-log";
+  if (can(user, PERMISSIONS.PROFILE_VIEW)) return "/profile";
   return "/dashboard";
 }

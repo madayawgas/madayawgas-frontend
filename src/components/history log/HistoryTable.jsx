@@ -3,16 +3,16 @@ import ActionTypePill from "./ActionTypePill";
 
 export default function HistoryTable({ logs }) {
   return (
-    <div className="w-full bg-white rounded-lg shadow border border-gray-200">
+    <div className="w-full overflow-hidden border border-[#0A4B6E]/30 rounded-2xl bg-white shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left text-gray-700">
           <thead className="text-xs text-white bg-[#0A4B6E]">
             <tr>
-              <th scope="col" className="px-6 py-4 rounded-tl-lg font-semibold">Timestamp</th>
+              <th scope="col" className="px-6 py-4 font-semibold">Timestamp</th>
               <th scope="col" className="px-6 py-4 font-semibold text-center">User & Role</th>
               <th scope="col" className="px-6 py-4 font-semibold text-center">Action Type</th>
               <th scope="col" className="px-6 py-4 font-semibold text-center">Module</th>
-              <th scope="col" className="px-6 py-4 rounded-tr-lg font-semibold">Details</th>
+              <th scope="col" className="px-6 py-4 font-semibold">Details</th>
             </tr>
           </thead>
           <tbody>
