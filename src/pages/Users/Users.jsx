@@ -167,16 +167,16 @@ export default function Users() {
 
 
   const deleteFooter = (
-    <div className="flex justify-center gap-4">
+    <div className="flex flex-col justify-center gap-4">
       <Button
-        variant="danger"
+        variant="red"
         className="px-8"
         onClick={() => handleDeleteUser(userToDelete)}
       >
-        DELETE
+        DEACTIVATE
       </Button>
       <Button
-        variant="secondary"
+        variant="cancel"
         className="px-8"
         onClick={() => setUserToDelete(null)}
       >
@@ -422,18 +422,18 @@ export default function Users() {
             footer={deleteFooter}
           >
             <div className="text-center py-4">
-              <div className="flex justify-center mb-6">
+              {/* <div className="flex justify-center mb-6">
                 <AlertCircle size={60} className="text-red-500" />
-              </div>
+              </div> */}
               <h2 className="text-[#1B4B75] text-xl font-bold mb-3">
-                Confirm Deletion
+                Deactivate Users?
               </h2>
               <p className="text-gray-700 text-sm">
-                Are you sure you want to delete{" "}
+                {" "}
                 <span className="font-semibold text-gray-900">
                   {userToDelete.firstName} {userToDelete.lastName}
                 </span>
-                ? This action cannot be undone.
+                ’s account will be deactivated and will no longer have access to the system, while its records and activity history are retained.
               </p>
             </div>
           </SharedModal>
