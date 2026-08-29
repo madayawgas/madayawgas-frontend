@@ -1,238 +1,197 @@
-import { useState } from "react";
-import Modal from "../ui/Modal";
-import Input from "../ui/Input";
-import Select from "../ui/Select";
-import Button from "../ui/Button";
+import { useState, useEffect } from "react";
+import { usersApi } from "../../api/users.js";
+import { useAuth } from "../../context/AuthContext.jsx";
+import UserFormStep from "./UserFormStep";
+import UserConfirmStep from "./UserConfirmStep";
+import UserPasswordStep from "./UserPasswordStep";
+import UserSuccessStep from "./UserSuccessStep";
 
-export default function UserModal({
-  isOpen,
-  onClose,
-  user,
-  roles = [],
-  onSave,
-}) {
-  const [prevUser, setPrevUser] = useState(null);
+export default function UserModal({ isOpen, roles, onSave, onClose, user }) {
+  const { user: currentUser } = useAuth();
+
+  const [step, setStep] = useState(1);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
-    phone: "",
-    birthdate: "",
-    roleId: roles[0]?.id || "",
+    birthday: "",
+    contactNo: "",
+    role: "",
     username: "",
-    password: "",
     status: "ACTIVE",
   });
 
-  // Adjust state during render when user prop changes (React recommended pattern)
-  if (user !== prevUser) {
-    setPrevUser(user);
-    setFormData(
-      user
-        ? {
+  useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      setAdminPassword("");
+      setShowPassword(false);
+      setPasswordError("");
+      setIsVerifying(false);
+      setCopied(false);
+
+      const defaultRole =
+        roles && roles.length > 0
+          ? typeof roles[0] === "string"
+            ? roles[0]
+            : roles[0].name
+          : "Driver";
+
+      if (user) {
+        setFormData({
           firstName: user.firstName || "",
           lastName: user.lastName || "",
-          phone: user.phone || user.contactNumber || "",
-          birthdate: user.birthdate || "",
-          roleId:
-            user.roleId ||
-            roles.find(
-              (r) =>
-                r.name?.toLowerCase() === (user.role || "").toLowerCase()
-            )?.id ||
-            roles[0]?.id ||
-            "",
+          birthday: user.birthday || user.birthdate || "",
+          contactNo: user.phone || user.contactNumber || "",
+          role: user.role || defaultRole || "",
           username: user.username || "",
-          password: "",
           status: user.status || "ACTIVE",
-        }
-        : {
+        });
+      } else {
+        setFormData({
           firstName: "",
           lastName: "",
-          phone: "",
-          birthdate: "",
-          roleId: roles[0]?.id || "",
+          birthday: "",
+          contactNo: "",
+          role: defaultRole,
           username: "",
-          password: "",
           status: "ACTIVE",
-        }
-    );
-  }
-
-  const roleOptions = roles.map((r) => ({
-    value: r.id,
-    label: r.name,
-  }));
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    if (name === "phone") {
-      const numericValue = value.replace(/\D/g, "");
-      if (numericValue.length <= 11) {
-        setFormData((prev) => ({ ...prev, [name]: numericValue }));
+        });
       }
-      return;
     }
+  }, [isOpen, user, roles]);
 
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  if (!isOpen) return null;
 
-  const handleSubmit = async (e) => {
+  const statuses = [
+    { value: "ACTIVE", label: "ACTIVE", variant: "success" },
+    { value: "SUSPENDED", label: "SUSPEND", variant: "neutral" },
+  ];
+
+  const safeRole =
+    typeof formData.role === "string" ? formData.role : formData.role?.name || "driver";
+  const generatedUsername = `${(formData.firstName || "").charAt(0).toLowerCase()}${(
+    formData.lastName || ""
+  )
+    .toLowerCase()
+    .replace(/\s/g, "")}_${safeRole.toLowerCase()}`;
+
+  const handleSubmit = (e) => {
     e.preventDefault();
-
-    if (formData.phone && formData.phone.length !== 11) {
-      alert("Contact number must be exactly 11 digits.");
-      return;
-    }
-
-    if (onSave) {
-      await onSave(formData, user?.id || user?.userId);
-    }
-    onClose();
+    setStep(user ? 3 : 2);
   };
 
+  const handleProceed = async () => {
+    if (!adminPassword) return;
 
+    setIsVerifying(true);
+    setPasswordError("");
 
+    try {
+      await usersApi.verifyAdminPassword(adminPassword, currentUser?.username);
 
-  // OEMJI AAAAAAAA
-  const handleStatusToggle = (newStatus) => {
-    setFormData((prev) => ({ ...prev, status: newStatus }));
-  };
+      const finalData = {
+        ...formData,
+        username: user ? formData.username : generatedUsername,
+        adminPassword,
+      };
 
-  const handleCopyPassword = () => {
-    if (formData.password) {
-      navigator.clipboard.writeText(formData.password);
-      alert("Password copied to clipboard!");
+      await onSave(finalData, user ? user.id || user.userId : null);
+
+      setIsVerifying(false);
+      setStep(4);
+    } catch (err) {
+      setIsVerifying(false);
+      setPasswordError(err.message || "Incorrect admin password. Please try again.");
     }
   };
-
-
-  const footer = (
-    <div className="flex flex-col items-center w-full gap-2 pt-2">
-      <Button type="submit" form="user-form" variant="yellow">
-        {user ? "SAVE CHANGES" : "CREATE ACCOUNT"}
-      </Button>
-      <Button type="button" variant="cancel" onClick={onClose}>
-        CANCEL
-      </Button>
-    </div>
-  );
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={user ? "Edit User" : "Add New User"}
-      maxWidth="max-w-md"
-      footer={footer}
-    >
-      <form id="user-form" onSubmit={handleSubmit} className="space-y-4 py-2">
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="First Name"
-            name="firstName"
-            value={formData.firstName}
-            onChange={handleChange}
-            required
-          />
-          <Input
-            label="Last Name"
-            name="lastName"
-            value={formData.lastName}
-            onChange={handleChange}
-            required
-          />
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div
+        className={`bg-white rounded-[2rem] w-full shadow-xl flex flex-col overflow-hidden transition-all duration-300 ${
+          step === 4 ? "max-w-sm" : "max-w-lg"
+        }`}
+      >
+        {/* Header */}
+        <div className="p-8 pb-4 flex justify-between items-center">
+          <h2 className="text-[28px] font-bold text-[#0B4A6E]">
+            {step === 1 && (user ? "Edit User" : "Add New User")}
+            {step === 2 && "Confirm Information"}
+            {step === 3 && "Input Password"}
+            {step === 4 && (user ? "User Updated" : "User Created")}
+          </h2>
+          {(step === 2 || step === 3) && (
+            <button
+              onClick={() => step > 1 && setStep(step - 1)}
+              className="text-[#0B4A6E] hover:opacity-70 transition-opacity p-1 cursor-pointer"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                stroke="currentColor"
+                className="w-6 h-6"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+              </svg>
+            </button>
+          )}
         </div>
-        {/* oemji bai i input sa nako ni */}
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            type="date"
-            label="Birthday"
-            name="birthdate"
-            value={formData.birthdate}
-            onChange={handleChange}
-            required
-          />
-          <Input
-            label="Contact Number"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]{11}"
-            title="Exactly 11 digits required"
-            maxLength={11}
-            required
-          />
-        </div>
-        <Select
-          label="Role"
-          name="roleId"
-          value={formData.roleId}
-          onChange={handleChange}
-          options={roleOptions}
-          required
-        />
-        {/* EDIT USER SPECIFIC FIELDS (Hidden when creating a new user) */}
-        {user && (
-          <>
-            {/* Row 4: Username & Password */}
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Username"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-              />
-              <div className="flex flex-col">
-                <Input
-                  label="Password"
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="••••••••••••"
-                />
-                <button
-                  type="button"
-                  onClick={handleCopyPassword}
-                  className="text-[10px] text-sky-600 underline text-right mt-1 hover:text-sky-800 self-end"
-                >
-                  Copy Password
-                </button>
-              </div>
-            </div>
 
-            {/* Row 5: Status Toggle */}
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">Status</label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleStatusToggle("ACTIVE")}
-                  className={`px-5 py-1.5 rounded-full text-xs font-bold transition-colors ${formData.status === "ACTIVE"
-                      ? "bg-emerald-600 text-white"
-                      : "bg-gray-300 text-gray-600"
-                    }`}
-                >
-                  ACTIVE
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleStatusToggle("SUSPEND")}
-                  className={`px-5 py-1.5 rounded-full text-xs font-bold transition-colors ${formData.status === "SUSPEND"
-                      ? "bg-emerald-600 text-white"
-                      : "bg-gray-300 text-white"
-                    }`}
-                >
-                  SUSPEND
-                </button>
-              </div>
-            </div>
-          </>
+        {step === 1 && (
+          <UserFormStep
+            formData={formData}
+            setFormData={setFormData}
+            roles={roles}
+            user={user}
+            statuses={statuses}
+            copied={copied}
+            setCopied={setCopied}
+            onSubmit={handleSubmit}
+            onClose={onClose}
+          />
         )}
-      </form>
-    </Modal>
+
+        {step === 2 && (
+          <UserConfirmStep
+            formData={formData}
+            safeRole={safeRole}
+            onConfirm={() => setStep(3)}
+          />
+        )}
+
+        {step === 3 && (
+          <UserPasswordStep
+            adminPassword={adminPassword}
+            setAdminPassword={setAdminPassword}
+            showPassword={showPassword}
+            setShowPassword={setShowPassword}
+            passwordError={passwordError}
+            setPasswordError={setPasswordError}
+            isVerifying={isVerifying}
+            currentUser={currentUser}
+            onProceed={handleProceed}
+          />
+        )}
+
+        {step === 4 && (
+          <UserSuccessStep
+            formData={formData}
+            safeRole={safeRole}
+            generatedUsername={generatedUsername}
+            copied={copied}
+            setCopied={setCopied}
+            onDone={onClose}
+          />
+        )}
+      </div>
+    </div>
   );
 }

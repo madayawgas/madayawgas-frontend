@@ -10,7 +10,7 @@ export default function Badge({
     info:"bg-[#E3F2FD] text-[#1E88E5] border-[#90CAF9]", // blue - in use
     maintenance: "bg-[#F3E5F5] text-[#8E24AA] border-[#CE93D8]", // purple - under maintenance
     neutral: "bg-[#ECEFF1] text-[#546E7A] border-[#B0BEC5]", // gray - in shop
-    deactivated: "bg-[#374151] text-[#F3F4F6] border-[#4B5563]", // dark gray - deactivated
+    deactivated: "bg-[#5B6B78] text-white border-[#4B535A]", // dark gray - deactivated
     roles: "bg-white text-[#0A4B6E] border-[#0A4B6E]" //white bg, blue border roles
   };
 

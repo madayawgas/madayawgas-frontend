@@ -1,55 +1,54 @@
 import { useState, useMemo, useEffect } from "react";
-import SearchBar from "../../components/ui/SearchBar";
-import Card from "../../components/ui/Card";
-import Button from "../../components/ui/Button";
-import Select from "../../components/ui/Select";
+import UsersHeader from "../../components/users/UsersHeader";
+import UsersControls from "../../components/users/UsersControls";
+import UsersTable from "../../components/users/UsersTable";
+import DeactivateUserModal from "../../components/users/DeactivateUserModal";
+import ReactivateUserModal from "../../components/users/ReactivateUserModal";
+import AdminPasswordModal from "../../components/users/AdminPasswordModal";
 import UserModal from "../../components/users/UserModal";
-import SharedModal from "../../components/ui/Modal";
 import PermissionsModal from "../../components/users/PermissionsModal";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { usersApi } from "../../api/users.js";
 import { PERMISSIONS } from "../../utils/permissions.js";
-import {
-  Trash2,
-  Pencil,
-  Funnel,
-  Plus,
-  Settings,
-  AlertCircle,
-  KeyRound,
-  ArrowLeft,
-  EyeOff,
-  Eye,
-} from "lucide-react";
+
+const LOCAL_STORAGE_KEY = "app_users_cache";
 
 export default function Users() {
   const { can } = useAuth();
 
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState(() => {
+    try {
+      const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Error reading users from localStorage", e);
+    }
+    return [];
+  });
+
   const [roles, setRoles] = useState([]);
-  const [filterRole, setFilterRole] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [filters, setFilters] = useState({
+    status: "",
+    role: "All Roles",
+  });
   const [sortConfig, setSortConfig] = useState({
     key: "firstName",
     direction: "asc",
   });
+
+  // Modal States
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
-  const [createdUserCredentials, setCreatedUserCredentials] = useState(null);
-
-
-  //basig makalimut ko oemji
   const [userToReactivate, setUserToReactivate] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [adminPassword, setAdminPassword] = useState("");
-  const [showPasswordText, setShowPasswordText] = useState(false);
-
-
-
-
-
+  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -58,26 +57,54 @@ export default function Users() {
           usersApi.getAllUsers(),
           usersApi.getRoles(),
         ]);
-        if (usersData) setUsers(usersData);
+
         if (rolesData) setRoles(rolesData);
-      } catch {
-        // Retain current state
+
+        const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
+        const hasValidCache = cached && JSON.parse(cached).length > 0;
+
+        if (usersData && (!hasValidCache || users.length === 0)) {
+          setUsers(usersData);
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(usersData));
+        }
+      } catch (err) {
+        console.error("Failed to fetch initial data", err);
       }
     }
     loadData();
   }, []);
 
+  // Sync state updates to LocalStorage safely
+  const updateUsersState = (newUsersOrUpdater) => {
+    setUsers((prevUsers) => {
+      const updated =
+        typeof newUsersOrUpdater === "function"
+          ? newUsersOrUpdater(prevUsers)
+          : newUsersOrUpdater;
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const processedUsers = useMemo(() => {
     let result = [...users];
 
-    // 1. Role Filter
-    if (filterRole !== "all") {
+    // 1. Apply Role Filter
+    if (filters.role && filters.role !== "All Roles") {
       result = result.filter(
-        (user) => (user.role || "").toLowerCase() === filterRole.toLowerCase()
+        (user) => (user.role || "").toLowerCase() === filters.role.toLowerCase()
       );
     }
 
-    // 2. Search Filter
+    // 2. Apply Status Filter
+    if (filters.status) {
+      result = result.filter((user) => {
+        const userStatus = user.status || "ACTIVE";
+        return userStatus.toUpperCase() === filters.status.toUpperCase();
+      });
+    }
+
+    // 3. Apply Search Term
     if (searchTerm) {
       const lowerSearch = searchTerm.toLowerCase();
       result = result.filter(
@@ -89,8 +116,20 @@ export default function Users() {
       );
     }
 
-    // 3. Sorting Logic
+    // 4. Sort: Keep DEACTIVATED/INACTIVE users at the bottom, sort active users normally
     result.sort((a, b) => {
+      const aIsDeactivated =
+        (a.status || "").toUpperCase() === "DEACTIVATED" ||
+        (a.status || "").toUpperCase() === "INACTIVE";
+      const bIsDeactivated =
+        (b.status || "").toUpperCase() === "DEACTIVATED" ||
+        (b.status || "").toUpperCase() === "INACTIVE";
+
+      // If one is deactivated and the other is not, move deactivated to bottom
+      if (aIsDeactivated && !bIsDeactivated) return 1;
+      if (!aIsDeactivated && bIsDeactivated) return -1;
+
+      // Regular sorting by specified column key
       const aValue = a[sortConfig.key]?.toString().toLowerCase() || "";
       const bValue = b[sortConfig.key]?.toString().toLowerCase() || "";
 
@@ -100,7 +139,7 @@ export default function Users() {
     });
 
     return result;
-  }, [users, searchTerm, filterRole, sortConfig]);
+  }, [users, searchTerm, filters, sortConfig]);
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({
@@ -110,461 +149,146 @@ export default function Users() {
   };
 
   const handleSaveUser = async (formData, userId) => {
-    try {
-      if (userId) {
-        const updated = await usersApi.updateUser(userId, formData);
-        setUsers((prev) =>
-          prev.map((u) => (u.id === userId || u.userId === userId ? { ...u, ...updated } : u))
-        );
-      } else {
-        const result = await usersApi.createUser(formData);
-        if (result.user) {
-          setUsers((prev) => [...prev, result.user]);
-        }
-        if (result.temporaryPassword) {
-          setCreatedUserCredentials({
-            username: result.user?.username || formData.username,
-            temporaryPassword: result.temporaryPassword,
-          });
-        }
-      }
-    } catch (err) {
-      alert(err.message || "Failed to save user");
+    if (userId) {
+      // Edit User Flow
+      const updated = await usersApi.updateUser(userId, formData);
+      updateUsersState((prev) =>
+        prev.map((u) => {
+          const uId = u.id || u.userId;
+          return uId === userId ? { ...u, ...formData, ...updated } : u;
+        })
+      );
+    } else {
+      // Create New User Flow
+      const newUserData = {
+        ...formData,
+        status: "ACTIVE",
+        isActive: true,
+      };
+
+      const result = await usersApi.createUser(newUserData);
+      
+      const newUser = result?.user || {
+        id: `user-${Date.now()}`,
+        userId: Date.now(),
+        ...newUserData,
+      };
+
+      updateUsersState((prev) => [newUser, ...prev]);
     }
   };
 
-  const handleDeleteUser = async (user) => {
-    try {
-      await usersApi.updateUserStatus(user.id || user.userId, {
-        adminPassword: "Superadmin123!",
-        isActive: false,
-      });
-      setUsers((prev) =>
-        prev.filter((u) => u.id !== user.id && u.userId !== user.userId)
-      );
-    } catch {
-      setUsers((prev) =>
-        prev.filter((u) => u.id !== user.id && u.userId !== user.userId)
-      );
+  // UPDATE STATUS TO DEACTIVATED (INSTEAD OF REMOVING FROM TABLE)
+  const handleDeactivateUser = async (user) => {
+    const targetId = user.id || user.userId;
+
+    if (targetId) {
+      try {
+        await usersApi.updateUser(targetId, { status: "DEACTIVATED" });
+      } catch (err) {
+        console.error("API deactivate error:", err);
+      }
     }
+
+    updateUsersState((prev) =>
+      prev.map((u) => {
+        const currentId = u.id || u.userId;
+        if (currentId === targetId) {
+          return { ...u, status: "DEACTIVATED" };
+        }
+        return u;
+      })
+    );
+
     setUserToDelete(null);
   };
 
+  const handleReactivateUser = async (user) => {
+    const targetId = user.id || user.userId;
 
+    if (targetId) {
+      try {
+        await usersApi.updateUser(targetId, { status: "ACTIVE" });
+      } catch (err) {
+        console.error("API reactivate error:", err);
+      }
+    }
 
+    updateUsersState((prev) =>
+      prev.map((u) => {
+        const currentId = u.id || u.userId;
+        if (currentId === targetId) {
+          return { ...u, status: "ACTIVE" };
+        }
+        return u;
+      })
+    );
 
-
-
-  //oemji basig makalimut ko
-  const handleReactivateUser = (user) => {
-    alert(`Reactivated ${user.firstName} ${user.lastName}`);
     setUserToReactivate(null);
   };
-
-
-
-
-
-
-  const deleteFooter = (
-    <div className="flex flex-col justify-center gap-4">
-      <Button
-        variant="red"
-        className="px-8"
-        onClick={() => handleDeleteUser(userToDelete)}
-      >
-        DEACTIVATE
-      </Button>
-      <Button
-        variant="cancel"
-        className="px-8"
-        onClick={() => setUserToDelete(null)}
-      >
-        CANCEL
-      </Button>
-    </div>
-  );
 
   const canManage = can(PERMISSIONS.USERS_MANAGE) || can("users.manage");
 
   return (
-    <Card>
-      <div className="header flex flex-col md:flex-row md:items-end justify-between border-b border-gray-200 pb-4 mb-6">
-        <div className="user-management-header">
-          <h1 className="text-2xl md:text-[28px] font-bold text-[#1B4B75]">
-            User Management
-          </h1>
-        </div>
+    <div className="w-full">
+      <UsersHeader
+        onOpenPermissions={() => setIsPermissionsModalOpen(true)}
+        onAddUser={() => setIsAddingUser(true)}
+      />
 
-        <div className="user-management-buttons flex flex-col sm:flex-row gap-3 mt-4 md:mt-0">
-          <Button
-            variant="yellow"
-            onClick={() => setIsPermissionsModalOpen(true)}
-          >
-            <Settings size={20} color="#0B4A6E" />
-            Manage Roles & Permissions
-          </Button>
-          <Button variant="blue" onClick={() => setIsAddingUser(true)}>
-            <Plus size={18} />
-            Add New User
-          </Button>
-        </div>
-      </div>
+      <UsersControls
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        activeFilters={filters}
+        onApplyFilters={setFilters}
+        onClearRole={() => setFilters((prev) => ({ ...prev, role: "All Roles" }))}
+        onClearStatus={() => setFilters((prev) => ({ ...prev, status: "" }))}
+      />
 
-      <div className="header flex md:flex-row md:items-end justify-between pb-4 mb-6">
-        <div className="search-bar">
-          <SearchBar
-            placeholder="Search users..."
-            className="md:w-100"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+      <UsersTable
+        users={processedUsers}
+        sortConfig={sortConfig}
+        onSort={handleSort}
+        onEditUser={setEditingUser}
+        onDeleteUser={setUserToDelete}
+        onReactivateUser={setUserToReactivate}
+        canManage={canManage}
+      />
 
-        <div className="relative w-48">
-          <Funnel
-            size={18}
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 z-10 pointer-events-none"
-          />
-          {!filterRole && (
-            <span className="absolute left-10 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none z-10">
-              Filter Roles
-            </span>
-          )}
+      <PermissionsModal
+        isOpen={isPermissionsModalOpen}
+        roles={roles}
+        onClose={() => setIsPermissionsModalOpen(false)}
+      />
 
-          <Select
-            id="role-filter"
-            value={filterRole}
-            onChange={(e) => setFilterRole(e.target.value)}
-            options={[
-              { value: "all", label: "All Roles" },
-              ...roles.map((r) => ({
-                value: r.name.toLowerCase(),
-                label: r.name,
-              })),
-            ]}
-            className="pl-10"
-          />
-        </div>
-      </div>
+      <UserModal
+        isOpen={isAddingUser || !!editingUser}
+        roles={roles}
+        onSave={handleSaveUser}
+        onClose={() => {
+          setIsAddingUser(false);
+          setEditingUser(null);
+        }}
+        user={editingUser}
+      />
 
-      <div className="user-table overflow-hidden border border-gray-400 rounded rounded-md">
-        {/* Permissions Modal */}
-        <PermissionsModal
-          isOpen={isPermissionsModalOpen}
-          roles={roles}
-          onClose={() => setIsPermissionsModalOpen(false)}
-        />
+      <DeactivateUserModal
+        user={userToDelete}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={handleDeactivateUser}
+      />
 
-        {/* Shared Modal for Adding and Editing */}
-        <UserModal
-          isOpen={isAddingUser || !!editingUser}
-          roles={roles}
-          onSave={handleSaveUser}
-          onClose={() => {
-            setIsAddingUser(false);
-            setEditingUser(null);
-          }}
-          user={editingUser}
-        />
+      <ReactivateUserModal
+        user={userToReactivate}
+        onClose={() => setUserToReactivate(null)}
+        onConfirm={handleReactivateUser}
+      />
 
-        {/* Temporary Credentials Prompt after User Creation */}
-        {createdUserCredentials && (
-          <SharedModal
-            isOpen={true}
-            onClose={() => setCreatedUserCredentials(null)}
-            maxWidth="max-w-md"
-            footer={
-              <div className="flex justify-end">
-                <Button
-                  variant="primary"
-                  onClick={() => setCreatedUserCredentials(null)}
-                >
-                  GOT IT
-                </Button>
-              </div>
-            }
-          >
-            <div className="text-left py-2 space-y-3">
-              <div className="flex items-center gap-3 text-[#0F7AB2]">
-                <KeyRound size={28} />
-                <h3 className="font-bold text-lg">User Account Created</h3>
-              </div>
-              <p className="text-sm text-gray-600">
-                Please share these temporary credentials with the user. They
-                will be prompted to set a new password upon first login.
-              </p>
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1 font-mono text-sm">
-                <p>
-                  <span className="text-gray-500 font-sans">Username: </span>
-                  <span className="font-bold text-[#0F7AB2]">
-                    {createdUserCredentials.username}
-                  </span>
-                </p>
-                <p>
-                  <span className="text-gray-500 font-sans">
-                    Temporary Password:{" "}
-                  </span>
-                  <span className="font-bold text-[#E53E3E]">
-                    {createdUserCredentials.temporaryPassword}
-                  </span>
-                </p>
-              </div>
-            </div>
-          </SharedModal>
-        )}
-
-
-
-
-
-
-
-
-
-
-
-
-
-        {/* oemji aaaaaaaa */}
-        {/* STEP 2: Render Reactivation Modal */}
-        {userToReactivate && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-xl border border-gray-100 flex flex-col items-center">
-              <h2 className="text-2xl font-bold text-[#0B4A6E] mb-4">
-                Reactivate User?
-              </h2>
-              <p className="text-black text-sm mb-6 leading-relaxed">
-                {userToReactivate.firstName} {userToReactivate.lastName}'s account will be reactivated and will regain access to the system.
-              </p>
-              <Button
-                variant="red"
-                onClick={() => handleReactivateUser(userToReactivate)}
-              >
-                CONTINUE
-              </Button>
-              <Button
-                variant="cancel"
-                onClick={() => setUserToReactivate(null)}
-              >
-                CANCEL
-              </Button>
-            </div>
-          </div>
-        )}
-        {/* oemji tabang */}
-        {showPasswordModal && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-xl border border-gray-100 relative">
-
-              {/* Top Header Row with Title and Back Arrow */}
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-[#0B4A6E]">
-                  Input Password
-                </h2>
-                <button
-                  onClick={() => setShowPasswordModal(false)}
-                  className="text-[#0B4A6E] hover:opacity-75 transition-opacity p-1"
-                >
-                  <ArrowLeft size={24} />
-                </button>
-              </div>
-
-              {/* Description */}
-              <p className="text-gray-600 text-sm mb-6 leading-relaxed text-left">
-                For security, please enter your password to confirm this action.
-              </p>
-
-              {/* Password Input Field */}
-              <div className="relative mb-6">
-                <input
-                  type={showPasswordText ? "text" : "password"}
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  placeholder="••••••••••••••••"
-                  className="w-full bg-[#F3F5F5] text-gray-800 text-sm px-5 py-3 rounded-full outline-none pr-12 focus:ring-2 focus:ring-[#0B4A6E]/20"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordText(!showPasswordText)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#0B4A6E] hover:opacity-75"
-                >
-                  {showPasswordText ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-
-              {/* Proceed Button */}
-              <Button
-                variant="red"
-                onClick={() => {
-                  alert("Password submitted!");
-                  setShowPasswordModal(false);
-                }}
-              >
-                PROCEED
-              </Button>
-
-            </div>
-          </div>
-        )}
-
-
-
-
-
-
-        {/* Delete Confirmation Modal */}
-        {userToDelete && (
-          <SharedModal
-            isOpen={true}
-            onClose={() => setUserToDelete(null)}
-            maxWidth="max-w-sm"
-            footer={deleteFooter}
-          >
-            <div className="text-center py-4">
-              {/* <div className="flex justify-center mb-6">
-                <AlertCircle size={60} className="text-red-500" />
-              </div> */}
-              <h2 className="text-[#1B4B75] text-xl font-bold mb-3">
-                Deactivate Users?
-              </h2>
-              <p className="text-gray-700 text-sm">
-                {" "}
-                <span className="font-semibold text-gray-900">
-                  {userToDelete.firstName} {userToDelete.lastName}
-                </span>
-                ’s account will be deactivated and will no longer have access to the system, while its records and activity history are retained.
-              </p>
-            </div>
-          </SharedModal>
-        )}
-
-        <table className="min-w-full border-[#6D8AA2] text-center bg-white rounded-2xl border-collapse">
-          <thead className="min-w-full bg-[#0D4B6E] text-white">
-            <tr>
-              <th
-                className="cursor-pointer text-sm text-white py-3 font-normal hover:bg-gray-200 hover:text-[#0D4B6E]"
-                onClick={() => handleSort("firstName")}
-              >
-                First Name{" "}
-                {sortConfig.key === "firstName"
-                  ? sortConfig.direction === "asc"
-                    ? "▲"
-                    : "▼"
-                  : ""}
-              </th>
-              <th
-                className="cursor-pointer text-sm text-white py-3 font-normal hover:bg-gray-200 hover:text-[#0D4B6E]"
-                onClick={() => handleSort("lastName")}
-              >
-                Last Name{" "}
-                {sortConfig.key === "lastName"
-                  ? sortConfig.direction === "asc"
-                    ? "▲"
-                    : "▼"
-                  : ""}
-              </th>
-              {/* <th className="text-white text-sm py-2 font-normal">
-                Contact Number
-              </th> */}
-              <th
-                className="cursor-pointer text-sm text-white py-3 font-normal hover:bg-gray-200 hover:text-[#0D4B6E]"
-                onClick={() => handleSort("role")}
-              >
-                Role{" "}
-                {sortConfig.key === "role"
-                  ? sortConfig.direction === "asc"
-                    ? "▲"
-                    : "▼"
-                  : ""}
-              </th>
-              <th className="text-sm text-white py-3 font-normal">
-                Status
-              </th>
-              <th
-                className="cursor-pointer text-sm text-white py-3 font-normal hover:bg-gray-200 hover:text-[#0D4B6E]"
-                onClick={() => handleSort("createdAt")}
-              >
-                Date Created{" "}
-                {sortConfig.key === "createdAt"
-                  ? sortConfig.direction === "asc"
-                    ? "▲"
-                    : "▼"
-                  : ""}
-              </th>
-              <th className="text-sm text-white py-3 font-normal">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="min-w-full">
-            {processedUsers.length > 0 ? (
-              processedUsers.map((user) => (
-                <tr
-                  key={user.id || user.userId}
-                  className="border border-gray-200 hover:bg-gray-50 transition-colors"
-                >
-                  <td className="p-2 text-sm text-center">{user.firstName}</td>
-                  <td className="p-2 text-sm text-center">{user.lastName}</td>
-                  {/* <td className="p-2 text-sm text-center">
-                    {user.phone || user.contactNumber || "N/A"}
-                  </td> */}
-                  <td className="p-2 text-sm text-center">
-                    {/* <span
-                      className={`px-2 py-1 rounded text-xs font-bold ${user.role === "Super Admin" || user.role === "Admin"
-                        ? "bg-[#1B9D53] rounded-full font-semibold text-white"
-                        : "bg-gray-100 text-gray-700"
-                        }`}
-                    > */}
-                    {user.role}
-                    {/* </span> */}
-                  </td>
-                  <td className="p-2 text-sm text-center">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${user.userId % 2 === 0
-                        ? "bg-[#1B9D53] text-white"
-                        : "bg-black text-white"
-                        }`}
-                    >
-                      {user.userId % 2 === 0 ? "Activated" : "Deactivated"}
-                    </span>
-                  </td>
-                  <td className="p-2 text-xs text-center italic text-[#6D8AA2]">
-                    {user.createdAt
-                      ? new Date(user.createdAt).toLocaleDateString()
-                      : user.dateCreated || "N/A"}
-                  </td>
-                  <td className="px-6 py-4 flex justify-center gap-4">
-                    {canManage && (
-                      <button
-                        onClick={() => setEditingUser(user)}
-                        className="text-slate-400 hover:text-blue-600"
-                      >
-                        <Pencil size={18} />
-                      </button>
-                    )}
-                    {canManage && user.role !== "Super Admin" && (
-                      <button
-                        onClick={() => setUserToDelete(user)}
-                        className="text-slate-400 hover:text-red-600"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan="6"
-                  className="p-10 text-center text-gray-500 italic"
-                >
-                  No users match your search or filter.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </Card>
+      <AdminPasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        onSubmit={() => setShowPasswordModal(false)}
+      />
+    </div>
   );
 }

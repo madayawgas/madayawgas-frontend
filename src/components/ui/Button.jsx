@@ -4,7 +4,7 @@ export default function Button({
   className = "", 
   ...props 
 }) {
-  const baseStyles = "px-4 py-2 rounded-full font-semibold flex items-center justify-center gap-2 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed";
+  const baseStyles = "px-4 py-2 rounded-full font-semibold flex items-center justify-center gap-2 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
   
   const variants = {
     primary: "bg-[#0F7AB2] text-white hover:bg-[#0c628f] shadow-sm border border-[#0A4B6E]",

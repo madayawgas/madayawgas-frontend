@@ -4,6 +4,22 @@ import mockUsers from "../mocks/users.json" with { type: "json" };
 import mockRoles from "../mocks/roles.json" with { type: "json" };
 
 export const usersApi = {
+    /**
+   * Verify the admin's password before performing sensitive operations.
+   * @param {string} password - Admin password to verify
+   * @param {string} [username] - Optional username of the admin performing the check
+   * @returns {Promise<boolean>} Resolves true if valid, throws an error if invalid
+   */
+  verifyAdminPassword: async (password, username) => {
+    const validPassword = localStorage.getItem("current_user_password");
+
+    if (!password || password !== validPassword) {
+      throw new Error("Incorrect admin password. Please try again.");
+    }
+
+    return true;
+  },
+  
   /**
    * Get all user accounts (Admin/Manager with users.view permission).
    * @returns {Promise<Array>} List of user objects
