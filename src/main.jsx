@@ -20,6 +20,7 @@ import Users from "./pages/Users/Users";
 import RouteDispatch from "./pages/RouteDispatch/RouteDispatch";
 import Inventory from "./pages/Inventory/Inventory";
 import SalesAndDelivery from "./pages/SalesAndDelivery/SalesAndDelivery";
+import HistoryLog from "./pages/HistoryLog/HistoryLog";
 
 // 1. Configure Protected Routes
 const router = createBrowserRouter([
@@ -84,6 +85,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute permission={PERMISSIONS.USERS_VIEW}>
             <Users />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "history-log",
+        element: (
+          <ProtectedRoute permission={PERMISSIONS.HISTORY_VIEW}>
+            <HistoryLog />
           </ProtectedRoute>
         ),
       },

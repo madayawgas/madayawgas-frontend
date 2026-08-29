@@ -8,7 +8,7 @@ export default function SearchBar({
 }) {
   return (
     <div className={`relative flex items-center ${className}`}>
-      <Search size={18} className="absolute left-3 text-gray-500" />
+      <Search size={18} className="absolute left-3 text-[#0A4B6E]" />
       <input
         type="text"
         value={value}

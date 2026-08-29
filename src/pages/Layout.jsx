@@ -12,6 +12,7 @@ import {
   Route,
   ClipboardList,
   ReceiptText,
+  History,
 } from "lucide-react";
 import logo from "../assets/logo-outlined.svg";
 
@@ -134,6 +135,17 @@ export default function Layout() {
                 <span>Manage Users</span>
               </NavLink>
             )}
+
+            {can(PERMISSIONS.HISTORY_VIEW) && (
+            <NavLink
+              to="/history-log"
+              className={navClass}
+              onClick={() => setOpen(false)}
+            >
+              <History size={26} />
+              <span>History Log</span>
+            </NavLink>
+          )}
           </nav>
         </div>
 

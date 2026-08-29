@@ -77,6 +77,6 @@ export function getDefaultRoute(user) {
   if (can(user, PERMISSIONS.ROUTE_VIEW) || can(user, PERMISSIONS.ROUTE_VIEW_OWN)) return "/route-dispatch";
   if (can(user, PERMISSIONS.INVENTORY_VIEW)) return "/inventory";
   if (can(user, PERMISSIONS.USERS_VIEW)) return "/users";
-  if (can(user, PERMISSIONS.HISTORY_VIEW)) return "/history";
+  if (can(user, PERMISSIONS.HISTORY_VIEW)) return "/history-log";
   return "/dashboard";
 }
