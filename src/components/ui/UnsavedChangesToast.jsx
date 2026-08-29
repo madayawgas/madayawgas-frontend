@@ -1,4 +1,4 @@
-import ToastNotification from "./ToastNotification";
+import ToastNotification from "./ToastNotifications";
 
 export default function UnsavedChangesToast({ onClose, className = "" }) {
   return (
