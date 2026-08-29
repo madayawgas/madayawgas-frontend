@@ -7,6 +7,7 @@ import ReactivateUserModal from "../../components/users/ReactivateUserModal";
 import AdminPasswordModal from "../../components/users/AdminPasswordModal";
 import UserModal from "../../components/users/UserModal";
 import PermissionsModal from "../../components/users/PermissionsModal";
+import SavedChangesToast from "../../components/ui/SavedChangesToast";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { usersApi } from "../../api/users.js";
 import { PERMISSIONS } from "../../utils/permissions.js";
@@ -50,6 +51,9 @@ export default function Users() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
 
+  // Toast State
+  const [showToast, setShowToast] = useState(false);
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -73,6 +77,16 @@ export default function Users() {
     }
     loadData();
   }, []);
+
+  // Auto-hide toast after 3 seconds
+  useEffect(() => {
+    if (showToast) {
+      const timer = setTimeout(() => {
+        setShowToast(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showToast]);
 
   // Sync state updates to LocalStorage safely
   const updateUsersState = (newUsersOrUpdater) => {
@@ -149,35 +163,42 @@ export default function Users() {
   };
 
   const handleSaveUser = async (formData, userId) => {
-    if (userId) {
-      // Edit User Flow
-      const updated = await usersApi.updateUser(userId, formData);
-      updateUsersState((prev) =>
-        prev.map((u) => {
-          const uId = u.id || u.userId;
-          return uId === userId ? { ...u, ...formData, ...updated } : u;
-        })
-      );
-    } else {
-      // Create New User Flow
-      const newUserData = {
-        ...formData,
-        status: "ACTIVE",
-        isActive: true,
-      };
+    try {
+      if (userId) {
+        // Edit User Flow
+        const updated = await usersApi.updateUser(userId, formData);
+        updateUsersState((prev) =>
+          prev.map((u) => {
+            const uId = u.id || u.userId;
+            return uId === userId ? { ...u, ...formData, ...updated } : u;
+          })
+        );
+      } else {
+        // Create New User Flow
+        const newUserData = {
+          ...formData,
+          status: "ACTIVE",
+          isActive: true,
+        };
 
-      const result = await usersApi.createUser(newUserData);
-      
-      const newUser = result?.user || {
-        id: `user-${Date.now()}`,
-        userId: Date.now(),
-        ...newUserData,
-      };
+        const result = await usersApi.createUser(newUserData);
+        
+        const newUser = result?.user || {
+          id: `user-${Date.now()}`,
+          userId: Date.now(),
+          ...newUserData,
+        };
 
-      updateUsersState((prev) => [newUser, ...prev]);
+        updateUsersState((prev) => [newUser, ...prev]);
+      }
+
+      setShowToast(true);
+    } catch (err) {
+      console.error("Failed to save user:", err);
     }
   };
 
+  // UPDATE STATUS TO DEACTIVATED (INSTEAD OF REMOVING FROM TABLE)
   const handleDeactivateUser = async (user) => {
     const targetId = user.id || user.userId;
 
@@ -256,7 +277,7 @@ export default function Users() {
 
       <PermissionsModal
         isOpen={isPermissionsModalOpen}
-        roles={roles}
+        users={users}
         onClose={() => setIsPermissionsModalOpen(false)}
       />
 
@@ -288,6 +309,10 @@ export default function Users() {
         onClose={() => setShowPasswordModal(false)}
         onSubmit={() => setShowPasswordModal(false)}
       />
+
+      {showToast && (
+        <SavedChangesToast onClose={() => setShowToast(false)} />
+      )}
     </div>
   );
 }
