@@ -2,6 +2,7 @@
 import { apiClient, isMock, delay } from "./client.js";
 import mockUsers from "../mocks/users.json" with { type: "json" };
 import mockRoles from "../mocks/roles.json" with { type: "json" };
+import { authApi } from "./auth.js";
 
 export const usersApi = {
     /**
@@ -10,15 +11,12 @@ export const usersApi = {
    * @param {string} [username] - Optional username of the admin performing the check
    * @returns {Promise<boolean>} Resolves true if valid, throws an error if invalid
    */
-  verifyAdminPassword: async (password, username) => {
-    const validPassword = localStorage.getItem("current_user_password");
-
-    if (!password || password !== validPassword) {
-      throw new Error("Incorrect admin password. Please try again.");
-    }
-
-    return true;
-  },
+    /**
+   * Delegates admin password verification directly to authApi.
+   */
+    verifyAdminPassword: async (password, username) => {
+      return authApi.verifyPassword(password, username);
+    },
   
   /**
    * Get all user accounts (Admin/Manager with users.view permission).

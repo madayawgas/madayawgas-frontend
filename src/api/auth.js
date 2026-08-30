@@ -13,6 +13,29 @@ const MOCK_CREDENTIALS = {
 const MOCK_SESSION_KEY = "mg_mock_session_user";
 
 export const authApi = {
+
+  /**
+   * Verify password directly against auth mock credentials or server endpoint.
+   */
+  async verifyPassword(password, username) {
+    if (isMock) {
+      await delay(250);
+      const expectedPassword = MOCK_CREDENTIALS[username];
+
+      if (!expectedPassword || password !== expectedPassword) {
+        throw new Error("Incorrect password. Please try again.");
+      }
+
+      return true;
+    }
+
+    const result = await apiClient("/users/verify-password", {
+      method: "POST",
+      body: { username, password },
+    });
+    return result.data.valid;
+  },
+
   /**
    * Log in user and establish session cookie (or mock session).
    * @param {string} username - User's username

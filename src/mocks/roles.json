@@ -21,6 +21,16 @@
         "id": "d710521e-2549-43dd-a890-470fc0988ef8",
         "name": "Super Admin",
         "description": "System owner with unrestricted configuration and user administration access."
+      },
+      {
+        "id": "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6",
+        "name": "Driver",
+        "description": "Responsible for transporting goods and ensuring timely deliveries."
+      },
+      {
+        "id": "q1w2e3r4-t5y6-u7i8-o9p0-a1s2d3f4g5h6",
+        "name": "Sales Manager",
+        "description": "Oversees sales team performance, targets, and customer relationship management."
       }
     ]
   }

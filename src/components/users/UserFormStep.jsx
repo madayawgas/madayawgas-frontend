@@ -88,6 +88,8 @@ export default function UserFormStep({
                 <option value="Super Admin">Super Admin</option>
                 <option value="System Admin">System Admin</option>
                 <option value="Driver">Driver</option>
+                <option value="Sales Person">Sales Person</option>
+                <option value="Sales Manager">Sales Manager</option>
               </>
             )}
           </select>

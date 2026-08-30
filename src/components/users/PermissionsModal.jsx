@@ -1,34 +1,43 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Select from "../ui/Select";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import { PERMISSIONS } from "../../utils/permissions.js";
 
+const DEFAULT_ROLES = [
+  "Super Admin",
+  "Admin",
+  "Fleet Manager",
+  "Driver",
+  "Sales Manager",
+  "Sales Person",
+];
+
 const DEFAULT_PERMISSION_MAPPING = [
   {
     key: "fleetAndMaintenance",
     label: "Fleet & Maintenance",
-    dataKey: PERMISSIONS.FLEET_VIEW,
+    dataKey: PERMISSIONS?.FLEET_VIEW || "fleet.view",
   },
   {
     key: "routeDispatch",
     label: "Route Dispatch",
-    dataKey: PERMISSIONS.ROUTE_VIEW,
+    dataKey: PERMISSIONS?.ROUTE_VIEW || "route.view",
   },
   {
     key: "inventory",
     label: "Inventory",
-    dataKey: PERMISSIONS.INVENTORY_VIEW,
+    dataKey: PERMISSIONS?.INVENTORY_VIEW || "inventory.view",
   },
   {
     key: "salesAndDelivery",
     label: "Sales & Delivery",
-    dataKey: PERMISSIONS.SALES_VIEW,
+    dataKey: PERMISSIONS?.SALES_VIEW || "sales.view",
   },
   {
     key: "manageUsers",
     label: "Manage Users",
-    dataKey: PERMISSIONS.USERS_VIEW,
+    dataKey: PERMISSIONS?.USERS_VIEW || "users.view",
   },
 ];
 
@@ -39,34 +48,57 @@ export default function PermissionsModal({
   permissionsMap = {},
   onSavePermissions,
 }) {
-  const [selectedRole, setSelectedRole] = useState(
-    roles[0]?.name || "Super Admin"
+  const getRoleName = (r) => (typeof r === "string" ? r : r?.name);
+
+  // Combine fetched API roles with missing system roles to guarantee all exist
+  const fetchedNames = roles.map(getRoleName).filter(Boolean);
+  const combinedRoleNames = Array.from(
+    new Set([...fetchedNames, ...DEFAULT_ROLES])
   );
-  const [prevSyncKey, setPrevSyncKey] = useState("");
+
+  const [selectedRole, setSelectedRole] = useState("Super Admin");
   const [localPermissions, setLocalPermissions] = useState({
-    fleetAndMaintenance: false,
-    routeDispatch: false,
-    inventory: false,
-    salesAndDelivery: false,
-    manageUsers: false,
+    fleetAndMaintenance: true,
+    routeDispatch: true,
+    inventory: true,
+    salesAndDelivery: true,
+    manageUsers: true,
   });
 
   const syncKey = `${isOpen}-${selectedRole}`;
-  if (syncKey !== prevSyncKey) {
-    setPrevSyncKey(syncKey);
-    if (isOpen) {
-      const rolePerms = permissionsMap[selectedRole] || [];
+  const lastSyncedKey = useRef("");
+
+  // Sync state ONLY when modal opens or when role selection changes
+  useEffect(() => {
+    if (isOpen && lastSyncedKey.current !== syncKey) {
+      lastSyncedKey.current = syncKey;
+
+      const activeRoleObj = roles.find((r) => getRoleName(r) === selectedRole);
+      const rolePerms =
+        permissionsMap[selectedRole] || activeRoleObj?.permissions;
+
       const newLocalPerms = {};
       DEFAULT_PERMISSION_MAPPING.forEach((item) => {
-        newLocalPerms[item.key] = rolePerms.includes(item.dataKey);
+        if (rolePerms === undefined && selectedRole === "Super Admin") {
+          newLocalPerms[item.key] = true;
+        } else {
+          newLocalPerms[item.key] = Array.isArray(rolePerms)
+            ? rolePerms.includes(item.dataKey)
+            : false;
+        }
       });
+
       setLocalPermissions(newLocalPerms);
     }
-  }
 
-  const roleOptions = roles.map((r) => ({
-    value: r.name,
-    label: r.name,
+    if (!isOpen) {
+      lastSyncedKey.current = "";
+    }
+  }, [isOpen, selectedRole, roles, permissionsMap, syncKey]);
+
+  const roleOptions = combinedRoleNames.map((name) => ({
+    value: name,
+    label: name,
   }));
 
   const handleToggle = (key) => {
@@ -74,6 +106,11 @@ export default function PermissionsModal({
       ...prev,
       [key]: !prev[key],
     }));
+  };
+
+  const handleRoleChange = (e) => {
+    const val = e?.target ? e.target.value : e;
+    if (val) setSelectedRole(val);
   };
 
   const handleSave = () => {
@@ -122,19 +159,8 @@ export default function PermissionsModal({
             label="Select Role"
             name="role"
             value={selectedRole}
-            options={
-              roleOptions.length > 0
-                ? roleOptions
-                : [
-                    { value: "Super Admin", label: "Super Admin" },
-                    { value: "Admin", label: "Admin" },
-                    { value: "Fleet Manager", label: "Fleet Manager" },
-                    { value: "Driver", label: "Driver" },
-                    { value: "Sales Manager", label: "Sales Manager" },
-                    { value: "Sales Person", label: "Sales Person" },
-                  ]
-            }
-            onChange={(e) => setSelectedRole(e.target.value)}
+            options={roleOptions}
+            onChange={handleRoleChange}
           />
           <p className="text-gray-400 text-xs mt-2">
             Choose a role to modify its permissions and access
@@ -148,35 +174,36 @@ export default function PermissionsModal({
           <h3 className="text-[#104e7a] font-bold text-lg mb-4">Can View</h3>
 
           <div className="space-y-4">
-            {DEFAULT_PERMISSION_MAPPING.map((item) => (
-              <div
-                key={item.key}
-                className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-100"
-              >
-                <span className="text-[#104e7a] text-sm font-semibold">
-                  {item.label}
-                </span>
-
-                {/* Custom Toggle Switch */}
-                <button
-                  type="button"
-                  onClick={() => handleToggle(item.key)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full border-2 transition-colors focus:outline-none ${
-                    localPermissions[item.key]
-                      ? "bg-[#0F7AB2] border-[#0F7AB2]"
-                      : "bg-gray-200 border-gray-200"
-                  }`}
+            {DEFAULT_PERMISSION_MAPPING.map((item) => {
+              const isChecked = !!localPermissions[item.key];
+              return (
+                <div
+                  key={item.key}
+                  className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-100"
                 >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
-                      localPermissions[item.key]
-                        ? "translate-x-5"
-                        : "translate-x-0.5"
+                  <span className="text-[#104e7a] text-sm font-semibold">
+                    {item.label}
+                  </span>
+
+                  {/* Toggle Switch */}
+                  <button
+                    type="button"
+                    onClick={() => handleToggle(item.key)}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none cursor-pointer ${
+                      isChecked
+                        ? "bg-[#0F7AB2] border-[#0F7AB2]"
+                        : "bg-gray-200 border-gray-200"
                     }`}
-                  />
-                </button>
-              </div>
-            ))}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
+                        isChecked ? "translate-x-5" : "translate-x-0.5"
+                      }`}
+                    />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

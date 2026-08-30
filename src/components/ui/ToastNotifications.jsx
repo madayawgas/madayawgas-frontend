@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Info, Check, AlertTriangle, X } from "lucide-react";
 
 export default function ToastNotification({
@@ -6,6 +7,16 @@ export default function ToastNotification({
   onClose,
   className = "",
 }) {
+  useEffect(() => {
+    if (!onClose) return;
+
+    const timer = setTimeout(() => {
+      onClose();
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
   const configs = {
     info: {
       bg: "bg-[#4299E1]",

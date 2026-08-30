@@ -1,17 +1,41 @@
-import { useState } from "react";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import Button from "../ui/Button";
 
 export default function AdminPasswordModal({ isOpen, onClose, onSubmit }) {
   const [adminPassword, setAdminPassword] = useState("");
   const [showPasswordText, setShowPasswordText] = useState(false);
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setAdminPassword("");
+      setError("");
+      setShowPasswordText(false);
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(adminPassword);
-    setAdminPassword("");
+    if (!adminPassword.trim()) {
+      setError("Please enter your admin password.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      await onSubmit(adminPassword);
+    } catch (err) {
+      setError(err?.message || "Incorrect password. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -22,7 +46,8 @@ export default function AdminPasswordModal({ isOpen, onClose, onSubmit }) {
           <button
             type="button"
             onClick={onClose}
-            className="text-[#0B4A6E] hover:opacity-75 transition-opacity cursor-pointer bg-transparent border-none p-0"
+            disabled={isSubmitting}
+            className="text-[#0B4A6E] hover:opacity-75 transition-opacity cursor-pointer bg-transparent border-none p-0 disabled:opacity-50"
           >
             <ArrowLeft size={24} />
           </button>
@@ -33,28 +58,45 @@ export default function AdminPasswordModal({ isOpen, onClose, onSubmit }) {
         </p>
 
         <form onSubmit={handleSubmit}>
-          <div className="relative mb-8">
+          <div className="relative mb-2">
             <input
               type={showPasswordText ? "text" : "password"}
               value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
+              onChange={(e) => {
+                setAdminPassword(e.target.value);
+                if (error) setError("");
+              }}
               placeholder="****************"
-              className="w-full bg-[#F3F5F5] text-gray-800 px-5 py-3.5 rounded-full outline-none pr-12 focus:ring-2 focus:ring-[#0B4A6E]/20"
+              disabled={isSubmitting}
+              autoFocus
+              className="w-full bg-[#F3F5F5] text-gray-800 px-5 py-3.5 rounded-full outline-none pr-12 focus:ring-2 focus:ring-[#0B4A6E]/20 disabled:opacity-60"
             />
             <button
               type="button"
               onClick={() => setShowPasswordText(!showPasswordText)}
+              disabled={isSubmitting}
               className="absolute right-5 top-1/2 -translate-y-1/2 text-[#0B4A6E] hover:opacity-75 cursor-pointer bg-transparent border-none p-0"
             >
               {showPasswordText ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>
 
+          {/* Inline error container with Lucide AlertTriangle */}
+          <div className="min-h-[24px] mb-6">
+            {error && (
+              <p className="text-red-600 text-xs font-medium px-4 pt-1 flex items-center gap-1.5">
+                <AlertTriangle size={15} className="flex-shrink-0" />
+                <span>{error}</span>
+              </p>
+            )}
+          </div>
+
           <Button
             type="submit"
-            className="w-full py-3 bg-[#CD3E3E] border-none text-white rounded-full font-semibold uppercase tracking-widest text-sm hover:bg-[#b83737] transition-colors"
+            disabled={isSubmitting}
+            className="w-full py-3 bg-[#CD3E3E] border-none text-white rounded-full font-semibold uppercase tracking-widest text-sm hover:bg-[#b83737] transition-colors disabled:opacity-50"
           >
-            PROCEED
+            {isSubmitting ? "VERIFYING..." : "PROCEED"}
           </Button>
         </form>
       </div>
