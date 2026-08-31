@@ -1,6 +1,6 @@
 import Button from "../ui/Button";
 
-export default function UserConfirmStep({ formData, safeRole, onConfirm }) {
+export default function UserConfirmStep({ formData, safeRole, onConfirm, isSubmitting = false }) {
   return (
     <div className="px-8 pb-8 overflow-y-auto max-h-[85vh]">
       <div className="space-y-5">
@@ -42,9 +42,10 @@ export default function UserConfirmStep({ formData, safeRole, onConfirm }) {
       <div className="mt-8 flex flex-col gap-3">
         <Button
           onClick={onConfirm}
-          className="w-full py-3.5 bg-[#F6C445] hover:bg-[#e2b23b] border-none !text-[#0B4A6E] rounded-full font-bold uppercase tracking-widest text-[11px] transition-colors"
+          disabled={isSubmitting}
+          className="w-full py-3.5 bg-[#F6C445] hover:bg-[#e2b23b] disabled:opacity-50 disabled:cursor-not-allowed border-none !text-[#0B4A6E] rounded-full font-bold uppercase tracking-widest text-[11px] transition-colors"
         >
-          CONFIRM
+          {isSubmitting ? "CREATING..." : "CONFIRM"}
         </Button>
       </div>
     </div>

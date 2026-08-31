@@ -1,7 +1,7 @@
 import Button from "../ui/Button";
 
 export default function DeactivateUserModal({ user, onClose, onConfirm }) {
-  if (!user) return null;
+  if (!user || user?.role === "Super Admin") return null;
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">

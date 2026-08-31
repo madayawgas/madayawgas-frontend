@@ -4,7 +4,9 @@ import UsersControls from "../../components/users/UsersControls";
 import UsersTable from "../../components/users/UsersTable";
 import DeactivateUserModal from "../../components/users/DeactivateUserModal";
 import ReactivateUserModal from "../../components/users/ReactivateUserModal";
+import ResetPasswordModal from "../../components/users/ResetPasswordModal";
 import AdminPasswordModal from "../../components/users/AdminPasswordModal";
+import CreatedCredentialsModal from "../../components/users/CreatedCredentialsModal";
 import UserModal from "../../components/users/UserModal";
 import PermissionsModal from "../../components/users/PermissionsModal";
 import SavedChangesToast from "../../components/ui/SavedChangesToast";
@@ -70,10 +72,12 @@ export default function Users() {
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
-  // Password Security Action States (Deactivate/Reactivate)
+  // Password Security Action States (Deactivate/Reactivate/ResetPassword)
   const [userToDeactivate, setUserToDeactivate] = useState(null);
   const [userToReactivate, setUserToReactivate] = useState(null);
-  const [pendingAction, setPendingAction] = useState(null); // 'DEACTIVATE' | 'REACTIVATE'
+  const [userToResetPassword, setUserToResetPassword] = useState(null);
+  const [resetCredentials, setResetCredentials] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null); // 'DEACTIVATE' | 'REACTIVATE' | 'RESET_PASSWORD'
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   // Initial API Load
@@ -156,6 +160,8 @@ export default function Users() {
         updateUsersState((prev) =>
           prev.map((u) => ((u.id || u.userId) === userId ? { ...u, ...formData, ...updated } : u))
         );
+        setShowToast(true);
+        return updated;
       } else {
         const newUserData = { ...formData, status: "ACTIVE", isActive: true };
         const result = await usersApi.createUser(newUserData);
@@ -165,10 +171,12 @@ export default function Users() {
           ...newUserData,
         };
         updateUsersState((prev) => [newUser, ...prev]);
+        setShowToast(true);
+        return result;
       }
-      setShowToast(true);
     } catch (err) {
       console.error("Failed to save user:", err);
+      throw err;
     }
   };
 
@@ -181,20 +189,29 @@ export default function Users() {
     setShowToast(true);
   };
 
-  // Triggers password modal flow for deactivation/reactivation
+  // Triggers password modal flow for deactivation/reactivation/reset password
   const handleInitiateDeactivate = (targetUser) => {
+    if (!targetUser || targetUser.role === "Super Admin") return;
     setUserToDeactivate(targetUser);
     setPendingAction("DEACTIVATE");
     setShowPasswordModal(true);
   };
 
   const handleInitiateReactivate = (targetUser) => {
+    if (!targetUser || targetUser.role === "Super Admin") return;
     setUserToReactivate(targetUser);
     setPendingAction("REACTIVATE");
     setShowPasswordModal(true);
   };
 
-  // Executes status update once admin password is confirmed
+  const handleInitiateResetPassword = (targetUser) => {
+    if (!targetUser || targetUser.role === "Super Admin") return;
+    setUserToResetPassword(targetUser);
+    setPendingAction("RESET_PASSWORD");
+    setShowPasswordModal(true);
+  };
+
+  // Executes dangerous operation once admin password is confirmed
   const handleConfirmAdminPassword = async (adminPassword) => {
     try {
       await usersApi.verifyAdminPassword(adminPassword, currentUser?.username);
@@ -213,6 +230,9 @@ export default function Users() {
               : u
           )
         );
+        setShowToast(true);
+        setShowPasswordModal(false);
+        setUserToDeactivate(null);
       } else if (pendingAction === "REACTIVATE" && userToReactivate) {
         const targetId = userToReactivate.id || userToReactivate.userId;
         await usersApi.updateUserStatus(targetId, {
@@ -227,12 +247,28 @@ export default function Users() {
               : u
           )
         );
+        setShowToast(true);
+        setShowPasswordModal(false);
+        setUserToReactivate(null);
+      } else if (pendingAction === "RESET_PASSWORD" && userToResetPassword) {
+        const targetId = userToResetPassword.id || userToResetPassword.userId;
+        const result = await usersApi.resetUserCredentials(targetId, {
+          resetPassword: true,
+          adminPassword,
+        });
+        updateUsersState((prev) =>
+          prev.map((u) =>
+            (u.id || u.userId) === targetId
+              ? { ...u, mustChangePassword: true }
+              : u
+          )
+        );
+        setShowPasswordModal(false);
+        setUserToResetPassword(null);
+        setResetCredentials(result);
+        setShowToast(true);
       }
 
-      setShowToast(true);
-      setShowPasswordModal(false);
-      setUserToDeactivate(null);
-      setUserToReactivate(null);
       setPendingAction(null);
     } catch (err) {
       // Re-throw so AdminPasswordModal can capture and render inline
@@ -267,9 +303,22 @@ export default function Users() {
             direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
           }))
         }
-        onEditUser={setEditingUser}
-        onDeleteUser={setUserToDeactivate}
-        onReactivateUser={setUserToReactivate}
+        onEditUser={(user) => {
+          if (user?.role === "Super Admin") return;
+          setEditingUser(user);
+        }}
+        onDeleteUser={(user) => {
+          if (user?.role === "Super Admin") return;
+          setUserToDeactivate(user);
+        }}
+        onReactivateUser={(user) => {
+          if (user?.role === "Super Admin") return;
+          setUserToReactivate(user);
+        }}
+        onResetPassword={(user) => {
+          if (user?.role === "Super Admin") return;
+          setUserToResetPassword(user);
+        }}
         canManage={canManage}
       />
 
@@ -287,12 +336,22 @@ export default function Users() {
         isOpen={isAddingUser || !!editingUser}
         roles={roles}
         onSave={handleSaveUser}
+        onResetPassword={setUserToResetPassword}
         onClose={() => {
           setIsAddingUser(false);
           setEditingUser(null);
         }}
         user={editingUser}
       />
+
+      {/* Reset Password Confirmation Modal */}
+      {userToResetPassword && !showPasswordModal && (
+        <ResetPasswordModal
+          user={userToResetPassword}
+          onClose={() => setUserToResetPassword(null)}
+          onConfirm={handleInitiateResetPassword}
+        />
+      )}
 
       {/* Deactivation Confirmation Modal */}
       {userToDeactivate && !showPasswordModal && (
@@ -321,6 +380,16 @@ export default function Users() {
         }}
         onSubmit={handleConfirmAdminPassword}
       />
+
+      {/* Reset/Created Credentials Display Modal */}
+      {resetCredentials && (
+        <CreatedCredentialsModal
+          credentials={resetCredentials}
+          title="Password Reset Successfully"
+          description={`Temporary credentials generated for ${resetCredentials.username || "the user"}. They will be prompted to set a new password upon next login.`}
+          onClose={() => setResetCredentials(null)}
+        />
+      )}
 
       {/* Toast Notification */}
       {showToast && <SavedChangesToast onClose={() => setShowToast(false)} />}

@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, KeyRound } from "lucide-react";
 import Badge from "../ui/Badge";
 
 export default function UsersTable({
@@ -7,6 +7,7 @@ export default function UsersTable({
   onSort,
   onEditUser,
   onDeleteUser,
+  onResetPassword,
   canManage,
 }) {
   const getStatus = (user) => {
@@ -101,23 +102,35 @@ export default function UsersTable({
                 </td>
                 <td className="py-4 px-6">
                   <div className="flex items-center justify-center gap-3">
-                    {canManage && (
-                      <button
-                        type="button"
-                        onClick={() => onEditUser(user)}
-                        className="text-gray-400 hover:text-[#0F7AB2] transition-colors cursor-pointer"
-                      >
-                        <Pencil size={18} />
-                      </button>
-                    )}
-                    {canManage && user.role !== "Super Admin" && (
-                      <button
-                        type="button"
-                        onClick={() => onDeleteUser(user)}
-                        className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                    {canManage && user.role !== "Super Admin" ? (
+                      <>
+                        <button
+                          type="button"
+                          title="Edit User"
+                          onClick={() => onEditUser(user)}
+                          className="text-gray-400 hover:text-[#0F7AB2] transition-colors cursor-pointer"
+                        >
+                          <Pencil size={18} />
+                        </button>
+                        <button
+                          type="button"
+                          title="Reset Password"
+                          onClick={() => onResetPassword && onResetPassword(user)}
+                          className="text-gray-400 hover:text-[#0F7AB2] transition-colors cursor-pointer"
+                        >
+                          <KeyRound size={18} />
+                        </button>
+                        <button
+                          type="button"
+                          title="Deactivate User"
+                          onClick={() => onDeleteUser(user)}
+                          className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-gray-300 select-none text-xs">—</span>
                     )}
                   </div>
                 </td>

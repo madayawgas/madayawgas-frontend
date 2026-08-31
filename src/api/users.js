@@ -122,6 +122,11 @@ export const usersApi = {
     if (isMock) {
       await delay(300);
       const existing = mockUsers.data.users.find((u) => u.id === id) || {};
+      if (existing.role === "Super Admin") {
+        const error = new Error("Super Admin account details cannot be modified.");
+        error.status = 403;
+        throw error;
+      }
       const role = userData.roleId
         ? mockRoles.data.roles.find((r) => r.id === userData.roleId)
         : null;
@@ -178,13 +183,25 @@ export const usersApi = {
         throw error;
       }
 
+      const existingUser = mockUsers.data.users.find((u) => u.id === id);
+      if (existingUser?.role === "Super Admin") {
+        const error = new Error("Super Admin credentials cannot be modified.");
+        error.status = 403;
+        throw error;
+      }
+
+      if (existingUser) {
+        existingUser.mustChangePassword = true;
+        if (username) existingUser.username = username;
+      }
+
       const tempPass = resetPassword
         ? `Mg#${Math.random().toString(36).slice(-8)}!`
         : undefined;
 
       return {
         id,
-        username: username || "updated_username",
+        username: username || existingUser?.username || "updated_username",
         mustChangePassword: !!resetPassword,
         temporaryPassword: tempPass,
         message:
@@ -194,7 +211,7 @@ export const usersApi = {
 
     const result = await apiClient(`/users/${id}/credentials`, {
       method: "PATCH",
-      body: { adminPassword, resetPassword, username },
+      body: { confirmPassword: adminPassword, adminPassword, resetPassword, username },
     });
     return result.data;
   },
@@ -217,6 +234,12 @@ export const usersApi = {
       }
 
       const user = mockUsers.data.users.find((u) => u.id === id) || {};
+      if (user.role === "Super Admin") {
+        const error = new Error("Super Admin account cannot be deactivated or blocked.");
+        error.status = 403;
+        throw error;
+      }
+
       return {
         ...user,
         ...(isActive !== undefined && { isActive }),
