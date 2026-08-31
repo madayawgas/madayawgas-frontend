@@ -22,6 +22,7 @@ import Inventory from "./pages/Inventory/Inventory";
 import SalesAndDelivery from "./pages/SalesAndDelivery/SalesAndDelivery";
 import HistoryLog from "./pages/HistoryLog/HistoryLog";
 import Profile from "./pages/Profile/Profile";
+import Customers from "./pages/Customers/Customers";
 
 // 1. Configure Protected Routes
 const router = createBrowserRouter([
@@ -80,6 +81,20 @@ const router = createBrowserRouter([
             <SalesAndDelivery />
           </ProtectedRoute>
         ),
+      },
+      {
+        path: "customers",
+        element: (
+          <ProtectedRoute
+            permission={[PERMISSIONS.SALES_VIEW, PERMISSIONS.SALES_VIEW_OWN]}
+          >
+            <Customers />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "customer",
+        element: <Navigate to="/customers" replace />,
       },
       {
         path: "users",

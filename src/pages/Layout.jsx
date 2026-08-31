@@ -13,6 +13,7 @@ import {
   ClipboardList,
   ReceiptText,
   History,
+  UserRound,
 } from "lucide-react";
 import logo from "../assets/logo-outlined.svg";
 
@@ -122,6 +123,17 @@ export default function Layout() {
               >
                 <ReceiptText size={26} />
                 <span>Sales and Delivery</span>
+              </NavLink>
+            )}
+
+            {(can(PERMISSIONS.SALES_VIEW) || can(PERMISSIONS.SALES_VIEW_OWN)) && (
+              <NavLink
+                to="/customers"
+                className={navClass}
+                onClick={() => setOpen(false)}
+              >
+                <UserRound size={26} />
+                <span>Customer</span>
               </NavLink>
             )}
 

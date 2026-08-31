@@ -7,6 +7,7 @@ import Layout from "./pages/Layout";
 
 // Feature Pages
 import Dashboard from "./pages/Dashboard"; 
+import Customers from "./pages/Customers/Customers";
 
 export default function App() {
   return (
@@ -23,6 +24,8 @@ export default function App() {
             
             {/* The actual pages that inject into your Layout's <Outlet /> */}
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="customers" element={<Customers />} />
+            <Route path="customer" element={<Navigate to="/app/customers" replace />} />
           </Route>
 
           {/* 3. Fallback - Catch any random URLs and send to login */}
