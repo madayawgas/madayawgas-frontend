@@ -131,7 +131,7 @@ export const usersApi = {
   /**
    * Update a user's profile details.
    * @param {string} id - Target user ID
-   * @param {{ firstName?: string, lastName?: string, phone?: string, birthdate?: string, roleId?: string }} userData
+   * @param {{ firstName?: string, lastName?: string, phone?: string, birthdate?: string, roleId?: string, isBlocked?: boolean, status?: string }} userData
    * @returns {Promise<object>} Updated user object
    */
   async updateUser(id, userData) {
@@ -147,10 +147,21 @@ export const usersApi = {
         ? mockRoles.data.roles.find((r) => r.id === userData.roleId)
         : null;
 
+      const isBlocked =
+        userData.isBlocked !== undefined
+          ? userData.isBlocked
+          : existing.isBlocked || false;
+
       const updated = {
         ...existing,
         ...userData,
         role: role ? role.name : existing.role,
+        isBlocked,
+        status: isBlocked
+          ? "SUSPENDED"
+          : existing.isActive === false
+          ? "DEACTIVATED"
+          : "ACTIVE",
       };
 
       const index = mockUsers.data.users.findIndex((u) => u.id === id);
@@ -194,7 +205,14 @@ export const usersApi = {
 
     const result = await apiClient(`/users/${id}/role`, {
       method: "PATCH",
-      body: { roleId, confirmPassword: password },
+      body: {
+        roleId,
+        confirmPassword: password,
+        adminPassword: password,
+        confirm_password: password,
+        admin_password: password,
+        password: password,
+      },
     });
     return result.data.user;
   },
@@ -266,7 +284,15 @@ export const usersApi = {
 
     const result = await apiClient(`/users/${id}/credentials`, {
       method: "PATCH",
-      body: { confirmPassword: password, resetPassword, username },
+      body: {
+        confirmPassword: password,
+        adminPassword: password,
+        confirm_password: password,
+        admin_password: password,
+        password: password,
+        resetPassword,
+        username,
+      },
     });
     return result.data;
   },
@@ -296,10 +322,18 @@ export const usersApi = {
         throw error;
       }
 
+      const updatedIsActive = isActive !== undefined ? isActive : user.isActive;
+      const updatedIsBlocked = isBlocked !== undefined ? isBlocked : user.isBlocked;
+
       const updated = {
         ...user,
-        ...(isActive !== undefined && { isActive }),
-        ...(isBlocked !== undefined && { isBlocked }),
+        isActive: updatedIsActive,
+        isBlocked: updatedIsBlocked,
+        status: updatedIsBlocked
+          ? "SUSPENDED"
+          : updatedIsActive === false
+          ? "DEACTIVATED"
+          : "ACTIVE",
       };
 
       const index = mockUsers.data.users.findIndex((u) => u.id === id);
@@ -312,7 +346,15 @@ export const usersApi = {
 
     const result = await apiClient(`/users/${id}/status`, {
       method: "PATCH",
-      body: { confirmPassword: password, isActive, isBlocked },
+      body: {
+        confirmPassword: password,
+        adminPassword: password,
+        confirm_password: password,
+        admin_password: password,
+        password: password,
+        ...(isActive !== undefined && { isActive }),
+        ...(isBlocked !== undefined && { isBlocked }),
+      },
     });
     return result.data.user;
   },

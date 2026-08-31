@@ -1,6 +1,7 @@
 import { KeyRound } from "lucide-react";
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
+import { toProperCase } from "../../utils/text.js";
 
 export default function UserFormStep({
   formData,
@@ -25,6 +26,12 @@ export default function UserFormStep({
               required
               value={formData.firstName}
               onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+              onBlur={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  firstName: toProperCase(e.target.value),
+                }))
+              }
               className="w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-[#0B4A6E]/20"
             />
           </div>
@@ -37,6 +44,12 @@ export default function UserFormStep({
               required
               value={formData.lastName}
               onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+              onBlur={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  lastName: toProperCase(e.target.value),
+                }))
+              }
               className="w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-[#0B4A6E]/20"
             />
           </div>

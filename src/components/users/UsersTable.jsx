@@ -1,15 +1,21 @@
-import { Pencil, Trash2, KeyRound } from "lucide-react";
+import { Pencil, Trash2, KeyRound, RotateCcw } from "lucide-react";
 import Badge from "../ui/Badge";
 
 export default function UsersTable({
   users,
   sortConfig,
   onSort,
+  onEdit,
   onEditUser,
+  onDeactivate,
   onDeleteUser,
+  onReactivate,
   onResetPassword,
   canManage,
 }) {
+  const handleEdit = onEdit || onEditUser;
+  const handleDeactivate = onDeactivate || onDeleteUser;
+
   const getStatus = (user) => {
     if (user.isBlocked) return "SUSPENDED";
     if (user.isActive === false) return "DEACTIVATED";
@@ -76,66 +82,87 @@ export default function UsersTable({
         </thead>
         <tbody className="divide-y divide-gray-100 text-sm">
           {users.length > 0 ? (
-            users.map((user) => (
-              <tr
-                key={user.id || user.userId}
-                className="hover:bg-gray-50/80 transition-colors"
-              >
-                <td className="py-4 px-6 text-gray-800 font-medium">
-                  {user.firstName}
-                </td>
-                <td className="py-4 px-6 text-gray-800 font-medium">
-                  {user.lastName}
-                </td>
-                <td className="py-4 px-6">
-                  <Badge variant="roles">{user.role}</Badge>
-                </td>
-                <td className="py-4 px-6 text-center">
-                  <Badge variant={getBadgeVariant(user)}>
-                    {getStatusText(user)}
-                  </Badge>
-                </td>
-                <td className="py-4 px-6 text-center italic text-[#6D8AA2] text-xs">
-                  {user.createdAt
-                    ? new Date(user.createdAt).toLocaleDateString()
-                    : user.dateCreated || "01 - 01 - 2026"}
-                </td>
-                <td className="py-4 px-6">
-                  <div className="flex items-center justify-center gap-3">
-                    {canManage && user.role !== "Super Admin" ? (
-                      <>
-                        <button
-                          type="button"
-                          title="Edit User"
-                          onClick={() => onEditUser(user)}
-                          className="text-gray-400 hover:text-[#0F7AB2] transition-colors cursor-pointer"
-                        >
-                          <Pencil size={18} />
-                        </button>
-                        <button
-                          type="button"
-                          title="Reset Password"
-                          onClick={() => onResetPassword && onResetPassword(user)}
-                          className="text-gray-400 hover:text-[#0F7AB2] transition-colors cursor-pointer"
-                        >
-                          <KeyRound size={18} />
-                        </button>
-                        <button
-                          type="button"
-                          title="Deactivate User"
-                          onClick={() => onDeleteUser(user)}
-                          className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </>
-                    ) : (
-                      <span className="text-gray-300 select-none text-xs">—</span>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))
+            users.map((user) => {
+              const isDeactivated =
+                user.isActive === false ||
+                ["DEACTIVATED", "INACTIVE", "SUSPENDED"].includes(
+                  (user.status || "").toUpperCase()
+                );
+
+              return (
+                <tr
+                  key={user.id || user.userId}
+                  className="hover:bg-gray-50/80 transition-colors"
+                >
+                  <td className="py-4 px-6 text-gray-800 font-medium">
+                    {user.firstName}
+                  </td>
+                  <td className="py-4 px-6 text-gray-800 font-medium">
+                    {user.lastName}
+                  </td>
+                  <td className="py-4 px-6">
+                    <Badge variant="roles">
+                      {typeof user.role === "string" ? user.role : user.role?.name || "User"}
+                    </Badge>
+                  </td>
+                  <td className="py-4 px-6 text-center">
+                    <Badge variant={getBadgeVariant(user)}>
+                      {getStatusText(user)}
+                    </Badge>
+                  </td>
+                  <td className="py-4 px-6 text-center italic text-[#6D8AA2] text-xs">
+                    {user.createdAt
+                      ? new Date(user.createdAt).toLocaleDateString()
+                      : user.dateCreated || "01 - 01 - 2026"}
+                  </td>
+                  <td className="py-4 px-6">
+                    <div className="flex items-center justify-center gap-3">
+                      {canManage && user.role !== "Super Admin" ? (
+                        <>
+                          <button
+                            type="button"
+                            title="Edit User"
+                            onClick={() => handleEdit && handleEdit(user)}
+                            className="text-gray-400 hover:text-[#0F7AB2] transition-colors cursor-pointer"
+                          >
+                            <Pencil size={18} />
+                          </button>
+                          <button
+                            type="button"
+                            title="Reset Password"
+                            onClick={() => onResetPassword && onResetPassword(user)}
+                            className="text-gray-400 hover:text-[#0F7AB2] transition-colors cursor-pointer"
+                          >
+                            <KeyRound size={18} />
+                          </button>
+                          {isDeactivated ? (
+                            <button
+                              type="button"
+                              title="Reactivate User"
+                              onClick={() => onReactivate && onReactivate(user)}
+                              className="text-gray-400 hover:text-green-600 transition-colors cursor-pointer"
+                            >
+                              <RotateCcw size={18} />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              title="Deactivate User"
+                              onClick={() => handleDeactivate && handleDeactivate(user)}
+                              className="text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-gray-300 select-none text-xs">—</span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
           ) : (
             <tr>
               <td

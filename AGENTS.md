@@ -197,6 +197,9 @@ The application supports all Philippine contact number formats:
 ### 2. User Management (`/users`)
 - **Contract**: `docs/API Contract/user.api.md`
 - **Fields**: `id`, `username`, `firstName`, `lastName`, `phone`, `birthdate`, `role`, `roleId`, `isActive`, `isBlocked`, `mustChangePassword`, `createdAt`.
+- **Status Distinction**:
+  - **Suspend (`isBlocked = true`)**: Temporary login restriction without deleting or deactivating account. User remains active in table (`isActive = true`) with a red `"SUSPENDED"` badge. Can be toggled in the Edit modal or status endpoint.
+  - **Deactivate (`isActive = false`)**: Soft-deletes user account. Deactivated accounts show a gray `"DEACTIVATED"` badge, sort to the bottom, and can be reactivated via the `RotateCcw` action button or status endpoint with admin password confirmation.
 - **Features**: Multi-step user wizard, password reset, temporary credentials generator, deactivation, reactivation, and RBAC permissions modal matrix.
 
 ### 3. Fleet & Maintenance (`/fleet`)

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import UserFormStep from "./UserFormStep";
 import UserConfirmStep from "./UserConfirmStep";
 import UserSuccessStep from "./UserSuccessStep";
+import { toProperCase } from "../../utils/text.js";
 
 export default function UserModal({
   isOpen,
@@ -23,6 +24,7 @@ export default function UserModal({
     role: "",
     username: "",
     status: "ACTIVE",
+    isBlocked: false,
   });
 
   useEffect(() => {
@@ -39,6 +41,9 @@ export default function UserModal({
           : "Driver";
 
       if (user) {
+        const isUserBlocked = user.isBlocked === true || user.status === "SUSPENDED";
+        const currentStatus = isUserBlocked ? "SUSPENDED" : "ACTIVE";
+
         setFormData({
           firstName: user.firstName || "",
           lastName: user.lastName || "",
@@ -46,7 +51,8 @@ export default function UserModal({
           contactNo: user.phone || user.contactNumber || "",
           role: user.role || defaultRole || "",
           username: user.username || "",
-          status: user.status || "ACTIVE",
+          status: currentStatus,
+          isBlocked: isUserBlocked,
         });
       } else {
         setFormData({
@@ -57,6 +63,7 @@ export default function UserModal({
           role: defaultRole,
           username: "",
           status: "ACTIVE",
+          isBlocked: false,
         });
       }
     }
@@ -66,7 +73,7 @@ export default function UserModal({
 
   const statuses = [
     { value: "ACTIVE", label: "ACTIVE", variant: "success" },
-    { value: "SUSPENDED", label: "SUSPEND", variant: "neutral" },
+    { value: "SUSPENDED", label: "SUSPEND", variant: "danger" },
   ];
 
   const safeRole =
@@ -79,11 +86,24 @@ export default function UserModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const cleanFirstName = toProperCase(formData.firstName);
+    const cleanLastName = toProperCase(formData.lastName);
+    const isBlocked = formData.status === "SUSPENDED" || formData.isBlocked === true;
+
+    const cleanedData = {
+      ...formData,
+      firstName: cleanFirstName,
+      lastName: cleanLastName,
+      isBlocked,
+      status: isBlocked ? "SUSPENDED" : "ACTIVE",
+    };
+    setFormData(cleanedData);
+
     if (user) {
       // Direct save for user edit (no admin password required per API contract)
       setIsSubmitting(true);
       try {
-        await onSave(formData, user.id || user.userId);
+        await onSave(cleanedData, user.id || user.userId);
         onClose();
       } catch (err) {
         console.error("Failed to update user:", err);
@@ -99,9 +119,15 @@ export default function UserModal({
   const handleConfirmCreate = async () => {
     setIsSubmitting(true);
     try {
+      const cleanFirstName = toProperCase(formData.firstName);
+      const cleanLastName = toProperCase(formData.lastName);
       const finalData = {
         ...formData,
+        firstName: cleanFirstName,
+        lastName: cleanLastName,
         username: generatedUsername,
+        isBlocked: false,
+        status: "ACTIVE",
       };
 
       const result = await onSave(finalData, null);
@@ -128,12 +154,11 @@ export default function UserModal({
           <h2 className="text-[28px] font-bold text-[#0B4A6E]">
             {step === 1 && (user ? "Edit User" : "Add New User")}
             {step === 2 && "Confirm Information"}
-            {step === 3 && "User Created"}
+            {step === 3 && (user ? "User Updated" : "User Created")}
           </h2>
           {step === 2 && (
             <button
-              type="button"
-              onClick={() => setStep(1)}
+              onClick={() => step > 1 && setStep(step - 1)}
               className="text-[#0B4A6E] hover:opacity-70 transition-opacity p-1 cursor-pointer"
             >
               <svg
@@ -157,10 +182,7 @@ export default function UserModal({
             roles={roles}
             user={user}
             statuses={statuses}
-            onResetPassword={(targetUser) => {
-              onClose();
-              if (onResetPassword) onResetPassword(targetUser);
-            }}
+            onResetPassword={onResetPassword}
             onSubmit={handleSubmit}
             onClose={onClose}
           />
@@ -170,8 +192,8 @@ export default function UserModal({
           <UserConfirmStep
             formData={formData}
             safeRole={safeRole}
-            onConfirm={handleConfirmCreate}
             isSubmitting={isSubmitting}
+            onConfirm={handleConfirmCreate}
           />
         )}
 

@@ -25,7 +25,7 @@ export const delay = (ms = 300) =>
 /**
  * Lightweight native fetch wrapper.
  * Automatically adds credentials: 'include' (critical for HTTP-only mg_sid cookie)
- * and handles JSON serialization and error parsing.
+ * and guarantees Content-Type: 'application/json' while merging headers and body serialization.
  *
  * @param {string} endpoint - API path (e.g. '/users/me')
  * @param {RequestInit & { body?: any }} options - Fetch options
@@ -33,24 +33,25 @@ export const delay = (ms = 300) =>
  */
 export async function apiClient(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
+  const { headers, ...restOptions } = options;
 
   const config = {
-    method: options.method || "GET",
+    method: "GET",
+    credentials: "include", // Sends and receives the mg_sid session cookie
+    ...restOptions,
     headers: {
       "Content-Type": "application/json",
-      ...options.headers,
+      ...(headers || {}),
     },
-    credentials: "include", // Sends and receives the mg_sid session cookie
-    ...options,
   };
 
-  // Automatically serialize object bodies to JSON
+  // Automatically serialize object bodies to JSON if not FormData
   if (
-    options.body &&
-    typeof options.body === "object" &&
-    !(options.body instanceof FormData)
+    config.body &&
+    typeof config.body === "object" &&
+    !(config.body instanceof FormData)
   ) {
-    config.body = JSON.stringify(options.body);
+    config.body = JSON.stringify(config.body);
   }
 
   const response = await fetch(url, config);

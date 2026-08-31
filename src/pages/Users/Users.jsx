@@ -130,7 +130,11 @@ export default function Users() {
     if (filters.status) {
       result = result.filter((u) => {
         const userStatus = (
-          u.status || (u.isActive === false ? "DEACTIVATED" : "ACTIVE")
+          u.isBlocked
+            ? "SUSPENDED"
+            : u.isActive === false
+            ? "DEACTIVATED"
+            : (u.status || "ACTIVE")
         ).toUpperCase();
         return userStatus === filters.status.toUpperCase();
       });
@@ -147,16 +151,9 @@ export default function Users() {
     }
 
     result.sort((a, b) => {
-      const aDeact =
-        a.isActive === false ||
-        ["DEACTIVATED", "INACTIVE", "SUSPENDED"].includes(
-          (a.status || "").toUpperCase()
-        );
-      const bDeact =
-        b.isActive === false ||
-        ["DEACTIVATED", "INACTIVE", "SUSPENDED"].includes(
-          (b.status || "").toUpperCase()
-        );
+      // Only soft-deactivated accounts sort to the bottom; suspended accounts remain in place
+      const aDeact = a.isActive === false || (a.status || "").toUpperCase() === "DEACTIVATED";
+      const bDeact = b.isActive === false || (b.status || "").toUpperCase() === "DEACTIVATED";
       if (aDeact && !bDeact) return 1;
       if (!aDeact && bDeact) return -1;
 
@@ -188,12 +185,15 @@ export default function Users() {
           : formData.roleId || roles[0]?.id;
 
       if (userId) {
+        const isBlocked = formData.status === "SUSPENDED" || formData.isBlocked === true;
         const payload = {
           firstName: formData.firstName,
           lastName: formData.lastName,
           phone: formData.contactNo || formData.phone,
           birthdate: formData.birthday || formData.birthdate || null,
           ...(roleId && { roleId }),
+          isBlocked,
+          status: isBlocked ? "SUSPENDED" : "ACTIVE",
         };
 
         const updated = await usersApi.updateUser(userId, payload);
@@ -207,7 +207,20 @@ export default function Users() {
         updateUsersState((prev) =>
           prev.map((u) =>
             (u.id || u.userId) === userId
-              ? { ...u, ...formData, ...payload, ...updated, role: roleName }
+              ? {
+                  ...u,
+                  ...formData,
+                  ...payload,
+                  ...updated,
+                  isBlocked,
+                  status: isBlocked
+                    ? "SUSPENDED"
+                    : u.isActive === false
+                    ? "DEACTIVATED"
+                    : "ACTIVE",
+                  isActive: u.isActive !== undefined ? u.isActive : true,
+                  role: roleName,
+                }
               : u
           )
         );
@@ -237,6 +250,7 @@ export default function Users() {
           role: roleName,
           status: "ACTIVE",
           isActive: true,
+          isBlocked: false,
           mustChangePassword: true,
         };
 
@@ -259,35 +273,36 @@ export default function Users() {
     setShowToast(true);
   };
 
-  // Triggers password modal flow for deactivation/reactivation/reset password
+  // Triggers warning confirmation modals first
   const handleInitiateDeactivate = (targetUser) => {
     if (!targetUser || targetUser.role === "Super Admin") return;
     setUserToDeactivate(targetUser);
     setPendingAction("DEACTIVATE");
-    setShowPasswordModal(true);
+    setShowPasswordModal(false);
   };
 
   const handleInitiateReactivate = (targetUser) => {
     if (!targetUser || targetUser.role === "Super Admin") return;
     setUserToReactivate(targetUser);
     setPendingAction("REACTIVATE");
-    setShowPasswordModal(true);
+    setShowPasswordModal(false);
   };
 
   const handleInitiateResetPassword = (targetUser) => {
     if (!targetUser || targetUser.role === "Super Admin") return;
     setUserToResetPassword(targetUser);
     setPendingAction("RESET_PASSWORD");
-    setShowPasswordModal(true);
+    setShowPasswordModal(false);
   };
 
-  // Executes dangerous operation once admin password is confirmed
+  // Executes dangerous operation once admin password is confirmed in AdminPasswordModal
   const handleConfirmAdminPassword = async (adminPassword) => {
     try {
       if (pendingAction === "DEACTIVATE" && userToDeactivate) {
         const targetId = userToDeactivate.id || userToDeactivate.userId;
         await usersApi.updateUserStatus(targetId, {
           confirmPassword: adminPassword,
+          adminPassword,
           isActive: false,
         });
         updateUsersState((prev) =>
@@ -304,12 +319,14 @@ export default function Users() {
         const targetId = userToReactivate.id || userToReactivate.userId;
         await usersApi.updateUserStatus(targetId, {
           confirmPassword: adminPassword,
+          adminPassword,
           isActive: true,
+          isBlocked: false,
         });
         updateUsersState((prev) =>
           prev.map((u) =>
             (u.id || u.userId) === targetId
-              ? { ...u, status: "ACTIVE", isActive: true }
+              ? { ...u, status: "ACTIVE", isActive: true, isBlocked: false }
               : u
           )
         );
@@ -321,6 +338,7 @@ export default function Users() {
         const result = await usersApi.resetUserCredentials(targetId, {
           resetPassword: true,
           confirmPassword: adminPassword,
+          adminPassword,
         });
         updateUsersState((prev) =>
           prev.map((u) =>
@@ -405,6 +423,33 @@ export default function Users() {
         permissionsMap={permissionsMap}
         onSave={handleSavePermissions}
       />
+
+      {/* Deactivate User Modal */}
+      {userToDeactivate && !showPasswordModal && (
+        <DeactivateUserModal
+          user={userToDeactivate}
+          onClose={() => setUserToDeactivate(null)}
+          onConfirm={() => setShowPasswordModal(true)}
+        />
+      )}
+
+      {/* Reactivate User Modal */}
+      {userToReactivate && !showPasswordModal && (
+        <ReactivateUserModal
+          user={userToReactivate}
+          onClose={() => setUserToReactivate(null)}
+          onConfirm={() => setShowPasswordModal(true)}
+        />
+      )}
+
+      {/* Reset Password Modal */}
+      {userToResetPassword && !showPasswordModal && (
+        <ResetPasswordModal
+          user={userToResetPassword}
+          onClose={() => setUserToResetPassword(null)}
+          onConfirm={() => setShowPasswordModal(true)}
+        />
+      )}
 
       {/* Password Re-authentication Modal */}
       <AdminPasswordModal
