@@ -11,6 +11,7 @@ import {
   Menu,
   Route,
   ClipboardList,
+  Layers,
   ReceiptText,
   History,
   UserRound,
@@ -43,7 +44,7 @@ export default function Layout() {
   };
 
   const navClass = ({ isActive }) =>
-    `flex items-center gap-3 px-4 py-3 rounded-xl mb-2 text-[13px] md:text-[16px] font-semibold transition ${
+    `flex items-center gap-3 px-4 py-3 rounded-[27px] mb-2 text-[14px] font-semibold transition ${
       isActive
         ? "bg-[#FFDF2C] text-[#0F7AB2]"
         : "text-white hover:bg-white/10"
@@ -53,31 +54,31 @@ export default function Layout() {
     <div className="flex h-screen w-full bg-[#F2F2F2] font-sans overflow-hidden">
       {/* SIDEBAR */}
       <aside
-        className={`fixed md:static z-30 top-0 left-0 h-full w-[350px] bg-[#0A4B6E] flex flex-col justify-between text-white transform transition-transform duration-300
+        className={`fixed md:static z-30 top-0 left-0 h-full w-[260px] bg-[#0A4B6E] flex flex-col justify-between text-white transform transition-transform duration-300 shrink-0
         ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
       >
         <div>
           <div className="flex items-center gap-3 px-4 h-[80px]">
-            <img src={logo} alt="logo" className="w-12 h-12" />
+            <img src={logo} alt="logo" className="w-10 h-10 shrink-0" />
             <div className="leading-tight">
-              <h1 className="text-[13px] md:text-[16px] font-semibold">
+              <h1 className="text-[13px] font-bold">
                 Madayaw Petroleum
               </h1>
-              <p className="text-[13px] md:text-[16px] font-semibold">
+              <p className="text-[13px] font-bold">
                 and Gas Corporation
               </p>
             </div>
           </div>
 
           {/* EXACT ROUTE LINKS */}
-          <nav className="mt-4 px-2">
+          <nav className="mt-4 px-3">
             {can(PERMISSIONS.DASHBOARD_VIEW) && (
               <NavLink
                 to="/dashboard"
                 className={navClass}
                 onClick={() => setOpen(false)}
               >
-                <LayoutDashboard size={26} />
+                <LayoutDashboard size={22} className="shrink-0" />
                 <span>Dashboard</span>
               </NavLink>
             )}
@@ -88,8 +89,8 @@ export default function Layout() {
                 className={navClass}
                 onClick={() => setOpen(false)}
               >
-                <Truck size={26} />
-                <span>Fleet and Maintenance</span>
+                <Truck size={22} className="shrink-0" />
+                <span>Fleet Board</span>
               </NavLink>
             )}
 
@@ -99,19 +100,19 @@ export default function Layout() {
                 className={navClass}
                 onClick={() => setOpen(false)}
               >
-                <Route size={26} />
+                <Route size={22} className="shrink-0" />
                 <span>Route Dispatch</span>
               </NavLink>
             )}
 
             {can(PERMISSIONS.INVENTORY_VIEW) && (
               <NavLink
-                to="/inventory"
+                to="/item-profile"
                 className={navClass}
                 onClick={() => setOpen(false)}
               >
-                <ClipboardList size={26} />
-                <span>Inventory</span>
+                <Layers size={22} className="shrink-0" />
+                <span>Item Profile</span>
               </NavLink>
             )}
 
@@ -121,7 +122,7 @@ export default function Layout() {
                 className={navClass}
                 onClick={() => setOpen(false)}
               >
-                <ReceiptText size={26} />
+                <ReceiptText size={22} className="shrink-0" />
                 <span>Sales and Delivery</span>
               </NavLink>
             )}
@@ -143,7 +144,7 @@ export default function Layout() {
                 className={navClass}
                 onClick={() => setOpen(false)}
               >
-                <Users size={24} />
+                <Users size={22} className="shrink-0" />
                 <span>Manage Users</span>
               </NavLink>
             )}
@@ -154,7 +155,7 @@ export default function Layout() {
                 className={navClass}
                 onClick={() => setOpen(false)}
               >
-                <History size={24} />
+                <History size={22} className="shrink-0" />
                 <span>History Log</span>
               </NavLink>
             )}
@@ -162,29 +163,30 @@ export default function Layout() {
         </div>
 
         {/* BOTTOM ACTIONS: PROFILE & LOGOUT */}
-        <div className="px-6 pb-8 flex items-center justify-center gap-20">
+        <div className="px-4 pb-8 flex items-center justify-around">
           <NavLink
             to="/profile"
             onClick={() => setOpen(false)}
             className={({ isActive }) =>
-              `flex items-center gap-2.5 text-[14px] md:text-[16px] font-semibold transition ${
+              `flex items-center gap-2 text-[14px] font-semibold transition ${
                 isActive ? "text-[#FFDF2C]" : "text-white hover:opacity-80"
               }`
             }
           >
-            <UserCircle size={28} />
+            <UserCircle size={24} />
             <span>Profile</span>
           </NavLink>
 
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2.5 text-[14px] md:text-[16px] font-semibold text-white hover:opacity-80 transition cursor-pointer"
+            className="flex items-center gap-2 text-[14px] font-semibold text-white hover:opacity-80 transition cursor-pointer"
           >
-            <LogOut size={26} />
+            <LogOut size={22} />
             <span>Logout</span>
           </button>
         </div>
       </aside>
+
 
       {open && (
         <div

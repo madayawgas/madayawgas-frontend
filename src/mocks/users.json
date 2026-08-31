@@ -34,8 +34,7 @@
           "delivery.update_own",
           "users.view",
           "users.manage",
-          "history.view",
-          "history.manage"
+          "history.view"
         ],
         "createdAt": "2026-08-25T08:00:00.000Z"
       },
@@ -56,19 +55,22 @@
           "fleet.view",
           "fleet.manage",
           "route.view",
+          "route.view_own",
           "route.manage",
           "inventory.view",
           "inventory.manage",
           "sales.view",
+          "sales.view_own",
           "sales.create",
           "sales.update",
           "sales.delete",
           "delivery.view",
+          "delivery.view_own",
           "delivery.update",
+          "delivery.update_own",
           "users.view",
           "users.manage",
-          "history.view",
-          "history.manage"
+          "history.view"
         ],
         "createdAt": "2026-08-25T08:30:00.000Z"
       },
@@ -89,12 +91,34 @@
           "fleet.view",
           "fleet.manage",
           "route.view",
-          "route.view_own",
-          "route.manage",
-          "delivery.view",
-          "delivery.update"
+          "route.manage"
         ],
         "createdAt": "2026-08-25T09:00:00.000Z"
+      },
+      {
+        "id": "q1w2e3r4-t5y6-u7i8-o9p0-a1s2d3f4g5h6",
+        "username": "sales_manager",
+        "firstName": "Sales",
+        "lastName": "Manager",
+        "phone": "+639170000005",
+        "birthdate": "1988-06-18",
+        "role": "Sales Manager",
+        "roleId": "q1w2e3r4-t5y6-u7i8-o9p0-a1s2d3f4g5h6",
+        "isActive": true,
+        "isBlocked": false,
+        "mustChangePassword": false,
+        "permissions": [
+          "dashboard.view",
+          "inventory.view",
+          "inventory.manage",
+          "sales.view",
+          "sales.update",
+          "sales.delete",
+          "delivery.view",
+          "delivery.update",
+          "history.view"
+        ],
+        "createdAt": "2026-08-25T09:15:00.000Z"
       },
       {
         "id": "98b3be70-2bd5-4a6d-be32-a9174cb1cb84",

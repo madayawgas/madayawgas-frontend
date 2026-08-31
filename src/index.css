@@ -5,6 +5,7 @@ body, button, input, select, textarea {
   font-family: 'Poppins', sans-serif;
 }
 
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

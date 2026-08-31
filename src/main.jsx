@@ -19,6 +19,7 @@ import Fleet from "./pages/Fleet/Fleet";
 import Users from "./pages/Users/Users";
 import RouteDispatch from "./pages/RouteDispatch/RouteDispatch";
 import Inventory from "./pages/Inventory/Inventory";
+import ItemProfile from "./pages/ItemProfile/ItemProfile";
 import SalesAndDelivery from "./pages/SalesAndDelivery/SalesAndDelivery";
 import HistoryLog from "./pages/HistoryLog/HistoryLog";
 import Profile from "./pages/Profile/Profile";
@@ -65,10 +66,18 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "item-profile",
+        element: (
+          <ProtectedRoute permission={PERMISSIONS.INVENTORY_VIEW}>
+            <ItemProfile />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "inventory",
         element: (
           <ProtectedRoute permission={PERMISSIONS.INVENTORY_VIEW}>
-            <Inventory />
+            <ItemProfile />
           </ProtectedRoute>
         ),
       },
