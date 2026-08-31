@@ -23,6 +23,10 @@ export default function Fleet() {
   const [truckToDelete, setTruckToDelete] = useState(null);
   const [showDeletePasswordModal, setShowDeletePasswordModal] = useState(false);
 
+  // Reactivation States
+  const [pendingReactivation, setPendingReactivation] = useState(null);
+  const [showReactivatePasswordModal, setShowReactivatePasswordModal] = useState(false);
+
   // Search & Filter States
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
@@ -74,7 +78,7 @@ export default function Fleet() {
     setShowToast(true);
   };
 
-  const handleUpdateTruck = async (truckId, updatedData) => {
+  const applyTruckUpdate = async (truckId, updatedData) => {
     try {
       await fleetApi.updateTruck(truckId, updatedData);
       setTrucks((prev) =>
@@ -87,6 +91,29 @@ export default function Fleet() {
     }
     setSelectedTruck(null);
     setShowToast(true);
+  };
+
+  const handleUpdateTruck = async (truckId, updatedData) => {
+    const existing = trucks.find((t) => t.id === truckId || t.truckId === truckId);
+    const wasInactive = existing && (existing.status === "INACTIVE" || existing.status === "RETIRED");
+    const isBecomingActive = updatedData.status === "ACTIVE" || updatedData.status === "AVAILABLE";
+
+    // Require password confirmation when making a deactivated fleet active again
+    if (wasInactive && isBecomingActive) {
+      setPendingReactivation({ truckId, updatedData });
+      setShowReactivatePasswordModal(true);
+      return;
+    }
+
+    await applyTruckUpdate(truckId, updatedData);
+  };
+
+  const handleExecuteReactivate = async (adminPassword) => {
+    if (!pendingReactivation) return;
+    await usersApi.verifyAdminPassword(adminPassword, currentUser?.username);
+    await applyTruckUpdate(pendingReactivation.truckId, pendingReactivation.updatedData);
+    setShowReactivatePasswordModal(false);
+    setPendingReactivation(null);
   };
 
   // Step 1 of Delete: Prompt confirmation modal
@@ -113,6 +140,7 @@ export default function Fleet() {
     setTruckToDelete(null);
     setShowToast(true);
   };
+
 
   // Processed search & multi-field filter rules
   const filteredTrucks = useMemo(() => {
@@ -230,10 +258,18 @@ export default function Fleet() {
           onSubmit={handleExecuteDelete}
         />
 
-        {/* Saved Changes Toast Notification */}
-        {showToast && (
-          <SavedChangesToast onClose={() => setShowToast(false)} />
-        )}
+        {/* Reactivate Password Verification Modal */}
+        <AdminPasswordModal
+          isOpen={showReactivatePasswordModal}
+          onClose={() => {
+            setShowReactivatePasswordModal(false);
+            setPendingReactivation(null);
+          }}
+          onSubmit={handleExecuteReactivate}
+        />
+
+        {/* Bottom Right Toast Notification */}
+        {showToast && <SavedChangesToast onClose={() => setShowToast(false)} />}
       </div>
     </div>
   );

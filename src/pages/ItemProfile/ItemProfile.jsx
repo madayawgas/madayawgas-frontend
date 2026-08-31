@@ -56,6 +56,10 @@ export default function ItemProfile() {
     setIsAddingItem(true);
   };
 
+  // Reactivation States
+  const [pendingReactivation, setPendingReactivation] = useState(null);
+  const [showReactivatePasswordModal, setShowReactivatePasswordModal] = useState(false);
+
   const handleAddItem = async (newItemData) => {
     const newItem = {
       id: `itm-${Date.now()}`,
@@ -69,7 +73,7 @@ export default function ItemProfile() {
     setShowToast(true);
   };
 
-  const handleUpdateItem = async (itemId, updatedData) => {
+  const applyItemUpdate = async (itemId, updatedData) => {
     try {
       if (inventoryApi.updateStock) {
         await inventoryApi.updateStock(itemId, updatedData);
@@ -85,6 +89,29 @@ export default function ItemProfile() {
     );
     setSelectedItem(null);
     setShowToast(true);
+  };
+
+  const handleUpdateItem = async (itemId, updatedData) => {
+    const existing = items.find((i) => i.id === itemId);
+    const wasInactive = existing && (existing.isActive === false || existing.status === "INACTIVE");
+    const isBecomingActive = updatedData.isActive === true || updatedData.status === "ACTIVE";
+
+    // Require password confirmation when making a deactivated item active again
+    if (wasInactive && isBecomingActive) {
+      setPendingReactivation({ itemId, updatedData });
+      setShowReactivatePasswordModal(true);
+      return;
+    }
+
+    await applyItemUpdate(itemId, updatedData);
+  };
+
+  const handleExecuteReactivate = async (adminPassword) => {
+    if (!pendingReactivation) return;
+    await usersApi.verifyAdminPassword(adminPassword, currentUser?.username);
+    await applyItemUpdate(pendingReactivation.itemId, pendingReactivation.updatedData);
+    setShowReactivatePasswordModal(false);
+    setPendingReactivation(null);
   };
 
   // Step 1 of Deactivate: Prompt confirmation modal
@@ -117,6 +144,7 @@ export default function ItemProfile() {
     setItemToDeactivate(null);
     setShowToast(true);
   };
+
 
   // Processed search & multi-field filter rules
   const filteredItems = useMemo(() => {
@@ -232,6 +260,16 @@ export default function ItemProfile() {
           onSubmit={handleExecuteDeactivate}
         />
 
+        {/* Reactivate Password Verification Modal */}
+        <AdminPasswordModal
+          isOpen={showReactivatePasswordModal}
+          onClose={() => {
+            setShowReactivatePasswordModal(false);
+            setPendingReactivation(null);
+          }}
+          onSubmit={handleExecuteReactivate}
+        />
+
         {/* Saved Changes Toast Notification */}
         {showToast && (
           <SavedChangesToast onClose={() => setShowToast(false)} />
@@ -240,4 +278,5 @@ export default function ItemProfile() {
     </div>
   );
 }
+
 

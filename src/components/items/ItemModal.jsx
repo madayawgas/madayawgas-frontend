@@ -157,35 +157,18 @@ export default function ItemModal({
     setIsEditing(false);
   };
 
-  const handleVerifyAndCreate = async (e) => {
-    if (e) e.preventDefault();
-    if (!adminPassword.trim()) {
-      setPasswordError("Please enter your admin password.");
-      return;
-    }
+  const handleConfirmAdd = () => {
+    const finalData = {
+      name: formData.name,
+      category: formData.category,
+      containerType: formData.containerType,
+      netWeightKg: Number(formData.netWeightKg) || 0,
+      isActive: formData.isActive,
+    };
 
-    setIsVerifying(true);
-    setPasswordError("");
-
-    try {
-      await usersApi.verifyAdminPassword(adminPassword, currentUser?.username);
-
-      const finalData = {
-        name: formData.name,
-        category: formData.category,
-        containerType: formData.containerType,
-        netWeightKg: Number(formData.netWeightKg) || 0,
-        isActive: formData.isActive,
-        adminPassword,
-      };
-
-      onAdd(finalData);
-      setIsVerifying(false);
-    } catch (err) {
-      setIsVerifying(false);
-      setPasswordError(err.message || "Incorrect admin password. Please try again.");
-    }
+    onAdd(finalData);
   };
+
 
   const containerOptions = [
     { value: "CYLINDER", label: "CYLINDER (LPG Tank)" },
@@ -373,15 +356,15 @@ export default function ItemModal({
           <div className="flex flex-col gap-3">
             <Button
               type="button"
-              onClick={() => setStep(3)}
-              className="w-full py-3.5 bg-[#F6C445] hover:bg-[#e2b23b] border-none !text-[#0B4A6E] rounded-full font-bold uppercase tracking-widest text-xs transition-colors"
+              onClick={handleConfirmAdd}
+              className="w-full py-3.5 bg-[#F6C445] hover:bg-[#e2b23b] border-none !text-[#0B4A6E] rounded-full font-bold uppercase tracking-widest text-xs transition-colors cursor-pointer"
             >
               CONFIRM
             </Button>
             <Button
               type="button"
               onClick={() => setStep(1)}
-              className="w-full py-2 bg-transparent border-none !text-[#0B4A6E] font-semibold text-xs hover:underline"
+              className="w-full py-2 bg-transparent border-none !text-[#0B4A6E] font-semibold text-xs hover:underline cursor-pointer"
             >
               CANCEL
             </Button>
@@ -391,74 +374,6 @@ export default function ItemModal({
     );
   }
 
-  // ==========================================
-  // STEP 3: INPUT PASSWORD (Add Flow)
-  // ==========================================
-  if (isAdding && step === 3) {
-    return (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-[2rem] max-w-md w-full p-8 shadow-xl relative">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-[#0B4A6E]">Input Password</h2>
-            <button
-              type="button"
-              onClick={() => setStep(2)}
-              disabled={isVerifying}
-              className="text-[#0B4A6E] hover:opacity-75 transition-opacity cursor-pointer p-1"
-            >
-              <ArrowLeft size={22} />
-            </button>
-          </div>
-
-          <p className="text-gray-800 mb-6 text-[15px] leading-relaxed">
-            For security, please enter your password to confirm registering this product item.
-          </p>
-
-          <form onSubmit={handleVerifyAndCreate}>
-            <div className="relative mb-2">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={adminPassword}
-                onChange={(e) => {
-                  setAdminPassword(e.target.value);
-                  if (passwordError) setPasswordError("");
-                }}
-                placeholder="****************"
-                disabled={isVerifying}
-                autoFocus
-                className="w-full bg-[#F3F5F5] text-gray-800 px-5 py-3.5 rounded-full outline-none pr-12 focus:ring-2 focus:ring-[#0B4A6E]/20"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                disabled={isVerifying}
-                className="absolute right-5 top-1/2 -translate-y-1/2 text-[#0B4A6E] hover:opacity-75 cursor-pointer"
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
-
-            <div className="min-h-[24px] mb-6">
-              {passwordError && (
-                <p className="text-red-600 text-xs font-medium px-4 pt-1 flex items-center gap-1.5">
-                  <AlertTriangle size={15} className="flex-shrink-0" />
-                  <span>{passwordError}</span>
-                </p>
-              )}
-            </div>
-
-            <Button
-              type="submit"
-              disabled={isVerifying}
-              className="w-full py-3 bg-[#CD3E3E] border-none text-white rounded-full font-semibold uppercase tracking-widest text-sm hover:bg-[#b83737] transition-colors disabled:opacity-50"
-            >
-              {isVerifying ? "VERIFYING..." : "PROCEED"}
-            </Button>
-          </form>
-        </div>
-      </div>
-    );
-  }
 
   // ==========================================
   // STEP 1: FORM VIEW (Edit or Add Flow)
