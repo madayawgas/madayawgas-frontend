@@ -4,8 +4,11 @@ export default function TruckStatus({ status }) {
   const normalized = status?.toUpperCase() || "";
 
   const variants = {
+    "ACTIVE": "success",
     "IN USE": "info",
-    "AVAILABLE": "success",
+    "AVAILABLE": "info",
+    "STANDBY": "warning",
+    "UNDER REPAIR": "danger",
     "UNDER MAINTENANCE": "maintenance",
     "IN SHOP": "neutral",
   };

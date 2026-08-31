@@ -1,0 +1,32 @@
+[
+  {
+    "id": "e9b21f37-142c-4f76-96f3-a3d8b02e7b91",
+    "name": "Butane Canister 250g",
+    "category": "Canister",
+    "containerType": "CANISTER",
+    "netWeightKg": 0.25,
+    "isActive": true,
+    "createdAt": "2026-08-28T12:20:00.000Z",
+    "updatedAt": "2026-08-28T12:20:00.000Z"
+  },
+  {
+    "id": "27d6365b-bfb0-4ca7-b286-63d1bcfa2520",
+    "name": "11kg LPG Cylinder",
+    "category": "LPG Cylinder",
+    "containerType": "CYLINDER",
+    "netWeightKg": 11.0,
+    "isActive": true,
+    "createdAt": "2026-08-28T12:20:00.000Z",
+    "updatedAt": "2026-08-28T12:20:00.000Z"
+  },
+  {
+    "id": "84fc2e10-c4a1-4328-98e3-509f6e6f1f44",
+    "name": "22kg LPG Cylinder",
+    "category": "LPG Cylinder",
+    "containerType": "CYLINDER",
+    "netWeightKg": 22.0,
+    "isActive": true,
+    "createdAt": "2026-08-28T12:20:00.000Z",
+    "updatedAt": "2026-08-28T12:20:00.000Z"
+  }
+]

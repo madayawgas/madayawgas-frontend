@@ -67,6 +67,17 @@ export const AuthProvider = ({ children }) => {
     return result;
   };
 
+  // Update user profile in state & session storage
+  const updateUser = (updatedUserData) => {
+    setUser((prev) => {
+      const merged = { ...prev, ...updatedUserData };
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("mg_mock_session_user", JSON.stringify(merged));
+      }
+      return merged;
+    });
+  };
+
   // Bound permission helpers
   const can = (permission) => canHelper(user, permission);
   const canAll = (permissionsList) => canAllHelper(user, permissionsList);
@@ -81,10 +92,12 @@ export const AuthProvider = ({ children }) => {
     logout,
     changePassword,
     checkSession,
+    updateUser,
     can,
     canAll,
     canAny,
   };
+
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

@@ -75,9 +75,10 @@ export function getDefaultRoute(user) {
   if (can(user, PERMISSIONS.SALES_VIEW) || can(user, PERMISSIONS.SALES_VIEW_OWN)) return "/sales-delivery";
   if (can(user, PERMISSIONS.FLEET_VIEW)) return "/fleet";
   if (can(user, PERMISSIONS.ROUTE_VIEW) || can(user, PERMISSIONS.ROUTE_VIEW_OWN)) return "/route-dispatch";
-  if (can(user, PERMISSIONS.INVENTORY_VIEW)) return "/inventory";
+  if (can(user, PERMISSIONS.INVENTORY_VIEW)) return "/item-profile";
   if (can(user, PERMISSIONS.USERS_VIEW)) return "/users";
   if (can(user, PERMISSIONS.HISTORY_VIEW)) return "/history-log";
   if (can(user, PERMISSIONS.PROFILE_VIEW)) return "/profile";
   return "/dashboard";
 }
+

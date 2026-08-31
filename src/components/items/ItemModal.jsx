@@ -1,6 +1,5 @@
-// src/components/fleet/TruckModal.jsx
 import { useState } from "react";
-import { Truck, Pencil, Trash2, ArrowLeft, Eye, EyeOff, AlertTriangle } from "lucide-react";
+import { Package, Flame, Pencil, Trash2, ArrowLeft, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
 import Modal from "../ui/Modal";
@@ -9,50 +8,35 @@ import { usersApi } from "../../api/users.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 
 // Status Badge Style Helper
-const getBadgeStyle = (status) => {
-  const normalized = (status || "").toUpperCase().replace("_", " ");
-  switch (normalized) {
-    case "ACTIVE":
-    case "IN USE":
-      return "bg-[#10B981] text-white";
-    case "AVAILABLE":
-      return "bg-[#1D5EAF] text-white";
-    case "STANDBY":
-    case "IN SHOP":
-      return "bg-[#B45309] text-white";
-    case "UNDER REPAIR":
-    case "UNDER MAINTENANCE":
-      return "bg-[#DC2626] text-white";
-    default:
-      return "bg-[#64748B] text-white";
-  }
+const getBadgeStyle = (active) => {
+  return active ? "bg-[#10B981] text-white" : "bg-[#64748B] text-white";
 };
 
 /**
  * Interactive Status Pills selector for Edit / Add forms
  */
-const StatusPills = ({ currentStatus, onSelect }) => {
-  const statuses = ["ACTIVE", "AVAILABLE", "STANDBY", "UNDER REPAIR"];
+const StatusPills = ({ isActive, onSelect }) => {
+  const statuses = [
+    { label: "ACTIVE", value: true, bg: "bg-[#10B981] text-white" },
+    { label: "INACTIVE", value: false, bg: "bg-[#64748B] text-white" },
+  ];
 
   return (
     <div className="flex flex-wrap gap-2">
-      {statuses.map((status) => {
-        const isSelected =
-          (currentStatus || "").toUpperCase().replace("_", " ") === status;
-        const badgeBg = getBadgeStyle(status);
-
+      {statuses.map((s) => {
+        const isSelected = isActive === s.value;
         return (
           <button
-            key={status}
+            key={s.label}
             type="button"
-            onClick={() => onSelect(status)}
-            className={`px-4 py-1.5 text-xs font-bold rounded-full uppercase tracking-wider transition-all cursor-pointer shadow-xs ${badgeBg} ${
+            onClick={() => onSelect(s.value)}
+            className={`px-4 py-1.5 text-xs font-bold rounded-full uppercase tracking-wider transition-all cursor-pointer shadow-xs ${s.bg} ${
               isSelected
                 ? "ring-2 ring-offset-2 ring-[#0A4B6E] scale-105"
                 : "opacity-40 hover:opacity-80"
             }`}
           >
-            {status}
+            {s.label}
           </button>
         );
       })}
@@ -60,15 +44,14 @@ const StatusPills = ({ currentStatus, onSelect }) => {
   );
 };
 
-export default function TruckModal({
-  truck,
+export default function ItemModal({
+  item,
   onClose,
   onUpdate,
   onDeleteClick,
   onAdd,
   isAdding = false,
-  trucks = [],
-  driverOptions = [],
+  items = [],
 }) {
   const { user: currentUser } = useAuth();
 
@@ -81,35 +64,33 @@ export default function TruckModal({
   const [errors, setErrors] = useState({});
 
   const [formData, setFormData] = useState({
-    status: "ACTIVE",
-    plateNumber: "",
-    model: "Model 1",
-    yearModel: "",
-    tankNumber: "1234",
-    designatedRoute: "Admin4",
-    assignedDriverId: "",
-    driverName: "",
-    currentOdometer: 2,
-    inputOdometer: "",
-    lastPMOdometer: "",
-    capacity: "",
-    activeRepair: "",
-    ...(truck || {}),
+    name: item?.name || item?.itemName || "",
+    category: item?.category || "LPG Cylinder",
+    containerType: item?.containerType || "CYLINDER",
+    netWeightKg: item?.netWeightKg !== undefined ? item.netWeightKg : 11.0,
+    isActive: item?.isActive !== undefined ? item.isActive : true,
+    ...(item || {}),
   });
 
-  if (!truck && !isAdding) return null;
+  if (!item && !isAdding) return null;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     let parsedValue = value;
 
-    if (["currentOdometer", "inputOdometer", "lastPMOdometer", "yearModel", "capacity"].includes(name)) {
+    if (name === "netWeightKg") {
       if (value !== "" && Number(value) < 0) return;
       parsedValue = value === "" ? "" : Number(value);
     }
 
-    if (name === "assignedDriverId") {
-      parsedValue = value === "" ? "" : value;
+    if (name === "containerType") {
+      const suggestedCategory = value === "CANISTER" ? "Canister" : "LPG Cylinder";
+      setFormData((prev) => ({
+        ...prev,
+        containerType: value,
+        category: prev.category || suggestedCategory,
+      }));
+      return;
     }
 
     setFormData((prev) => ({ ...prev, [name]: parsedValue }));
@@ -126,19 +107,30 @@ export default function TruckModal({
   const validate = () => {
     const newErrors = {};
 
-    if (!formData.plateNumber) {
-      newErrors.plateNumber = "Plate number is required";
+    if (!formData.name?.toString().trim()) {
+      newErrors.name = "Product name is required";
     } else {
-      const plateExists = trucks.find(
-        (t) =>
-          t.plateNumber?.toString().toLowerCase() ===
-            formData.plateNumber?.toString().toLowerCase() &&
-          t.truckId !== truck?.truckId &&
-          t.id !== truck?.id
+      const nameExists = items.find(
+        (i) =>
+          (i.name || i.itemName)?.toString().toLowerCase() ===
+            formData.name?.toString().toLowerCase() &&
+          i.id !== item?.id
       );
-      if (plateExists) {
-        newErrors.plateNumber = "This plate number already exists";
+      if (nameExists) {
+        newErrors.name = "Product with this name already exists";
       }
+    }
+
+    if (!formData.category?.toString().trim()) {
+      newErrors.category = "Category is required";
+    }
+
+    if (
+      formData.netWeightKg === "" ||
+      formData.netWeightKg === undefined ||
+      Number(formData.netWeightKg) <= 0
+    ) {
+      newErrors.netWeightKg = "Net weight (kg) must be a positive number";
     }
 
     setErrors(newErrors);
@@ -148,48 +140,20 @@ export default function TruckModal({
   const handleFormSubmit = () => {
     if (!validate()) return;
     if (isAdding) {
-      setStep(2); // Advance to Confirmation step for Add
+      setStep(2);
     } else {
-      submitUpdate(); // Direct save for Edit
+      submitUpdate();
     }
   };
 
   const submitUpdate = () => {
-    const matchedDriver = driverOptions.find(
-      (d) => d.value === formData.assignedDriverId
-    );
-
-    const currentDate = new Date();
-    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}-${String(currentDate.getDate()).padStart(
-      2,
-      "0"
-    )}-${currentDate.getFullYear()} ${String(
-      currentDate.getHours()
-    ).padStart(2, "0")}:${String(currentDate.getMinutes()).padStart(
-      2,
-      "0"
-    )}:${String(currentDate.getSeconds()).padStart(2, "0")}`;
-
-    const effectiveOdometer =
-      formData.inputOdometer !== "" && formData.inputOdometer !== undefined
-        ? Number(formData.inputOdometer)
-        : formData.currentOdometer;
-
     const finalData = {
       ...formData,
-      currentOdometer: effectiveOdometer,
-      driverName: matchedDriver
-        ? matchedDriver.label
-        : formData.driverName || "No Assigned",
-      designatedRoute: formData.designatedRoute || "No Route Assigned",
-      assignedDriverId: formData.assignedDriverId || null,
-      lastUpdated: formattedDate,
+      netWeightKg: Number(formData.netWeightKg) || 0,
+      updatedAt: new Date().toISOString(),
     };
 
-    onUpdate(truck.id || truck.truckId, finalData);
+    onUpdate(item.id, finalData);
     setIsEditing(false);
   };
 
@@ -206,38 +170,12 @@ export default function TruckModal({
     try {
       await usersApi.verifyAdminPassword(adminPassword, currentUser?.username);
 
-      const matchedDriver = driverOptions.find(
-        (d) => d.value === formData.assignedDriverId
-      );
-
-      const currentDate = new Date();
-      const formattedDate = `${String(currentDate.getMonth() + 1).padStart(
-        2,
-        "0"
-      )}-${String(currentDate.getDate()).padStart(
-        2,
-        "0"
-      )}-${currentDate.getFullYear()} ${String(
-        currentDate.getHours()
-      ).padStart(2, "0")}:${String(currentDate.getMinutes()).padStart(
-        2,
-        "0"
-      )}:${String(currentDate.getSeconds()).padStart(2, "0")}`;
-
-      const effectiveOdometer =
-        formData.inputOdometer !== "" && formData.inputOdometer !== undefined
-          ? Number(formData.inputOdometer)
-          : formData.currentOdometer;
-
       const finalData = {
-        ...formData,
-        currentOdometer: effectiveOdometer,
-        driverName: matchedDriver
-          ? matchedDriver.label
-          : formData.driverName || "No Assigned",
-        designatedRoute: formData.designatedRoute || "No Route Assigned",
-        assignedDriverId: formData.assignedDriverId || null,
-        lastUpdated: formattedDate,
+        name: formData.name,
+        category: formData.category,
+        containerType: formData.containerType,
+        netWeightKg: Number(formData.netWeightKg) || 0,
+        isActive: formData.isActive,
         adminPassword,
       };
 
@@ -249,28 +187,30 @@ export default function TruckModal({
     }
   };
 
-  const routeOptions = [
-    { value: "No Route Assigned", label: "No Route Assigned" },
-    { value: "Admin4", label: "Admin4" },
-    { value: "Route 1 - North District", label: "Route 1 - North District" },
-    { value: "Route 2 - South District", label: "Route 2 - South District" },
-    { value: "Route 3 - Central City", label: "Route 3 - Central City" },
-    { value: "Route 4 - East Coast", label: "Route 4 - East Coast" },
+  const containerOptions = [
+    { value: "CYLINDER", label: "CYLINDER (LPG Tank)" },
+    { value: "CANISTER", label: "CANISTER (Butane / Portable)" },
   ];
 
-  const selectDriverOptions = [
-    { value: "", label: "No Assigned (Unassigned)" },
-    ...driverOptions,
+  const categoryOptions = [
+    { value: "LPG Cylinder", label: "LPG Cylinder" },
+    { value: "Canister", label: "Canister" },
   ];
 
-  const displayTruck = truck || {};
-  const matchedDriverObj = driverOptions.find(
-    (d) => d.value === formData.assignedDriverId
-  );
-  const assignedDriverLabel = matchedDriverObj ? matchedDriverObj.label : "No Assigned";
+  const displayItem = item || {};
+  const isItemActive = displayItem.isActive !== undefined ? displayItem.isActive : true;
+
+  const getItemIcon = (containerType, category) => {
+    const type = (containerType || category || "").toUpperCase();
+    if (type.includes("CYLINDER") || type.includes("TANK")) {
+      return <Flame size={26} className="stroke-[2.2]" />;
+    }
+    return <Package size={26} className="stroke-[2.2]" />;
+  };
+
 
   // ==========================================
-  // VIEW MODE MODAL (Screen 2: Fleet View Info)
+  // VIEW MODE MODAL (Screen 2: Item View)
   // ==========================================
   if (!isEditing && !isAdding) {
     return (
@@ -289,22 +229,22 @@ export default function TruckModal({
         }
       >
         <div className="pt-2 pb-2">
-          {/* Header Row: Truck Icon + Plate Number & Status + Pencil + Trash */}
+          {/* Header Row: Item Icon + Name & Status + Pencil + Trash */}
           <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
             <div className="flex items-center gap-2.5 text-[#0A4B6E]">
-              <Truck size={26} className="stroke-[2.2]" />
-              <h2 className="text-xl md:text-2xl font-bold">
-                {displayTruck.plateNumber || `Truck #${displayTruck.truckId || ""}`}
+              {getItemIcon(displayItem.containerType, displayItem.category)}
+              <h2 className="text-xl md:text-2xl font-bold truncate max-w-[220px]">
+                {displayItem.name || displayItem.itemName || "Product"}
               </h2>
             </div>
 
             <div className="flex items-center gap-2">
               <span
                 className={`px-3.5 py-1 text-[11px] font-bold rounded-full uppercase tracking-wider shadow-xs ${getBadgeStyle(
-                  displayTruck.status
+                  isItemActive
                 )}`}
               >
-                {displayTruck.status?.replace("_", " ") || "ACTIVE"}
+                {isItemActive ? "ACTIVE" : "INACTIVE"}
               </span>
 
               {/* Edit Icon Button */}
@@ -312,17 +252,17 @@ export default function TruckModal({
                 type="button"
                 onClick={() => setIsEditing(true)}
                 className="p-1.5 text-[#0A4B6E] hover:bg-gray-100 rounded-lg transition cursor-pointer"
-                title="Edit Fleet"
+                title="Edit Item"
               >
                 <Pencil size={18} />
               </button>
 
-              {/* Delete Icon Button */}
+              {/* Deactivate Icon Button */}
               <button
                 type="button"
-                onClick={() => onDeleteClick(displayTruck)}
+                onClick={() => onDeleteClick(displayItem)}
                 className="p-1.5 text-[#0A4B6E] hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
-                title="Delete Fleet"
+                title="Deactivate Item"
               >
                 <Trash2 size={18} />
               </button>
@@ -330,52 +270,43 @@ export default function TruckModal({
           </div>
 
           {/* Details Body */}
-          <div className="bg-[#E1F3FE] rounded-2xl p-5 space-y-2 text-sm text-left">
+          <div className="bg-[#E1F3FE] rounded-2xl p-5 space-y-2.5 text-sm text-left">
             <p className="text-[#588094]">
-              Driver:{" "}
+              Product Name:{" "}
               <span className="font-bold text-[#0A4B6E]">
-                {displayTruck.driverName && displayTruck.driverName !== "Unassigned"
-                  ? displayTruck.driverName
-                  : "No Assigned"}
+                {displayItem.name || displayItem.itemName || "-"}
               </span>
             </p>
 
             <p className="text-[#588094]">
-              Designated Route:{" "}
+              Category:{" "}
               <span className="font-bold text-[#0A4B6E]">
-                {displayTruck.designatedRoute || "No Route Assigned"}
+                {displayItem.category || "LPG Cylinder"}
               </span>
             </p>
 
             <p className="text-[#588094]">
-              Model:{" "}
+              Container Type:{" "}
               <span className="font-bold text-[#0A4B6E]">
-                {displayTruck.model || "Model 1"}
+                {displayItem.containerType || "CYLINDER"}
               </span>
             </p>
 
             <p className="text-[#588094]">
-              Tank Number:{" "}
+              Net Weight:{" "}
               <span className="font-bold text-[#0A4B6E]">
-                {displayTruck.tankNumber || displayTruck.capacity || "1234"}
+                {displayItem.netWeightKg !== undefined
+                  ? `${Number(displayItem.netWeightKg).toFixed(3)} kg`
+                  : "11.000 kg"}
               </span>
             </p>
 
             <p className="text-[#588094]">
-              Current Odometer:{" "}
+              Status:{" "}
               <span className="font-bold text-[#0A4B6E]">
-                {displayTruck.currentOdometer !== undefined && displayTruck.currentOdometer !== null
-                  ? `${displayTruck.currentOdometer.toLocaleString()}KM`
-                  : "2KM"}
+                {isItemActive ? "Operational / Active" : "Deactivated"}
               </span>
             </p>
-
-            {displayTruck.activeRepair && (
-              <div className="bg-red-50 text-red-700 p-3 rounded-xl text-xs font-medium mt-3 border border-red-200">
-                <span className="font-bold">Active Repair:</span>{" "}
-                {displayTruck.activeRepair}
-              </div>
-            )}
           </div>
         </div>
       </Modal>
@@ -391,7 +322,7 @@ export default function TruckModal({
         <div className="bg-white rounded-[2rem] max-w-lg w-full p-8 shadow-xl">
           <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-6">
             <h2 className="text-2xl font-bold text-[#0B4A6E]">
-              Confirm Truck Information
+              Confirm Product Information
             </h2>
             <button
               type="button"
@@ -404,49 +335,37 @@ export default function TruckModal({
 
           <div className="bg-[#F3F5F5] rounded-2xl p-6 space-y-3 text-sm text-left mb-6">
             <p className="text-[#588094]">
-              Truck Plate No:{" "}
+              Product Name:{" "}
               <span className="font-bold text-[#0A4B6E]">
-                {formData.plateNumber || "-"}
+                {formData.name || "-"}
               </span>
             </p>
             <p className="text-[#588094]">
-              Truck Model:{" "}
+              Category:{" "}
               <span className="font-bold text-[#0A4B6E]">
-                {formData.model || "-"}
+                {formData.category || "LPG Cylinder"}
               </span>
             </p>
             <p className="text-[#588094]">
-              Designated Route:{" "}
+              Container Type:{" "}
               <span className="font-bold text-[#0A4B6E]">
-                {formData.designatedRoute || "No Route Assigned"}
+                {formData.containerType || "CYLINDER"}
               </span>
             </p>
             <p className="text-[#588094]">
-              Tank Model:{" "}
+              Net Weight (kg):{" "}
               <span className="font-bold text-[#0A4B6E]">
-                {formData.tankNumber || "-"}
-              </span>
-            </p>
-            <p className="text-[#588094]">
-              Assigned Driver:{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {assignedDriverLabel}
-              </span>
-            </p>
-            <p className="text-[#588094]">
-              Current Odometer:{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {formData.inputOdometer || formData.currentOdometer || 0} KM
+                {Number(formData.netWeightKg || 0).toFixed(3)} kg
               </span>
             </p>
             <div className="flex items-center gap-2">
-              <span className="text-[#588094]">Status:</span>
+              <span className="text-[#588094]">Operational Status:</span>
               <span
                 className={`px-3 py-0.5 text-xs font-bold rounded-full uppercase tracking-wider text-white ${getBadgeStyle(
-                  formData.status
+                  formData.isActive
                 )}`}
               >
-                {formData.status}
+                {formData.isActive ? "ACTIVE" : "INACTIVE"}
               </span>
             </div>
           </div>
@@ -492,7 +411,7 @@ export default function TruckModal({
           </div>
 
           <p className="text-gray-800 mb-6 text-[15px] leading-relaxed">
-            For security, please enter your password to confirm creating this fleet record.
+            For security, please enter your password to confirm registering this product item.
           </p>
 
           <form onSubmit={handleVerifyAndCreate}>
@@ -551,7 +470,7 @@ export default function TruckModal({
         onClick={handleFormSubmit}
         className="w-full bg-[#FFDF2C] hover:bg-[#F5D020] text-[#0A4B6E] font-bold text-sm py-3 rounded-full uppercase tracking-wider transition shadow-sm cursor-pointer mb-2"
       >
-        {isAdding ? "ADD TRUCK" : "SAVE CHANGES"}
+        {isAdding ? "REGISTER PRODUCT" : "SAVE CHANGES"}
       </button>
       <button
         type="button"
@@ -570,96 +489,65 @@ export default function TruckModal({
     <Modal
       isOpen={true}
       onClose={onClose}
-      title={isAdding ? "Add Truck" : "Edit Truck"}
+      title={isAdding ? "Register Item" : "Edit Item Profile"}
       maxWidth="max-w-xl"
       footer={formFooter}
     >
       <div className="space-y-4 text-left py-2">
-        {/* ROW 1: Truck Plate No. & Truck Model */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Truck Plate No."
-            name="plateNumber"
-            value={formData.plateNumber || ""}
-            onChange={handleInputChange}
-            placeholder="e.g. ABC 123"
-            error={errors.plateNumber}
-          />
-          <Input
-            label="Truck Model"
-            name="model"
-            value={formData.model || ""}
-            onChange={handleInputChange}
-            placeholder="e.g. Model 1"
-            error={errors.model}
-          />
-        </div>
-
-        {/* ROW 2: Designated Route & Tank Number / Tank Model */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
-            label="Designated Route"
-            name="designatedRoute"
-            value={formData.designatedRoute || "Admin4"}
-            onChange={handleInputChange}
-            options={routeOptions}
-          />
-          <Input
-            label="Tank Model"
-            name="tankNumber"
-            value={formData.tankNumber || ""}
-            onChange={handleInputChange}
-            placeholder="e.g. 1234"
-          />
-        </div>
-
-        {/* ROW 3: Assigned Driver (Full Width) */}
+        {/* ROW 1: Product Name */}
         <div>
-          <Select
-            label="Assigned Driver"
-            name="assignedDriverId"
-            value={formData.assignedDriverId || ""}
+          <Input
+            label="Product Name"
+            name="name"
+            value={formData.name || ""}
             onChange={handleInputChange}
-            options={selectDriverOptions}
-            error={errors.assignedDriverId}
+            placeholder="e.g. 11kg LPG Cylinder"
+            error={errors.name}
           />
         </div>
 
-        {/* ROW 4: Current Odometer & Input Odometer */}
+        {/* ROW 2: Container Type & Category */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="Current Odometer"
-            type="text"
-            name="currentOdometer"
-            value={
-              formData.currentOdometer !== undefined && formData.currentOdometer !== null
-                ? `${formData.currentOdometer.toLocaleString()}KM`
-                : "2KM"
-            }
-            disabled
-            className="opacity-75 cursor-not-allowed"
-          />
-          <Input
-            label="Input Odometer"
-            type="number"
-            name="inputOdometer"
-            value={formData.inputOdometer || ""}
+          <Select
+            label="Container Type"
+            name="containerType"
+            value={formData.containerType || "CYLINDER"}
             onChange={handleInputChange}
-            placeholder="Input Odometer"
+            options={containerOptions}
+          />
+          <Select
+            label="Category"
+            name="category"
+            value={formData.category || "LPG Cylinder"}
+            onChange={handleInputChange}
+            options={categoryOptions}
+            error={errors.category}
           />
         </div>
 
-        {/* ROW 5: Status Pills Selector */}
+        {/* ROW 3: Net Weight (kg) */}
+        <div>
+          <Input
+            label="Net Weight (kg)"
+            type="number"
+            step="0.001"
+            name="netWeightKg"
+            value={formData.netWeightKg !== undefined ? formData.netWeightKg : ""}
+            onChange={handleInputChange}
+            placeholder="e.g. 11.000"
+            error={errors.netWeightKg}
+          />
+        </div>
+
+        {/* ROW 4: Status Pills Selector */}
         <div className="w-full flex flex-col gap-2 pt-1">
-          <label className="text-black font-medium text-sm">Status</label>
+          <label className="text-black font-medium text-sm">Operational Status</label>
           <StatusPills
-            currentStatus={formData.status}
-            onSelect={(status) => setFormData((prev) => ({ ...prev, status }))}
+            isActive={formData.isActive}
+            onSelect={(active) => setFormData((prev) => ({ ...prev, isActive: active }))}
           />
         </div>
       </div>
     </Modal>
   );
 }
-
-
