@@ -240,17 +240,20 @@ export default function ItemModal({
                 <Pencil size={18} />
               </button>
 
-              {/* Deactivate Icon Button */}
-              <button
-                type="button"
-                onClick={() => onDeleteClick(displayItem)}
-                className="p-1.5 text-[#0A4B6E] hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
-                title="Deactivate Item"
-              >
-                <Trash2 size={18} />
-              </button>
+              {/* Deactivate Icon Button - Restricted to Admin/Super Admin/Sales Manager */}
+              {(currentUser?.role === "Super Admin" || currentUser?.role === "Admin" || currentUser?.role === "Sales Manager") && (
+                <button
+                  type="button"
+                  onClick={() => onDeleteClick(displayItem)}
+                  className="p-1.5 text-[#0A4B6E] hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                  title="Deactivate Item"
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
             </div>
           </div>
+
 
           {/* Details Body */}
           <div className="bg-[#E1F3FE] rounded-2xl p-5 space-y-2.5 text-sm text-left">

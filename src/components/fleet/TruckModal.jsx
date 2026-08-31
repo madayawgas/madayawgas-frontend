@@ -300,17 +300,20 @@ export default function TruckModal({
                 <Pencil size={18} />
               </button>
 
-              {/* Delete Icon Button */}
-              <button
-                type="button"
-                onClick={() => onDeleteClick(displayTruck)}
-                className="p-1.5 text-[#0A4B6E] hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
-                title="Delete Fleet"
-              >
-                <Trash2 size={18} />
-              </button>
+              {/* Delete Icon Button - Restricted to Super Admin and Admin only */}
+              {(currentUser?.role === "Super Admin" || currentUser?.role === "Admin") && (
+                <button
+                  type="button"
+                  onClick={() => onDeleteClick(displayTruck)}
+                  className="p-1.5 text-[#0A4B6E] hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                  title="Delete Fleet"
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
             </div>
           </div>
+
 
           {/* Details Body */}
           <div className="bg-[#E1F3FE] rounded-2xl p-5 space-y-2 text-sm text-left">

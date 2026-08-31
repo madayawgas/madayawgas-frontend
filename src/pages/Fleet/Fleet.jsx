@@ -130,6 +130,10 @@ export default function Fleet() {
   // Step 3 of Delete: Execute deletion after admin password verification
   const handleExecuteDelete = async (adminPassword) => {
     if (!truckToDelete) return;
+    if (currentUser?.role !== "Super Admin" && currentUser?.role !== "Admin") {
+      throw new Error("Unauthorized: Only Super Admin or Admin accounts can delete fleet vehicles.");
+    }
+
     const targetId = truckToDelete.id || truckToDelete.truckId;
 
     await usersApi.verifyAdminPassword(adminPassword, currentUser?.username);
@@ -140,6 +144,7 @@ export default function Fleet() {
     setTruckToDelete(null);
     setShowToast(true);
   };
+
 
 
   // Processed search & multi-field filter rules

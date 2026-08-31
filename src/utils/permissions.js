@@ -24,8 +24,8 @@ export const PERMISSIONS = {
   USERS_VIEW: "users.view",
   USERS_MANAGE: "users.manage",
   HISTORY_VIEW: "history.view",
-  HISTORY_MANAGE: "history.manage",
 };
+
 
 /**
  * Check if a user has a specific permission.
