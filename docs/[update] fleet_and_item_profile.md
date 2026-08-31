@@ -24,12 +24,14 @@ All source code in `src/api/` has been left **100% untouched**, while frontend c
 2. **`GET /api/inventory/products/:id`**:
    - Retrieves single product details rendered inside `ItemModal.jsx` (View Mode).
 3. **`POST /api/inventory/products`**:
-   - 3-step registration wizard: Form $\rightarrow$ Review $\rightarrow$ Admin Password Verification (`usersApi.verifyAdminPassword`).
+   - 2-step registration: Form $\rightarrow$ Review/Confirm $\rightarrow$ Direct creation (no password required).
    - Request Body: `{ name, category, containerType, netWeightKg, isActive }`.
 4. **`PATCH /api/inventory/products/:id`**:
-   - Partial updates for name, category, container type, net weight, and active status.
+   - Partial updates for name, category, container type, net weight.
+   - **Reactivation Security**: When reactivating an inactive product item (`INACTIVE` $\rightarrow$ `ACTIVE`), requires Admin Password verification.
 5. **`PATCH /api/inventory/products/:id/deactivate`**:
    - Deactivates product item (`isActive = false`) with admin password verification via `DeactivateItemModal.jsx` and `AdminPasswordModal.jsx`.
+
 
 ---
 
