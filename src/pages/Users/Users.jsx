@@ -185,7 +185,7 @@ export default function Users() {
           : formData.roleId || roles[0]?.id;
 
       if (userId) {
-        const isBlocked = formData.status === "SUSPENDED" || formData.isBlocked === true;
+        const isBlocked = formData.status === "SUSPENDED";
         const payload = {
           firstName: formData.firstName,
           lastName: formData.lastName,

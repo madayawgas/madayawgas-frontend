@@ -88,7 +88,7 @@ export default function UserModal({
     e.preventDefault();
     const cleanFirstName = toProperCase(formData.firstName);
     const cleanLastName = toProperCase(formData.lastName);
-    const isBlocked = formData.status === "SUSPENDED" || formData.isBlocked === true;
+    const isBlocked = formData.status === "SUSPENDED";
 
     const cleanedData = {
       ...formData,

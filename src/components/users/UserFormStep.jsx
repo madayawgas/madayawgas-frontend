@@ -148,7 +148,13 @@ export default function UserFormStep({
                         name="status"
                         value={s.value}
                         checked={isSelected}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            status: e.target.value,
+                            isBlocked: e.target.value === "SUSPENDED",
+                          })
+                        }
                         className="sr-only"
                       />
                       <Badge
