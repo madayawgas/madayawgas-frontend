@@ -15,7 +15,7 @@ const MOCK_SESSION_KEY = "mg_mock_session_user";
 export const authApi = {
 
   /**
-   * Verify password directly against auth mock credentials or server endpoint.
+   * Mock helper to verify password during offline/mock development.
    */
   async verifyPassword(password, username) {
     if (isMock) {
@@ -28,12 +28,8 @@ export const authApi = {
 
       return true;
     }
-
-    const result = await apiClient("/users/verify-password", {
-      method: "POST",
-      body: { username, password },
-    });
-    return result.data.valid;
+    // On real server, password verification is handled directly by the target dangerous operation endpoints
+    return true;
   },
 
   /**

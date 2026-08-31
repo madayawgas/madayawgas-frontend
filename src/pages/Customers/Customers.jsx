@@ -225,50 +225,77 @@ export default function Customers() {
     setFilters((prev) => ({ ...prev, dateFrom: "", dateTo: "" }));
   };
 
-  // Create / Update Customer Handler
+  // Create / Update Customer Handler (POST /api/sales/customers or PATCH /api/sales/customers/:id)
   const handleSaveCustomer = async (formData, customerId) => {
-    try {
-      if (customerId) {
-        const result = await customersApi.updateCustomer(customerId, formData);
-        const updatedCustomer = result?.customer || {
-          ...formData,
-          id: customerId,
-          updatedAt: new Date().toISOString(),
-        };
+    if (customerId) {
+      const result = await customersApi.updateCustomer(customerId, formData);
+      const updatedCustomer = result?.customer || {
+        ...formData,
+        id: customerId,
+        updatedAt: new Date().toISOString(),
+      };
 
-        updateCustomersState((prev) =>
-          prev.map((c) => (c.id === customerId ? { ...c, ...updatedCustomer } : c))
-        );
+      updateCustomersState((prev) =>
+        prev.map((c) => (c.id === customerId ? { ...c, ...updatedCustomer } : c))
+      );
 
-        if (activeDetailCustomer?.id === customerId) {
-          setActiveDetailCustomer((prev) => ({ ...prev, ...updatedCustomer }));
-          setSelectedCustomer((prev) => ({ ...prev, ...updatedCustomer }));
-        }
-
-        setToast({ type: "success", message: "Saved Changes" });
-      } else {
-        const result = await customersApi.createCustomer(formData);
-        const newCustomer = result?.customer || {
-          ...formData,
-          id: `cust-${Date.now()}`,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        updateCustomersState((prev) => [newCustomer, ...prev]);
-        setToast({ type: "success", message: "Customer Created Successfully" });
+      if (activeDetailCustomer?.id === customerId) {
+        setActiveDetailCustomer((prev) => ({ ...prev, ...updatedCustomer }));
+        setSelectedCustomer((prev) => ({ ...prev, ...updatedCustomer }));
       }
-    } catch (err) {
-      console.error("Failed to save customer:", err);
-      setToast({
-        type: "error",
-        message: err.message || "Failed to save customer.",
-      });
-      throw err;
+
+      setToast({ type: "success", message: "Saved Changes" });
+    } else {
+      const result = await customersApi.createCustomer(formData);
+      const newCustomer = result?.customer || {
+        ...formData,
+        id: `cust-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      updateCustomersState((prev) => [newCustomer, ...prev]);
+      setToast({ type: "success", message: "Customer Created Successfully" });
     }
   };
 
-  // Trigger deactivation flow
+  // Reactivate Inactive Customer Handler (PATCH /api/sales/customers/:id with isActive: true)
+  const handleReactivateCustomer = async (customer) => {
+    try {
+      const targetId = customer.id;
+      const result = await customersApi.updateCustomer(targetId, {
+        isActive: true,
+      });
+
+      const updatedCustomer = result?.customer || {
+        ...customer,
+        isActive: true,
+        updatedAt: new Date().toISOString(),
+      };
+
+      updateCustomersState((prev) =>
+        prev.map((c) => (c.id === targetId ? { ...c, ...updatedCustomer } : c))
+      );
+
+      if (activeDetailCustomer?.id === targetId) {
+        setActiveDetailCustomer((prev) => ({ ...prev, ...updatedCustomer }));
+        setSelectedCustomer((prev) => ({ ...prev, ...updatedCustomer }));
+      }
+
+      setToast({
+        type: "success",
+        message: "Customer Successfully Reactivated",
+      });
+    } catch (err) {
+      console.error("Failed to reactivate customer:", err);
+      setToast({
+        type: "error",
+        message: err.message || "Failed to reactivate customer.",
+      });
+    }
+  };
+
+  // Trigger deactivation flow (Dangerous Operation)
   const handleInitiateDeactivate = (targetCustomer) => {
     setCustomerToDeactivate(targetCustomer);
   };
@@ -277,12 +304,13 @@ export default function Customers() {
     setShowPasswordModal(true);
   };
 
-  // Confirm Admin Password and Deactivate Customer
+  // Confirm Admin Password and Deactivate Customer (PATCH /api/sales/customers/:id/deactivate)
   const handleConfirmAdminPassword = async (adminPassword) => {
     if (!customerToDeactivate) return;
 
     try {
       const targetId = customerToDeactivate.id;
+      // Sends { confirmPassword } directly to PATCH /api/sales/customers/:id/deactivate
       const result = await customersApi.deactivateCustomer(targetId, {
         confirmPassword: adminPassword,
       });
@@ -370,6 +398,7 @@ export default function Customers() {
                 onClose={handleCloseDetail}
                 onEdit={(c) => setEditingCustomer(c)}
                 onDelete={(c) => handleInitiateDeactivate(c)}
+                onReactivate={(c) => handleReactivateCustomer(c)}
                 canManage={canManage}
               />
             </div>

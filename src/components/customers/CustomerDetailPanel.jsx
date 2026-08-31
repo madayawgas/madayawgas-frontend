@@ -1,4 +1,4 @@
-import { Pencil, Trash2, UserRound } from "lucide-react";
+import { Pencil, Trash2, RotateCcw, UserRound } from "lucide-react";
 import Badge from "../ui/Badge";
 
 function formatDate(dateStr) {
@@ -20,6 +20,7 @@ export default function CustomerDetailPanel({
   onClose,
   onEdit,
   onDelete,
+  onReactivate,
   canManage = true,
 }) {
   if (!customer) return null;
@@ -55,14 +56,25 @@ export default function CustomerDetailPanel({
                 >
                   <Pencil size={18} />
                 </button>
-                <button
-                  type="button"
-                  title="Deactivate Customer"
-                  onClick={() => onDelete && onDelete(customer)}
-                  className="text-[#0A4B6E] hover:text-red-500 transition-colors cursor-pointer p-1"
-                >
-                  <Trash2 size={18} />
-                </button>
+                {customer.isActive ? (
+                  <button
+                    type="button"
+                    title="Deactivate Customer"
+                    onClick={() => onDelete && onDelete(customer)}
+                    className="text-[#0A4B6E] hover:text-red-500 transition-colors cursor-pointer p-1"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    title="Reactivate Customer"
+                    onClick={() => onReactivate && onReactivate(customer)}
+                    className="text-[#0A4B6E] hover:text-green-600 transition-colors cursor-pointer p-1"
+                  >
+                    <RotateCcw size={18} />
+                  </button>
+                )}
               </>
             )}
           </div>

@@ -142,37 +142,26 @@ madayawgas-frontend/
 All entity creation and modification flows follow the standard multi-step modal pattern established in the **Manage Users** and **Customer Profile** pages:
 
 ```
-[Step 1: Input Form]
-        │
-        ├── (Create Flow) ──> [Step 2: Confirm Info] ──> [Step 3: Admin Password] ──> [Step 4: Success View]
-        │
-        └── (Edit Flow)   ─────────────────────────────> [Step 3: Admin Password] ──> [Step 4: Success View]
+### Entity Wizard Flow (Create & Edit):
 ```
+[Step 1: Input Form] ──> [Step 2: Confirm Info] ──> [Step 3: Success View]
+```
+- Standard CRUD (`POST /api/sales/customers`, `PATCH /api/sales/customers/:id`, `POST /api/users`, `PATCH /api/users/:id`) does not require password re-authentication according to the backend API contracts.
+- Step 1 (Form) collects attributes and validates formats (e.g. Philippine contact numbers).
+- Step 2 (Confirm) provides a read-only review with a yellow "CONFIRM" button that triggers the API call.
+- Step 3 (Success) displays created/updated details with a yellow "DONE" button.
 
-### Steps Detail:
-1. **Form Step** (`CustomerFormStep` / `UserFormStep`):
-   - Input fields with rounded-full background `#F3F5F5`.
-   - Red required asterisk (`*`).
-   - Radio badges for status selection.
-   - Submits to Step 2 (Create) or Step 3 (Edit).
-2. **Confirm Step** (`CustomerConfirmStep` / `UserConfirmStep`):
-   - Read-only summary cards of all entered data.
-   - Yellow "CONFIRM" button advances to Step 3.
-3. **Password Re-authentication Step** (`CustomerPasswordStep` / `UserPasswordStep` / `AdminPasswordModal`):
-   - Requires admin password before sensitive operations or record mutations.
-   - Verifies against `authApi.verifyPassword(password, username)`.
-   - Shows inline error with `<AlertTriangle>` if incorrect.
-   - Red `#C93B32` "PROCEED" / "VERIFYING..." button.
-4. **Success Step** (`CustomerSuccessStep` / `UserSuccessStep`):
-   - Summary of created/updated record.
-   - Yellow "DONE" button closes modal and displays toast.
-
-### Dangerous Operations (Soft-Deactivation):
-- Clicking trash icon opens `DeactivateCustomerModal` / `DeactivateUserModal` (Warning confirmation).
-- Clicking "CONTINUE" opens `AdminPasswordModal`.
-- Calls `deactivateCustomer(id, { confirmPassword })` / `updateUserStatus`.
-- Marks `isActive: false` (does not hard delete).
-- Shows `ToastNotification` ("Customer Successfully Deactivated").
+### Dangerous Operations (Deactivation / Role Changes / Credential Resets):
+- **API Design Rule**: There is **NO standalone `/api/users/verify-password` endpoint**. The backend validates `confirmPassword` directly within the respective dangerous operation endpoints:
+  - Deactivate Customer: `PATCH /api/sales/customers/:id/deactivate` with body `{ confirmPassword }`
+  - Update User Status (Deactivate/Activate/Block): `PATCH /api/users/:id/status` with body `{ confirmPassword, isActive, isBlocked }`
+  - Reset User Credentials: `PATCH /api/users/:id/credentials` with body `{ confirmPassword, resetPassword, username }`
+  - Change User Role: `PATCH /api/users/:id/role` with body `{ confirmPassword, roleId }`
+- **UI Flow**:
+  1. Triggering action opens warning confirmation modal (`DeactivateCustomerModal` / `DeactivateUserModal`).
+  2. Clicking "CONTINUE" opens `AdminPasswordModal`.
+  3. `AdminPasswordModal` collects the admin password and passes it to the dangerous operation API call. If invalid, the endpoint returns `401 Unauthorized` and `AdminPasswordModal` renders the inline error message.
+  4. Upon success, state/cache is updated, modal closes, and a success `ToastNotification` is displayed.
 
 ---
 

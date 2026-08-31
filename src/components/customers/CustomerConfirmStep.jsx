@@ -1,7 +1,7 @@
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
 
-export default function CustomerConfirmStep({ formData, onConfirm }) {
+export default function CustomerConfirmStep({ formData, onConfirm, isSubmitting }) {
   return (
     <div className="px-8 pb-8 overflow-y-auto max-h-[85vh]">
       <div className="space-y-4">
@@ -65,9 +65,10 @@ export default function CustomerConfirmStep({ formData, onConfirm }) {
         <Button
           type="button"
           onClick={onConfirm}
-          className="w-full py-3.5 bg-[#F6C445] hover:bg-[#e2b23b] border-none !text-[#0B4A6E] rounded-full font-bold uppercase tracking-widest text-[11px] transition-colors cursor-pointer"
+          disabled={isSubmitting}
+          className="w-full py-3.5 bg-[#F6C445] hover:bg-[#e2b23b] border-none !text-[#0B4A6E] rounded-full font-bold uppercase tracking-widest text-[11px] transition-colors cursor-pointer disabled:opacity-50"
         >
-          CONFIRM
+          {isSubmitting ? "SAVING..." : "CONFIRM"}
         </Button>
       </div>
     </div>

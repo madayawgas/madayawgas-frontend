@@ -1,21 +1,14 @@
 import { useState, useEffect } from "react";
-import { customersApi } from "../../api/customers.js";
-import { useAuth } from "../../context/AuthContext.jsx";
 import { isValidPhilippinePhone, formatPhilippinePhone } from "../../utils/phone.js";
 import CustomerFormStep from "./CustomerFormStep";
 import CustomerConfirmStep from "./CustomerConfirmStep";
-import CustomerPasswordStep from "./CustomerPasswordStep";
 import CustomerSuccessStep from "./CustomerSuccessStep";
 
 export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
-  const { user: currentUser } = useAuth();
-
   const [step, setStep] = useState(1);
-  const [adminPassword, setAdminPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [passwordError, setPasswordError] = useState("");
   const [phoneError, setPhoneError] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -28,11 +21,9 @@ export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
   useEffect(() => {
     if (isOpen) {
       setStep(1);
-      setAdminPassword("");
-      setShowPassword(false);
-      setPasswordError("");
       setPhoneError("");
-      setIsVerifying(false);
+      setSubmitError("");
+      setIsSubmitting(false);
 
       if (customer) {
         setFormData({
@@ -56,7 +47,7 @@ export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleFormSubmit = (e) => {
     e.preventDefault();
 
     if (!formData.contactNumber.trim()) {
@@ -72,43 +63,28 @@ export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
     }
 
     setPhoneError("");
+    setSubmitError("");
+
     // Clean format
     setFormData((prev) => ({
       ...prev,
       contactNumber: formatPhilippinePhone(prev.contactNumber),
     }));
 
-    // If edit mode: proceed directly to password verification (matching UserModal pattern)
-    // If create mode: show confirm step first
-    setStep(customer ? 3 : 2);
+    setStep(2);
   };
 
-  const handleProceed = async () => {
-    if (!adminPassword) return;
-
-    setIsVerifying(true);
-    setPasswordError("");
+  const handleConfirmSave = async () => {
+    setIsSubmitting(true);
+    setSubmitError("");
 
     try {
-      await customersApi.verifyAdminPassword(
-        adminPassword,
-        currentUser?.username
-      );
-
-      const finalData = {
-        ...formData,
-        adminPassword,
-      };
-
-      await onSave(finalData, customer ? customer.id : null);
-
-      setIsVerifying(false);
-      setStep(4);
+      await onSave(formData, customer ? customer.id : null);
+      setIsSubmitting(false);
+      setStep(3);
     } catch (err) {
-      setIsVerifying(false);
-      setPasswordError(
-        err.message || "Incorrect admin password. Please try again."
-      );
+      setIsSubmitting(false);
+      setSubmitError(err.message || "Failed to save customer. Please try again.");
     }
   };
 
@@ -116,7 +92,7 @@ export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div
         className={`bg-white rounded-[2rem] w-full shadow-xl flex flex-col overflow-hidden transition-all duration-300 ${
-          step === 4 ? "max-w-md" : "max-w-lg"
+          step === 3 ? "max-w-md" : "max-w-lg"
         }`}
       >
         {/* Header */}
@@ -124,13 +100,13 @@ export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
           <h2 className="text-[28px] font-bold text-[#0B4A6E]">
             {step === 1 && (customer ? "Edit Customer" : "Add New Customer")}
             {step === 2 && "Confirm Information"}
-            {step === 3 && "Input Password"}
-            {step === 4 && (customer ? "Customer Updated" : "Customer Created")}
+            {step === 3 && (customer ? "Customer Updated" : "Customer Created")}
           </h2>
-          {(step === 2 || step === 3) && (
+          {step === 2 && (
             <button
-              onClick={() => step > 1 && setStep(step - 1)}
-              className="text-[#0B4A6E] hover:opacity-70 transition-opacity p-1 cursor-pointer"
+              onClick={() => setStep(1)}
+              disabled={isSubmitting}
+              className="text-[#0B4A6E] hover:opacity-70 transition-opacity p-1 cursor-pointer disabled:opacity-50"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -158,36 +134,29 @@ export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
             customer={customer}
             phoneError={phoneError}
             setPhoneError={setPhoneError}
-            onSubmit={handleSubmit}
+            onSubmit={handleFormSubmit}
             onClose={onClose}
           />
         )}
 
         {/* Step 2: Confirmation Summary */}
         {step === 2 && (
-          <CustomerConfirmStep
-            formData={formData}
-            onConfirm={() => setStep(3)}
-          />
+          <div className="flex flex-col">
+            {submitError && (
+              <p className="text-red-500 text-xs font-semibold px-8 pb-2">
+                {submitError}
+              </p>
+            )}
+            <CustomerConfirmStep
+              formData={formData}
+              onConfirm={handleConfirmSave}
+              isSubmitting={isSubmitting}
+            />
+          </div>
         )}
 
-        {/* Step 3: Password Confirmation */}
+        {/* Step 3: Success Display */}
         {step === 3 && (
-          <CustomerPasswordStep
-            adminPassword={adminPassword}
-            setAdminPassword={setAdminPassword}
-            showPassword={showPassword}
-            setShowPassword={setShowPassword}
-            passwordError={passwordError}
-            setPasswordError={setPasswordError}
-            isVerifying={isVerifying}
-            currentUser={currentUser}
-            onProceed={handleProceed}
-          />
-        )}
-
-        {/* Step 4: Success Display */}
-        {step === 4 && (
           <CustomerSuccessStep formData={formData} onDone={onClose} />
         )}
       </div>
