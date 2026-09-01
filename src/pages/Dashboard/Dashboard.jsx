@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { dashboardApi } from "../../api/dashboard.js";
 import { salesApi } from "../../api/sales.js";
 import { fleetApi } from "../../api/fleet.js";
+import mockSales from "../../mocks/sales.json";
 import bgHeader from "../../assets/BG-Madayaw5.png";
 import { Truck, Wrench } from "lucide-react";
 
@@ -46,7 +47,7 @@ export default function Dashboard() {
     };
   });
 
-  const [salesData, setSalesData] = useState(null);
+  const [salesData, setSalesData] = useState(mockSales.data);
 
   useEffect(() => {
     async function loadDashboardData() {

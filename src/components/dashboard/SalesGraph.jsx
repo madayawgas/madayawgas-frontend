@@ -10,13 +10,19 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import Card from "../ui/Card";
+import mockSales from "../../mocks/sales.json";
 
 export default function SalesGraph({ salesData }) {
   const [timeframe, setTimeframe] = useState("monthly");
 
-  const weeklySales = salesData?.weekly || [];
-  const monthlySales = salesData?.monthly || [];
-  const annualSales = salesData?.annually || [];
+  const effectiveSales =
+    salesData && (salesData.weekly || salesData.monthly || salesData.annually)
+      ? salesData
+      : mockSales.data;
+
+  const weeklySales = effectiveSales?.weekly || mockSales.data.weekly;
+  const monthlySales = effectiveSales?.monthly || mockSales.data.monthly;
+  const annualSales = effectiveSales?.annually || mockSales.data.annually;
 
   const activeData =
     timeframe === "weekly"

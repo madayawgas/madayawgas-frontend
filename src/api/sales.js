@@ -13,8 +13,20 @@ export const salesApi = {
       await delay(200);
       return mockSales.data;
     }
-    const result = await apiClient("/sales/overview");
-    return result.data;
+    try {
+      const result = await apiClient("/sales/overview");
+      if (
+        result?.data &&
+        (result.data.weekly?.length ||
+          result.data.monthly?.length ||
+          result.data.annually?.length)
+      ) {
+        return result.data;
+      }
+    } catch {
+      // Endpoint is not ready on backend; fallback to mock sales data
+    }
+    return mockSales.data;
   },
 
   /**
