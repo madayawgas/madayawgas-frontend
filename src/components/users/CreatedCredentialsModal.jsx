@@ -13,9 +13,20 @@ export default function CreatedCredentialsModal({
 
   if (!credentials) return null;
 
+  const targetUsername =
+    credentials.username ||
+    credentials.user?.username ||
+    credentials.data?.username ||
+    "";
+  const temporaryPassword =
+    credentials.temporaryPassword ||
+    credentials.data?.temporaryPassword ||
+    credentials.user?.temporaryPassword ||
+    "";
+
   const handleCopy = () => {
-    if (credentials?.temporaryPassword) {
-      navigator.clipboard.writeText(credentials.temporaryPassword);
+    if (temporaryPassword) {
+      navigator.clipboard.writeText(temporaryPassword);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -44,13 +55,13 @@ export default function CreatedCredentialsModal({
           <div className="flex justify-between items-center">
             <span className="text-gray-500 font-medium">Username:</span>
             <span className="font-bold text-[#0F7AB2] font-mono">
-              {credentials.username}
+              {targetUsername}
             </span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-gray-500 font-medium">Temporary Password:</span>
             <span className="font-bold text-[#E53E3E] font-mono tracking-wider">
-              {credentials.temporaryPassword}
+              {temporaryPassword}
             </span>
           </div>
         </div>

@@ -23,6 +23,11 @@ export default function ProtectedRoute({ permission, children }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // If the user must change their password, block rendering child pages
+  if (currentUser?.mustChangePassword) {
+    return null;
+  }
+
   if (permission) {
     const hasAccess = Array.isArray(permission)
       ? canAny(currentUser, permission)

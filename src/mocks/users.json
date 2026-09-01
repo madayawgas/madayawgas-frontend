@@ -182,6 +182,29 @@
           "delivery.update_own"
         ],
         "createdAt": "2026-08-25T10:00:00.000Z"
+      },
+      {
+        "id": "t9999999-aaaa-bbbb-cccc-999999999999",
+        "username": "temp_user",
+        "firstName": "Temporary",
+        "lastName": "User",
+        "phone": "+639170000010",
+        "birthdate": "1994-11-15",
+        "role": "Sales Person",
+        "roleId": "98b3be70-2bd5-4a6d-be32-a9174cb1cb84",
+        "isActive": true,
+        "isBlocked": false,
+        "mustChangePassword": true,
+        "permissions": [
+          "dashboard.view",
+          "route.view_own",
+          "sales.view_own",
+          "sales.create",
+          "sales.update",
+          "delivery.view_own",
+          "delivery.update_own"
+        ],
+        "createdAt": "2026-08-25T10:30:00.000Z"
       }
     ]
   }

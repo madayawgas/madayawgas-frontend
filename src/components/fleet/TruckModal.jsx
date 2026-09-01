@@ -92,7 +92,8 @@ export default function TruckModal({
   onAdd,
   isAdding = false,
   trucks = [],
-  driverOptions = [],
+  availableDrivers = [],
+  allDrivers = [],
   canManage = true,
 }) {
   const [isEditing, setIsEditing] = useState(isAdding);
@@ -185,53 +186,48 @@ export default function TruckModal({
     }
   };
 
-  // Build complete list of available driver options ensuring current driver is not lost
+  // Check if truck currently has an assigned driver
+  const hasExistingDriver = !!(truck?.driverId || truck?.driver);
   const currentDriverId = truck?.driverId || truck?.driver?.id;
-  const currentDriverInOptions = driverOptions.some(
-    (d) => d.value === currentDriverId
-  );
+  const currentDriverName = truck?.driver
+    ? `${truck.driver.firstName || ""} ${truck.driver.lastName || ""}`.trim() || truck.driver.username
+    : truck?.driverName || "Current Driver";
 
-  const extraDriverOption =
-    !currentDriverInOptions && truck?.driver && currentDriverId
-      ? [
-          {
-            value: currentDriverId,
-            label: `${truck.driver.firstName || ""} ${truck.driver.lastName || ""}`.trim() || truck.driver.username || "Current Driver",
-            firstName: truck.driver.firstName || "",
-            lastName: truck.driver.lastName || "",
-            phone: truck.driver.phone || "",
-            username: truck.driver.username || "",
-            role: truck.driver.role || "Driver",
-          },
-        ]
-      : [];
-
-  const allDrivers = [...driverOptions, ...extraDriverOption];
-  const selectDriverOptions = [
-    { value: "", label: "No Assigned (Unassigned)" },
-    ...allDrivers,
-  ];
+  // Build the strict dropdown options based on assignment state:
+  let selectDriverOptions = [];
+  if (!isAdding && hasExistingDriver) {
+    // Assigned vehicle: only show currently assigned driver & explicit "Unassign Driver" option
+    selectDriverOptions = [
+      { value: currentDriverId, label: `${currentDriverName} (Currently Assigned)` },
+      { value: "", label: "Unassign Driver" },
+    ];
+  } else {
+    // Unassigned vehicle (or Add New): list unassigned option + only truly available drivers
+    selectDriverOptions = [
+      { value: "", label: "No Assigned (Unassigned)" },
+      ...availableDrivers.map((d) => ({
+        value: d.id,
+        label: `${d.firstName || ""} ${d.lastName || ""}`.trim() || d.username,
+      })),
+    ];
+  }
 
   const submitUpdate = async () => {
-    const matchedDriver = allDrivers.find(
-      (d) => d.value === formData.assignedDriverId
-    );
-
-    const effectiveOdometer =
-      formData.inputOdometer !== "" && formData.inputOdometer !== undefined
-        ? Number(formData.inputOdometer)
-        : Number(formData.currentOdometer) || 0;
-
     const isDeactivated = formData.status === "INACTIVE" || formData.status === "RETIRED";
     const finalDriverId = isDeactivated ? null : (formData.assignedDriverId || null);
+
+    // Look up assigned driver profile
+    const matchedDriver = [...availableDrivers, ...allDrivers].find(
+      (d) => d.id === finalDriverId || d.value === finalDriverId
+    );
 
     const finalDriverObj = isDeactivated || !finalDriverId
       ? null
       : matchedDriver
       ? {
-          id: matchedDriver.value,
-          firstName: matchedDriver.firstName || matchedDriver.label.split(" ")[0] || "",
-          lastName: matchedDriver.lastName || matchedDriver.label.split(" ").slice(1).join(" ") || "",
+          id: matchedDriver.id || matchedDriver.value,
+          firstName: matchedDriver.firstName || "",
+          lastName: matchedDriver.lastName || "",
           phone: matchedDriver.phone || "",
           username: matchedDriver.username || "",
           role: matchedDriver.role || "Driver",
@@ -242,11 +238,14 @@ export default function TruckModal({
 
     const finalDriverName = isDeactivated || !finalDriverId
       ? "No Assigned"
-      : matchedDriver
-      ? matchedDriver.label
       : finalDriverObj
-      ? `${finalDriverObj.firstName || ""} ${finalDriverObj.lastName || ""}`.trim()
+      ? `${finalDriverObj.firstName || ""} ${finalDriverObj.lastName || ""}`.trim() || finalDriverObj.username
       : "No Assigned";
+
+    const effectiveOdometer =
+      formData.inputOdometer !== "" && formData.inputOdometer !== undefined
+        ? Number(formData.inputOdometer)
+        : Number(formData.currentOdometer) || 0;
 
     const finalData = {
       ...(truck || {}),
@@ -281,8 +280,8 @@ export default function TruckModal({
   };
 
   const handleConfirmAdd = () => {
-    const matchedDriver = allDrivers.find(
-      (d) => d.value === formData.assignedDriverId
+    const matchedDriver = availableDrivers.find(
+      (d) => d.id === formData.assignedDriverId
     );
 
     const effectiveOdometer =
@@ -297,9 +296,9 @@ export default function TruckModal({
       ? null
       : matchedDriver
       ? {
-          id: matchedDriver.value,
-          firstName: matchedDriver.firstName || matchedDriver.label.split(" ")[0] || "",
-          lastName: matchedDriver.lastName || matchedDriver.label.split(" ").slice(1).join(" ") || "",
+          id: matchedDriver.id,
+          firstName: matchedDriver.firstName || "",
+          lastName: matchedDriver.lastName || "",
           phone: matchedDriver.phone || "",
           username: matchedDriver.username || "",
           role: matchedDriver.role || "Driver",
@@ -308,8 +307,8 @@ export default function TruckModal({
 
     const finalDriverName = isDeactivated || !finalDriverId
       ? "No Assigned"
-      : matchedDriver
-      ? matchedDriver.label
+      : finalDriverObj
+      ? `${finalDriverObj.firstName || ""} ${finalDriverObj.lastName || ""}`.trim() || finalDriverObj.username
       : "No Assigned";
 
     const finalData = {
@@ -360,11 +359,13 @@ export default function TruckModal({
     : "No Assigned";
 
   // Resolved driver display for Add / Confirm screen (computed from form selection)
-  const formDriverObj = allDrivers.find(
-    (d) => d.value === formData.assignedDriverId
+  const formDriverObj = [...availableDrivers, ...allDrivers].find(
+    (d) => (d.id || d.value) === formData.assignedDriverId
   );
   const formDriverLabel = formData.assignedDriverId
-    ? formDriverObj?.label || "No Assigned"
+    ? formDriverObj
+      ? `${formDriverObj.firstName || ""} ${formDriverObj.lastName || ""}`.trim() || formDriverObj.username || formDriverObj.label
+      : "No Assigned"
     : "No Assigned";
 
   // ==========================================
@@ -634,14 +635,21 @@ export default function TruckModal({
             placeholder="e.g. 2023"
             error={errors.yearModel}
           />
-          <Select
-            label="Assigned Driver"
-            name="assignedDriverId"
-            value={formData.assignedDriverId || ""}
-            onChange={handleInputChange}
-            options={selectDriverOptions}
-            error={errors.assignedDriverId}
-          />
+          <div className="flex flex-col">
+            <Select
+              label="Assigned Driver"
+              name="assignedDriverId"
+              value={formData.assignedDriverId || ""}
+              onChange={handleInputChange}
+              options={selectDriverOptions}
+              error={errors.assignedDriverId}
+            />
+            {!isAdding && hasExistingDriver && (
+              <span className="text-[11px] text-[#588094] italic mt-1">
+                To assign a different driver, unassign the current driver first.
+              </span>
+            )}
+          </div>
         </div>
 
         {/* ROW 3: Current Odometer & Input / New Odometer */}

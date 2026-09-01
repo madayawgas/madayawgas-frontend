@@ -464,6 +464,8 @@ export default function Users() {
         <CreatedCredentialsModal
           isOpen={!!resetCredentials}
           credentials={resetCredentials}
+          title="Password Reset Successful"
+          description="A new temporary password has been generated for this user. They will be required to change their password upon their next login."
           onClose={() => setResetCredentials(null)}
         />
       )}

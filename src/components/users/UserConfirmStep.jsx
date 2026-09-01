@@ -1,8 +1,22 @@
+import { AlertCircle } from "lucide-react";
 import Button from "../ui/Button";
 
-export default function UserConfirmStep({ formData, safeRole, onConfirm, isSubmitting = false }) {
+export default function UserConfirmStep({
+  formData,
+  safeRole,
+  onConfirm,
+  isSubmitting = false,
+  submitError = "",
+}) {
   return (
     <div className="px-8 pb-8 overflow-y-auto max-h-[85vh]">
+      {submitError && (
+        <div className="bg-red-50 border border-red-200 text-red-600 text-xs font-medium p-3.5 rounded-2xl flex items-center gap-2.5 mb-5 animate-fade-in">
+          <AlertCircle size={16} className="shrink-0 text-red-600" />
+          <span>{submitError}</span>
+        </div>
+      )}
+
       <div className="space-y-5">
         <div className="grid grid-cols-2 gap-4">
           <div>

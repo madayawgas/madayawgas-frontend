@@ -3,6 +3,7 @@ import UserFormStep from "./UserFormStep";
 import UserConfirmStep from "./UserConfirmStep";
 import UserSuccessStep from "./UserSuccessStep";
 import { toProperCase } from "../../utils/text.js";
+import { isValidPhilippinePhone, formatPhilippinePhone } from "../../utils/phone.js";
 
 export default function UserModal({
   isOpen,
@@ -15,6 +16,8 @@ export default function UserModal({
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdTemporaryPassword, setCreatedTemporaryPassword] = useState("");
+  const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState("");
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -32,6 +35,8 @@ export default function UserModal({
       setStep(1);
       setIsSubmitting(false);
       setCreatedTemporaryPassword("");
+      setErrors({});
+      setSubmitError("");
 
       const defaultRole =
         roles && roles.length > 0
@@ -84,16 +89,77 @@ export default function UserModal({
     .toLowerCase()
     .replace(/\s/g, "")}_${safeRole.toLowerCase()}`;
 
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.firstName || !formData.firstName.trim()) {
+      newErrors.firstName = "First name is required.";
+    } else if (formData.firstName.trim().length < 2) {
+      newErrors.firstName = "First name must be at least 2 characters.";
+    }
+
+    if (!formData.lastName || !formData.lastName.trim()) {
+      newErrors.lastName = "Last name is required.";
+    } else if (formData.lastName.trim().length < 2) {
+      newErrors.lastName = "Last name must be at least 2 characters.";
+    }
+
+    if (!formData.contactNo || !formData.contactNo.trim()) {
+      newErrors.contactNo = "Contact number is required.";
+    } else if (!isValidPhilippinePhone(formData.contactNo)) {
+      newErrors.contactNo =
+        "Please enter a valid Philippine phone number (e.g. 09171234567 or +639171234567).";
+    }
+
+    if (formData.birthday) {
+      const bDate = new Date(formData.birthday);
+      const today = new Date();
+      if (isNaN(bDate.getTime())) {
+        newErrors.birthday = "Please enter a valid birthdate.";
+      } else if (bDate > today) {
+        newErrors.birthday = "Birthdate cannot be in the future.";
+      } else if (bDate.getFullYear() < 1900) {
+        newErrors.birthday = "Please enter a valid birthdate.";
+      } else {
+        let age = today.getFullYear() - bDate.getFullYear();
+        const m = today.getMonth() - bDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < bDate.getDate())) {
+          age--;
+        }
+        if (age < 18) {
+          newErrors.birthday = "User must be at least 18 years old.";
+        }
+      }
+    }
+
+    if (!formData.role || (typeof formData.role === "string" && !formData.role.trim())) {
+      newErrors.role = "Please select a role.";
+    }
+
+    return newErrors;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    setErrors({});
+    setSubmitError("");
+
     const cleanFirstName = toProperCase(formData.firstName);
     const cleanLastName = toProperCase(formData.lastName);
     const isBlocked = formData.status === "SUSPENDED";
+    const formattedContactNo = formatPhilippinePhone(formData.contactNo);
 
     const cleanedData = {
       ...formData,
       firstName: cleanFirstName,
       lastName: cleanLastName,
+      contactNo: formattedContactNo,
       isBlocked,
       status: isBlocked ? "SUSPENDED" : "ACTIVE",
     };
@@ -107,6 +173,7 @@ export default function UserModal({
         onClose();
       } catch (err) {
         console.error("Failed to update user:", err);
+        setSubmitError(err?.message || "Failed to update user. Please try again.");
       } finally {
         setIsSubmitting(false);
       }
@@ -118,13 +185,16 @@ export default function UserModal({
 
   const handleConfirmCreate = async () => {
     setIsSubmitting(true);
+    setSubmitError("");
     try {
       const cleanFirstName = toProperCase(formData.firstName);
       const cleanLastName = toProperCase(formData.lastName);
+      const formattedContactNo = formatPhilippinePhone(formData.contactNo);
       const finalData = {
         ...formData,
         firstName: cleanFirstName,
         lastName: cleanLastName,
+        contactNo: formattedContactNo,
         username: generatedUsername,
         isBlocked: false,
         status: "ACTIVE",
@@ -137,6 +207,7 @@ export default function UserModal({
       setStep(3);
     } catch (err) {
       console.error("Failed to create user:", err);
+      setSubmitError(err?.message || "Failed to create user. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -182,6 +253,11 @@ export default function UserModal({
             roles={roles}
             user={user}
             statuses={statuses}
+            errors={errors}
+            setErrors={setErrors}
+            submitError={submitError}
+            setSubmitError={setSubmitError}
+            isSubmitting={isSubmitting}
             onResetPassword={onResetPassword}
             onSubmit={handleSubmit}
             onClose={onClose}
@@ -193,6 +269,7 @@ export default function UserModal({
             formData={formData}
             safeRole={safeRole}
             isSubmitting={isSubmitting}
+            submitError={submitError}
             onConfirm={handleConfirmCreate}
           />
         )}

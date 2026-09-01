@@ -17,6 +17,7 @@ import {
   UserRound,
 } from "lucide-react";
 import logo from "../assets/logo-outlined.svg";
+import ForceChangePasswordModal from "../components/auth/ForceChangePasswordModal.jsx";
 
 export default function Layout() {
   const [open, setOpen] = useState(false);
@@ -71,7 +72,13 @@ export default function Layout() {
           </div>
 
           {/* EXACT ROUTE LINKS */}
-          <nav className="mt-4 px-3">
+          <nav
+            className={`mt-4 px-3 ${
+              currentUser?.mustChangePassword
+                ? "pointer-events-none opacity-40 select-none"
+                : ""
+            }`}
+          >
             {can(PERMISSIONS.DASHBOARD_VIEW) && (
               <NavLink
                 to="/dashboard"
@@ -169,7 +176,11 @@ export default function Layout() {
             onClick={() => setOpen(false)}
             className={({ isActive }) =>
               `flex items-center gap-2 text-[14px] font-semibold transition ${
-                isActive ? "text-[#FFDF2C]" : "text-white hover:opacity-80"
+                currentUser?.mustChangePassword
+                  ? "pointer-events-none opacity-40 select-none"
+                  : isActive
+                  ? "text-[#FFDF2C]"
+                  : "text-white hover:opacity-80"
               }`
             }
           >
@@ -223,6 +234,9 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {/* FORCE CHANGE PASSWORD INESCAPABLE MODAL */}
+      {currentUser?.mustChangePassword && <ForceChangePasswordModal />}
     </div>
   );
 }

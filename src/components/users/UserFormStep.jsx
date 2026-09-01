@@ -1,4 +1,4 @@
-import { KeyRound } from "lucide-react";
+import { KeyRound, AlertCircle } from "lucide-react";
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
 import { toProperCase } from "../../utils/text.js";
@@ -9,12 +9,33 @@ export default function UserFormStep({
   roles,
   user,
   statuses,
+  errors = {},
+  setErrors,
+  submitError = "",
+  setSubmitError,
+  isSubmitting = false,
   onResetPassword,
   onSubmit,
   onClose,
 }) {
+  const clearFieldError = (field) => {
+    if (errors && errors[field] && setErrors) {
+      setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+    if (submitError && setSubmitError) {
+      setSubmitError("");
+    }
+  };
+
   return (
     <form onSubmit={onSubmit} className="px-8 pb-8 overflow-y-auto max-h-[85vh]">
+      {submitError && (
+        <div className="bg-red-50 border border-red-200 text-red-600 text-xs font-medium p-3.5 rounded-2xl flex items-center gap-2.5 mb-5 animate-fade-in">
+          <AlertCircle size={16} className="shrink-0 text-red-600" />
+          <span>{submitError}</span>
+        </div>
+      )}
+
       <div className="space-y-5">
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -25,15 +46,28 @@ export default function UserFormStep({
               type="text"
               required
               value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, firstName: e.target.value });
+                clearFieldError("firstName");
+              }}
               onBlur={(e) =>
                 setFormData((prev) => ({
                   ...prev,
                   firstName: toProperCase(e.target.value),
                 }))
               }
-              className="w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-[#0B4A6E]/20"
+              className={`w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 ${
+                errors.firstName
+                  ? "border-2 border-[#CD3E3E] focus:ring-red-200"
+                  : "focus:ring-[#0B4A6E]/20"
+              }`}
             />
+            {errors.firstName && (
+              <p className="text-[#CD3E3E] text-xs mt-1.5 ml-3 font-medium flex items-center gap-1">
+                <AlertCircle size={13} className="shrink-0" />
+                <span>{errors.firstName}</span>
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-[15px] text-gray-900 mb-1.5">
@@ -43,15 +77,28 @@ export default function UserFormStep({
               type="text"
               required
               value={formData.lastName}
-              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, lastName: e.target.value });
+                clearFieldError("lastName");
+              }}
               onBlur={(e) =>
                 setFormData((prev) => ({
                   ...prev,
                   lastName: toProperCase(e.target.value),
                 }))
               }
-              className="w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-[#0B4A6E]/20"
+              className={`w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 ${
+                errors.lastName
+                  ? "border-2 border-[#CD3E3E] focus:ring-red-200"
+                  : "focus:ring-[#0B4A6E]/20"
+              }`}
             />
+            {errors.lastName && (
+              <p className="text-[#CD3E3E] text-xs mt-1.5 ml-3 font-medium flex items-center gap-1">
+                <AlertCircle size={13} className="shrink-0" />
+                <span>{errors.lastName}</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -61,9 +108,22 @@ export default function UserFormStep({
             <input
               type="date"
               value={formData.birthday}
-              onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
-              className="w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-[#0B4A6E]/20 cursor-pointer"
+              onChange={(e) => {
+                setFormData({ ...formData, birthday: e.target.value });
+                clearFieldError("birthday");
+              }}
+              className={`w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 cursor-pointer ${
+                errors.birthday
+                  ? "border-2 border-[#CD3E3E] focus:ring-red-200"
+                  : "focus:ring-[#0B4A6E]/20"
+              }`}
             />
+            {errors.birthday && (
+              <p className="text-[#CD3E3E] text-xs mt-1.5 ml-3 font-medium flex items-center gap-1">
+                <AlertCircle size={13} className="shrink-0" />
+                <span>{errors.birthday}</span>
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-[15px] text-gray-900 mb-1.5">
@@ -72,10 +132,24 @@ export default function UserFormStep({
             <input
               type="text"
               required
+              placeholder="e.g. 09171234567 or +639171234567"
               value={formData.contactNo}
-              onChange={(e) => setFormData({ ...formData, contactNo: e.target.value })}
-              className="w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-[#0B4A6E]/20"
+              onChange={(e) => {
+                setFormData({ ...formData, contactNo: e.target.value });
+                clearFieldError("contactNo");
+              }}
+              className={`w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 ${
+                errors.contactNo
+                  ? "border-2 border-[#CD3E3E] focus:ring-red-200"
+                  : "focus:ring-[#0B4A6E]/20"
+              }`}
             />
+            {errors.contactNo && (
+              <p className="text-[#CD3E3E] text-xs mt-1.5 ml-3 font-medium flex items-center gap-1">
+                <AlertCircle size={13} className="shrink-0" />
+                <span>{errors.contactNo}</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -86,8 +160,15 @@ export default function UserFormStep({
           <select
             required
             value={formData.role}
-            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-            className="w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-[#0B4A6E]/20 cursor-pointer appearance-none"
+            onChange={(e) => {
+              setFormData({ ...formData, role: e.target.value });
+              clearFieldError("role");
+            }}
+            className={`w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 cursor-pointer appearance-none ${
+              errors.role
+                ? "border-2 border-[#CD3E3E] focus:ring-red-200"
+                : "focus:ring-[#0B4A6E]/20"
+            }`}
           >
             {roles && roles.length > 0 ? (
               roles.map((r, idx) => (
@@ -106,6 +187,12 @@ export default function UserFormStep({
               </>
             )}
           </select>
+          {errors.role && (
+            <p className="text-[#CD3E3E] text-xs mt-1.5 ml-3 font-medium flex items-center gap-1">
+              <AlertCircle size={13} className="shrink-0" />
+              <span>{errors.role}</span>
+            </p>
+          )}
         </div>
 
         {user && (
@@ -179,14 +266,22 @@ export default function UserFormStep({
       <div className="mt-8 flex flex-col gap-3">
         <Button
           type="submit"
-          className="w-full py-3.5 bg-[#F6C445] hover:bg-[#e2b23b] border-none !text-[#0B4A6E] rounded-full font-bold uppercase tracking-widest text-[11px] transition-colors"
+          disabled={isSubmitting}
+          className="w-full py-3.5 bg-[#F6C445] hover:bg-[#e2b23b] disabled:opacity-50 disabled:cursor-not-allowed border-none !text-[#0B4A6E] rounded-full font-bold uppercase tracking-widest text-[11px] transition-colors"
         >
-          {user ? "SAVE CHANGES" : "CREATE ACCOUNT"}
+          {isSubmitting
+            ? user
+              ? "SAVING..."
+              : "PROCESSING..."
+            : user
+            ? "SAVE CHANGES"
+            : "CREATE ACCOUNT"}
         </Button>
         <Button
           type="button"
           onClick={onClose}
-          className="w-full py-2.5 bg-transparent border-none !text-[#0B4A6E] font-bold uppercase tracking-widest text-[11px] hover:bg-gray-50 rounded-full transition-colors cursor-pointer"
+          disabled={isSubmitting}
+          className="w-full py-2.5 bg-transparent border-none !text-[#0B4A6E] font-bold uppercase tracking-widest text-[11px] hover:bg-gray-50 disabled:opacity-50 rounded-full transition-colors cursor-pointer"
         >
           CANCEL
         </Button>
