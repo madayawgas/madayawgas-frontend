@@ -199,19 +199,34 @@ export default function Fleet() {
 
   const handleExecuteReactivate = async (adminPassword) => {
     if (!pendingReactivation) return;
-    await fleetApi.verifyAdminPassword(adminPassword);
-    await applyTruckUpdate(pendingReactivation.truckId, {
-      ...pendingReactivation.updatedData,
-      status: "ACTIVE",
-      operationalStatus: "ACTIVE",
-      isAvailable: true,
+    try {
+      await fleetApi.verifyAdminPassword(adminPassword);
+      await applyTruckUpdate(pendingReactivation.truckId, {
+        ...pendingReactivation.updatedData,
+        status: "ACTIVE",
+        operationalStatus: "ACTIVE",
+        isAvailable: true,
+      });
+      setShowReactivatePasswordModal(false);
+      setPendingReactivation(null);
+      setToast({
+        type: "success",
+        message: "Vehicle reactivated successfully",
+      });
+    } catch (err) {
+      console.error("Failed to reactivate vehicle:", err);
+      throw err;
+    }
+  };
+
+  // Step 1 of Reactivate: Prompt Admin Password Modal
+  const handleInitiateReactivate = (truck) => {
+    setSelectedTruck(null);
+    setPendingReactivation({
+      truckId: truck.id,
+      updatedData: { ...truck, status: "ACTIVE" },
     });
-    setShowReactivatePasswordModal(false);
-    setPendingReactivation(null);
-    setToast({
-      type: "success",
-      message: "Vehicle reactivated successfully",
-    });
+    setShowReactivatePasswordModal(true);
   };
 
   // Step 1 of Deactivate: Prompt confirmation modal
@@ -381,6 +396,7 @@ export default function Fleet() {
             onClose={() => setSelectedTruck(null)}
             onUpdate={handleUpdateTruck}
             onDeleteClick={handleInitiateDelete}
+            onReactivateClick={handleInitiateReactivate}
           />
         )}
 

@@ -1,6 +1,6 @@
 // src/components/fleet/TruckModal.jsx
 import { useState, useEffect } from "react";
-import { Truck, Pencil, Trash2, ArrowLeft } from "lucide-react";
+import { Truck, Pencil, Trash2, RotateCcw, ArrowLeft } from "lucide-react";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
 import Modal from "../ui/Modal";
@@ -89,6 +89,7 @@ export default function TruckModal({
   onClose,
   onUpdate,
   onDeleteClick,
+  onReactivateClick,
   onAdd,
   isAdding = false,
   trucks = [],
@@ -418,17 +419,30 @@ export default function TruckModal({
                 </button>
               )}
 
-              {/* Delete / Deactivate Icon Button */}
-              {canManage && (
-                <button
-                  type="button"
-                  onClick={() => onDeleteClick(displayTruck)}
-                  className="p-1.5 text-[#0A4B6E] hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
-                  title="Deactivate Fleet"
-                >
-                  <Trash2 size={18} />
-                </button>
-              )}
+              {/* Delete / Deactivate or Reactivate Icon Button */}
+              {canManage &&
+                (((displayTruck.status || "").toUpperCase() === "INACTIVE" ||
+                  (displayTruck.status || "").toUpperCase() === "RETIRED") ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onReactivateClick && onReactivateClick(displayTruck)
+                    }
+                    className="p-1.5 text-[#0A4B6E] hover:text-green-600 hover:bg-green-50 rounded-lg transition cursor-pointer"
+                    title="Reactivate Fleet"
+                  >
+                    <RotateCcw size={18} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteClick && onDeleteClick(displayTruck)}
+                    className="p-1.5 text-[#0A4B6E] hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                    title="Deactivate Fleet"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                ))}
             </div>
           </div>
 
