@@ -154,11 +154,13 @@ All entity creation and modification flows follow the standard multi-step modal 
 ### Dangerous Operations (Deactivation / Role Changes / Credential Resets):
 - **API Design Rule**: There is **NO standalone `/api/users/verify-password` endpoint**. The backend validates `confirmPassword` directly within the respective dangerous operation endpoints:
   - Deactivate Customer: `PATCH /api/sales/customers/:id/deactivate` with body `{ confirmPassword }`
+  - Deactivate Item/Product: `PATCH /api/inventory/products/:id/deactivate` with body `{ confirmPassword }`
+  - Deactivate Vehicle Asset: `PATCH /api/fleet/trucks/:id/deactivate` with body `{ confirmPassword }`
   - Update User Status (Deactivate/Activate/Block): `PATCH /api/users/:id/status` with body `{ confirmPassword, isActive, isBlocked }`
   - Reset User Credentials: `PATCH /api/users/:id/credentials` with body `{ confirmPassword, resetPassword, username }`
   - Change User Role: `PATCH /api/users/:id/role` with body `{ confirmPassword, roleId }`
 - **UI Flow**:
-  1. Triggering action opens warning confirmation modal (`DeactivateCustomerModal` / `DeactivateUserModal`).
+  1. Triggering action opens warning confirmation modal (`DeactivateCustomerModal` / `DeactivateUserModal` / `DeactivateItemModal` / `DeleteConfirmationModal`).
   2. Clicking "CONTINUE" opens `AdminPasswordModal`.
   3. `AdminPasswordModal` collects the admin password and passes it to the dangerous operation API call. If invalid, the endpoint returns `401 Unauthorized` and `AdminPasswordModal` renders the inline error message.
   4. Upon success, state/cache is updated, modal closes, and a success `ToastNotification` is displayed.
@@ -195,7 +197,7 @@ The application supports all Philippine contact number formats:
   - Multi-step Create/Edit wizard and password-guarded deactivation flow.
 
 ### 2. User Management (`/users`)
-- **Contract**: `docs/API Contract/user.api.md`
+- **Contract**: `docs/API Contract/user-management.api.md`
 - **Fields**: `id`, `username`, `firstName`, `lastName`, `phone`, `birthdate`, `role`, `roleId`, `isActive`, `isBlocked`, `mustChangePassword`, `createdAt`.
 - **Status Distinction**:
   - **Suspend (`isBlocked = true`)**: Temporary login restriction without deleting or deactivating account. User remains active in table (`isActive = true`) with a red `"SUSPENDED"` badge. Can be toggled in the Edit modal or status endpoint.
@@ -203,13 +205,20 @@ The application supports all Philippine contact number formats:
 - **Features**: Multi-step user wizard, password reset, temporary credentials generator, deactivation, reactivation, and RBAC permissions modal matrix.
 
 ### 3. Fleet & Maintenance (`/fleet`)
-- **Contract**: `docs/API Contract/fleet.api.md`
-- **Features**: Truck cards grid, truck details modal, maintenance status indicators, driver assignment, vehicle delete/deactivate.
+- **Contract**: `docs/API Contract/fleet-and-maintenance.api.md`
+- **Fields**: `id` (UUID), `plateNumber`, `model`, `yearModel`, `currentOdometer`, `lastPmOdometer`, `status` (`ACTIVE`, `UNDER_MAINTENANCE`, `INACTIVE`, `RETIRED`), `driverId`, `driver`, `createdAt`, `updatedAt`.
+- **Features**: Card grid, truck modal, operational condition management, soft-bounded driver assignment, mileage tracking, deactivation guard with `confirmPassword`, `localStorage` caching (`app_fleet_cache`).
 
-### 4. History Log (`/history-log`)
+### 4. Item Profile / Inventory (`/item-profile`, `/inventory`)
+- **Contract**: `docs/API Contract/inventory-products.api.md`
+- **Fields**: `id` (UUID), `name`, `category`, `containerType` (`CYLINDER` | `CANISTER`), `netWeightKg`, `isActive`, `createdAt`, `updatedAt`.
+- **Features**: Product card grid, register/edit product modal, category & container type filters, password-guarded deactivation (`PATCH /api/inventory/products/:id/deactivate`), `localStorage` caching (`app_items_cache`).
+
+### 5. History Log (`/history-log`)
+- **Contract**: `docs/API Contract/history-log.api.md`
 - **Features**: Chronological audit trail table, search, and module filter dropdown.
 
-### 5. Layout & Navigation (`/`)
+### 6. Layout & Navigation (`/`)
 - Sidebar includes: Dashboard, Fleet and Maintenance, Route Dispatch, Inventory, Sales and Delivery, Customer, Manage Users, History Log, Profile, Logout.
 - Top header includes: Current user name and role badge with yellow text `#FFDF2C`.
 

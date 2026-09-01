@@ -41,7 +41,7 @@ const INITIAL_PERMISSIONS_MAP = {
 };
 
 export default function Users() {
-  const { can, user: currentUser } = useAuth();
+  const { can } = useAuth();
 
   // Users Cache & Data State
   const [users, setUsers] = useState(() => {
@@ -297,67 +297,62 @@ export default function Users() {
 
   // Executes dangerous operation once admin password is confirmed in AdminPasswordModal
   const handleConfirmAdminPassword = async (adminPassword) => {
-    try {
-      if (pendingAction === "DEACTIVATE" && userToDeactivate) {
-        const targetId = userToDeactivate.id || userToDeactivate.userId;
-        await usersApi.updateUserStatus(targetId, {
-          confirmPassword: adminPassword,
-          adminPassword,
-          isActive: false,
-        });
-        updateUsersState((prev) =>
-          prev.map((u) =>
-            (u.id || u.userId) === targetId
-              ? { ...u, status: "DEACTIVATED", isActive: false }
-              : u
-          )
-        );
-        setShowToast(true);
-        setShowPasswordModal(false);
-        setUserToDeactivate(null);
-      } else if (pendingAction === "REACTIVATE" && userToReactivate) {
-        const targetId = userToReactivate.id || userToReactivate.userId;
-        await usersApi.updateUserStatus(targetId, {
-          confirmPassword: adminPassword,
-          adminPassword,
-          isActive: true,
-          isBlocked: false,
-        });
-        updateUsersState((prev) =>
-          prev.map((u) =>
-            (u.id || u.userId) === targetId
-              ? { ...u, status: "ACTIVE", isActive: true, isBlocked: false }
-              : u
-          )
-        );
-        setShowToast(true);
-        setShowPasswordModal(false);
-        setUserToReactivate(null);
-      } else if (pendingAction === "RESET_PASSWORD" && userToResetPassword) {
-        const targetId = userToResetPassword.id || userToResetPassword.userId;
-        const result = await usersApi.resetUserCredentials(targetId, {
-          resetPassword: true,
-          confirmPassword: adminPassword,
-          adminPassword,
-        });
-        updateUsersState((prev) =>
-          prev.map((u) =>
-            (u.id || u.userId) === targetId
-              ? { ...u, mustChangePassword: true }
-              : u
-          )
-        );
-        setShowPasswordModal(false);
-        setUserToResetPassword(null);
-        setResetCredentials(result);
-        setShowToast(true);
-      }
-
-      setPendingAction(null);
-    } catch (err) {
-      // Re-throw so AdminPasswordModal can capture and render inline
-      throw err;
+    if (pendingAction === "DEACTIVATE" && userToDeactivate) {
+      const targetId = userToDeactivate.id || userToDeactivate.userId;
+      await usersApi.updateUserStatus(targetId, {
+        confirmPassword: adminPassword,
+        adminPassword,
+        isActive: false,
+      });
+      updateUsersState((prev) =>
+        prev.map((u) =>
+          (u.id || u.userId) === targetId
+            ? { ...u, status: "DEACTIVATED", isActive: false }
+            : u
+        )
+      );
+      setShowToast(true);
+      setShowPasswordModal(false);
+      setUserToDeactivate(null);
+    } else if (pendingAction === "REACTIVATE" && userToReactivate) {
+      const targetId = userToReactivate.id || userToReactivate.userId;
+      await usersApi.updateUserStatus(targetId, {
+        confirmPassword: adminPassword,
+        adminPassword,
+        isActive: true,
+        isBlocked: false,
+      });
+      updateUsersState((prev) =>
+        prev.map((u) =>
+          (u.id || u.userId) === targetId
+            ? { ...u, status: "ACTIVE", isActive: true, isBlocked: false }
+            : u
+        )
+      );
+      setShowToast(true);
+      setShowPasswordModal(false);
+      setUserToReactivate(null);
+    } else if (pendingAction === "RESET_PASSWORD" && userToResetPassword) {
+      const targetId = userToResetPassword.id || userToResetPassword.userId;
+      const result = await usersApi.resetUserCredentials(targetId, {
+        resetPassword: true,
+        confirmPassword: adminPassword,
+        adminPassword,
+      });
+      updateUsersState((prev) =>
+        prev.map((u) =>
+          (u.id || u.userId) === targetId
+            ? { ...u, mustChangePassword: true }
+            : u
+        )
+      );
+      setShowPasswordModal(false);
+      setUserToResetPassword(null);
+      setResetCredentials(result);
+      setShowToast(true);
     }
+
+    setPendingAction(null);
   };
 
   const canManage = can ? can(PERMISSIONS?.USERS_MANAGE || "users.manage") : true;

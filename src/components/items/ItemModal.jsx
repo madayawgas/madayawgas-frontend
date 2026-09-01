@@ -1,11 +1,9 @@
 import { useState } from "react";
-import { Package, Flame, Pencil, Trash2, ArrowLeft, Eye, EyeOff, AlertTriangle } from "lucide-react";
+import { Package, Flame, Pencil, Trash2, ArrowLeft } from "lucide-react";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
-import { usersApi } from "../../api/users.js";
-import { useAuth } from "../../context/AuthContext.jsx";
 
 // Status Badge Style Helper
 const getBadgeStyle = (active) => {
@@ -52,15 +50,10 @@ export default function ItemModal({
   onAdd,
   isAdding = false,
   items = [],
+  canManage = true,
 }) {
-  const { user: currentUser } = useAuth();
-
   const [isEditing, setIsEditing] = useState(isAdding);
-  const [step, setStep] = useState(1); // 1: Form, 2: Confirm, 3: Password
-  const [adminPassword, setAdminPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [passwordError, setPasswordError] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [step, setStep] = useState(1); // 1: Form, 2: Confirm
   const [errors, setErrors] = useState({});
 
   const [formData, setFormData] = useState({
@@ -231,17 +224,19 @@ export default function ItemModal({
               </span>
 
               {/* Edit Icon Button */}
-              <button
-                type="button"
-                onClick={() => setIsEditing(true)}
-                className="p-1.5 text-[#0A4B6E] hover:bg-gray-100 rounded-lg transition cursor-pointer"
-                title="Edit Item"
-              >
-                <Pencil size={18} />
-              </button>
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="p-1.5 text-[#0A4B6E] hover:bg-gray-100 rounded-lg transition cursor-pointer"
+                  title="Edit Item"
+                >
+                  <Pencil size={18} />
+                </button>
+              )}
 
-              {/* Deactivate Icon Button - Restricted to Admin/Super Admin/Sales Manager */}
-              {(currentUser?.role === "Super Admin" || currentUser?.role === "Admin" || currentUser?.role === "Sales Manager") && (
+              {/* Deactivate Icon Button */}
+              {canManage && (
                 <button
                   type="button"
                   onClick={() => onDeleteClick(displayItem)}

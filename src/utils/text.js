@@ -20,5 +20,5 @@ export function toProperCase(str) {
   return str
     .trim()
     .toLowerCase()
-    .replace(/(?:^|[\s\-\'])\S/g, (match) => match.toUpperCase());
+    .replace(/(?:^|[\s\-'])\S/g, (match) => match.toUpperCase());
 }

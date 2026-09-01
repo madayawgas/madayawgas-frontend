@@ -308,39 +308,34 @@ export default function Customers() {
   const handleConfirmAdminPassword = async (adminPassword) => {
     if (!customerToDeactivate) return;
 
-    try {
-      const targetId = customerToDeactivate.id;
-      // Sends { confirmPassword } directly to PATCH /api/sales/customers/:id/deactivate
-      const result = await customersApi.deactivateCustomer(targetId, {
-        confirmPassword: adminPassword,
-      });
+    const targetId = customerToDeactivate.id;
+    // Sends { confirmPassword } directly to PATCH /api/sales/customers/:id/deactivate
+    const result = await customersApi.deactivateCustomer(targetId, {
+      confirmPassword: adminPassword,
+    });
 
-      const updatedCustomer = result?.customer || {
-        ...customerToDeactivate,
-        isActive: false,
-        updatedAt: new Date().toISOString(),
-      };
+    const updatedCustomer = result?.customer || {
+      ...customerToDeactivate,
+      isActive: false,
+      updatedAt: new Date().toISOString(),
+    };
 
-      updateCustomersState((prev) =>
-        prev.map((c) => (c.id === targetId ? { ...c, ...updatedCustomer } : c))
-      );
+    updateCustomersState((prev) =>
+      prev.map((c) => (c.id === targetId ? { ...c, ...updatedCustomer } : c))
+    );
 
-      if (activeDetailCustomer?.id === targetId) {
-        setActiveDetailCustomer((prev) => ({ ...prev, ...updatedCustomer }));
-        setSelectedCustomer((prev) => ({ ...prev, ...updatedCustomer }));
-      }
-
-      setToast({
-        type: "success",
-        message: "Customer Successfully Deactivated",
-      });
-
-      setShowPasswordModal(false);
-      setCustomerToDeactivate(null);
-    } catch (err) {
-      // Re-throw so AdminPasswordModal displays inline error
-      throw err;
+    if (activeDetailCustomer?.id === targetId) {
+      setActiveDetailCustomer((prev) => ({ ...prev, ...updatedCustomer }));
+      setSelectedCustomer((prev) => ({ ...prev, ...updatedCustomer }));
     }
+
+    setToast({
+      type: "success",
+      message: "Customer Successfully Deactivated",
+    });
+
+    setShowPasswordModal(false);
+    setCustomerToDeactivate(null);
   };
 
   return (

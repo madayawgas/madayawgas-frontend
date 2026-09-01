@@ -1,12 +1,10 @@
 // src/components/fleet/TruckModal.jsx
-import { useState } from "react";
-import { Truck, Pencil, Trash2, ArrowLeft, Eye, EyeOff, AlertTriangle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Truck, Pencil, Trash2, ArrowLeft } from "lucide-react";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
-import { usersApi } from "../../api/users.js";
-import { useAuth } from "../../context/AuthContext.jsx";
 
 // Status Badge Style Helper
 const getBadgeStyle = (status) => {
@@ -14,25 +12,51 @@ const getBadgeStyle = (status) => {
   switch (normalized) {
     case "ACTIVE":
     case "IN USE":
-      return "bg-[#10B981] text-white";
     case "AVAILABLE":
-      return "bg-[#1D5EAF] text-white";
-    case "STANDBY":
-    case "IN SHOP":
-      return "bg-[#B45309] text-white";
+      return "bg-[#10B981] text-white";
     case "UNDER REPAIR":
     case "UNDER MAINTENANCE":
+    case "IN SHOP":
       return "bg-[#DC2626] text-white";
+    case "INACTIVE":
+      return "bg-[#64748B] text-white";
+    case "RETIRED":
+      return "bg-[#475569] text-white";
     default:
       return "bg-[#64748B] text-white";
   }
 };
 
 /**
+ * Helper to produce clean initial form state from truck prop
+ */
+const getInitialFormData = (t) => {
+  const driverId = t?.driverId || t?.driver?.id || t?.assignedDriverId || "";
+  const driverName = t?.driver
+    ? `${t.driver.firstName || ""} ${t.driver.lastName || ""}`.trim() || t.driver.username
+    : t?.driverName || "";
+
+  return {
+    status: t?.status || t?.operationalStatus || "ACTIVE",
+    plateNumber: t?.plateNumber || "",
+    model: t?.model || "Isuzu Elf",
+    yearModel: t?.yearModel !== undefined ? t.yearModel : new Date().getFullYear(),
+    tankNumber: t?.tankNumber || "1234",
+    designatedRoute: t?.designatedRoute || "Admin4",
+    assignedDriverId: driverId,
+    driverName: driverName,
+    currentOdometer: t?.currentOdometer !== undefined ? t.currentOdometer : 0,
+    inputOdometer: "",
+    lastPmOdometer: t?.lastPmOdometer !== undefined ? t.lastPmOdometer : (t?.lastPMOdometer || 0),
+    activeRepair: t?.activeRepair || "",
+  };
+};
+
+/**
  * Interactive Status Pills selector for Edit / Add forms
  */
 const StatusPills = ({ currentStatus, onSelect }) => {
-  const statuses = ["ACTIVE", "AVAILABLE", "STANDBY", "UNDER REPAIR"];
+  const statuses = ["ACTIVE", "UNDER MAINTENANCE", "INACTIVE", "RETIRED"];
 
   return (
     <div className="flex flex-wrap gap-2">
@@ -45,7 +69,7 @@ const StatusPills = ({ currentStatus, onSelect }) => {
           <button
             key={status}
             type="button"
-            onClick={() => onSelect(status)}
+            onClick={() => onSelect(status.replace(" ", "_"))}
             className={`px-4 py-1.5 text-xs font-bold rounded-full uppercase tracking-wider transition-all cursor-pointer shadow-xs ${badgeBg} ${
               isSelected
                 ? "ring-2 ring-offset-2 ring-[#0A4B6E] scale-105"
@@ -69,33 +93,23 @@ export default function TruckModal({
   isAdding = false,
   trucks = [],
   driverOptions = [],
+  canManage = true,
 }) {
-  const { user: currentUser } = useAuth();
-
   const [isEditing, setIsEditing] = useState(isAdding);
-  const [step, setStep] = useState(1); // 1: Form, 2: Confirm, 3: Password
-  const [adminPassword, setAdminPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [passwordError, setPasswordError] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
+  const [step, setStep] = useState(1); // 1: Form, 2: Confirm
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [formData, setFormData] = useState({
-    status: "ACTIVE",
-    plateNumber: "",
-    model: "Model 1",
-    yearModel: "",
-    tankNumber: "1234",
-    designatedRoute: "Admin4",
-    assignedDriverId: "",
-    driverName: "",
-    currentOdometer: 2,
-    inputOdometer: "",
-    lastPMOdometer: "",
-    capacity: "",
-    activeRepair: "",
-    ...(truck || {}),
-  });
+  const [formData, setFormData] = useState(() => getInitialFormData(truck));
+
+  // Synchronize formData whenever the underlying truck prop updates
+  useEffect(() => {
+    if (truck && !isEditing) {
+      setFormData(getInitialFormData(truck));
+      setSubmitError("");
+    }
+  }, [truck, isEditing]);
 
   if (!truck && !isAdding) return null;
 
@@ -103,7 +117,11 @@ export default function TruckModal({
     const { name, value } = e.target;
     let parsedValue = value;
 
-    if (["currentOdometer", "inputOdometer", "lastPMOdometer", "yearModel", "capacity"].includes(name)) {
+    if (
+      ["currentOdometer", "inputOdometer", "lastPmOdometer", "lastPMOdometer", "yearModel"].includes(
+        name
+      )
+    ) {
       if (value !== "" && Number(value) < 0) return;
       parsedValue = value === "" ? "" : Number(value);
     }
@@ -121,19 +139,19 @@ export default function TruckModal({
         return newErrors;
       });
     }
+    if (submitError) setSubmitError("");
   };
 
   const validate = () => {
     const newErrors = {};
 
-    if (!formData.plateNumber) {
+    if (!formData.plateNumber || !formData.plateNumber.toString().trim()) {
       newErrors.plateNumber = "Plate number is required";
     } else {
       const plateExists = trucks.find(
         (t) =>
           t.plateNumber?.toString().toLowerCase() ===
             formData.plateNumber?.toString().toLowerCase() &&
-          t.truckId !== truck?.truckId &&
           t.id !== truck?.id
       );
       if (plateExists) {
@@ -141,119 +159,216 @@ export default function TruckModal({
       }
     }
 
+    if (!formData.model || !formData.model.toString().trim()) {
+      newErrors.model = "Truck model is required";
+    }
+
+    if (
+      formData.yearModel === "" ||
+      formData.yearModel === undefined ||
+      Number(formData.yearModel) < 1900 ||
+      Number(formData.yearModel) > new Date().getFullYear() + 1
+    ) {
+      newErrors.yearModel = `Year model must be between 1900 and ${new Date().getFullYear() + 1}`;
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleFormSubmit = () => {
+  const handleFormSubmit = async () => {
     if (!validate()) return;
     if (isAdding) {
       setStep(2); // Advance to Confirmation step for Add
     } else {
-      submitUpdate(); // Direct save for Edit
+      await submitUpdate(); // Direct save for Edit
     }
   };
 
-  const submitUpdate = () => {
-    const matchedDriver = driverOptions.find(
+  // Build complete list of available driver options ensuring current driver is not lost
+  const currentDriverId = truck?.driverId || truck?.driver?.id;
+  const currentDriverInOptions = driverOptions.some(
+    (d) => d.value === currentDriverId
+  );
+
+  const extraDriverOption =
+    !currentDriverInOptions && truck?.driver && currentDriverId
+      ? [
+          {
+            value: currentDriverId,
+            label: `${truck.driver.firstName || ""} ${truck.driver.lastName || ""}`.trim() || truck.driver.username || "Current Driver",
+            firstName: truck.driver.firstName || "",
+            lastName: truck.driver.lastName || "",
+            phone: truck.driver.phone || "",
+            username: truck.driver.username || "",
+            role: truck.driver.role || "Driver",
+          },
+        ]
+      : [];
+
+  const allDrivers = [...driverOptions, ...extraDriverOption];
+  const selectDriverOptions = [
+    { value: "", label: "No Assigned (Unassigned)" },
+    ...allDrivers,
+  ];
+
+  const submitUpdate = async () => {
+    const matchedDriver = allDrivers.find(
       (d) => d.value === formData.assignedDriverId
     );
-
-    const currentDate = new Date();
-    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}-${String(currentDate.getDate()).padStart(
-      2,
-      "0"
-    )}-${currentDate.getFullYear()} ${String(
-      currentDate.getHours()
-    ).padStart(2, "0")}:${String(currentDate.getMinutes()).padStart(
-      2,
-      "0"
-    )}:${String(currentDate.getSeconds()).padStart(2, "0")}`;
 
     const effectiveOdometer =
       formData.inputOdometer !== "" && formData.inputOdometer !== undefined
         ? Number(formData.inputOdometer)
-        : formData.currentOdometer;
+        : Number(formData.currentOdometer) || 0;
+
+    const isDeactivated = formData.status === "INACTIVE" || formData.status === "RETIRED";
+    const finalDriverId = isDeactivated ? null : (formData.assignedDriverId || null);
+
+    const finalDriverObj = isDeactivated || !finalDriverId
+      ? null
+      : matchedDriver
+      ? {
+          id: matchedDriver.value,
+          firstName: matchedDriver.firstName || matchedDriver.label.split(" ")[0] || "",
+          lastName: matchedDriver.lastName || matchedDriver.label.split(" ").slice(1).join(" ") || "",
+          phone: matchedDriver.phone || "",
+          username: matchedDriver.username || "",
+          role: matchedDriver.role || "Driver",
+        }
+      : truck?.driver && (truck.driver.id === finalDriverId || truck.driverId === finalDriverId)
+      ? truck.driver
+      : null;
+
+    const finalDriverName = isDeactivated || !finalDriverId
+      ? "No Assigned"
+      : matchedDriver
+      ? matchedDriver.label
+      : finalDriverObj
+      ? `${finalDriverObj.firstName || ""} ${finalDriverObj.lastName || ""}`.trim()
+      : "No Assigned";
 
     const finalData = {
-      ...formData,
+      ...(truck || {}),
+      plateNumber: formData.plateNumber.trim(),
+      model: formData.model.trim(),
+      yearModel: Number(formData.yearModel) || new Date().getFullYear(),
       currentOdometer: effectiveOdometer,
-      driverName: matchedDriver
-        ? matchedDriver.label
-        : formData.driverName || "No Assigned",
+      lastPmOdometer: Number(formData.lastPmOdometer) || 0,
+      driverId: finalDriverId,
+      driver: finalDriverObj,
+      driverName: finalDriverName,
       designatedRoute: formData.designatedRoute || "No Route Assigned",
-      assignedDriverId: formData.assignedDriverId || null,
-      lastUpdated: formattedDate,
+      status: formData.status || "ACTIVE",
+      operationalStatus: formData.status || "ACTIVE",
+      isAvailable: formData.status === "ACTIVE",
+      updatedAt: new Date().toISOString(),
     };
 
-    onUpdate(truck.id || truck.truckId, finalData);
-    setIsEditing(false);
+    try {
+      setIsSubmitting(true);
+      setSubmitError("");
+      if (onUpdate) {
+        await onUpdate(truck.id, finalData);
+      }
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Error submitting truck update:", err);
+      setSubmitError(err.message || "Failed to update vehicle. Please check inputs and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleConfirmAdd = () => {
-    const matchedDriver = driverOptions.find(
+    const matchedDriver = allDrivers.find(
       (d) => d.value === formData.assignedDriverId
     );
-
-    const currentDate = new Date();
-    const formattedDate = `${String(currentDate.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}-${String(currentDate.getDate()).padStart(
-      2,
-      "0"
-    )}-${currentDate.getFullYear()} ${String(
-      currentDate.getHours()
-    ).padStart(2, "0")}:${String(currentDate.getMinutes()).padStart(
-      2,
-      "0"
-    )}:${String(currentDate.getSeconds()).padStart(2, "0")}`;
 
     const effectiveOdometer =
       formData.inputOdometer !== "" && formData.inputOdometer !== undefined
         ? Number(formData.inputOdometer)
-        : formData.currentOdometer;
+        : Number(formData.currentOdometer) || 0;
+
+    const isDeactivated = formData.status === "INACTIVE" || formData.status === "RETIRED";
+    const finalDriverId = isDeactivated ? null : (formData.assignedDriverId || null);
+
+    const finalDriverObj = isDeactivated || !finalDriverId
+      ? null
+      : matchedDriver
+      ? {
+          id: matchedDriver.value,
+          firstName: matchedDriver.firstName || matchedDriver.label.split(" ")[0] || "",
+          lastName: matchedDriver.lastName || matchedDriver.label.split(" ").slice(1).join(" ") || "",
+          phone: matchedDriver.phone || "",
+          username: matchedDriver.username || "",
+          role: matchedDriver.role || "Driver",
+        }
+      : null;
+
+    const finalDriverName = isDeactivated || !finalDriverId
+      ? "No Assigned"
+      : matchedDriver
+      ? matchedDriver.label
+      : "No Assigned";
 
     const finalData = {
-      ...formData,
+      plateNumber: formData.plateNumber.trim(),
+      model: formData.model.trim(),
+      yearModel: Number(formData.yearModel) || new Date().getFullYear(),
       currentOdometer: effectiveOdometer,
-      driverName: matchedDriver
-        ? matchedDriver.label
-        : formData.driverName || "No Assigned",
+      lastPmOdometer: Number(formData.lastPmOdometer) || 0,
+      status: formData.status || "ACTIVE",
+      operationalStatus: formData.status || "ACTIVE",
+      isAvailable: formData.status === "ACTIVE",
+      driverId: finalDriverId,
+      driver: finalDriverObj,
+      driverName: finalDriverName,
       designatedRoute: formData.designatedRoute || "No Route Assigned",
-      assignedDriverId: formData.assignedDriverId || null,
-      lastUpdated: formattedDate,
+      tankNumber: formData.tankNumber || "1234",
     };
 
     onAdd(finalData);
   };
 
+  const handleCancel = () => {
+    if (isAdding) {
+      onClose();
+    } else {
+      // Reset form state cleanly to original truck props
+      setFormData(getInitialFormData(truck));
+      setErrors({});
+      setSubmitError("");
+      setIsEditing(false);
+    }
+  };
 
-  const routeOptions = [
-    { value: "No Route Assigned", label: "No Route Assigned" },
-    { value: "Admin4", label: "Admin4" },
-    { value: "Route 1 - North District", label: "Route 1 - North District" },
-    { value: "Route 2 - South District", label: "Route 2 - South District" },
-    { value: "Route 3 - Central City", label: "Route 3 - Central City" },
-    { value: "Route 4 - East Coast", label: "Route 4 - East Coast" },
-  ];
-
-  const selectDriverOptions = [
-    { value: "", label: "No Assigned (Unassigned)" },
-    ...driverOptions,
-  ];
+  const handleStartEditing = () => {
+    setFormData(getInitialFormData(truck));
+    setErrors({});
+    setSubmitError("");
+    setIsEditing(true);
+  };
 
   const displayTruck = truck || {};
-  const matchedDriverObj = driverOptions.find(
+
+  // Resolved driver display for View mode (purely computed from truck prop)
+  const viewDriverDisplay = displayTruck.driver
+    ? `${displayTruck.driver.firstName || ""} ${displayTruck.driver.lastName || ""}`.trim() || displayTruck.driver.username
+    : displayTruck.driverName && displayTruck.driverName !== "Unassigned"
+    ? displayTruck.driverName
+    : "No Assigned";
+
+  // Resolved driver display for Add / Confirm screen (computed from form selection)
+  const formDriverObj = allDrivers.find(
     (d) => d.value === formData.assignedDriverId
   );
-  const assignedDriverLabel = matchedDriverObj ? matchedDriverObj.label : "No Assigned";
+  const formDriverLabel = formData.assignedDriverId
+    ? formDriverObj?.label || "No Assigned"
+    : "No Assigned";
 
   // ==========================================
-  // VIEW MODE MODAL (Screen 2: Fleet View Info)
+  // VIEW MODE MODAL (Screen: Truck View Info)
   // ==========================================
   if (!isEditing && !isAdding) {
     return (
@@ -277,7 +392,7 @@ export default function TruckModal({
             <div className="flex items-center gap-2.5 text-[#0A4B6E]">
               <Truck size={26} className="stroke-[2.2]" />
               <h2 className="text-xl md:text-2xl font-bold">
-                {displayTruck.plateNumber || `Truck #${displayTruck.truckId || ""}`}
+                {displayTruck.plateNumber || "Truck"}
               </h2>
             </div>
 
@@ -291,22 +406,24 @@ export default function TruckModal({
               </span>
 
               {/* Edit Icon Button */}
-              <button
-                type="button"
-                onClick={() => setIsEditing(true)}
-                className="p-1.5 text-[#0A4B6E] hover:bg-gray-100 rounded-lg transition cursor-pointer"
-                title="Edit Fleet"
-              >
-                <Pencil size={18} />
-              </button>
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={handleStartEditing}
+                  className="p-1.5 text-[#0A4B6E] hover:bg-gray-100 rounded-lg transition cursor-pointer"
+                  title="Edit Fleet"
+                >
+                  <Pencil size={18} />
+                </button>
+              )}
 
-              {/* Delete Icon Button - Restricted to Super Admin and Admin only */}
-              {(currentUser?.role === "Super Admin" || currentUser?.role === "Admin") && (
+              {/* Delete / Deactivate Icon Button */}
+              {canManage && (
                 <button
                   type="button"
                   onClick={() => onDeleteClick(displayTruck)}
                   className="p-1.5 text-[#0A4B6E] hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
-                  title="Delete Fleet"
+                  title="Deactivate Fleet"
                 >
                   <Trash2 size={18} />
                 </button>
@@ -314,45 +431,47 @@ export default function TruckModal({
             </div>
           </div>
 
-
-          {/* Details Body */}
-          <div className="bg-[#E1F3FE] rounded-2xl p-5 space-y-2 text-sm text-left">
+          {/* Details Body: Purely rendered from displayTruck */}
+          <div className="bg-[#E1F3FE] rounded-2xl p-5 space-y-2.5 text-sm text-left">
             <p className="text-[#588094]">
               Driver:{" "}
               <span className="font-bold text-[#0A4B6E]">
-                {displayTruck.driverName && displayTruck.driverName !== "Unassigned"
-                  ? displayTruck.driverName
-                  : "No Assigned"}
+                {viewDriverDisplay}
               </span>
             </p>
 
             <p className="text-[#588094]">
-              Designated Route:{" "}
+              Model & Year:{" "}
               <span className="font-bold text-[#0A4B6E]">
-                {displayTruck.designatedRoute || "No Route Assigned"}
-              </span>
-            </p>
-
-            <p className="text-[#588094]">
-              Model:{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {displayTruck.model || "Model 1"}
-              </span>
-            </p>
-
-            <p className="text-[#588094]">
-              Tank Number:{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {displayTruck.tankNumber || displayTruck.capacity || "1234"}
+                {displayTruck.model || "Isuzu Elf"}{" "}
+                {displayTruck.yearModel ? `(${displayTruck.yearModel})` : ""}
               </span>
             </p>
 
             <p className="text-[#588094]">
               Current Odometer:{" "}
               <span className="font-bold text-[#0A4B6E]">
-                {displayTruck.currentOdometer !== undefined && displayTruck.currentOdometer !== null
-                  ? `${displayTruck.currentOdometer.toLocaleString()}KM`
-                  : "2KM"}
+                {displayTruck.currentOdometer !== undefined &&
+                displayTruck.currentOdometer !== null
+                  ? `${Number(displayTruck.currentOdometer).toLocaleString()} KM`
+                  : "0 KM"}
+              </span>
+            </p>
+
+            <p className="text-[#588094]">
+              Last PM Odometer:{" "}
+              <span className="font-bold text-[#0A4B6E]">
+                {displayTruck.lastPmOdometer !== undefined &&
+                displayTruck.lastPmOdometer !== null
+                  ? `${Number(displayTruck.lastPmOdometer).toLocaleString()} KM`
+                  : `${Number(displayTruck.lastPMOdometer || 0).toLocaleString()} KM`}
+              </span>
+            </p>
+
+            <p className="text-[#588094]">
+              Operational Status:{" "}
+              <span className="font-bold text-[#0A4B6E]">
+                {displayTruck.status?.replace("_", " ") || "ACTIVE"}
               </span>
             </p>
 
@@ -398,25 +517,13 @@ export default function TruckModal({
             <p className="text-[#588094]">
               Truck Model:{" "}
               <span className="font-bold text-[#0A4B6E]">
-                {formData.model || "-"}
-              </span>
-            </p>
-            <p className="text-[#588094]">
-              Designated Route:{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {formData.designatedRoute || "No Route Assigned"}
-              </span>
-            </p>
-            <p className="text-[#588094]">
-              Tank Model:{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {formData.tankNumber || "-"}
+                {formData.model || "-"} ({formData.yearModel || "-"})
               </span>
             </p>
             <p className="text-[#588094]">
               Assigned Driver:{" "}
               <span className="font-bold text-[#0A4B6E]">
-                {assignedDriverLabel}
+                {formDriverLabel}
               </span>
             </p>
             <p className="text-[#588094]">
@@ -432,7 +539,7 @@ export default function TruckModal({
                   formData.status
                 )}`}
               >
-                {formData.status}
+                {formData.status?.replace("_", " ") || "ACTIVE"}
               </span>
             </div>
           </div>
@@ -458,26 +565,29 @@ export default function TruckModal({
     );
   }
 
-
   // ==========================================
   // STEP 1: FORM VIEW (Edit or Add Flow)
   // ==========================================
   const formFooter = (
     <div className="w-full flex flex-col items-center">
+      {submitError && (
+        <div className="w-full bg-red-50 text-red-700 p-3 rounded-xl text-xs font-medium border border-red-200 mb-3 text-left">
+          {submitError}
+        </div>
+      )}
       <button
         type="button"
+        disabled={isSubmitting}
         onClick={handleFormSubmit}
-        className="w-full bg-[#FFDF2C] hover:bg-[#F5D020] text-[#0A4B6E] font-bold text-sm py-3 rounded-full uppercase tracking-wider transition shadow-sm cursor-pointer mb-2"
+        className="w-full bg-[#FFDF2C] hover:bg-[#F5D020] disabled:opacity-50 text-[#0A4B6E] font-bold text-sm py-3 rounded-full uppercase tracking-wider transition shadow-sm cursor-pointer mb-2"
       >
-        {isAdding ? "ADD TRUCK" : "SAVE CHANGES"}
+        {isSubmitting ? "SAVING..." : isAdding ? "ADD TRUCK" : "SAVE CHANGES"}
       </button>
       <button
         type="button"
-        onClick={() => {
-          if (isAdding) onClose();
-          else setIsEditing(false);
-        }}
-        className="text-xs text-[#0A4B6E] font-semibold hover:underline cursor-pointer"
+        disabled={isSubmitting}
+        onClick={handleCancel}
+        className="text-xs text-[#0A4B6E] font-semibold hover:underline cursor-pointer disabled:opacity-50"
       >
         CANCEL
       </button>
@@ -487,7 +597,7 @@ export default function TruckModal({
   return (
     <Modal
       isOpen={true}
-      onClose={onClose}
+      onClose={handleCancel}
       title={isAdding ? "Add Truck" : "Edit Truck"}
       maxWidth="max-w-xl"
       footer={formFooter}
@@ -508,31 +618,22 @@ export default function TruckModal({
             name="model"
             value={formData.model || ""}
             onChange={handleInputChange}
-            placeholder="e.g. Model 1"
+            placeholder="e.g. Isuzu Elf"
             error={errors.model}
           />
         </div>
 
-        {/* ROW 2: Designated Route & Tank Number / Tank Model */}
+        {/* ROW 2: Year Model & Assigned Driver */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
-            label="Designated Route"
-            name="designatedRoute"
-            value={formData.designatedRoute || "Admin4"}
-            onChange={handleInputChange}
-            options={routeOptions}
-          />
           <Input
-            label="Tank Model"
-            name="tankNumber"
-            value={formData.tankNumber || ""}
+            label="Year Model"
+            type="number"
+            name="yearModel"
+            value={formData.yearModel !== undefined ? formData.yearModel : ""}
             onChange={handleInputChange}
-            placeholder="e.g. 1234"
+            placeholder="e.g. 2023"
+            error={errors.yearModel}
           />
-        </div>
-
-        {/* ROW 3: Assigned Driver (Full Width) */}
-        <div>
           <Select
             label="Assigned Driver"
             name="assignedDriverId"
@@ -543,27 +644,40 @@ export default function TruckModal({
           />
         </div>
 
-        {/* ROW 4: Current Odometer & Input Odometer */}
+        {/* ROW 3: Current Odometer & Input / New Odometer */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Current Odometer"
             type="text"
             name="currentOdometer"
             value={
-              formData.currentOdometer !== undefined && formData.currentOdometer !== null
-                ? `${formData.currentOdometer.toLocaleString()}KM`
-                : "2KM"
+              formData.currentOdometer !== undefined &&
+              formData.currentOdometer !== null
+                ? `${Number(formData.currentOdometer).toLocaleString()} KM`
+                : "0 KM"
             }
             disabled
             className="opacity-75 cursor-not-allowed"
           />
           <Input
-            label="Input Odometer"
+            label={isAdding ? "Initial Odometer (KM)" : "Update Odometer (KM)"}
             type="number"
             name="inputOdometer"
             value={formData.inputOdometer || ""}
             onChange={handleInputChange}
-            placeholder="Input Odometer"
+            placeholder="Enter KM"
+          />
+        </div>
+
+        {/* ROW 4: Last PM Odometer */}
+        <div>
+          <Input
+            label="Last Preventive Maintenance (PM) Odometer (KM)"
+            type="number"
+            name="lastPmOdometer"
+            value={formData.lastPmOdometer !== undefined ? formData.lastPmOdometer : ""}
+            onChange={handleInputChange}
+            placeholder="e.g. 40000"
           />
         </div>
 
@@ -579,5 +693,3 @@ export default function TruckModal({
     </Modal>
   );
 }
-
-

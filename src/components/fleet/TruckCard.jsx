@@ -2,24 +2,25 @@
 import { Truck, List } from "lucide-react";
 
 export default function TruckCard({ truck, onClick }) {
-  const normalizedStatus = (truck.status || "").toUpperCase().replace("_", " ");
+  const normalizedStatus = (truck.status || truck.operationalStatus || "").toUpperCase().replace("_", " ");
 
   // Status Badge Pill Styling
   const getBadgeStyle = (status) => {
     switch (status) {
       case "ACTIVE":
       case "IN USE":
-        return "bg-[#10B981] text-white"; // Green
       case "AVAILABLE":
-        return "bg-[#1D5EAF] text-white"; // Blue
-      case "STANDBY":
-      case "IN SHOP":
-        return "bg-[#B45309] text-white"; // Amber/Brown
-      case "UNDER REPAIR":
+        return "bg-[#10B981] text-white"; // Green
       case "UNDER MAINTENANCE":
+      case "UNDER REPAIR":
+      case "IN SHOP":
         return "bg-[#DC2626] text-white"; // Red
+      case "INACTIVE":
+        return "bg-[#64748B] text-white"; // Slate Gray
+      case "RETIRED":
+        return "bg-[#475569] text-white"; // Dark Slate
       default:
-        return "bg-[#64748B] text-white"; // Default slate
+        return "bg-[#64748B] text-white";
     }
   };
 
@@ -47,7 +48,7 @@ export default function TruckCard({ truck, onClick }) {
         </h3>
       </div>
 
-      {/* CARD BODY: Driver, Model/Route, Current Odometer */}
+      {/* CARD BODY: Driver, Model/Year, Current Odometer */}
       <div className="space-y-1.5 text-[12.5px] leading-relaxed mb-4 px-0.5 text-left">
         <p className="text-[#5B8399] group-hover:text-[#A88B3D] transition-colors truncate">
           Driver:{" "}
@@ -59,7 +60,7 @@ export default function TruckCard({ truck, onClick }) {
         <p className="text-[#5B8399] group-hover:text-[#A88B3D] transition-colors truncate">
           Model:{" "}
           <span className="font-bold text-[#0A4B6E] group-hover:text-[#854D0E] transition-colors">
-            {truck.model || "Isuzu Elf"}
+            {truck.model || "Isuzu Elf"} {truck.yearModel ? `(${truck.yearModel})` : ""}
           </span>
         </p>
 
@@ -71,7 +72,6 @@ export default function TruckCard({ truck, onClick }) {
         </p>
       </div>
 
-
       {/* CARD FOOTER: Status Badge Pill + List Action Icon */}
       <div className="flex items-center justify-between mt-auto pt-1 px-0.5">
         <span
@@ -79,7 +79,7 @@ export default function TruckCard({ truck, onClick }) {
             normalizedStatus
           )}`}
         >
-          {normalizedStatus}
+          {normalizedStatus || "ACTIVE"}
         </span>
 
         {/* Action / Detail squircle button */}

@@ -3,6 +3,8 @@ import { useState, useEffect, useMemo } from "react";
 import { fleetApi } from "../../api/fleet.js";
 import { usersApi } from "../../api/users.js";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { PERMISSIONS } from "../../utils/permissions.js";
+import initialMockFleet from "../../mocks/fleet.json";
 
 import FleetHeader from "../../components/fleet/FleetHeader";
 import FleetControls from "../../components/fleet/FleetControls";
@@ -10,16 +12,37 @@ import TruckCard from "../../components/fleet/TruckCard";
 import TruckModal from "../../components/fleet/TruckModal";
 import DeleteConfirmationModal from "../../components/fleet/DeleteConfirmationModal";
 import AdminPasswordModal from "../../components/users/AdminPasswordModal";
-import SavedChangesToast from "../../components/ui/SavedChangesToast";
+import ToastNotification from "../../components/ui/ToastNotifications";
+
+const LOCAL_STORAGE_KEY = "app_fleet_cache";
 
 export default function Fleet() {
-  const { user: currentUser } = useAuth();
+  const { can } = useAuth();
 
-  const [trucks, setTrucks] = useState([]);
+  // RBAC Permission Guard
+  const canManage = can
+    ? can(PERMISSIONS?.FLEET_MANAGE || "fleet.manage")
+    : true;
+
+  // Initialize from cache or fallback to initialMockFleet
+  const [trucks, setTrucks] = useState(() => {
+    try {
+      const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error("Error reading cached fleet items:", e);
+    }
+    return initialMockFleet?.data?.trucks || [];
+  });
+
+  const [isLoading, setIsLoading] = useState(trucks.length === 0);
   const [driverOptions, setDriverOptions] = useState([]);
   const [selectedTruck, setSelectedTruck] = useState(null);
 
-  // Deletion States
+  // Deactivation States
   const [truckToDelete, setTruckToDelete] = useState(null);
   const [showDeletePasswordModal, setShowDeletePasswordModal] = useState(false);
 
@@ -38,26 +61,61 @@ export default function Fleet() {
 
   // Modal & Toast States
   const [isAddingTruck, setIsAddingTruck] = useState(false);
-  const [showToast, setShowToast] = useState(false);
+  const [toast, setToast] = useState(null); // { type: "success" | "error" | "info" | "warning", message: string }
+
+  // Helper to sync local state changes with localStorage
+  const updateFleetState = (updater) => {
+    setTrucks((prev) => {
+      const updated = typeof updater === "function" ? updater(prev) : updater;
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error("Failed to write to fleet cache:", e);
+      }
+      return updated;
+    });
+  };
 
   useEffect(() => {
     async function loadFleet() {
       try {
+        setIsLoading(true);
         const [trucksData, usersData] = await Promise.all([
           fleetApi.getTrucks(),
           usersApi.getAllUsers(),
         ]);
-        if (trucksData) setTrucks(trucksData);
-        if (usersData) {
-          const drivers = usersData.map((u) => ({
-            value: u.id || u.userId,
-            label: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username,
-            role: u.role || "Driver",
-          }));
-          setDriverOptions(drivers);
+
+        if (trucksData && Array.isArray(trucksData) && trucksData.length > 0) {
+          updateFleetState(trucksData);
         }
-      } catch {
-        // Retain current state
+
+        if (usersData && Array.isArray(usersData)) {
+          // STRICT: Only users with role "Driver" and active accounts
+          const eligibleDrivers = usersData
+            .filter((u) => {
+              const r = (u.role || "").toLowerCase().trim();
+              return r === "driver" && u.isActive !== false && !u.isBlocked;
+            })
+            .map((u) => ({
+              value: u.id || u.userId,
+              label: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username,
+              firstName: u.firstName || "",
+              lastName: u.lastName || "",
+              phone: u.phone || "",
+              username: u.username || "",
+              role: u.role || "Driver",
+            }));
+
+          setDriverOptions(eligibleDrivers);
+        }
+      } catch (err) {
+        console.error("Failed to load fleet data:", err);
+        setToast({
+          type: "error",
+          message: "Failed to load fleet records. Please refresh the page.",
+        });
+      } finally {
+        setIsLoading(false);
       }
     }
     loadFleet();
@@ -69,93 +127,154 @@ export default function Fleet() {
 
   const handleAddTruck = async (newTruckData) => {
     try {
-      const created = await fleetApi.createTruck(newTruckData);
-      setTrucks((prev) => [...prev, created]);
-    } catch {
-      setTrucks((prev) => [...prev, { id: `trk-${Date.now()}`, ...newTruckData }]);
+      const result = await fleetApi.createTruck(newTruckData);
+      const created = result?.truck || {
+        id: `trk-${Date.now()}`,
+        status: "ACTIVE",
+        operationalStatus: "ACTIVE",
+        isAvailable: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        ...newTruckData,
+      };
+
+      updateFleetState((prev) => [created, ...prev]);
+      setIsAddingTruck(false);
+      setToast({
+        type: "success",
+        message: `Vehicle ${created.plateNumber || ""} added successfully`,
+      });
+    } catch (err) {
+      console.error("Failed to create vehicle:", err);
+      setToast({
+        type: "error",
+        message: err.message || "Failed to add vehicle. Please try again.",
+      });
     }
-    setIsAddingTruck(false);
-    setShowToast(true);
   };
 
   const applyTruckUpdate = async (truckId, updatedData) => {
     try {
-      await fleetApi.updateTruck(truckId, updatedData);
-      setTrucks((prev) =>
-        prev.map((t) => (t.id === truckId || t.truckId === truckId ? { ...t, ...updatedData } : t))
+      const result = await fleetApi.updateTruck(truckId, updatedData);
+      const updated = result?.truck || {
+        ...updatedData,
+        id: truckId,
+        updatedAt: new Date().toISOString(),
+      };
+
+      updateFleetState((prev) =>
+        prev.map((t) => (t.id === truckId ? { ...t, ...updated } : t))
       );
-    } catch {
-      setTrucks((prev) =>
-        prev.map((t) => (t.id === truckId || t.truckId === truckId ? { ...t, ...updatedData } : t))
-      );
+
+      // Keep detail modal open with updated data
+      setSelectedTruck(updated);
+
+      setToast({
+        type: "success",
+        message: `Vehicle ${updated.plateNumber || ""} updated successfully`,
+      });
+      return updated;
+    } catch (err) {
+      console.error("Failed to update vehicle:", err);
+      setToast({
+        type: "error",
+        message: err.message || "Failed to update vehicle. Please try again.",
+      });
+      throw err;
     }
-    setSelectedTruck(null);
-    setShowToast(true);
   };
 
   const handleUpdateTruck = async (truckId, updatedData) => {
-    const existing = trucks.find((t) => t.id === truckId || t.truckId === truckId);
-    const wasInactive = existing && (existing.status === "INACTIVE" || existing.status === "RETIRED");
-    const isBecomingActive = updatedData.status === "ACTIVE" || updatedData.status === "AVAILABLE";
+    const existing = trucks.find((t) => t.id === truckId);
+    const wasInactive =
+      existing &&
+      (existing.status === "INACTIVE" || existing.status === "RETIRED");
+    const isBecomingActive =
+      updatedData.status === "ACTIVE" || updatedData.status === "AVAILABLE";
 
     // Require password confirmation when making a deactivated fleet active again
     if (wasInactive && isBecomingActive) {
       setPendingReactivation({ truckId, updatedData });
       setShowReactivatePasswordModal(true);
-      return;
+      return null;
     }
 
-    await applyTruckUpdate(truckId, updatedData);
+    return await applyTruckUpdate(truckId, updatedData);
   };
 
   const handleExecuteReactivate = async (adminPassword) => {
     if (!pendingReactivation) return;
-    await usersApi.verifyAdminPassword(adminPassword, currentUser?.username);
-    await applyTruckUpdate(pendingReactivation.truckId, pendingReactivation.updatedData);
+    await fleetApi.verifyAdminPassword(adminPassword);
+    await applyTruckUpdate(pendingReactivation.truckId, {
+      ...pendingReactivation.updatedData,
+      status: "ACTIVE",
+      operationalStatus: "ACTIVE",
+      isAvailable: true,
+    });
     setShowReactivatePasswordModal(false);
     setPendingReactivation(null);
+    setToast({
+      type: "success",
+      message: "Vehicle reactivated successfully",
+    });
   };
 
-  // Step 1 of Delete: Prompt confirmation modal
+  // Step 1 of Deactivate: Prompt confirmation modal
   const handleInitiateDelete = (truck) => {
     setSelectedTruck(null);
     setTruckToDelete(truck);
   };
 
-  // Step 2 of Delete: Advance from DeleteConfirmationModal to AdminPasswordModal
+  // Step 2 of Deactivate: Advance from DeleteConfirmationModal to AdminPasswordModal
   const handleConfirmDeletePrompt = () => {
     setShowDeletePasswordModal(true);
   };
 
-  // Step 3 of Delete: Execute deletion after admin password verification
+  // Step 3 of Deactivate: Execute deactivation with confirmPassword
   const handleExecuteDelete = async (adminPassword) => {
     if (!truckToDelete) return;
-    if (currentUser?.role !== "Super Admin" && currentUser?.role !== "Admin") {
-      throw new Error("Unauthorized: Only Super Admin or Admin accounts can delete fleet vehicles.");
-    }
+    const targetId = truckToDelete.id;
 
-    const targetId = truckToDelete.id || truckToDelete.truckId;
+    const result = await fleetApi.deactivateTruck(targetId, {
+      confirmPassword: adminPassword,
+    });
 
-    await usersApi.verifyAdminPassword(adminPassword, currentUser?.username);
-    await fleetApi.deleteTruck(targetId);
+    const updated = result?.truck || {
+      ...truckToDelete,
+      status: "INACTIVE",
+      operationalStatus: "INACTIVE",
+      isAvailable: false,
+      driverId: null,
+      driver: null,
+      driverName: "No Assigned",
+      updatedAt: new Date().toISOString(),
+    };
 
-    setTrucks((prev) => prev.filter((t) => t.id !== targetId && t.truckId !== targetId));
+    updateFleetState((prev) =>
+      prev.map((t) => (t.id === targetId ? { ...t, ...updated } : t))
+    );
+
     setShowDeletePasswordModal(false);
     setTruckToDelete(null);
-    setShowToast(true);
+    setToast({
+      type: "success",
+      message: `Vehicle ${truckToDelete.plateNumber || ""} deactivated successfully`,
+    });
   };
-
-
 
   // Processed search & multi-field filter rules
   const filteredTrucks = useMemo(() => {
     return trucks.filter((truck) => {
       // 1. Search filter (plate, driver, route, status, model)
       const q = searchTerm.toLowerCase().trim();
+      const driverName = truck.driver
+        ? `${truck.driver.firstName || ""} ${truck.driver.lastName || ""}`.trim() || truck.driver.username
+        : truck.driverName || "";
+
       const matchesSearch =
         !q ||
         (truck.plateNumber || "").toLowerCase().includes(q) ||
-        (truck.driverName || "").toLowerCase().includes(q) ||
+        driverName.toLowerCase().includes(q) ||
         (truck.designatedRoute || "").toLowerCase().includes(q) ||
         (truck.model || "").toLowerCase().includes(q) ||
         (truck.status || "").toLowerCase().includes(q);
@@ -172,11 +291,11 @@ export default function Fleet() {
       let matchesRole = true;
       if (filters.role && filters.role !== "All Roles") {
         const matchedDriver = driverOptions.find(
-          (d) => d.label?.toLowerCase() === truck.driverName?.toLowerCase()
+          (d) => d.label?.toLowerCase() === driverName.toLowerCase()
         );
         matchesRole =
           matchedDriver?.role?.toLowerCase() === filters.role.toLowerCase() ||
-          (filters.role.toLowerCase() === "driver" && truck.driverName && truck.driverName !== "No Assigned");
+          (filters.role.toLowerCase() === "driver" && driverName && driverName !== "No Assigned");
       }
 
       return matchesSearch && matchesStatus && matchesRole;
@@ -187,7 +306,10 @@ export default function Fleet() {
     <div className="p-6 md:p-8">
       <div className="w-full max-w-[1400px] mx-auto">
         {/* Header with Title & Add New Fleet button */}
-        <FleetHeader onAddTruck={handleAddNewTruck} />
+        <FleetHeader
+          canCreate={canManage}
+          onAddTruck={handleAddNewTruck}
+        />
 
         {/* Controls: Search Bar, Active Filter Chips, Filter Dropdown */}
         <FleetControls
@@ -200,11 +322,15 @@ export default function Fleet() {
         />
 
         {/* Fleet Cards Grid */}
-        {filteredTrucks.length > 0 ? (
+        {isLoading && trucks.length === 0 ? (
+          <div className="flex items-center justify-center py-20 text-gray-500 font-medium">
+            Loading fleet vehicles...
+          </div>
+        ) : filteredTrucks.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
             {filteredTrucks.map((truck) => (
               <TruckCard
-                key={truck.id || truck.truckId}
+                key={truck.id}
                 truck={truck}
                 onClick={() => setSelectedTruck(truck)}
               />
@@ -227,6 +353,7 @@ export default function Fleet() {
             truck={selectedTruck}
             trucks={trucks}
             driverOptions={driverOptions}
+            canManage={canManage}
             onClose={() => setSelectedTruck(null)}
             onUpdate={handleUpdateTruck}
             onDeleteClick={handleInitiateDelete}
@@ -239,6 +366,7 @@ export default function Fleet() {
             isAdding={true}
             trucks={trucks}
             driverOptions={driverOptions}
+            canManage={canManage}
             onClose={() => setIsAddingTruck(false)}
             onAdd={handleAddTruck}
           />
@@ -273,8 +401,14 @@ export default function Fleet() {
           onSubmit={handleExecuteReactivate}
         />
 
-        {/* Bottom Right Toast Notification */}
-        {showToast && <SavedChangesToast onClose={() => setShowToast(false)} />}
+        {/* Dynamic Toast Notifications (Success, Error, Info, Warning) */}
+        {toast && (
+          <ToastNotification
+            type={toast.type}
+            message={toast.message}
+            onClose={() => setToast(null)}
+          />
+        )}
       </div>
     </div>
   );
