@@ -11,6 +11,17 @@ const MOCK_CREDENTIALS = {
   temp_user: "TempPass123!",
 };
 
+/**
+ * Update or set a user's password in the offline mock credentials registry.
+ * @param {string} username
+ * @param {string} password
+ */
+export function setMockUserPassword(username, password) {
+  if (username && password) {
+    MOCK_CREDENTIALS[username] = password;
+  }
+}
+
 const MOCK_SESSION_KEY = "mg_mock_session_user";
 
 export const authApi = {

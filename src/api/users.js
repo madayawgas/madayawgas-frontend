@@ -1,5 +1,6 @@
 // src/api/users.js
 import { apiClient, isMock, delay } from "./client.js";
+import { setMockUserPassword } from "./auth.js";
 import mockUsers from "../mocks/users.json" with { type: "json" };
 import mockRoles from "../mocks/roles.json" with { type: "json" };
 
@@ -111,6 +112,7 @@ export const usersApi = {
       };
 
       const temporaryPassword = `Mg#${Math.random().toString(36).slice(-8)}!`;
+      setMockUserPassword(baseUsername, temporaryPassword);
 
       // Update mock dataset in memory
       mockUsers.data.users.unshift(newUser);
@@ -211,7 +213,6 @@ export const usersApi = {
         adminPassword: password,
         confirm_password: password,
         admin_password: password,
-        password: password,
       },
     });
     return result.data.user;
@@ -272,9 +273,14 @@ export const usersApi = {
         ? `Mg#${Math.random().toString(36).slice(-8)}!`
         : undefined;
 
+      const targetUsername = username || existingUser?.username;
+      if (tempPass && targetUsername) {
+        setMockUserPassword(targetUsername, tempPass);
+      }
+
       return {
         id,
-        username: username || existingUser?.username || "updated_username",
+        username: targetUsername || "updated_username",
         mustChangePassword: !!resetPassword,
         temporaryPassword: tempPass,
         message:
@@ -289,9 +295,8 @@ export const usersApi = {
         adminPassword: password,
         confirm_password: password,
         admin_password: password,
-        password: password,
-        resetPassword,
-        username,
+        resetPassword: resetPassword !== undefined ? resetPassword : true,
+        ...(username && { username }),
       },
     });
     return result.data;
@@ -351,7 +356,6 @@ export const usersApi = {
         adminPassword: password,
         confirm_password: password,
         admin_password: password,
-        password: password,
         ...(isActive !== undefined && { isActive }),
         ...(isBlocked !== undefined && { isBlocked }),
       },

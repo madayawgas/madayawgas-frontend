@@ -190,9 +190,15 @@ export const customersApi = {
       };
     }
 
+    const password = confirmPassword || payload?.adminPassword;
     const result = await apiClient(`/sales/customers/${id}/deactivate`, {
       method: "PATCH",
-      body: { confirmPassword },
+      body: {
+        confirmPassword: password,
+        adminPassword: password,
+        confirm_password: password,
+        admin_password: password,
+      },
     });
     return result.data;
   },

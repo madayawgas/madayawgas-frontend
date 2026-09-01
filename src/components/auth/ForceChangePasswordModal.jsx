@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { authApi } from "../../api/auth.js";
 import { KeyRound, Eye, EyeOff, AlertTriangle, LogOut, CheckCircle2 } from "lucide-react";
 import Button from "../ui/Button";
 
@@ -9,9 +10,10 @@ import Button from "../ui/Button";
  * or whenever mustChangePassword is true.
  */
 export default function ForceChangePasswordModal() {
-  const { currentUser, changePassword, logout } = useAuth();
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
 
+  const [userAccount] = useState(currentUser);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -42,20 +44,24 @@ export default function ForceChangePasswordModal() {
     setIsSubmitting(true);
     try {
       // API Contract: first-login / mustChangePassword: true does not require currentPassword
-      await changePassword({ newPassword });
+      await authApi.changePassword({ newPassword });
       setIsSuccess(true);
-
-      setTimeout(() => {
-        navigate("/login", {
-          replace: true,
-          state: {
-            successMessage: "Password changed successfully! Please log in with your new password.",
-          },
-        });
-      }, 1200);
     } catch (err) {
       setIsSubmitting(false);
       setError(err?.message || "Failed to change password. Please try again.");
+    }
+  };
+
+  const handleGoToLogin = async () => {
+    try {
+      await logout();
+    } finally {
+      navigate("/login", {
+        replace: true,
+        state: {
+          successMessage: "Password changed successfully! Please log in with your new password.",
+        },
+      });
     }
   };
 
@@ -66,6 +72,8 @@ export default function ForceChangePasswordModal() {
       navigate("/login", { replace: true });
     }
   };
+
+  const activeAccount = userAccount || currentUser;
 
   return (
     <div
@@ -79,14 +87,67 @@ export default function ForceChangePasswordModal() {
         onClick={(e) => e.stopPropagation()}
       >
         {isSuccess ? (
-          <div className="py-8 flex flex-col items-center justify-center text-center space-y-3">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600">
-              <CheckCircle2 size={36} />
+          <div className="py-2 space-y-6 animate-fade-in">
+            {/* Header & Icon */}
+            <div className="flex flex-col items-center text-center space-y-3">
+              <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center border border-green-200">
+                <CheckCircle2 size={36} />
+              </div>
+              <div>
+                <h2
+                  id="force-change-password-title"
+                  className="text-2xl font-bold text-[#0A4B6E]"
+                >
+                  Password Changed
+                </h2>
+                <p className="text-xs text-gray-500 font-medium mt-1">
+                  Security Setup Complete
+                </p>
+              </div>
             </div>
-            <h3 className="text-xl font-bold text-[#0A4B6E]">Password Updated</h3>
-            <p className="text-sm text-gray-600">
-              Your password has been changed. Redirecting to login...
+
+            {/* Explanation */}
+            <p className="text-gray-600 text-xs leading-relaxed text-center px-2">
+              Your new password has been successfully updated. All active sessions have been terminated for security. Please log in with your new password.
             </p>
+
+            {/* Account Details Card */}
+            {activeAccount && (
+              <div className="bg-[#F3F5F5] border border-gray-200 rounded-2xl p-4 space-y-2 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 font-medium">Account:</span>
+                  <span className="font-bold text-[#0A4B6E]">
+                    {activeAccount.firstName && activeAccount.lastName
+                      ? `${activeAccount.firstName} ${activeAccount.lastName}`
+                      : activeAccount.username}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 font-medium">Username:</span>
+                  <span className="font-mono font-bold text-gray-800">
+                    {activeAccount.username}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 font-medium">Password Status:</span>
+                  <span className="inline-flex items-center gap-1 font-bold text-green-600">
+                    <CheckCircle2 size={13} />
+                    <span>Permanent Password Set</span>
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Proceed to Login Button */}
+            <div className="pt-2">
+              <Button
+                type="button"
+                onClick={handleGoToLogin}
+                className="w-full py-3.5 bg-[#FFDF2C] hover:bg-[#F5D020] border-none !text-[#0A4B6E] font-bold rounded-full text-xs uppercase tracking-wider shadow-sm transition cursor-pointer"
+              >
+                LOG IN AGAIN
+              </Button>
+            </div>
           </div>
         ) : (
           <>
@@ -114,13 +175,13 @@ export default function ForceChangePasswordModal() {
             </p>
 
             {/* Account Info Pill */}
-            {currentUser && (
+            {activeAccount && (
               <div className="bg-[#F3F5F5] rounded-xl px-3.5 py-2 mb-4 flex items-center justify-between text-xs text-gray-600 border border-gray-100">
                 <span className="font-medium">Account:</span>
                 <span className="font-bold text-[#0A4B6E]">
-                  {currentUser.firstName && currentUser.lastName
-                    ? `${currentUser.firstName} ${currentUser.lastName} (${currentUser.username})`
-                    : currentUser.username}
+                  {activeAccount.firstName && activeAccount.lastName
+                    ? `${activeAccount.firstName} ${activeAccount.lastName} (${activeAccount.username})`
+                    : activeAccount.username}
                 </span>
               </div>
             )}
