@@ -180,6 +180,16 @@ The application supports all Philippine contact number formats:
 
 ## 6. Modules Overview
 
+### 0. Analytics Dashboard (`/dashboard`)
+- **Features**:
+  - Financial metric summary cards overlaying custom background header banner.
+  - Interactive Sales Overview bar chart powered by Recharts (Weekly, Monthly, Annually filters across Butane Canister, 11kg LPG, 50kg LPG).
+  - Truck operational status summary grid:
+    - **Available**: Real-time count of active operational vehicles (`status === "ACTIVE"`) from backend `fleetApi`.
+    - **In Use**: Retained metric (defaults to `0` pending dispatch trip integration).
+    - **Maintenance**: Real-time count of vehicles under maintenance (`status === "UNDER_MAINTENANCE"`) from backend `fleetApi`.
+    - **Under Repair**: Retained metric (defaults to `0`).
+
 ### 1. Customer Profile (`/customers`, `/customer`)
 - **Contract**: `docs/API Contract/sales-customer.api.md`
 - **Fields**:

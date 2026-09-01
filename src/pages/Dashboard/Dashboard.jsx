@@ -5,6 +5,7 @@ import SalesGraph from "../../components/dashboard/SalesGraph";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { dashboardApi } from "../../api/dashboard.js";
 import { salesApi } from "../../api/sales.js";
+import { fleetApi } from "../../api/fleet.js";
 import bgHeader from "../../assets/BG-Madayaw5.png";
 import { Truck, Wrench } from "lucide-react";
 
@@ -14,10 +15,35 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState({
     grossIncome: 1285000,
     costPerCan: 1.07,
-    availableTrucksCount: 3,
-    inUseTrucksCount: 3,
-    inShopTrucksCount: 2,
-    underRepairTrucksCount: 1,
+  });
+
+  const [truckCounts, setTruckCounts] = useState(() => {
+    try {
+      const cached = localStorage.getItem("app_fleet_cache");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return {
+            available: parsed.filter(
+              (t) => (t.status || "").toUpperCase() === "ACTIVE"
+            ).length,
+            inUse: 0,
+            maintenance: parsed.filter(
+              (t) => (t.status || "").toUpperCase() === "UNDER_MAINTENANCE"
+            ).length,
+            underRepair: 0,
+          };
+        }
+      }
+    } catch (e) {
+      console.error("Error reading cached fleet items for dashboard:", e);
+    }
+    return {
+      available: 3,
+      inUse: 0,
+      maintenance: 2,
+      underRepair: 0,
+    };
   });
 
   const [salesData, setSalesData] = useState(null);
@@ -25,12 +51,36 @@ export default function Dashboard() {
   useEffect(() => {
     async function loadDashboardData() {
       try {
-        const [dashMetrics, sales] = await Promise.all([
+        const [dashMetrics, sales, trucksData] = await Promise.allSettled([
           dashboardApi.getMetrics(),
           salesApi.getSalesOverview(),
+          fleetApi.getTrucks(),
         ]);
-        if (dashMetrics) setMetrics(dashMetrics);
-        if (sales) setSalesData(sales);
+
+        if (dashMetrics.status === "fulfilled" && dashMetrics.value) {
+          setMetrics(dashMetrics.value);
+        }
+
+        if (sales.status === "fulfilled" && sales.value) {
+          setSalesData(sales.value);
+        }
+
+        if (trucksData.status === "fulfilled" && Array.isArray(trucksData.value)) {
+          const trucks = trucksData.value;
+          const activeCount = trucks.filter(
+            (t) => (t.status || "").toUpperCase() === "ACTIVE"
+          ).length;
+          const maintenanceCount = trucks.filter(
+            (t) => (t.status || "").toUpperCase() === "UNDER_MAINTENANCE"
+          ).length;
+
+          setTruckCounts({
+            available: activeCount,
+            inUse: 0,
+            maintenance: maintenanceCount,
+            underRepair: 0,
+          });
+        }
       } catch {
         // Retain fallback state on network failure
       }
@@ -41,11 +91,14 @@ export default function Dashboard() {
   const {
     grossIncome = 0,
     costPerCan = 0,
-    availableTrucksCount = 0,
-    inUseTrucksCount = 0,
-    inShopTrucksCount = 0,
-    underRepairTrucksCount = 0,
   } = metrics;
+
+  const {
+    available: availableTrucksCount = 0,
+    inUse: inUseTrucksCount = 0,
+    maintenance: maintenanceTrucksCount = 0,
+    underRepair: underRepairTrucksCount = 0,
+  } = truckCounts;
 
   const displayName = currentUser
     ? `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() ||
@@ -103,7 +156,7 @@ export default function Dashboard() {
         {/* LEFT / TOP SIDE: TRUCK STATUS SUMMARY GRID (4 COLUMNS) */}
         <div className="lg:col-span-5 grid grid-cols-2 gap-4">
           {/* Available */}
-          <div className="bg-[#FFF9D6] p-10 rounded-2xl flex items-center justify-between shadow-sm">
+          <div className="bg-[#FFF9D6] p-8 md:p-10 rounded-2xl flex items-center justify-between shadow-sm">
             <div>
               <p className="text-md font-bold text-[#8C6D00]">Available</p>
               <h3 className="text-3xl font-bold text-[#8C6D00] mt-1">
@@ -116,7 +169,7 @@ export default function Dashboard() {
           </div>
 
           {/* In Use */}
-          <div className="bg-[#E6F4FA] p-11 rounded-2xl flex items-center justify-between shadow-sm">
+          <div className="bg-[#E6F4FA] p-8 md:p-10 rounded-2xl flex items-center justify-between shadow-sm">
             <div>
               <p className="text-md font-bold text-[#0F7AB2]">In Use</p>
               <h3 className="text-3xl font-bold text-[#0F7AB2] mt-1">
@@ -128,12 +181,12 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* In Shop */}
-          <div className="bg-[#E6F4FA] p-11 rounded-2xl flex items-center justify-between shadow-sm">
+          {/* Maintenance */}
+          <div className="bg-[#E6F4FA] p-8 md:p-10 rounded-2xl flex items-center justify-between shadow-sm">
             <div>
-              <p className="text-md font-bold text-[#0F7AB2]">In Shop</p>
+              <p className="text-md font-bold text-[#0F7AB2]">Maintenance</p>
               <h3 className="text-3xl font-bold text-[#0F7AB2] mt-1">
-                {inShopTrucksCount}
+                {maintenanceTrucksCount}
               </h3>
             </div>
             <div className="w-12 h-12 bg-[#FFE866] rounded-xl flex items-center justify-center text-2xl">
@@ -142,7 +195,7 @@ export default function Dashboard() {
           </div>
 
           {/* Under Repair */}
-          <div className="bg-[#FFF9D6] p-9 rounded-2xl flex items-center justify-between shadow-sm">
+          <div className="bg-[#FFF9D6] p-8 md:p-10 rounded-2xl flex items-center justify-between shadow-sm">
             <div>
               <p className="text-md font-bold text-[#8C6D00]">Under Repair</p>
               <h3 className="text-3xl font-bold text-[#8C6D00] mt-1">

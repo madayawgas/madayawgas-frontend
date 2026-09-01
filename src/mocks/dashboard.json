@@ -4,8 +4,8 @@
     "grossIncome": 1285000,
     "costPerCan": 1.07,
     "availableTrucksCount": 3,
-    "inUseTrucksCount": 3,
-    "inShopTrucksCount": 2,
-    "underRepairTrucksCount": 1
+    "inUseTrucksCount": 0,
+    "maintenanceTrucksCount": 2,
+    "underRepairTrucksCount": 0
   }
 }
