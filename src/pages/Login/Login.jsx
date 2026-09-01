@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { getDefaultRoute } from "../../utils/permissions.js";
+import { CheckCircle2 } from "lucide-react";
 
 import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
@@ -13,10 +14,14 @@ import bgImage from "../../assets/BG-Madayaw5.png";
 export default function Login() {
   const { login, isAuthenticated, currentUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState(
+    location.state?.successMessage || ""
+  );
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -110,6 +115,7 @@ export default function Login() {
               onChange={(e) => {
                 setUsername(e.target.value);
                 setError("");
+                setSuccessMessage("");
               }}
               onKeyDown={handleKeyDown}
               placeholder="Enter username"
@@ -125,6 +131,7 @@ export default function Login() {
                 onChange={(e) => {
                   setPassword(e.target.value);
                   setError("");
+                  setSuccessMessage("");
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder="Enter password"
@@ -140,6 +147,13 @@ export default function Login() {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
+
+            {successMessage && (
+              <div className="bg-green-50 border border-green-200 text-green-700 text-xs font-medium p-3 rounded-lg flex items-center gap-2 animate-fade-in">
+                <CheckCircle2 size={16} className="shrink-0 text-green-600" />
+                <span>{successMessage}</span>
+              </div>
+            )}
 
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-3 rounded-lg">

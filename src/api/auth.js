@@ -8,6 +8,7 @@ const MOCK_CREDENTIALS = {
   admin_user: "AdminPass123!",
   fleet_user: "FleetPass123!",
   sales_user: "SalesPass123!",
+  temp_user: "TempPass123!",
 };
 
 const MOCK_SESSION_KEY = "mg_mock_session_user";
@@ -114,21 +115,47 @@ export const authApi = {
 
   /**
    * Change authenticated user's password.
+   * For first login / mustChangePassword: true, currentPassword is omitted.
    * @param {{ currentPassword?: string, newPassword: string }} payload
    * @returns {Promise<object>} Success message
    */
   async changePassword({ currentPassword, newPassword }) {
     if (isMock) {
       await delay(300);
+      if (typeof window !== "undefined") {
+        const saved = sessionStorage.getItem(MOCK_SESSION_KEY);
+        if (saved) {
+          try {
+            const sessionUser = JSON.parse(saved);
+            const userIndex = mockUsers.data.users.findIndex(
+              (u) => u.id === sessionUser.id || u.username === sessionUser.username
+            );
+            if (userIndex !== -1) {
+              mockUsers.data.users[userIndex].mustChangePassword = false;
+            }
+            if (sessionUser.username) {
+              MOCK_CREDENTIALS[sessionUser.username] = newPassword;
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+        sessionStorage.removeItem(MOCK_SESSION_KEY);
+      }
       return {
         status: "success",
         message: "Password changed successfully. Please log in again.",
       };
     }
 
+    const body = {
+      ...(currentPassword && { currentPassword }),
+      newPassword,
+    };
+
     return apiClient("/users/change-password", {
       method: "POST",
-      body: { currentPassword, newPassword },
+      body,
     });
   },
 };

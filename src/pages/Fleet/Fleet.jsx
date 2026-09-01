@@ -1,7 +1,6 @@
 // src/pages/Fleet/Fleet.jsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { fleetApi } from "../../api/fleet.js";
-import { usersApi } from "../../api/users.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
 import initialMockFleet from "../../mocks/fleet.json";
@@ -39,7 +38,8 @@ export default function Fleet() {
   });
 
   const [isLoading, setIsLoading] = useState(trucks.length === 0);
-  const [driverOptions, setDriverOptions] = useState([]);
+  const [availableDrivers, setAvailableDrivers] = useState([]);
+  const [allDrivers, setAllDrivers] = useState([]);
   const [selectedTruck, setSelectedTruck] = useState(null);
 
   // Deactivation States
@@ -76,37 +76,30 @@ export default function Fleet() {
     });
   };
 
+  const refreshDrivers = useCallback(async () => {
+    try {
+      const [availRes, allRes] = await Promise.all([
+        fleetApi.getAvailableDrivers(),
+        fleetApi.getDrivers(),
+      ]);
+      setAvailableDrivers(Array.isArray(availRes) ? availRes : availRes?.drivers || []);
+      setAllDrivers(Array.isArray(allRes?.drivers) ? allRes.drivers : []);
+    } catch (err) {
+      console.error("Failed to load driver directory:", err);
+    }
+  }, []);
+
   useEffect(() => {
     async function loadFleet() {
       try {
         setIsLoading(true);
-        const [trucksData, usersData] = await Promise.all([
+        const [trucksData] = await Promise.all([
           fleetApi.getTrucks(),
-          usersApi.getAllUsers(),
+          refreshDrivers(),
         ]);
 
         if (trucksData && Array.isArray(trucksData) && trucksData.length > 0) {
           updateFleetState(trucksData);
-        }
-
-        if (usersData && Array.isArray(usersData)) {
-          // STRICT: Only users with role "Driver" and active accounts
-          const eligibleDrivers = usersData
-            .filter((u) => {
-              const r = (u.role || "").toLowerCase().trim();
-              return r === "driver" && u.isActive !== false && !u.isBlocked;
-            })
-            .map((u) => ({
-              value: u.id || u.userId,
-              label: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username,
-              firstName: u.firstName || "",
-              lastName: u.lastName || "",
-              phone: u.phone || "",
-              username: u.username || "",
-              role: u.role || "Driver",
-            }));
-
-          setDriverOptions(eligibleDrivers);
         }
       } catch (err) {
         console.error("Failed to load fleet data:", err);
@@ -119,7 +112,7 @@ export default function Fleet() {
       }
     }
     loadFleet();
-  }, []);
+  }, [refreshDrivers]);
 
   const handleAddNewTruck = () => {
     setIsAddingTruck(true);
@@ -140,6 +133,7 @@ export default function Fleet() {
 
       updateFleetState((prev) => [created, ...prev]);
       setIsAddingTruck(false);
+      await refreshDrivers();
       setToast({
         type: "success",
         message: `Vehicle ${created.plateNumber || ""} added successfully`,
@@ -168,6 +162,7 @@ export default function Fleet() {
 
       // Keep detail modal open with updated data
       setSelectedTruck(updated);
+      await refreshDrivers();
 
       setToast({
         type: "success",
@@ -256,6 +251,7 @@ export default function Fleet() {
 
     setShowDeletePasswordModal(false);
     setTruckToDelete(null);
+    await refreshDrivers();
     setToast({
       type: "success",
       message: `Vehicle ${truckToDelete.plateNumber || ""} deactivated successfully`,
@@ -290,8 +286,10 @@ export default function Fleet() {
       // 3. Role / Driver filter
       let matchesRole = true;
       if (filters.role && filters.role !== "All Roles") {
-        const matchedDriver = driverOptions.find(
-          (d) => d.label?.toLowerCase() === driverName.toLowerCase()
+        const matchedDriver = allDrivers.find(
+          (d) =>
+            `${d.firstName || ""} ${d.lastName || ""}`.trim().toLowerCase() === driverName.toLowerCase() ||
+            d.username?.toLowerCase() === driverName.toLowerCase()
         );
         matchesRole =
           matchedDriver?.role?.toLowerCase() === filters.role.toLowerCase() ||
@@ -300,7 +298,7 @@ export default function Fleet() {
 
       return matchesSearch && matchesStatus && matchesRole;
     });
-  }, [trucks, searchTerm, filters, driverOptions]);
+  }, [trucks, searchTerm, filters, allDrivers]);
 
   return (
     <div className="p-6 md:p-8">
@@ -352,7 +350,8 @@ export default function Fleet() {
           <TruckModal
             truck={selectedTruck}
             trucks={trucks}
-            driverOptions={driverOptions}
+            availableDrivers={availableDrivers}
+            allDrivers={allDrivers}
             canManage={canManage}
             onClose={() => setSelectedTruck(null)}
             onUpdate={handleUpdateTruck}
@@ -365,7 +364,8 @@ export default function Fleet() {
           <TruckModal
             isAdding={true}
             trucks={trucks}
-            driverOptions={driverOptions}
+            availableDrivers={availableDrivers}
+            allDrivers={allDrivers}
             canManage={canManage}
             onClose={() => setIsAddingTruck(false)}
             onAdd={handleAddTruck}

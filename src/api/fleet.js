@@ -374,13 +374,13 @@ export const fleetApi = {
       latestTruck = res.data?.truck || res.data || latestTruck;
     }
 
-    // 3. Driver assignment (/api/fleet/trucks/:id/assign)
-    if (truckData.driverId !== undefined) {
-      const res = await apiClient(`/fleet/trucks/${id}/assign`, {
-        method: "PATCH",
-        body: { driverId: truckData.driverId || null },
-      });
-      latestTruck = res.data?.truck || res.data || latestTruck;
+    // 3. Driver assignment / unassignment endpoints (/assign and /unassign)
+    if (truckData.driverId === null || truckData.driverId === "") {
+      const res = await this.unassignDriver(id);
+      latestTruck = res.data?.truck || res.truck || latestTruck;
+    } else if (truckData.driverId) {
+      const res = await this.assignDriver(id, { driverId: truckData.driverId });
+      latestTruck = res.data?.truck || res.truck || latestTruck;
     }
 
     if (!latestTruck) {
@@ -388,6 +388,215 @@ export const fleetApi = {
     }
 
     return { truck: latestTruck };
+  },
+
+  /**
+   * Assign Driver to Vehicle.
+   * @param {string} id - Truck UUID
+   * @param {{ driverId: string }} payload
+   * @returns {Promise<{ truck: object, message: string }>} Updated driver assignment response
+   */
+  async assignDriver(id, { driverId }) {
+    if (isMock) {
+      await delay(250);
+      const inMemoryTrucks = getInMemoryTrucks();
+      const index = inMemoryTrucks.findIndex((t) => t.id === id || t.truckId === id);
+      const existing = index !== -1 ? inMemoryTrucks[index] : {};
+
+      // Invariant: check if vehicle already has an assigned driver
+      if (existing.driverId && existing.driverId !== driverId) {
+        const error = new Error(
+          "This vehicle already has an assigned driver. Please unassign the current driver first."
+        );
+        error.status = 409;
+        throw error;
+      }
+
+      // Invariant: check if driver is already assigned to another active truck
+      const otherTruck = inMemoryTrucks.find(
+        (t) => t.id !== id && (t.driverId === driverId || t.driver?.id === driverId) && t.status === "ACTIVE"
+      );
+      if (otherTruck) {
+        const driverObj = resolveDriver(driverId);
+        const driverName = driverObj
+          ? `${driverObj.firstName} ${driverObj.lastName}`.trim()
+          : "Driver";
+        const error = new Error(
+          `Driver '${driverName}' is already assigned to vehicle '${otherTruck.plateNumber}'. The driver must be unassigned from vehicle '${otherTruck.plateNumber}' first.`
+        );
+        error.status = 409;
+        throw error;
+      }
+
+      const driverObj = resolveDriver(driverId);
+      const updated = {
+        ...existing,
+        id: id || existing.id,
+        driverId,
+        driver: driverObj,
+        driverName: driverObj
+          ? `${driverObj.firstName || ""} ${driverObj.lastName || ""}`.trim() || driverObj.username
+          : "No Assigned",
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (index !== -1) {
+        inMemoryTrucks[index] = updated;
+      }
+      saveInMemoryTrucks(inMemoryTrucks);
+
+      return {
+        truck: updated,
+        message: "Driver successfully assigned",
+      };
+    }
+
+    const result = await apiClient(`/fleet/trucks/${id}/assign`, {
+      method: "PATCH",
+      body: { driverId },
+    });
+    return result.data;
+  },
+
+  /**
+   * Unassign Driver from Vehicle.
+   * @param {string} id - Truck UUID
+   * @returns {Promise<{ truck: object, message: string }>} Unassigned driver response
+   */
+  async unassignDriver(id) {
+    if (isMock) {
+      await delay(250);
+      const inMemoryTrucks = getInMemoryTrucks();
+      const index = inMemoryTrucks.findIndex((t) => t.id === id || t.truckId === id);
+      const existing = index !== -1 ? inMemoryTrucks[index] : {};
+
+      const updated = {
+        ...existing,
+        id: id || existing.id,
+        driverId: null,
+        driver: null,
+        driverName: "No Assigned",
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (index !== -1) {
+        inMemoryTrucks[index] = updated;
+      }
+      saveInMemoryTrucks(inMemoryTrucks);
+
+      return {
+        truck: updated,
+        message: "Driver successfully unassigned",
+      };
+    }
+
+    const result = await apiClient(`/fleet/trucks/${id}/unassign`, {
+      method: "PATCH",
+    });
+    return result.data;
+  },
+
+  /**
+   * Driver Directory (List All Drivers with live assignment status).
+   * @param {object} [params] - { search, availableOnly }
+   * @returns {Promise<{ count: number, drivers: Array }>}
+   */
+  async getDrivers(params = {}) {
+    if (isMock) {
+      await delay(200);
+      const inMemoryTrucks = getInMemoryTrucks();
+      let userList = [];
+      try {
+        const cached = localStorage.getItem("app_users_cache");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            userList = parsed;
+          }
+        }
+      } catch (e) {
+        console.error("Error reading cached users:", e);
+      }
+
+      if (userList.length === 0) {
+        userList = mockUsers?.data?.users || [];
+      }
+
+      let drivers = userList
+        .filter(
+          (u) =>
+            (u.role || "").toLowerCase().trim() === "driver" &&
+            u.isActive !== false &&
+            !u.isBlocked
+        )
+        .map((u) => {
+          const uId = u.id || u.userId;
+          const assignedTruck = inMemoryTrucks.find(
+            (t) =>
+              (t.driverId === uId || t.driver?.id === uId) &&
+              t.status === "ACTIVE"
+          );
+          const isAssigned = !!assignedTruck;
+          return {
+            id: uId,
+            username: u.username,
+            firstName: u.firstName || "",
+            lastName: u.lastName || "",
+            phone: u.phone || "",
+            role: u.role || "Driver",
+            isAssigned,
+            status: isAssigned ? "ASSIGNED" : "AVAILABLE",
+            assignedTruck: assignedTruck
+              ? {
+                  id: assignedTruck.id,
+                  plateNumber: assignedTruck.plateNumber,
+                  model: assignedTruck.model,
+                }
+              : null,
+          };
+        });
+
+      if (params.search) {
+        const q = params.search.toLowerCase().trim();
+        drivers = drivers.filter(
+          (d) =>
+            (d.firstName || "").toLowerCase().includes(q) ||
+            (d.lastName || "").toLowerCase().includes(q) ||
+            (d.username || "").toLowerCase().includes(q)
+        );
+      }
+
+      if (params.availableOnly === true || params.availableOnly === "true") {
+        drivers = drivers.filter((d) => !d.isAssigned);
+      }
+
+      return {
+        count: drivers.length,
+        drivers,
+      };
+    }
+
+    const query = new URLSearchParams();
+    if (params.search) query.append("search", params.search);
+    if (params.availableOnly !== undefined) query.append("availableOnly", params.availableOnly);
+
+    const queryString = query.toString() ? `?${query.toString()}` : "";
+    const result = await apiClient(`/fleet/drivers${queryString}`);
+    return result.data;
+  },
+
+  /**
+   * List Available Drivers (Active, unassigned drivers ready for vehicle assignment).
+   * @returns {Promise<Array>} List of available driver objects
+   */
+  async getAvailableDrivers() {
+    if (isMock) {
+      const res = await this.getDrivers({ availableOnly: true });
+      return res.drivers || [];
+    }
+
+    const result = await apiClient("/fleet/drivers/available");
+    return result.data.drivers || [];
   },
 
   /**
@@ -521,76 +730,14 @@ export const fleetApi = {
   },
 
   /**
-   * Assign / Transfer Vehicle Driver.
-   * @param {string} id - Truck UUID
-   * @param {{ driverId: string|null }} payload
-   * @returns {Promise<{ truck: object, message: string }>} Updated driver assignment
-   */
-  async assignDriver(id, { driverId }) {
-    if (isMock) {
-      await delay(250);
-      const inMemoryTrucks = getInMemoryTrucks();
-      const index = inMemoryTrucks.findIndex((t) => t.id === id || t.truckId === id);
-      const existing = index !== -1 ? inMemoryTrucks[index] : {};
-      const driverObj = resolveDriver(driverId);
-
-      const updated = {
-        ...existing,
-        id: id || existing.id,
-        driverId: driverId || null,
-        driver: driverObj,
-        driverName: driverObj
-          ? `${driverObj.firstName || ""} ${driverObj.lastName || ""}`.trim() || driverObj.username
-          : "No Assigned",
-        updatedAt: new Date().toISOString(),
-      };
-
-      if (index !== -1) {
-        inMemoryTrucks[index] = updated;
-      }
-      saveInMemoryTrucks(inMemoryTrucks);
-
-      return {
-        truck: updated,
-        message: driverId ? "Driver successfully assigned" : "Driver unassigned",
-      };
-    }
-
-    const result = await apiClient(`/fleet/trucks/${id}/assign`, {
-      method: "PATCH",
-      body: { driverId },
-    });
-    return result.data;
-  },
-
-  /**
    * Fleet Register Page Options.
    * @returns {Promise<{ availableDrivers: Array, statusOptions: Array }>}
    */
   async getRegisterOptions() {
     if (isMock) {
-      await delay(150);
-      const inMemoryTrucks = getInMemoryTrucks();
-      const userList = mockUsers?.data?.users || [];
-      const assignedDriverIds = new Set(
-        inMemoryTrucks
-          .filter((t) => t.status === "ACTIVE" && !!t.driverId)
-          .map((t) => t.driverId)
-      );
-
-      const availableDrivers = userList
-        .filter((u) => u.role === "Driver" && !assignedDriverIds.has(u.id))
-        .map((u) => ({
-          id: u.id,
-          username: u.username,
-          firstName: u.firstName,
-          lastName: u.lastName,
-          phone: u.phone,
-          role: u.role,
-        }));
-
+      const res = await this.getDrivers({ availableOnly: true });
       return {
-        availableDrivers,
+        availableDrivers: res.drivers || [],
         statusOptions: ["ACTIVE", "INACTIVE", "UNDER_MAINTENANCE", "RETIRED"],
       };
     }
