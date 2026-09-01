@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 body, button, input, select, textarea {
@@ -37,6 +38,28 @@ body, button, input, select, textarea {
   }
 }
 
+@keyframes slideFadeInFromRight {
+  0% {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideFadeOutToRight {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.2s ease-out forwards;
 }
@@ -51,6 +74,14 @@ body, button, input, select, textarea {
 
 .animate-scale-out {
   animation: scaleOut 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-fade-in {
+  animation: slideFadeInFromRight 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-fade-out {
+  animation: slideFadeOutToRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Custom Scrollbar */

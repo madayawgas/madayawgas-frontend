@@ -1,6 +1,7 @@
 // src/api/sales.js
 import { apiClient, isMock, delay } from "./client.js";
 import mockSales from "../mocks/sales.json" with { type: "json" };
+import { customersApi } from "./customers.js";
 
 export const salesApi = {
   /**
@@ -14,5 +15,16 @@ export const salesApi = {
     }
     const result = await apiClient("/sales/overview");
     return result.data;
+  },
+
+  /**
+   * Customers CRUD endpoints under /api/sales/customers
+   */
+  async getCustomers(params) {
+    return customersApi.getCustomers(params);
+  },
+
+  async getCustomerById(id) {
+    return customersApi.getCustomerById(id);
   },
 };

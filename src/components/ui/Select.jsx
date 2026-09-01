@@ -4,6 +4,7 @@ export default function Select({
   options = [], 
   className = "", 
   error,
+  placeholder,
   ...props 
 }) {
   return (
@@ -15,14 +16,18 @@ export default function Select({
       )}
       <select
         id={id}
-        className={`w-full bg-[#F2F5F5] rounded-full p-2.5 text-sm text-gray-800 outline-none transition-all
+        className={`w-full bg-[#F2F5F5] rounded-full p-2.5 text-sm text-gray-800 outline-none transition-all cursor-pointer
           ${error 
             ? "border-red-400 focus:ring-2 focus:ring-red-400/20" 
             : "border-gray-300 focus:ring-2 focus:ring-[#0F7AB2]/30 focus:border-[#0F7AB2]"}
           ${className}`}
         {...props}
       >
-        <option value="" disabled hidden>Select an option</option>
+        {placeholder && (
+          <option value="" disabled hidden>
+            {placeholder}
+          </option>
+        )}
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}

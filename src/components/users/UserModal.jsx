@@ -1,20 +1,20 @@
 import { useState, useEffect } from "react";
-import { usersApi } from "../../api/users.js";
-import { useAuth } from "../../context/AuthContext.jsx";
 import UserFormStep from "./UserFormStep";
 import UserConfirmStep from "./UserConfirmStep";
-import UserPasswordStep from "./UserPasswordStep";
 import UserSuccessStep from "./UserSuccessStep";
+import { toProperCase } from "../../utils/text.js";
 
-export default function UserModal({ isOpen, roles, onSave, onClose, user }) {
-  const { user: currentUser } = useAuth();
-
+export default function UserModal({
+  isOpen,
+  roles,
+  onSave,
+  onClose,
+  user,
+  onResetPassword,
+}) {
   const [step, setStep] = useState(1);
-  const [adminPassword, setAdminPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [passwordError, setPasswordError] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createdTemporaryPassword, setCreatedTemporaryPassword] = useState("");
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -24,16 +24,14 @@ export default function UserModal({ isOpen, roles, onSave, onClose, user }) {
     role: "",
     username: "",
     status: "ACTIVE",
+    isBlocked: false,
   });
 
   useEffect(() => {
     if (isOpen) {
       setStep(1);
-      setAdminPassword("");
-      setShowPassword(false);
-      setPasswordError("");
-      setIsVerifying(false);
-      setCopied(false);
+      setIsSubmitting(false);
+      setCreatedTemporaryPassword("");
 
       const defaultRole =
         roles && roles.length > 0
@@ -43,6 +41,9 @@ export default function UserModal({ isOpen, roles, onSave, onClose, user }) {
           : "Driver";
 
       if (user) {
+        const isUserBlocked = user.isBlocked === true || user.status === "SUSPENDED";
+        const currentStatus = isUserBlocked ? "SUSPENDED" : "ACTIVE";
+
         setFormData({
           firstName: user.firstName || "",
           lastName: user.lastName || "",
@@ -50,7 +51,8 @@ export default function UserModal({ isOpen, roles, onSave, onClose, user }) {
           contactNo: user.phone || user.contactNumber || "",
           role: user.role || defaultRole || "",
           username: user.username || "",
-          status: user.status || "ACTIVE",
+          status: currentStatus,
+          isBlocked: isUserBlocked,
         });
       } else {
         setFormData({
@@ -61,16 +63,17 @@ export default function UserModal({ isOpen, roles, onSave, onClose, user }) {
           role: defaultRole,
           username: "",
           status: "ACTIVE",
+          isBlocked: false,
         });
       }
     }
   }, [isOpen, user, roles]);
 
-  if (!isOpen) return null;
+  if (!isOpen || user?.role === "Super Admin") return null;
 
   const statuses = [
     { value: "ACTIVE", label: "ACTIVE", variant: "success" },
-    { value: "SUSPENDED", label: "SUSPEND", variant: "neutral" },
+    { value: "SUSPENDED", label: "SUSPEND", variant: "danger" },
   ];
 
   const safeRole =
@@ -81,33 +84,61 @@ export default function UserModal({ isOpen, roles, onSave, onClose, user }) {
     .toLowerCase()
     .replace(/\s/g, "")}_${safeRole.toLowerCase()}`;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setStep(user ? 3 : 2);
+    const cleanFirstName = toProperCase(formData.firstName);
+    const cleanLastName = toProperCase(formData.lastName);
+    const isBlocked = formData.status === "SUSPENDED";
+
+    const cleanedData = {
+      ...formData,
+      firstName: cleanFirstName,
+      lastName: cleanLastName,
+      isBlocked,
+      status: isBlocked ? "SUSPENDED" : "ACTIVE",
+    };
+    setFormData(cleanedData);
+
+    if (user) {
+      // Direct save for user edit (no admin password required per API contract)
+      setIsSubmitting(true);
+      try {
+        await onSave(cleanedData, user.id || user.userId);
+        onClose();
+      } catch (err) {
+        console.error("Failed to update user:", err);
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      // Go to confirm step for new user creation
+      setStep(2);
+    }
   };
 
-  const handleProceed = async () => {
-    if (!adminPassword) return;
-
-    setIsVerifying(true);
-    setPasswordError("");
-
+  const handleConfirmCreate = async () => {
+    setIsSubmitting(true);
     try {
-      await usersApi.verifyAdminPassword(adminPassword, currentUser?.username);
-
+      const cleanFirstName = toProperCase(formData.firstName);
+      const cleanLastName = toProperCase(formData.lastName);
       const finalData = {
         ...formData,
-        username: user ? formData.username : generatedUsername,
-        adminPassword,
+        firstName: cleanFirstName,
+        lastName: cleanLastName,
+        username: generatedUsername,
+        isBlocked: false,
+        status: "ACTIVE",
       };
 
-      await onSave(finalData, user ? user.id || user.userId : null);
-
-      setIsVerifying(false);
-      setStep(4);
+      const result = await onSave(finalData, null);
+      if (result?.temporaryPassword) {
+        setCreatedTemporaryPassword(result.temporaryPassword);
+      }
+      setStep(3);
     } catch (err) {
-      setIsVerifying(false);
-      setPasswordError(err.message || "Incorrect admin password. Please try again.");
+      console.error("Failed to create user:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -115,7 +146,7 @@ export default function UserModal({ isOpen, roles, onSave, onClose, user }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div
         className={`bg-white rounded-[2rem] w-full shadow-xl flex flex-col overflow-hidden transition-all duration-300 ${
-          step === 4 ? "max-w-sm" : "max-w-lg"
+          step === 3 ? "max-w-sm" : "max-w-lg"
         }`}
       >
         {/* Header */}
@@ -123,10 +154,9 @@ export default function UserModal({ isOpen, roles, onSave, onClose, user }) {
           <h2 className="text-[28px] font-bold text-[#0B4A6E]">
             {step === 1 && (user ? "Edit User" : "Add New User")}
             {step === 2 && "Confirm Information"}
-            {step === 3 && "Input Password"}
-            {step === 4 && (user ? "User Updated" : "User Created")}
+            {step === 3 && (user ? "User Updated" : "User Created")}
           </h2>
-          {(step === 2 || step === 3) && (
+          {step === 2 && (
             <button
               onClick={() => step > 1 && setStep(step - 1)}
               className="text-[#0B4A6E] hover:opacity-70 transition-opacity p-1 cursor-pointer"
@@ -152,8 +182,7 @@ export default function UserModal({ isOpen, roles, onSave, onClose, user }) {
             roles={roles}
             user={user}
             statuses={statuses}
-            copied={copied}
-            setCopied={setCopied}
+            onResetPassword={onResetPassword}
             onSubmit={handleSubmit}
             onClose={onClose}
           />
@@ -163,31 +192,17 @@ export default function UserModal({ isOpen, roles, onSave, onClose, user }) {
           <UserConfirmStep
             formData={formData}
             safeRole={safeRole}
-            onConfirm={() => setStep(3)}
+            isSubmitting={isSubmitting}
+            onConfirm={handleConfirmCreate}
           />
         )}
 
         {step === 3 && (
-          <UserPasswordStep
-            adminPassword={adminPassword}
-            setAdminPassword={setAdminPassword}
-            showPassword={showPassword}
-            setShowPassword={setShowPassword}
-            passwordError={passwordError}
-            setPasswordError={setPasswordError}
-            isVerifying={isVerifying}
-            currentUser={currentUser}
-            onProceed={handleProceed}
-          />
-        )}
-
-        {step === 4 && (
           <UserSuccessStep
             formData={formData}
             safeRole={safeRole}
             generatedUsername={generatedUsername}
-            copied={copied}
-            setCopied={setCopied}
+            temporaryPassword={createdTemporaryPassword}
             onDone={onClose}
           />
         )}

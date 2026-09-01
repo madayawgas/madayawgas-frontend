@@ -142,6 +142,46 @@
           "delivery.update_own"
         ],
         "createdAt": "2026-08-25T09:30:00.000Z"
+      },
+      {
+        "id": "d1111111-aaaa-bbbb-cccc-111111111111",
+        "username": "jdriver",
+        "firstName": "Juan",
+        "lastName": "Driver",
+        "phone": "+639170000008",
+        "birthdate": "1993-03-10",
+        "role": "Driver",
+        "roleId": "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6",
+        "isActive": true,
+        "isBlocked": false,
+        "mustChangePassword": false,
+        "permissions": [
+          "dashboard.view",
+          "route.view_own",
+          "delivery.view_own",
+          "delivery.update_own"
+        ],
+        "createdAt": "2026-08-25T09:45:00.000Z"
+      },
+      {
+        "id": "d2222222-aaaa-bbbb-cccc-222222222222",
+        "username": "psantos",
+        "firstName": "Pedro",
+        "lastName": "Santos",
+        "phone": "+639170000009",
+        "birthdate": "1991-07-22",
+        "role": "Driver",
+        "roleId": "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6",
+        "isActive": true,
+        "isBlocked": false,
+        "mustChangePassword": false,
+        "permissions": [
+          "dashboard.view",
+          "route.view_own",
+          "delivery.view_own",
+          "delivery.update_own"
+        ],
+        "createdAt": "2026-08-25T10:00:00.000Z"
       }
     ]
   }

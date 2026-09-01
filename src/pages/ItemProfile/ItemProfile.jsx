@@ -1,8 +1,8 @@
 // src/pages/ItemProfile/ItemProfile.jsx
 import { useState, useEffect, useMemo } from "react";
 import { inventoryApi } from "../../api/inventory.js";
-import { usersApi } from "../../api/users.js";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { PERMISSIONS } from "../../utils/permissions.js";
 import initialMockItems from "../../mocks/items.json";
 
 import ItemHeader from "../../components/items/ItemHeader";
@@ -11,17 +11,42 @@ import ItemCard from "../../components/items/ItemCard";
 import ItemModal from "../../components/items/ItemModal";
 import DeactivateItemModal from "../../components/items/DeactivateItemModal";
 import AdminPasswordModal from "../../components/users/AdminPasswordModal";
-import SavedChangesToast from "../../components/ui/SavedChangesToast";
+import ToastNotification from "../../components/ui/ToastNotifications";
+
+const LOCAL_STORAGE_KEY = "app_items_cache";
 
 export default function ItemProfile() {
-  const { user: currentUser } = useAuth();
+  const { can } = useAuth();
 
-  const [items, setItems] = useState(initialMockItems);
+  // RBAC Permission Guard
+  const canManage = can
+    ? can(PERMISSIONS?.INVENTORY_MANAGE || "inventory.manage")
+    : true;
+
+  // Initialize from cache or fallback to initialMockItems
+  const [items, setItems] = useState(() => {
+    try {
+      const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error("Error reading cached inventory items:", e);
+    }
+    return Array.isArray(initialMockItems) ? initialMockItems : [];
+  });
+
+  const [isLoading, setIsLoading] = useState(items.length === 0);
   const [selectedItem, setSelectedItem] = useState(null);
 
   // Deactivate States
   const [itemToDeactivate, setItemToDeactivate] = useState(null);
   const [showDeletePasswordModal, setShowDeletePasswordModal] = useState(false);
+
+  // Reactivation States
+  const [pendingReactivation, setPendingReactivation] = useState(null);
+  const [showReactivatePasswordModal, setShowReactivatePasswordModal] = useState(false);
 
   // Search & Filter States
   const [searchTerm, setSearchTerm] = useState("");
@@ -34,19 +59,37 @@ export default function ItemProfile() {
 
   // Modal & Toast States
   const [isAddingItem, setIsAddingItem] = useState(false);
-  const [showToast, setShowToast] = useState(false);
+  const [toast, setToast] = useState(null); // { type: "success" | "error" | "info" | "warning", message: string }
+
+  // Helper to sync local state changes with localStorage
+  const updateItemsState = (updater) => {
+    setItems((prev) => {
+      const updated = typeof updater === "function" ? updater(prev) : updater;
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error("Failed to write to items cache:", e);
+      }
+      return updated;
+    });
+  };
 
   useEffect(() => {
     async function loadItems() {
       try {
+        setIsLoading(true);
         const data = await inventoryApi.getInventoryItems();
         if (data && Array.isArray(data) && data.length > 0) {
-          setItems(data);
-        } else {
-          setItems(initialMockItems);
+          updateItemsState(data);
         }
-      } catch {
-        setItems(initialMockItems);
+      } catch (err) {
+        console.error("Failed to load inventory items:", err);
+        setToast({
+          type: "error",
+          message: "Failed to load product items. Please refresh.",
+        });
+      } finally {
+        setIsLoading(false);
       }
     }
     loadItems();
@@ -56,45 +99,65 @@ export default function ItemProfile() {
     setIsAddingItem(true);
   };
 
-  // Reactivation States
-  const [pendingReactivation, setPendingReactivation] = useState(null);
-  const [showReactivatePasswordModal, setShowReactivatePasswordModal] = useState(false);
-
   const handleAddItem = async (newItemData) => {
-    const newItem = {
-      id: `itm-${Date.now()}`,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      ...newItemData,
-    };
-    setItems((prev) => [newItem, ...prev]);
-    setIsAddingItem(false);
-    setShowToast(true);
+    try {
+      const result = await inventoryApi.createProduct(newItemData);
+      const created = result?.product || {
+        id: `itm-${Date.now()}`,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        ...newItemData,
+      };
+
+      updateItemsState((prev) => [created, ...prev]);
+      setIsAddingItem(false);
+      setToast({
+        type: "success",
+        message: `Product ${created.name || created.itemName || ""} added successfully`,
+      });
+    } catch (err) {
+      console.error("Failed to create product item:", err);
+      setToast({
+        type: "error",
+        message: err.message || "Failed to add product. Please try again.",
+      });
+    }
   };
 
   const applyItemUpdate = async (itemId, updatedData) => {
     try {
-      if (inventoryApi.updateStock) {
-        await inventoryApi.updateStock(itemId, updatedData);
-      }
-    } catch {
-      // Retain state update
-    }
+      const result = await inventoryApi.updateProduct(itemId, updatedData);
+      const updated = result?.product || {
+        ...updatedData,
+        id: itemId,
+        updatedAt: new Date().toISOString(),
+      };
 
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === itemId ? { ...i, ...updatedData, updatedAt: new Date().toISOString() } : i
-      )
-    );
-    setSelectedItem(null);
-    setShowToast(true);
+      updateItemsState((prev) =>
+        prev.map((i) => (i.id === itemId ? { ...i, ...updated } : i))
+      );
+
+      setSelectedItem(null);
+      setToast({
+        type: "success",
+        message: `Product ${updated.name || updated.itemName || ""} updated successfully`,
+      });
+    } catch (err) {
+      console.error("Failed to update product item:", err);
+      setToast({
+        type: "error",
+        message: err.message || "Failed to update product. Please try again.",
+      });
+    }
   };
 
   const handleUpdateItem = async (itemId, updatedData) => {
     const existing = items.find((i) => i.id === itemId);
-    const wasInactive = existing && (existing.isActive === false || existing.status === "INACTIVE");
-    const isBecomingActive = updatedData.isActive === true || updatedData.status === "ACTIVE";
+    const wasInactive =
+      existing && (existing.isActive === false || existing.status === "INACTIVE");
+    const isBecomingActive =
+      updatedData.isActive === true || updatedData.status === "ACTIVE";
 
     // Require password confirmation when making a deactivated item active again
     if (wasInactive && isBecomingActive) {
@@ -108,10 +171,17 @@ export default function ItemProfile() {
 
   const handleExecuteReactivate = async (adminPassword) => {
     if (!pendingReactivation) return;
-    await usersApi.verifyAdminPassword(adminPassword, currentUser?.username);
-    await applyItemUpdate(pendingReactivation.itemId, pendingReactivation.updatedData);
+    await inventoryApi.verifyAdminPassword(adminPassword);
+    await applyItemUpdate(pendingReactivation.itemId, {
+      ...pendingReactivation.updatedData,
+      isActive: true,
+    });
     setShowReactivatePasswordModal(false);
     setPendingReactivation(null);
+    setToast({
+      type: "success",
+      message: "Product reactivated successfully",
+    });
   };
 
   // Step 1 of Deactivate: Prompt confirmation modal
@@ -125,26 +195,33 @@ export default function ItemProfile() {
     setShowDeletePasswordModal(true);
   };
 
-  // Step 3 of Deactivate: Execute deactivation after admin password verification
+  // Step 3 of Deactivate: Execute deactivation with confirmPassword
   const handleExecuteDeactivate = async (adminPassword) => {
     if (!itemToDeactivate) return;
     const targetId = itemToDeactivate.id;
 
-    await usersApi.verifyAdminPassword(adminPassword, currentUser?.username);
+    const result = await inventoryApi.deactivateProduct(targetId, {
+      confirmPassword: adminPassword,
+    });
 
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === targetId
-          ? { ...i, isActive: false, status: "INACTIVE", updatedAt: new Date().toISOString() }
-          : i
-      )
+    const updated = result?.product || {
+      ...itemToDeactivate,
+      isActive: false,
+      status: "INACTIVE",
+      updatedAt: new Date().toISOString(),
+    };
+
+    updateItemsState((prev) =>
+      prev.map((i) => (i.id === targetId ? { ...i, ...updated } : i))
     );
 
     setShowDeletePasswordModal(false);
     setItemToDeactivate(null);
-    setShowToast(true);
+    setToast({
+      type: "success",
+      message: `Product ${itemToDeactivate.name || itemToDeactivate.itemName || ""} deactivated successfully`,
+    });
   };
-
 
   // Processed search & multi-field filter rules
   const filteredItems = useMemo(() => {
@@ -161,32 +238,36 @@ export default function ItemProfile() {
         itemContainer.includes(q);
 
       // 2. Status filter
-      const isItemActive = item.isActive !== undefined ? item.isActive : item.status === "ACTIVE";
+      const isItemActive =
+        item.isActive !== undefined ? item.isActive : item.status === "ACTIVE";
       let matchesStatus = true;
       if (filters.status && filters.status !== "All") {
-        if (filters.status === "ACTIVE") matchesStatus = isItemActive === true;
-        if (filters.status === "INACTIVE") matchesStatus = isItemActive === false;
+        if (filters.status === "Active") matchesStatus = isItemActive === true;
+        if (filters.status === "Inactive") matchesStatus = isItemActive === false;
       }
 
       // 3. Category filter
       let matchesCategory = true;
       if (filters.category && filters.category !== "All Categories") {
         matchesCategory =
-          (item.category || "").toLowerCase() === filters.category.toLowerCase();
+          itemCategory === filters.category.toLowerCase() ||
+          itemContainer === filters.category.toLowerCase();
       }
 
       return matchesSearch && matchesStatus && matchesCategory;
     });
   }, [items, searchTerm, filters]);
 
-
   return (
     <div className="p-6 md:p-8">
       <div className="w-full max-w-[1400px] mx-auto">
-        {/* Header with Title & Add New Item button */}
-        <ItemHeader onAddItem={handleAddNewItem} />
+        {/* Header with Title & Add Item button */}
+        <ItemHeader
+          canCreate={canManage}
+          onAddItem={handleAddNewItem}
+        />
 
-        {/* Controls: Search Bar, Active Filter Chips, Filter Dropdown in a single row */}
+        {/* Controls: Search Bar, Active Filter Chips, Filter Dropdown */}
         <ItemControls
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
@@ -199,11 +280,15 @@ export default function ItemProfile() {
         />
 
         {/* Items Cards Grid */}
-        {filteredItems.length > 0 ? (
+        {isLoading && items.length === 0 ? (
+          <div className="flex items-center justify-center py-20 text-gray-500 font-medium">
+            Loading products...
+          </div>
+        ) : filteredItems.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
             {filteredItems.map((item) => (
               <ItemCard
-                key={item.id || item.itemCode}
+                key={item.id}
                 item={item}
                 onClick={() => setSelectedItem(item)}
               />
@@ -212,7 +297,7 @@ export default function ItemProfile() {
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <p className="text-gray-400 font-medium text-lg mb-2">
-              No items found matching your criteria
+              No products found matching your criteria
             </p>
             <p className="text-gray-400 text-sm">
               Try adjusting your search query or active filters.
@@ -225,6 +310,7 @@ export default function ItemProfile() {
           <ItemModal
             item={selectedItem}
             items={items}
+            canManage={canManage}
             onClose={() => setSelectedItem(null)}
             onUpdate={handleUpdateItem}
             onDeleteClick={handleInitiateDeactivate}
@@ -236,6 +322,7 @@ export default function ItemProfile() {
           <ItemModal
             isAdding={true}
             items={items}
+            canManage={canManage}
             onClose={() => setIsAddingItem(false)}
             onAdd={handleAddItem}
           />
@@ -270,13 +357,15 @@ export default function ItemProfile() {
           onSubmit={handleExecuteReactivate}
         />
 
-        {/* Saved Changes Toast Notification */}
-        {showToast && (
-          <SavedChangesToast onClose={() => setShowToast(false)} />
+        {/* Dynamic Toast Notifications */}
+        {toast && (
+          <ToastNotification
+            type={toast.type}
+            message={toast.message}
+            onClose={() => setToast(null)}
+          />
         )}
       </div>
     </div>
   );
 }
-
-

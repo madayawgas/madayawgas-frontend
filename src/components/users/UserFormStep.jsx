@@ -1,5 +1,7 @@
+import { KeyRound } from "lucide-react";
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
+import { toProperCase } from "../../utils/text.js";
 
 export default function UserFormStep({
   formData,
@@ -7,8 +9,7 @@ export default function UserFormStep({
   roles,
   user,
   statuses,
-  copied,
-  setCopied,
+  onResetPassword,
   onSubmit,
   onClose,
 }) {
@@ -25,6 +26,12 @@ export default function UserFormStep({
               required
               value={formData.firstName}
               onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+              onBlur={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  firstName: toProperCase(e.target.value),
+                }))
+              }
               className="w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-[#0B4A6E]/20"
             />
           </div>
@@ -37,6 +44,12 @@ export default function UserFormStep({
               required
               value={formData.lastName}
               onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+              onBlur={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  lastName: toProperCase(e.target.value),
+                }))
+              }
               className="w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-[#0B4A6E]/20"
             />
           </div>
@@ -97,41 +110,32 @@ export default function UserFormStep({
 
         {user && (
           <>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[15px] text-gray-900 mb-1.5">Username</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  className="w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 focus:ring-[#0B4A6E]/20"
-                />
-              </div>
-              <div>
-                <label className="block text-[15px] text-gray-900 mb-1.5">Password</label>
-                <input
-                  type="password"
-                  disabled
-                  value="****************"
-                  className="w-full bg-[#F3F5F5] text-gray-400 text-sm px-4 py-3 rounded-full outline-none"
-                />
-                <div className="text-right mt-1.5 pr-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const passwordToCopy = user.password || user.tempPassword || "****************";
-                      navigator.clipboard.writeText(passwordToCopy);
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 2000);
-                    }}
-                    className="text-[#0B4A6E] text-[11px] font-semibold hover:underline cursor-pointer bg-transparent border-none p-0"
-                  >
-                    {copied ? "Copied!" : "Copy Password"}
-                  </button>
-                </div>
-              </div>
+            <div>
+              <label className="block text-[15px] text-gray-900 mb-1.5">Username</label>
+              <input
+                type="text"
+                readOnly
+                disabled
+                value={formData.username}
+                className="w-full bg-[#F3F5F5] text-gray-500 text-sm px-4 py-3 rounded-full outline-none cursor-not-allowed select-all border border-gray-200/50"
+              />
             </div>
+
+            <div className="p-4 bg-[#F3F5F5] rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-gray-200/60">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Account Password</p>
+                <p className="text-xs text-gray-500">Reset password and generate temporary credentials</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onResetPassword && onResetPassword(user)}
+                className="px-4 py-2 bg-[#0F7AB2] hover:bg-[#0c628f] text-white text-xs font-bold rounded-full flex items-center justify-center gap-1.5 transition-colors cursor-pointer uppercase tracking-wider shrink-0"
+              >
+                <KeyRound size={14} />
+                RESET PASSWORD
+              </button>
+            </div>
+
             <div>
               <label className="block text-[15px] text-gray-900 mb-2">Status</label>
               <div className="flex items-center gap-2">
@@ -144,7 +148,13 @@ export default function UserFormStep({
                         name="status"
                         value={s.value}
                         checked={isSelected}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            status: e.target.value,
+                            isBlocked: e.target.value === "SUSPENDED",
+                          })
+                        }
                         className="sr-only"
                       />
                       <Badge

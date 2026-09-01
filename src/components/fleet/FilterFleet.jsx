@@ -30,9 +30,9 @@ export default function FilterFleet({
 
   const statuses = [
     { key: "ACTIVE", variant: "success", activeBorder: "border-green-700" },
-    { key: "AVAILABLE", variant: "info", activeBorder: "border-blue-700" },
-    { key: "STANDBY", variant: "warning", activeBorder: "border-amber-700" },
-    { key: "UNDER REPAIR", variant: "danger", activeBorder: "border-red-700" },
+    { key: "UNDER MAINTENANCE", variant: "danger", activeBorder: "border-red-700" },
+    { key: "INACTIVE", variant: "deactivated", activeBorder: "border-gray-700" },
+    { key: "RETIRED", variant: "warning", activeBorder: "border-amber-700" },
   ];
 
   useEffect(() => {
