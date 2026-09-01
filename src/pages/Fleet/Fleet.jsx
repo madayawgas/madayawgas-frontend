@@ -54,7 +54,7 @@ export default function Fleet() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     status: "",
-    role: "All Roles",
+    driver: "All Drivers",
     dateFrom: "",
     dateTo: "",
   });
@@ -265,7 +265,9 @@ export default function Fleet() {
       const q = searchTerm.toLowerCase().trim();
       const driverName = truck.driver
         ? `${truck.driver.firstName || ""} ${truck.driver.lastName || ""}`.trim() || truck.driver.username
-        : truck.driverName || "";
+        : truck.driverName && truck.driverName !== "No Assigned" && truck.driverName !== "Unassigned"
+        ? truck.driverName
+        : "";
 
       const matchesSearch =
         !q ||
@@ -276,29 +278,50 @@ export default function Fleet() {
         (truck.status || "").toLowerCase().includes(q);
 
       // 2. Status filter
-      const normTruckStatus = (truck.status || "").toUpperCase().replace("_", " ");
+      const normTruckStatus = (truck.status || truck.operationalStatus || "").toUpperCase().replace("_", " ");
       const normFilterStatus = (filters.status || "").toUpperCase().replace("_", " ");
       const matchesStatus =
         !filters.status ||
         filters.status === "All" ||
         normTruckStatus === normFilterStatus;
 
-      // 3. Role / Driver filter
-      let matchesRole = true;
-      if (filters.role && filters.role !== "All Roles") {
-        const matchedDriver = allDrivers.find(
-          (d) =>
-            `${d.firstName || ""} ${d.lastName || ""}`.trim().toLowerCase() === driverName.toLowerCase() ||
-            d.username?.toLowerCase() === driverName.toLowerCase()
+      // 3. Driver Assignment filter
+      let matchesDriver = true;
+      if (filters.driver && filters.driver !== "All Drivers") {
+        const hasAssignedDriver = Boolean(
+          truck.driverId ||
+          (truck.driver && truck.driver.id) ||
+          (driverName && driverName !== "No Assigned" && driverName !== "Unassigned")
         );
-        matchesRole =
-          matchedDriver?.role?.toLowerCase() === filters.role.toLowerCase() ||
-          (filters.role.toLowerCase() === "driver" && driverName && driverName !== "No Assigned");
+
+        if (filters.driver === "Assigned") {
+          matchesDriver = hasAssignedDriver;
+        } else if (filters.driver === "Unassigned") {
+          matchesDriver = !hasAssignedDriver;
+        } else {
+          matchesDriver = driverName.toLowerCase() === filters.driver.toLowerCase();
+        }
       }
 
-      return matchesSearch && matchesStatus && matchesRole;
+      // 4. Date Range filter
+      let matchesDate = true;
+      if (filters.dateFrom || filters.dateTo) {
+        const truckDate = truck.createdAt ? new Date(truck.createdAt).setHours(0, 0, 0, 0) : null;
+        if (truckDate) {
+          if (filters.dateFrom) {
+            const from = new Date(filters.dateFrom).setHours(0, 0, 0, 0);
+            if (truckDate < from) matchesDate = false;
+          }
+          if (filters.dateTo) {
+            const to = new Date(filters.dateTo).setHours(23, 59, 59, 999);
+            if (truckDate > to) matchesDate = false;
+          }
+        }
+      }
+
+      return matchesSearch && matchesStatus && matchesDriver && matchesDate;
     });
-  }, [trucks, searchTerm, filters, allDrivers]);
+  }, [trucks, searchTerm, filters]);
 
   return (
     <div className="p-6 md:p-8">
@@ -315,8 +338,10 @@ export default function Fleet() {
           onSearchChange={setSearchTerm}
           activeFilters={filters}
           onApplyFilters={setFilters}
-          onClearRole={() => setFilters((prev) => ({ ...prev, role: "All Roles" }))}
+          onClearDriver={() => setFilters((prev) => ({ ...prev, driver: "All Drivers" }))}
           onClearStatus={() => setFilters((prev) => ({ ...prev, status: "" }))}
+          onClearDates={() => setFilters((prev) => ({ ...prev, dateFrom: "", dateTo: "" }))}
+          driversList={allDrivers && allDrivers.length > 0 ? allDrivers : availableDrivers}
         />
 
         {/* Fleet Cards Grid */}

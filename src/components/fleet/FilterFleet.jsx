@@ -3,30 +3,21 @@ import { Funnel } from "lucide-react";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
 import DateFilterGroup from "../users/DateFilterGroup";
-import RolesFilterGroup from "../users/RolesFilterGroup";
+import DriverFilterGroup from "./DriverFilterGroup";
 
 export default function FilterFleet({
-  label = "Filter Roles",
+  label = "Filter Fleets",
   onApply,
   className = "",
+  driversList = [],
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState("ACTIVE");
-  const [selectedRole, setSelectedRole] = useState("All Roles");
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedDriver, setSelectedDriver] = useState("All Drivers");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
   const dropdownRef = useRef(null);
-
-  const rolesList = [
-    "All Roles",
-    "Super Admin",
-    "Admin",
-    "Fleet Manager",
-    "Driver",
-    "Sales Manager",
-    "Sales Person",
-  ];
 
   const statuses = [
     { key: "ACTIVE", variant: "success", activeBorder: "border-green-700" },
@@ -47,14 +38,14 @@ export default function FilterFleet({
 
   const handleClearAll = () => {
     setSelectedStatus("");
-    setSelectedRole("All Roles");
+    setSelectedDriver("All Drivers");
     setDateFrom("");
     setDateTo("");
   };
 
   const handleApply = () => {
     if (onApply) {
-      onApply({ status: selectedStatus, role: selectedRole, dateFrom, dateTo });
+      onApply({ status: selectedStatus, driver: selectedDriver, dateFrom, dateTo });
     }
     setIsOpen(false);
   };
@@ -82,7 +73,7 @@ export default function FilterFleet({
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
           <div className="flex items-center gap-1.5 text-[#0A4B6E] font-bold text-sm">
-            <span>Filter Roles</span>
+            <span>Filter Fleets</span>
             <Funnel size={14} className="text-[#0A4B6E]" />
           </div>
           <button
@@ -124,11 +115,11 @@ export default function FilterFleet({
           </div>
         </div>
 
-        {/* Roles Filter Group */}
-        <RolesFilterGroup
-          rolesList={rolesList}
-          selectedRole={selectedRole}
-          onChange={setSelectedRole}
+        {/* Driver Assignment Filter Group */}
+        <DriverFilterGroup
+          driversList={driversList}
+          selectedDriver={selectedDriver}
+          onChange={setSelectedDriver}
         />
 
         {/* Date Range Filter Group */}

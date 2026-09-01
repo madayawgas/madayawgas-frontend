@@ -722,7 +722,10 @@ export const fleetApi = {
       };
     }
 
-    const password = confirmPassword || payload?.adminPassword;
+    const password =
+      typeof confirmPassword === "object"
+        ? confirmPassword?.confirmPassword || confirmPassword?.adminPassword
+        : confirmPassword;
     const result = await apiClient(`/fleet/trucks/${id}/deactivate`, {
       method: "PATCH",
       body: {

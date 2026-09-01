@@ -7,6 +7,7 @@ export default function Modal({
   children,
   footer,
   maxWidth = "max-w-md",
+  closeOnBackdrop = true,
 }) {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
@@ -39,7 +40,9 @@ export default function Modal({
 
   return (
     <div
-      onClick={onClose}
+      onClick={() => {
+        if (closeOnBackdrop && onClose) onClose();
+      }}
       className={`fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 ${
         isAnimatingOut ? "animate-fade-out" : "animate-fade-in"
       }`}

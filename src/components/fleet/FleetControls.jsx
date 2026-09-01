@@ -7,8 +7,10 @@ export default function FleetControls({
   onSearchChange,
   activeFilters,
   onApplyFilters,
-  onClearRole,
+  onClearDriver,
   onClearStatus,
+  onClearDates,
+  driversList = [],
 }) {
   return (
     <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-6">
@@ -23,13 +25,16 @@ export default function FleetControls({
       {/* Filter Controls - Single Row */}
       <div className="flex items-center gap-2 justify-end flex-nowrap shrink-0">
         <ActiveFleetFilters
-          selectedRole={activeFilters.role}
+          selectedDriver={activeFilters.driver}
           selectedStatus={activeFilters.status}
-          onClearRole={onClearRole}
+          dateFrom={activeFilters.dateFrom}
+          dateTo={activeFilters.dateTo}
+          onClearDriver={onClearDriver}
           onClearStatus={onClearStatus}
+          onClearDates={onClearDates}
         />
 
-        <FilterFleet onApply={onApplyFilters} />
+        <FilterFleet onApply={onApplyFilters} driversList={driversList} />
       </div>
     </div>
   );

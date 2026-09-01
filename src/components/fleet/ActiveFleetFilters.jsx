@@ -2,10 +2,13 @@ import { Funnel, X } from "lucide-react";
 import Badge from "../ui/Badge";
 
 export default function ActiveFleetFilters({
-  selectedRole,
+  selectedDriver,
   selectedStatus,
-  onClearRole,
+  dateFrom,
+  dateTo,
+  onClearDriver,
   onClearStatus,
+  onClearDates,
 }) {
   const getStatusVariant = (status) => {
     const norm = (status || "").toUpperCase().replace("_", " ");
@@ -28,17 +31,17 @@ export default function ActiveFleetFilters({
 
   return (
     <div className="flex items-center gap-2 shrink-0 flex-nowrap">
-      {/* Active Role / Route Filter Chip */}
-      {selectedRole && selectedRole !== "All Roles" && (
+      {/* Active Driver Filter Chip */}
+      {selectedDriver && selectedDriver !== "All Drivers" && (
         <Badge
           variant="roles"
           className="flex items-center gap-2 h-[38px] px-3 py-0 normal-case tracking-normal text-xs font-semibold shrink-0 whitespace-nowrap"
         >
           <Funnel size={14} className="text-[#0A4B6E]" />
-          <span>Roles: {selectedRole}</span>
+          <span>Driver: {selectedDriver}</span>
           <button
             type="button"
-            onClick={onClearRole}
+            onClick={onClearDriver}
             className="p-0.5 hover:bg-gray-100 rounded-full transition-colors cursor-pointer ml-1"
           >
             <X size={14} />
@@ -60,6 +63,24 @@ export default function ActiveFleetFilters({
           <button
             type="button"
             onClick={onClearStatus}
+            className="p-0.5 hover:bg-gray-100 rounded-full transition-colors cursor-pointer ml-1"
+          >
+            <X size={14} />
+          </button>
+        </Badge>
+      )}
+
+      {/* Active Date Filter Chip */}
+      {(dateFrom || dateTo) && (
+        <Badge
+          variant="roles"
+          className="flex items-center gap-2 h-[38px] px-3 py-0 normal-case tracking-normal text-xs font-semibold shrink-0 whitespace-nowrap"
+        >
+          <Funnel size={14} className="text-[#0A4B6E]" />
+          <span>Date: {dateFrom || "Start"} to {dateTo || "Present"}</span>
+          <button
+            type="button"
+            onClick={onClearDates}
             className="p-0.5 hover:bg-gray-100 rounded-full transition-colors cursor-pointer ml-1"
           >
             <X size={14} />
