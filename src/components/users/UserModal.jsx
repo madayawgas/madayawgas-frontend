@@ -16,6 +16,7 @@ export default function UserModal({
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdTemporaryPassword, setCreatedTemporaryPassword] = useState("");
+  const [createdUsername, setCreatedUsername] = useState("");
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
 
@@ -35,6 +36,7 @@ export default function UserModal({
       setStep(1);
       setIsSubmitting(false);
       setCreatedTemporaryPassword("");
+      setCreatedUsername("");
       setErrors({});
       setSubmitError("");
 
@@ -83,11 +85,6 @@ export default function UserModal({
 
   const safeRole =
     typeof formData.role === "string" ? formData.role : formData.role?.name || "driver";
-  const generatedUsername = `${(formData.firstName || "").charAt(0).toLowerCase()}${(
-    formData.lastName || ""
-  )
-    .toLowerCase()
-    .replace(/\s/g, "")}_${safeRole.toLowerCase()}`;
 
   const validateForm = () => {
     const newErrors = {};
@@ -166,7 +163,6 @@ export default function UserModal({
     setFormData(cleanedData);
 
     if (user) {
-      // Direct save for user edit (no admin password required per API contract)
       setIsSubmitting(true);
       try {
         await onSave(cleanedData, user.id || user.userId);
@@ -178,7 +174,6 @@ export default function UserModal({
         setIsSubmitting(false);
       }
     } else {
-      // Go to confirm step for new user creation
       setStep(2);
     }
   };
@@ -195,7 +190,6 @@ export default function UserModal({
         firstName: cleanFirstName,
         lastName: cleanLastName,
         contactNo: formattedContactNo,
-        username: generatedUsername,
         isBlocked: false,
         status: "ACTIVE",
       };
@@ -204,6 +198,13 @@ export default function UserModal({
       if (result?.temporaryPassword) {
         setCreatedTemporaryPassword(result.temporaryPassword);
       }
+
+      const backendUsername =
+        result?.username || result?.user?.username || result?.data?.username || "";
+      if (backendUsername) {
+        setCreatedUsername(backendUsername);
+      }
+
       setStep(3);
     } catch (err) {
       console.error("Failed to create user:", err);
@@ -278,7 +279,7 @@ export default function UserModal({
           <UserSuccessStep
             formData={formData}
             safeRole={safeRole}
-            generatedUsername={generatedUsername}
+            generatedUsername={createdUsername || formData.username}
             temporaryPassword={createdTemporaryPassword}
             onDone={onClose}
           />
