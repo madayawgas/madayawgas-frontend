@@ -144,11 +144,35 @@ export default function TruckModal({
     if (submitError) setSubmitError("");
   };
 
+  // Formats plate number to strict 3 letters - 3 numbers (e.g. ABC-123)
+  const handlePlateNumberChange = (e) => {
+    const val = e.target.value.toUpperCase();
+    const raw = val.replace(/[^A-Z0-9]/g, "");
+
+    const letters = raw.slice(0, 3).replace(/[^A-Z]/g, "");
+    const numbers = raw.slice(3, 6).replace(/[^0-9]/g, "");
+
+    let formatted = letters;
+    if (raw.length > 3 || (letters.length === 3 && val.length > 3)) {
+      formatted = `${letters}-${numbers}`;
+    }
+
+    handleInputChange({
+      target: {
+        name: "plateNumber",
+        value: formatted.slice(0, 7), // 3 letters + 1 hyphen + 3 numbers
+      },
+    });
+  };
+
   const validate = () => {
     const newErrors = {};
 
+    const plateRegex = /^[A-Z]{3}-\d{3}$/;
     if (!formData.plateNumber || !formData.plateNumber.toString().trim()) {
       newErrors.plateNumber = "Plate number is required";
+    } else if (!plateRegex.test(formData.plateNumber)) {
+      newErrors.plateNumber = "Plate number must be in ABC-123 format (3 letters, hyphen, 3 digits)";
     } else {
       const plateExists = trucks.find(
         (t) =>
@@ -197,13 +221,11 @@ export default function TruckModal({
   // Build the strict dropdown options based on assignment state:
   let selectDriverOptions = [];
   if (!isAdding && hasExistingDriver) {
-    // Assigned vehicle: only show currently assigned driver & explicit "Unassign Driver" option
     selectDriverOptions = [
       { value: currentDriverId, label: `${currentDriverName} (Currently Assigned)` },
       { value: "", label: "Unassign Driver" },
     ];
   } else {
-    // Unassigned vehicle (or Add New): list unassigned option + only truly available drivers
     selectDriverOptions = [
       { value: "", label: "No Assigned (Unassigned)" },
       ...availableDrivers.map((d) => ({
@@ -217,7 +239,6 @@ export default function TruckModal({
     const isDeactivated = formData.status === "INACTIVE" || formData.status === "RETIRED";
     const finalDriverId = isDeactivated ? null : (formData.assignedDriverId || null);
 
-    // Look up assigned driver profile
     const matchedDriver = [...availableDrivers, ...allDrivers].find(
       (d) => d.id === finalDriverId || d.value === finalDriverId
     );
@@ -335,7 +356,6 @@ export default function TruckModal({
     if (isAdding) {
       onClose();
     } else {
-      // Reset form state cleanly to original truck props
       setFormData(getInitialFormData(truck));
       setErrors({});
       setSubmitError("");
@@ -352,14 +372,12 @@ export default function TruckModal({
 
   const displayTruck = truck || {};
 
-  // Resolved driver display for View mode (purely computed from truck prop)
   const viewDriverDisplay = displayTruck.driver
     ? `${displayTruck.driver.firstName || ""} ${displayTruck.driver.lastName || ""}`.trim() || displayTruck.driver.username
     : displayTruck.driverName && displayTruck.driverName !== "Unassigned"
     ? displayTruck.driverName
     : "No Assigned";
 
-  // Resolved driver display for Add / Confirm screen (computed from form selection)
   const formDriverObj = [...availableDrivers, ...allDrivers].find(
     (d) => (d.id || d.value) === formData.assignedDriverId
   );
@@ -370,7 +388,7 @@ export default function TruckModal({
     : "No Assigned";
 
   // ==========================================
-  // VIEW MODE MODAL (Screen: Truck View Info)
+  // VIEW MODE MODAL
   // ==========================================
   if (!isEditing && !isAdding) {
     return (
@@ -389,7 +407,6 @@ export default function TruckModal({
         }
       >
         <div className="pt-2 pb-2">
-          {/* Header Row: Truck Icon + Plate Number & Status + Pencil + Trash */}
           <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
             <div className="flex items-center gap-2.5 text-[#0A4B6E]">
               <Truck size={26} className="stroke-[2.2]" />
@@ -407,7 +424,6 @@ export default function TruckModal({
                 {displayTruck.status?.replace("_", " ") || "ACTIVE"}
               </span>
 
-              {/* Edit Icon Button */}
               {canManage && (
                 <button
                   type="button"
@@ -419,7 +435,6 @@ export default function TruckModal({
                 </button>
               )}
 
-              {/* Delete / Deactivate or Reactivate Icon Button */}
               {canManage &&
                 (((displayTruck.status || "").toUpperCase() === "INACTIVE" ||
                   (displayTruck.status || "").toUpperCase() === "RETIRED") ? (
@@ -446,7 +461,6 @@ export default function TruckModal({
             </div>
           </div>
 
-          {/* Details Body: Purely rendered from displayTruck */}
           <div className="bg-[#E1F3FE] rounded-2xl p-5 space-y-2.5 text-sm text-left">
             <p className="text-[#588094]">
               Driver:{" "}
@@ -624,8 +638,9 @@ export default function TruckModal({
             label="Truck Plate No."
             name="plateNumber"
             value={formData.plateNumber || ""}
-            onChange={handleInputChange}
-            placeholder="e.g. ABC 123"
+            onChange={handlePlateNumberChange}
+            placeholder="ABC-123"
+            maxLength={7}
             error={errors.plateNumber}
           />
           <Input
