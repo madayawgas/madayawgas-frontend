@@ -1,26 +1,22 @@
 // src/components/fleet/TruckCard.jsx
 import { Truck, List } from "lucide-react";
+import Badge from "../ui/Badge";
 
 export default function TruckCard({ truck, onClick }) {
   const normalizedStatus = (truck.status || truck.operationalStatus || "").toUpperCase().replace("_", " ");
 
-  // Status Badge Pill Styling
-  const getBadgeStyle = (status) => {
+  const getStatusVariant = (status) => {
     switch (status) {
       case "ACTIVE":
-      case "IN USE":
-      case "AVAILABLE":
-        return "bg-[#10B981] text-white"; // Green
+        return "success";
       case "UNDER MAINTENANCE":
-      case "UNDER REPAIR":
-      case "IN SHOP":
-        return "bg-[#DC2626] text-white"; // Red
+        return "danger";
       case "INACTIVE":
-        return "bg-[#64748B] text-white"; // Slate Gray
+        return "neutral";
       case "RETIRED":
-        return "bg-[#475569] text-white"; // Dark Slate
+        return "deactivated";
       default:
-        return "bg-[#64748B] text-white";
+        return "neutral";
     }
   };
 
@@ -40,7 +36,7 @@ export default function TruckCard({ truck, onClick }) {
       onClick={() => onClick && onClick(truck)}
       className="group bg-[#DDF4FF] hover:bg-[#FEF6D1] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer flex flex-col justify-between rounded-2xl p-4 sm:p-5 border border-transparent hover:border-[#F6C445]/40"
     >
-      {/* CARD HEADER PILL: Container for truck icon + plate number */}
+      {/* CARD HEADER PILL */}
       <div className="bg-[#BAE6FD]/70 group-hover:bg-[#FEECA5] rounded-xl px-4 py-2.5 flex items-center gap-2.5 mb-3 text-[#0A4B6E] group-hover:text-[#854D0E] transition-all duration-200">
         <Truck size={22} className="fill-[#0A4B6E] group-hover:fill-[#854D0E] stroke-[1.2] transition-colors flex-shrink-0" />
         <h3 className="font-bold text-base sm:text-lg tracking-wide truncate">
@@ -48,7 +44,7 @@ export default function TruckCard({ truck, onClick }) {
         </h3>
       </div>
 
-      {/* CARD BODY: Driver, Model/Year, Current Odometer */}
+      {/* CARD BODY */}
       <div className="space-y-1.5 text-[12.5px] leading-relaxed mb-4 px-0.5 text-left">
         <p className="text-[#5B8399] group-hover:text-[#A88B3D] transition-colors truncate">
           Driver:{" "}
@@ -72,17 +68,12 @@ export default function TruckCard({ truck, onClick }) {
         </p>
       </div>
 
-      {/* CARD FOOTER: Status Badge Pill + List Action Icon */}
+      {/* CARD FOOTER */}
       <div className="flex items-center justify-between mt-auto pt-1 px-0.5">
-        <span
-          className={`px-4 py-1 text-[11px] font-bold rounded-full uppercase tracking-wider shadow-xs ${getBadgeStyle(
-            normalizedStatus
-          )}`}
-        >
+        <Badge variant={getStatusVariant(normalizedStatus)} className="px-4 py-1 text-[11px]">
           {normalizedStatus || "ACTIVE"}
-        </span>
+        </Badge>
 
-        {/* Action / Detail squircle button */}
         <div className="w-8 h-8 rounded-lg bg-[#BAE6FD]/70 group-hover:bg-[#FEECA5] flex items-center justify-center text-[#0A4B6E] group-hover:text-[#854D0E] transition-all duration-200">
           <List size={16} className="stroke-[2.2]" />
         </div>

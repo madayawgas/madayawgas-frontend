@@ -1,29 +1,24 @@
-// src/components/fleet/TruckModal.jsx
 import { useState, useEffect } from "react";
-import { Truck, Pencil, Trash2, RotateCcw, ArrowLeft } from "lucide-react";
+import { Truck, Pencil, Trash2, RotateCcw } from "lucide-react";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
+import Badge from "../ui/Badge";
 
-// Status Badge Style Helper
-const getBadgeStyle = (status) => {
+const getStatusVariant = (status) => {
   const normalized = (status || "").toUpperCase().replace("_", " ");
   switch (normalized) {
     case "ACTIVE":
-    case "IN USE":
-    case "AVAILABLE":
-      return "bg-[#10B981] text-white";
-    case "UNDER REPAIR":
+      return "success";
     case "UNDER MAINTENANCE":
-    case "IN SHOP":
-      return "bg-[#DC2626] text-white";
+      return "danger";
     case "INACTIVE":
-      return "bg-[#64748B] text-white";
+      return "neutral";
     case "RETIRED":
-      return "bg-[#475569] text-white";
+      return "deactivated";
     default:
-      return "bg-[#64748B] text-white";
+      return "neutral";
   }
 };
 
@@ -53,7 +48,7 @@ const getInitialFormData = (t) => {
 };
 
 /**
- * Interactive Status Pills selector for Edit / Add forms
+ * Interactive Status Pills selector for Edit / Add forms utilizing the unified Badge component
  */
 const StatusPills = ({ currentStatus, onSelect }) => {
   const statuses = ["ACTIVE", "UNDER MAINTENANCE", "INACTIVE", "RETIRED"];
@@ -63,21 +58,28 @@ const StatusPills = ({ currentStatus, onSelect }) => {
       {statuses.map((status) => {
         const isSelected =
           (currentStatus || "").toUpperCase().replace("_", " ") === status;
-        const badgeBg = getBadgeStyle(status);
 
         return (
-          <button
-            key={status}
-            type="button"
-            onClick={() => onSelect(status.replace(" ", "_"))}
-            className={`px-4 py-1.5 text-xs font-bold rounded-full uppercase tracking-wider transition-all cursor-pointer shadow-xs ${badgeBg} ${
-              isSelected
-                ? "ring-2 ring-offset-2 ring-[#0A4B6E] scale-105"
-                : "opacity-40 hover:opacity-80"
-            }`}
-          >
-            {status}
-          </button>
+          <label key={status} className="cursor-pointer relative flex items-center">
+            <input
+              type="radio"
+              name="truckStatus"
+              value={status.replace(" ", "_")}
+              checked={isSelected}
+              onChange={(e) => onSelect(e.target.value)}
+              className="sr-only"
+            />
+            <Badge
+              variant={getStatusVariant(status)}
+              className={`px-4 py-1.5 transition-all duration-200 ease-in-out ${
+                isSelected
+                  ? "filter saturate-150 brightness-95 shadow-inner scale-[1.05] border-2 ring-1 ring-offset-1 ring-[#0A4B6E]/20"
+                  : "opacity-60 grayscale-[40%] hover:opacity-100"
+              }`}
+            >
+              {status}
+            </Badge>
+          </label>
         );
       })}
     </div>
@@ -98,14 +100,13 @@ export default function TruckModal({
   canManage = true,
 }) {
   const [isEditing, setIsEditing] = useState(isAdding);
-  const [step, setStep] = useState(1); // 1: Form, 2: Confirm
+  const [step, setStep] = useState(1);
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState(() => getInitialFormData(truck));
 
-  // Synchronize formData whenever the underlying truck prop updates
   useEffect(() => {
     if (truck && !isEditing) {
       setFormData(getInitialFormData(truck));
@@ -118,6 +119,11 @@ export default function TruckModal({
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     let parsedValue = value;
+
+    if (name === "model") {
+      // Added parentheses to the regex to allow valid inputs like "Isuzu Elf (2024)"
+      parsedValue = value.replace(/[^a-zA-Z0-9\s\-./()]/g, "");
+    }
 
     if (
       ["currentOdometer", "inputOdometer", "lastPmOdometer", "lastPMOdometer", "yearModel"].includes(
@@ -144,7 +150,6 @@ export default function TruckModal({
     if (submitError) setSubmitError("");
   };
 
-  // Formats plate number to strict 3 letters - 3 numbers (e.g. ABC-123)
   const handlePlateNumberChange = (e) => {
     const val = e.target.value.toUpperCase();
     const raw = val.replace(/[^A-Z0-9]/g, "");
@@ -205,20 +210,18 @@ export default function TruckModal({
   const handleFormSubmit = async () => {
     if (!validate()) return;
     if (isAdding) {
-      setStep(2); // Advance to Confirmation step for Add
+      setStep(2);
     } else {
-      await submitUpdate(); // Direct save for Edit
+      await submitUpdate();
     }
   };
 
-  // Check if truck currently has an assigned driver
   const hasExistingDriver = !!(truck?.driverId || truck?.driver);
   const currentDriverId = truck?.driverId || truck?.driver?.id;
   const currentDriverName = truck?.driver
     ? `${truck.driver.firstName || ""} ${truck.driver.lastName || ""}`.trim() || truck.driver.username
     : truck?.driverName || "Current Driver";
 
-  // Build the strict dropdown options based on assignment state:
   let selectDriverOptions = [];
   if (!isAdding && hasExistingDriver) {
     selectDriverOptions = [
@@ -397,13 +400,14 @@ export default function TruckModal({
         onClose={onClose}
         maxWidth="max-w-md"
         footer={
-          <button
+          <Button
             type="button"
+            variant="yellow"
             onClick={onClose}
-            className="w-full bg-[#FFDF2C] hover:bg-[#F5D020] text-[#0A4B6E] font-bold text-sm py-3 rounded-full uppercase tracking-wider transition shadow-xs cursor-pointer"
+            className="w-full font-bold text-sm uppercase tracking-wider"
           >
             CLOSE
-          </button>
+          </Button>
         }
       >
         <div className="pt-2 pb-2">
@@ -416,13 +420,9 @@ export default function TruckModal({
             </div>
 
             <div className="flex items-center gap-2">
-              <span
-                className={`px-3.5 py-1 text-[11px] font-bold rounded-full uppercase tracking-wider shadow-xs ${getBadgeStyle(
-                  displayTruck.status
-                )}`}
-              >
+              <Badge variant={getStatusVariant(displayTruck.status)} className="px-3.5 py-1">
                 {displayTruck.status?.replace("_", " ") || "ACTIVE"}
-              </span>
+              </Badge>
 
               {canManage && (
                 <button
@@ -521,21 +521,13 @@ export default function TruckModal({
   // ==========================================
   if (isAdding && step === 2) {
     return (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-[2rem] max-w-lg w-full p-8 shadow-xl">
-          <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-6">
-            <h2 className="text-2xl font-bold text-[#0B4A6E]">
-              Confirm Truck Information
-            </h2>
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="text-[#0B4A6E] hover:opacity-75 transition-opacity cursor-pointer p-1"
-            >
-              <ArrowLeft size={22} />
-            </button>
-          </div>
-
+      <Modal
+        isOpen={true}
+        onClose={() => setStep(1)}
+        title="Confirm Truck Information"
+        maxWidth="max-w-lg"
+      >
+        <div className="py-2">
           <div className="bg-[#F3F5F5] rounded-2xl p-6 space-y-3 text-sm text-left mb-6">
             <p className="text-[#588094]">
               Truck Plate No:{" "}
@@ -563,34 +555,32 @@ export default function TruckModal({
             </p>
             <div className="flex items-center gap-2">
               <span className="text-[#588094]">Status:</span>
-              <span
-                className={`px-3 py-0.5 text-xs font-bold rounded-full uppercase tracking-wider text-white ${getBadgeStyle(
-                  formData.status
-                )}`}
-              >
+              <Badge variant={getStatusVariant(formData.status)}>
                 {formData.status?.replace("_", " ") || "ACTIVE"}
-              </span>
+              </Badge>
             </div>
           </div>
 
           <div className="flex flex-col gap-3">
             <Button
               type="button"
+              variant="yellow"
               onClick={handleConfirmAdd}
-              className="w-full py-3.5 bg-[#F6C445] hover:bg-[#e2b23b] border-none !text-[#0B4A6E] rounded-full font-bold uppercase tracking-widest text-xs transition-colors cursor-pointer"
+              className="w-full font-bold uppercase tracking-widest text-xs"
             >
               CONFIRM
             </Button>
             <Button
               type="button"
+              variant="cancel"
               onClick={() => setStep(1)}
-              className="w-full py-2 bg-transparent border-none !text-[#0B4A6E] font-semibold text-xs hover:underline cursor-pointer"
+              className="w-full font-semibold text-xs"
             >
               CANCEL
             </Button>
           </div>
         </div>
-      </div>
+      </Modal>
     );
   }
 
@@ -604,22 +594,24 @@ export default function TruckModal({
           {submitError}
         </div>
       )}
-      <button
+      <Button
         type="button"
+        variant="yellow"
         disabled={isSubmitting}
         onClick={handleFormSubmit}
-        className="w-full bg-[#FFDF2C] hover:bg-[#F5D020] disabled:opacity-50 text-[#0A4B6E] font-bold text-sm py-3 rounded-full uppercase tracking-wider transition shadow-sm cursor-pointer mb-2"
+        className="w-full font-bold text-sm uppercase tracking-wider mb-2"
       >
         {isSubmitting ? "SAVING..." : isAdding ? "ADD TRUCK" : "SAVE CHANGES"}
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
+        variant="cancel"
         disabled={isSubmitting}
         onClick={handleCancel}
-        className="text-xs text-[#0A4B6E] font-semibold hover:underline cursor-pointer disabled:opacity-50"
+        className="text-xs"
       >
         CANCEL
-      </button>
+      </Button>
     </div>
   );
 

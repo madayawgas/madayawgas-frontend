@@ -5,12 +5,9 @@ export default function TruckStatus({ status }) {
 
   const variants = {
     "ACTIVE": "success",
-    "IN USE": "info",
-    "AVAILABLE": "info",
-    "STANDBY": "warning",
-    "UNDER REPAIR": "danger",
-    "UNDER MAINTENANCE": "maintenance",
-    "IN SHOP": "neutral",
+    "UNDER MAINTENANCE": "danger",
+    "INACTIVE": "neutral",
+    "RETIRED": "deactivated",
   };
 
   return (
