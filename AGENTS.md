@@ -215,9 +215,19 @@ The application supports all Philippine contact number formats:
 - **Features**: Multi-step user wizard, password reset, temporary credentials generator, deactivation, reactivation, and RBAC permissions modal matrix.
 
 ### 3. Fleet & Maintenance (`/fleet`)
-- **Contract**: `docs/API Contract/fleet-and-maintenance.api.md`
+- **Contracts**: `docs/api-contracts/fleet/` (`availability.api.md`, `drivers.api.md`, `maintenance.api.md`, `trucks.api.md`)
 - **Fields**: `id` (UUID), `plateNumber`, `model`, `yearModel`, `currentOdometer`, `lastPmOdometer`, `status` (`ACTIVE`, `UNDER_MAINTENANCE`, `INACTIVE`, `RETIRED`), `driverId`, `driver`, `createdAt`, `updatedAt`.
-- **Features**: Card grid, truck modal, operational condition management, soft-bounded driver assignment, mileage tracking, deactivation guard with `confirmPassword`, `localStorage` caching (`app_fleet_cache`).
+- **Sub-Navigation Tabs**:
+  - `Vehicles & Fleets`: Grid of fleet assets, PM progress gauges, operational status, and 1:1 soft-bound driver management.
+  - `Work Orders`: Lifecycle tracking (`PENDING` -> `APPROVED` -> `SCHEDULED` -> `IN_PROGRESS` -> `COMPLETED`), with ₱5,000.00 cost approval gatekeeping and status filters.
+  - `Maintenance Logs`: Historical record archive of completed repairs with official receipt numbers, parts/labor breakdown, and fleet downtime metrics.
+  - `Recurring Defect Intelligence`: Cross-fleet analytics highlighting chronic mechanical defects and repeated incident clusters over configurable time horizons.
+- **Key Invariants**:
+  - **Findings-Only Inspections**: Safety inspections record free-text findings and dispatch gating without checklists. FAILED outcomes automatically ground the vehicle (`UNDER_MAINTENANCE`).
+  - **Driver Soft-Binding Retention**: Grounding a vehicle (`UNDER_MAINTENANCE`) retains the driver relationship.
+  - **₱5,000 Gatekeeping**: Repairs >= ₱5,000 require executive managerial authorization (`users.manage`).
+  - **Finalization & PM Baseline Reset**: Work orders can only be marked `COMPLETED` via `/finalize` with a unique official receipt. For `PREVENTIVE` orders, `lastPmOdometer` resets to serviced odometer.
+- **Caching**: `localStorage` keys `app_fleet_cache`, `app_work_orders_cache`, `app_maintenance_logs_cache`.
 
 ### 4. Item Profile / Inventory (`/item-profile`, `/inventory`)
 - **Contract**: `docs/API Contract/inventory-products.api.md`

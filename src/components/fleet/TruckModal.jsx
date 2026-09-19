@@ -1,5 +1,18 @@
 import { useState, useEffect } from "react";
-import { Truck, Pencil, Trash2, RotateCcw } from "lucide-react";
+import {
+  Truck,
+  Pencil,
+  Trash2,
+  RotateCcw,
+  Gauge,
+  History,
+  SlidersHorizontal,
+  ShieldCheck,
+  AlertTriangle,
+  AlertOctagon,
+  ClipboardList,
+  Wrench,
+} from "lucide-react";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
 import Modal from "../ui/Modal";
@@ -98,6 +111,14 @@ export default function TruckModal({
   availableDrivers = [],
   allDrivers = [],
   canManage = true,
+  onOpenCheckIn,
+  onOpenHistory,
+  onOpenAvailability,
+  onOpenInspect,
+  onOpenIncident,
+  onOpenInspectionHistory,
+  onOpenIncidentHistory,
+  onCreateWorkOrder,
 }) {
   const [isEditing, setIsEditing] = useState(isAdding);
   const [step, setStep] = useState(1);
@@ -201,6 +222,14 @@ export default function TruckModal({
       Number(formData.yearModel) > new Date().getFullYear() + 1
     ) {
       newErrors.yearModel = `Year model must be between 1900 and ${new Date().getFullYear() + 1}`;
+    }
+
+    if (formData.inputOdometer !== "" && formData.inputOdometer !== undefined) {
+      const newOdo = Number(formData.inputOdometer);
+      const curOdo = Number(formData.currentOdometer) || 0;
+      if (newOdo < curOdo) {
+        newErrors.inputOdometer = `New odometer (${newOdo.toLocaleString()} km) cannot be less than current odometer (${curOdo.toLocaleString()} km)`;
+      }
     }
 
     setErrors(newErrors);
@@ -394,6 +423,19 @@ export default function TruckModal({
   // VIEW MODE MODAL
   // ==========================================
   if (!isEditing && !isAdding) {
+    const currentOdo = Number(displayTruck.currentOdometer) || 0;
+    const lastPmOdo = Number(
+      displayTruck.lastPmOdometer !== undefined
+        ? displayTruck.lastPmOdometer
+        : displayTruck.lastPMOdometer || 0
+    );
+    const distanceSinceLastPm = Math.max(0, currentOdo - lastPmOdo);
+    const isPmDue =
+      displayTruck.isPmDue !== undefined
+        ? Boolean(displayTruck.isPmDue)
+        : distanceSinceLastPm >= 5000;
+    const pmPercent = Math.min(100, Math.round((distanceSinceLastPm / 5000) * 100));
+
     return (
       <Modal
         isOpen={true}
@@ -461,6 +503,35 @@ export default function TruckModal({
             </div>
           </div>
 
+          {/* GROUNDING WARNING BANNER (When Under Maintenance) */}
+          {((displayTruck.status || "").toUpperCase() === "UNDER_MAINTENANCE" ||
+            (displayTruck.operationalStatus || "").toUpperCase() === "UNDER_MAINTENANCE") && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 mb-3 flex items-start justify-between gap-2.5 text-xs text-red-800">
+              <div className="flex items-start gap-2.5">
+                <AlertOctagon size={18} className="text-red-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5 text-left">
+                  <p className="font-bold">⚠️ Vehicle Grounded — Under Maintenance</p>
+                  <p className="text-[11.5px] text-red-700 leading-relaxed">
+                    This vehicle is currently grounded from dispatch. Soft-bound driver ({viewDriverDisplay}) is retained.
+                  </p>
+                </div>
+              </div>
+              {onCreateWorkOrder && canManage && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onCreateWorkOrder(displayTruck);
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-2.5 py-1.5 rounded-lg shrink-0 transition flex items-center gap-1 cursor-pointer shadow-xs"
+                >
+                  <Wrench size={13} />
+                  <span>Work Order</span>
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="bg-[#E1F3FE] rounded-2xl p-5 space-y-2.5 text-sm text-left">
             <p className="text-[#588094]">
               Driver:{" "}
@@ -504,11 +575,165 @@ export default function TruckModal({
               </span>
             </p>
 
+            {/* 5,000-KM PREVENTIVE MAINTENANCE HEALTH PROGRESS */}
+            <div className="pt-2.5 border-t border-[#0A4B6E]/15 mt-2">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-[#588094]">5,000-KM PM Status:</span>
+                <span className={`font-bold ${isPmDue ? "text-red-600" : "text-[#0A4B6E]"}`}>
+                  {distanceSinceLastPm.toLocaleString()} / 5,000 KM ({pmPercent}%)
+                </span>
+              </div>
+              <div className="w-full h-2 bg-[#BAE6FD] rounded-full overflow-hidden mb-1">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    isPmDue
+                      ? "bg-[#D93025]"
+                      : distanceSinceLastPm >= 4000
+                      ? "bg-[#F6C445]"
+                      : "bg-[#0A4B6E]"
+                  }`}
+                  style={{ width: `${pmPercent}%` }}
+                />
+              </div>
+              {isPmDue ? (
+                <div className="bg-red-50 text-red-700 p-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 mt-2 border border-red-200">
+                  <span>⚠️ Preventive maintenance threshold reached. Servicing required!</span>
+                </div>
+              ) : (
+                <span className="text-[11px] text-[#588094]">
+                  {Math.max(0, 5000 - distanceSinceLastPm).toLocaleString()} KM remaining before next service
+                </span>
+              )}
+            </div>
+
             {displayTruck.activeRepair && (
               <div className="bg-red-50 text-red-700 p-3 rounded-xl text-xs font-medium mt-3 border border-red-200">
                 <span className="font-bold">Active Repair:</span>{" "}
                 {displayTruck.activeRepair}
               </div>
+            )}
+          </div>
+
+          {/* QUICK ACTION BUTTONS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+            {/* Safety Inspection */}
+            {onOpenInspect && canManage && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenInspect(displayTruck);
+                }}
+                className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-[#0A4B6E] border border-[#0A4B6E] rounded-xl py-2 px-3 text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <ShieldCheck size={15} />
+                <span>Safety Inspection</span>
+              </button>
+            )}
+
+            {/* Report Incident */}
+            {onOpenIncident && canManage && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenIncident(displayTruck);
+                }}
+                className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-[#0A4B6E] border border-[#0A4B6E] rounded-xl py-2 px-3 text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <AlertTriangle size={15} />
+                <span>Report Incident</span>
+              </button>
+            )}
+
+            {/* Inspection History */}
+            {onOpenInspectionHistory && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenInspectionHistory(displayTruck);
+                }}
+                className="flex items-center justify-center gap-2 bg-[#F3F5F5] hover:bg-gray-200/80 text-[#0A4B6E] border border-gray-200 rounded-xl py-2 px-3 text-xs font-semibold transition cursor-pointer"
+              >
+                <ClipboardList size={14} />
+                <span>Inspection History</span>
+              </button>
+            )}
+
+            {/* Incident History */}
+            {onOpenIncidentHistory && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenIncidentHistory(displayTruck);
+                }}
+                className="flex items-center justify-center gap-2 bg-[#F3F5F5] hover:bg-gray-200/80 text-[#0A4B6E] border border-gray-200 rounded-xl py-2 px-3 text-xs font-semibold transition cursor-pointer"
+              >
+                <AlertOctagon size={14} />
+                <span>Incident Logs</span>
+              </button>
+            )}
+
+            {/* Record Odometer */}
+            {onOpenCheckIn && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenCheckIn(displayTruck);
+                }}
+                className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-[#0A4B6E] border border-[#0A4B6E] rounded-xl py-2 px-3 text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <Gauge size={15} />
+                <span>Record Odometer</span>
+              </button>
+            )}
+
+            {/* Mileage History */}
+            {onOpenHistory && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenHistory(displayTruck);
+                }}
+                className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-[#0A4B6E] border border-[#0A4B6E] rounded-xl py-2 px-3 text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <History size={15} />
+                <span>Mileage History</span>
+              </button>
+            )}
+
+            {/* Create Work Order */}
+            {onCreateWorkOrder && canManage && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onCreateWorkOrder(displayTruck);
+                }}
+                className="col-span-1 sm:col-span-2 flex items-center justify-center gap-2 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0B4A6E] rounded-xl py-2 px-3 text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <Wrench size={14} />
+                <span>Create Work Order</span>
+              </button>
+            )}
+
+            {/* Set Operational Condition */}
+            {onOpenAvailability && canManage && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenAvailability(displayTruck);
+                }}
+                className="col-span-1 sm:col-span-2 flex items-center justify-center gap-2 bg-[#EBF5FB] hover:bg-[#DDF4FF] text-[#0A4B6E] border border-[#BAE6FD] rounded-xl py-2 px-3 text-xs font-semibold transition cursor-pointer"
+              >
+                <SlidersHorizontal size={14} />
+                <span>Set Operational Condition</span>
+              </button>
             )}
           </div>
         </div>

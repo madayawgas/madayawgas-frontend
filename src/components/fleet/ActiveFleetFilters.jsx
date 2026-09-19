@@ -1,13 +1,16 @@
+// src/components/fleet/ActiveFleetFilters.jsx
 import { Funnel, X } from "lucide-react";
 import Badge from "../ui/Badge";
 
 export default function ActiveFleetFilters({
   selectedDriver,
   selectedStatus,
+  selectedPmStatus,
   dateFrom,
   dateTo,
   onClearDriver,
   onClearStatus,
+  onClearPmStatus,
   onClearDates,
 }) {
   const getStatusVariant = (status) => {
@@ -70,6 +73,27 @@ export default function ActiveFleetFilters({
         </Badge>
       )}
 
+      {/* Active PM Due Filter Chip */}
+      {selectedPmStatus && (
+        <Badge
+          variant="roles"
+          className="flex items-center gap-2 h-[38px] px-3 py-0 normal-case tracking-normal text-xs font-semibold shrink-0 whitespace-nowrap"
+        >
+          <Funnel size={14} className="text-[#0A4B6E]" />
+          <span>PM:</span>
+          <Badge variant={selectedPmStatus === "PM_DUE" ? "danger" : "success"}>
+            {selectedPmStatus === "PM_DUE" ? "PM Due (≥ 5,000 KM)" : "Normal"}
+          </Badge>
+          <button
+            type="button"
+            onClick={onClearPmStatus}
+            className="p-0.5 hover:bg-gray-100 rounded-full transition-colors cursor-pointer ml-1"
+          >
+            <X size={14} />
+          </button>
+        </Badge>
+      )}
+
       {/* Active Date Filter Chip */}
       {(dateFrom || dateTo) && (
         <Badge
@@ -90,5 +114,3 @@ export default function ActiveFleetFilters({
     </div>
   );
 }
-
-
