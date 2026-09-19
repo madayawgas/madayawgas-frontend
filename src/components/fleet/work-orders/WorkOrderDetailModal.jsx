@@ -1,291 +1,493 @@
 // src/components/fleet/work-orders/WorkOrderDetailModal.jsx
-import { Wrench, Truck, Calendar, MapPin, DollarSign, CheckCircle2, XCircle, Clock, AlertCircle, FileText, UserCheck, ShieldCheck } from "lucide-react";
-import Modal from "../../ui/Modal";
-import Button from "../../ui/Button";
+import {
+  Wrench,
+  Truck,
+  Calendar,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  AlertTriangle,
+  FileText,
+  User,
+  ShieldCheck,
+  Building2,
+  Gauge,
+  Tag,
+  Receipt,
+  Play,
+  CheckCheck,
+} from "lucide-react";
+import SideDrawer from "../../ui/SideDrawer";
+import Badge from "../../ui/Badge";
+import { useAuth } from "../../../context/AuthContext.jsx";
+import { PERMISSIONS } from "../../../utils/permissions.js";
 
 const STATUS_CONFIG = {
-  PENDING: { label: "Pending Approval", bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
-  APPROVED: { label: "Approved", bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  SCHEDULED: { label: "Scheduled", bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
-  IN_PROGRESS: { label: "In Progress", bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
-  COMPLETED: { label: "Completed", bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
-  CANCELLED: { label: "Cancelled", bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200" },
+  PENDING: {
+    label: "Pending Approval",
+    badgeVariant: "pending",
+    badgeClass: "bg-amber-100 text-amber-800 border-amber-300",
+  },
+  APPROVED: {
+    label: "Approved",
+    badgeVariant: "roles",
+    badgeClass: "bg-blue-100 text-blue-800 border-blue-300",
+  },
+  SCHEDULED: {
+    label: "Scheduled",
+    badgeVariant: "roles",
+    badgeClass: "bg-purple-100 text-purple-800 border-purple-300",
+  },
+  IN_PROGRESS: {
+    label: "In Progress",
+    badgeVariant: "warning",
+    badgeClass: "bg-orange-100 text-orange-800 border-orange-300",
+  },
+  COMPLETED: {
+    label: "Completed",
+    badgeVariant: "success",
+    badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-300",
+  },
+  CANCELLED: {
+    label: "Cancelled",
+    badgeVariant: "danger",
+    badgeClass: "bg-rose-100 text-rose-800 border-rose-300",
+  },
 };
 
-const LIFECYCLE_STEPS = ["PENDING", "APPROVED", "SCHEDULED", "IN_PROGRESS", "COMPLETED"];
+const LIFECYCLE_STEPS = [
+  { key: "PENDING", label: "Pending" },
+  { key: "APPROVED", label: "Approved" },
+  { key: "SCHEDULED", label: "Scheduled" },
+  { key: "IN_PROGRESS", label: "In Progress" },
+  { key: "COMPLETED", label: "Completed" },
+];
+
+function formatDate(dateStr) {
+  if (!dateStr) return "N/A";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatCurrency(val) {
+  const num = Number(val) || 0;
+  return `₱${num.toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
 
 /**
- * WorkOrderDetailModal
- * Comprehensive read-only inspector for a Work Order, showing lifecycle progress,
- * linked vehicle details, cost approvals, and finalized maintenance logs.
+ * WorkOrderDetailModal (Slide-in Drawer)
+ * Handcrafted Madayaw Gas style Work Order Detail Inspector.
+ * Slides smoothly from the right with lifecycle pipeline, vehicle info,
+ * repair specification, cost approval status, and finalized receipts.
  */
 export default function WorkOrderDetailModal({
   isOpen,
   workOrder,
   onClose,
+  onOpenApproval,
+  onOpenFinalize,
+  onAdvanceStatus,
 }) {
+  const { currentUser, can } = useAuth();
+
   if (!isOpen || !workOrder) return null;
+
+  const canManageFleet = can && can(PERMISSIONS?.FLEET_MANAGE || "fleet.manage");
+  const isManager =
+    currentUser?.role === "Super Admin" ||
+    currentUser?.role === "Admin" ||
+    (can && can(PERMISSIONS?.USERS_MANAGE || "users.manage"));
 
   const statusStyle = STATUS_CONFIG[workOrder.status] || {
     label: workOrder.status,
-    bg: "bg-slate-50",
-    text: "text-slate-700",
-    border: "border-slate-200",
+    badgeClass: "bg-slate-100 text-slate-700 border-slate-300",
   };
 
   const estimatedCost = Number(workOrder.estimatedCost) || 0;
   const requiresApproval = estimatedCost >= 5000.0;
-  const truckPlate = workOrder.truck?.plateNumber || "N/A";
-  const truckModel = workOrder.truck?.model || "";
-  const driverName = workOrder.truck?.driver?.name || "Unassigned";
+  const truckPlate = workOrder.truck?.plateNumber || workOrder.plateNumber || "N/A";
+  const truckModel = workOrder.truck?.model || workOrder.truckModel || "";
+  const driverName =
+    workOrder.truck?.driver?.name ||
+    workOrder.truck?.driverName ||
+    (workOrder.truck?.driver
+      ? `${workOrder.truck.driver.firstName || ""} ${workOrder.truck.driver.lastName || ""}`.trim()
+      : null) ||
+    "Unassigned";
+
+  const typeName =
+    workOrder.maintenanceType?.name ||
+    workOrder.maintenanceTypeName ||
+    "Preventive Maintenance";
+
+  const shop = workOrder.shopName || "Bunawan Heavy Repair Center";
 
   // Determine current lifecycle step index
-  const currentStepIdx = LIFECYCLE_STEPS.indexOf(workOrder.status);
+  const stepKeys = LIFECYCLE_STEPS.map((s) => s.key);
+  const currentStepIdx = stepKeys.indexOf(workOrder.status);
+  const progressPercent =
+    currentStepIdx >= 0
+      ? Math.round(((currentStepIdx + 1) / LIFECYCLE_STEPS.length) * 100)
+      : workOrder.status === "CANCELLED"
+      ? 100
+      : 0;
 
   return (
-    <Modal
+    <SideDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title={`Work Order ${workOrder.workOrderNumber || ""}`}
-      maxWidth="max-w-2xl"
-    >
-      <div className="space-y-4 pt-1">
-        {/* Status Header Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
-          <div>
-            <div className="text-xs text-slate-500 font-medium">Work Order ID</div>
-            <div className="font-mono text-xs text-slate-700 font-semibold">{workOrder.id}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}
+      title={workOrder.workOrderNumber || `Work Order ${workOrder.id?.slice(0, 8)}`}
+      subtitle={`${typeName} • ${shop}`}
+      icon={Wrench}
+      badge={
+        <span
+          className={`px-3 py-0.5 rounded-full text-[11px] font-bold border uppercase tracking-wider ${statusStyle.badgeClass}`}
+        >
+          {statusStyle.label}
+        </span>
+      }
+      width="max-w-xl lg:max-w-2xl"
+      footer={({ onClose: closeDrawer }) => (
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
+          {/* Action trigger based on current lifecycle status */}
+          {workOrder.status === "PENDING" && onOpenApproval && (
+            <button
+              type="button"
+              onClick={() => {
+                closeDrawer();
+                onOpenApproval(workOrder);
+              }}
+              className="flex-1 py-3.5 px-5 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95"
             >
-              {statusStyle.label}
-            </span>
-          </div>
-        </div>
+              <Clock size={16} />
+              <span>{isManager ? "Review Approval" : "View Approval"}</span>
+            </button>
+          )}
 
-        {/* Visual Lifecycle Progress Bar */}
-        {workOrder.status !== "CANCELLED" && (
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-[#6D8AA2] mb-2.5">
-              Lifecycle Progress
+          {workOrder.status === "SCHEDULED" && canManageFleet && onAdvanceStatus && (
+            <button
+              type="button"
+              onClick={() => {
+                closeDrawer();
+                onAdvanceStatus(workOrder.id, "IN_PROGRESS");
+              }}
+              className="flex-1 py-3.5 px-5 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95"
+            >
+              <Play size={15} className="fill-current" />
+              <span>Start Repair</span>
+            </button>
+          )}
+
+          {workOrder.status === "IN_PROGRESS" && canManageFleet && onOpenFinalize && (
+            <button
+              type="button"
+              onClick={() => {
+                closeDrawer();
+                onOpenFinalize(workOrder);
+              }}
+              className="flex-1 py-3.5 px-5 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95"
+            >
+              <CheckCheck size={16} />
+              <span>Finalize Maintenance</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={closeDrawer}
+            className={`py-3.5 px-6 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all shadow-sm cursor-pointer active:scale-95 text-center ${
+              (workOrder.status === "PENDING" && onOpenApproval) ||
+              (workOrder.status === "SCHEDULED" && canManageFleet && onAdvanceStatus) ||
+              (workOrder.status === "IN_PROGRESS" && canManageFleet && onOpenFinalize)
+                ? "flex-1"
+                : "w-full"
+            }`}
+          >
+            CLOSE
+          </button>
+        </div>
+      )}
+    >
+      <div className="space-y-4">
+        {/* Sub-Header Label */}
+        <p className="text-center text-xs md:text-sm font-semibold text-[#6D8AA2] mb-1 tracking-wide">
+          Work Order Lifecycle & Details
+        </p>
+
+        {/* 1. BRANDED LIFECYCLE PIPELINE TRACK */}
+        {workOrder.status !== "CANCELLED" ? (
+          <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-[#0A4B6E] uppercase tracking-wider text-[11px]">
+                Lifecycle Progress
+              </span>
+              <span className="font-bold text-[#0A4B6E] bg-white px-2.5 py-0.5 rounded-full border border-[#BCE1F1] text-[10px]">
+                {progressPercent}% Complete
+              </span>
             </div>
-            <div className="flex items-center justify-between relative">
-              <div className="absolute left-4 right-4 top-3 h-0.5 bg-slate-200 -z-0" />
+
+            {/* Pipeline Stage Badges */}
+            <div className="grid grid-cols-5 gap-1.5 pt-1">
               {LIFECYCLE_STEPS.map((step, idx) => {
-                const isPassed = currentStepIdx >= idx;
-                const isCurrent = workOrder.status === step;
+                const isPassed = currentStepIdx > idx;
+                const isCurrent = currentStepIdx === idx;
+
+                let badgeStyles = "bg-white/70 text-slate-400 border-slate-200";
+                if (isCurrent) {
+                  badgeStyles =
+                    "bg-[#0A4B6E] text-[#FFDF2C] border-[#0A4B6E] font-bold shadow-xs ring-2 ring-[#0A4B6E]/20";
+                } else if (isPassed) {
+                  badgeStyles =
+                    "bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold";
+                }
+
                 return (
-                  <div key={step} className="flex flex-col items-center relative z-10">
-                    <div
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
-                        isCurrent
-                          ? "bg-[#0B4A6E] text-[#FFDF2C] ring-4 ring-[#E8F3F8]"
-                          : isPassed
-                          ? "bg-emerald-600 text-white"
-                          : "bg-slate-200 text-slate-400"
-                      }`}
-                    >
-                      {isPassed && !isCurrent ? "✓" : idx + 1}
+                  <div
+                    key={step.key}
+                    className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all ${badgeStyles}`}
+                  >
+                    <div className="flex items-center gap-1 text-[11px]">
+                      {isPassed && <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />}
+                      <span className="truncate">{step.label}</span>
                     </div>
-                    <span
-                      className={`text-[10px] mt-1 font-medium capitalize ${
-                        isCurrent
-                          ? "text-[#0B4A6E] font-bold"
-                          : isPassed
-                          ? "text-slate-700"
-                          : "text-slate-400"
-                      }`}
-                    >
-                      {step.replace("_", " ").toLowerCase()}
-                    </span>
                   </div>
                 );
               })}
             </div>
           </div>
-        )}
-
-        {/* Two-Column Grid: Vehicle & Service Specifications */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {/* Vehicle Information */}
-          <div className="bg-[#F3F5F5] rounded-xl p-3.5 border border-slate-200/70 space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#1B4B75]">
-              <Truck className="w-3.5 h-3.5" />
-              <span>Assigned Vehicle</span>
-            </div>
-            <div className="text-sm font-bold text-slate-800">
-              {truckPlate} {truckModel && <span className="text-slate-500 font-normal">({truckModel})</span>}
-            </div>
-            <div className="text-xs text-slate-600 space-y-0.5">
-              <div>
-                <span className="text-slate-400">Assigned Driver: </span>
-                <span className="font-medium text-slate-700">{driverName}</span>
-              </div>
-              <div>
-                <span className="text-slate-400">Current Odometer: </span>
-                <span className="font-mono text-slate-700">
-                  {workOrder.truck?.currentOdometer
-                    ? `${Number(workOrder.truck.currentOdometer).toLocaleString()} km`
-                    : "N/A"}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-400">Truck Status: </span>
-                <span className="font-semibold text-slate-700">{workOrder.truck?.status || "ACTIVE"}</span>
-              </div>
+        ) : (
+          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-center gap-3 text-xs text-rose-900">
+            <XCircle size={20} className="text-rose-600 shrink-0" />
+            <div>
+              <p className="font-bold text-sm">Work Order Cancelled</p>
+              <p className="text-rose-700 mt-0.5">
+                This maintenance order was terminated and will not be dispatched for repair.
+              </p>
             </div>
           </div>
+        )}
 
-          {/* Service Specifications */}
-          <div className="bg-[#F3F5F5] rounded-xl p-3.5 border border-slate-200/70 space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#1B4B75]">
-              <Wrench className="w-3.5 h-3.5" />
-              <span>Service Specification</span>
+        {/* 2. ASSIGNED VEHICLE CARD */}
+        <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-11 h-11 rounded-full bg-[#0A4B6E] flex items-center justify-center text-white shrink-0 shadow-xs">
+                <Truck size={22} className="text-[#FFDF2C]" />
+              </div>
+              <div>
+                <h3 className="text-base md:text-lg font-bold text-[#0A4B6E] leading-tight">
+                  {truckPlate}
+                </h3>
+                {truckModel && (
+                  <p className="text-xs text-[#6D8AA2] font-medium">{truckModel}</p>
+                )}
+              </div>
             </div>
-            <div className="text-sm font-bold text-slate-800">
-              {workOrder.maintenanceType?.name || workOrder.maintenanceTypeName || "General Repair"}
+
+            <Badge
+              variant={
+                workOrder.truck?.status === "UNDER_MAINTENANCE"
+                  ? "warning"
+                  : workOrder.truck?.status === "INACTIVE"
+                  ? "deactivated"
+                  : "success"
+              }
+            >
+              {workOrder.truck?.status || "ACTIVE"}
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-[#BCE1F1]/40">
+            <div className="flex items-center gap-2">
+              <User size={14} className="text-[#6D8AA2] shrink-0" />
+              <span className="text-[#6D8AA2]">Driver:</span>
+              <span className="font-bold text-[#0A4B6E] truncate">{driverName}</span>
             </div>
-            <div className="text-xs text-slate-600 space-y-0.5">
-              <div>
-                <span className="text-slate-400">Repair Facility: </span>
-                <span className="font-medium text-slate-700">{workOrder.shopName || "External Facility"}</span>
-              </div>
-              <div>
-                <span className="text-slate-400">Scheduled Date: </span>
-                <span className="font-medium text-slate-700">
-                  {workOrder.scheduledDate ? new Date(workOrder.scheduledDate).toLocaleDateString() : "Pending"}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-400">Created Date: </span>
-                <span className="text-slate-700">
-                  {workOrder.createdAt ? new Date(workOrder.createdAt).toLocaleDateString() : "N/A"}
-                </span>
-              </div>
+
+            <div className="flex items-center gap-2">
+              <Gauge size={14} className="text-[#6D8AA2] shrink-0" />
+              <span className="text-[#6D8AA2]">Odometer:</span>
+              <span className="font-bold text-[#0A4B6E]">
+                {workOrder.truck?.currentOdometer
+                  ? `${Number(workOrder.truck.currentOdometer).toLocaleString()} KM`
+                  : "N/A"}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Work Order Description */}
-        {workOrder.description && (
-          <div className="bg-white rounded-xl p-3 border border-slate-200 text-xs text-slate-700">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-[#6D8AA2] mb-1">
-              Description / Scope of Work
-            </div>
-            <p className="leading-relaxed text-slate-600">{workOrder.description}</p>
-          </div>
-        )}
-
-        {/* Cost & Approval Audit Box */}
-        <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 space-y-2">
+        {/* 3. SERVICE SPECIFICATION CARD */}
+        <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3 text-xs">
           <div className="flex items-center justify-between">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-[#6D8AA2] flex items-center gap-1.5">
-              <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Cost & Approval Summary</span>
+            <div className="flex items-center gap-2 text-[#0A4B6E] font-bold uppercase tracking-wider text-[11px]">
+              <Wrench size={15} />
+              <span>Service Specification</span>
             </div>
-            <div className="text-sm font-bold text-[#0B4A6E]">
-              ₱{estimatedCost.toLocaleString("en-PH", { minimumFractionDigits: 2 })}
-            </div>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white text-[#0A4B6E] border border-[#BCE1F1]">
+              {typeName}
+            </span>
           </div>
 
-          <div className="text-xs space-y-1 text-slate-600">
+          <div className="space-y-2 text-slate-700">
             <div className="flex items-center justify-between">
-              <span>Threshold Policy:</span>
-              <span className="font-medium">
-                {requiresApproval ? (
-                  <span className="text-amber-700 font-semibold">Exceeds ₱5,000 threshold (Gatekeeper Required)</span>
-                ) : (
-                  <span className="text-emerald-700 font-semibold">Below ₱5,000 (Auto-Approved)</span>
-                )}
+              <span className="text-[#6D8AA2] font-medium flex items-center gap-1.5">
+                <Building2 size={14} /> Repair Facility:
+              </span>
+              <span className="font-bold text-[#0A4B6E]">{shop}</span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-[#6D8AA2] font-medium flex items-center gap-1.5">
+                <Calendar size={14} /> Scheduled Date:
+              </span>
+              <span className="font-bold text-[#0A4B6E]">
+                {formatDate(workOrder.scheduledDate)}
               </span>
             </div>
 
-            {requiresApproval && (
-              <>
-                <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
-                  <span>Managerial Decision:</span>
-                  <span className="font-bold">
-                    {workOrder.approvedAt ? (
-                      <span className="text-emerald-700 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Approved
-                      </span>
-                    ) : workOrder.status === "CANCELLED" ? (
-                      <span className="text-rose-700 flex items-center gap-1">
-                        <XCircle className="w-3.5 h-3.5" /> Rejected
-                      </span>
-                    ) : (
-                      <span className="text-amber-700 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" /> Pending Authorization
-                      </span>
-                    )}
-                  </span>
-                </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[#6D8AA2] font-medium flex items-center gap-1.5">
+                <Calendar size={14} /> Date Created:
+              </span>
+              <span className="font-bold text-[#0A4B6E]">
+                {formatDate(workOrder.createdAt)}
+              </span>
+            </div>
+          </div>
+        </div>
 
-                {workOrder.decisionRemarks && (
-                  <div className="pt-1 text-xs text-slate-600 italic bg-white p-2 rounded-lg border border-slate-200">
-                    "{workOrder.decisionRemarks}"
-                  </div>
-                )}
-              </>
+        {/* 4. SCOPE OF WORK & DESCRIPTION */}
+        {workOrder.description && (
+          <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-2">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#6D8AA2] flex items-center gap-1.5">
+              <FileText size={14} />
+              <span>Scope of Work & Repair Scope</span>
+            </div>
+            <div className="bg-white rounded-xl p-3.5 border border-[#BCE1F1]/40 text-xs md:text-sm text-slate-800 leading-relaxed font-normal shadow-2xs">
+              {workOrder.description}
+            </div>
+          </div>
+        )}
+
+        {/* 5. FINANCIAL & EXECUTIVE APPROVAL SUMMARY */}
+        <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3 text-xs">
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#6D8AA2] flex items-center gap-1.5">
+              <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px] leading-none shrink-0">
+                ₱
+              </span>
+              <span>Cost & Approval Summary</span>
+            </div>
+            <div className="text-xl font-bold text-[#0A4B6E]">
+              {formatCurrency(estimatedCost)}
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-2 border-t border-[#BCE1F1]/40">
+            {/* Gatekeeper Policy Badge */}
+            <div className="flex items-center justify-between">
+              <span className="text-[#6D8AA2] font-medium">Policy Threshold:</span>
+              {requiresApproval ? (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                  <AlertTriangle size={12} />
+                  <span>Requires ₱5,000+ Authorization</span>
+                </span>
+              ) : (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                  <CheckCircle2 size={12} />
+                  <span>Auto-Approved (&lt; ₱5,000)</span>
+                </span>
+              )}
+            </div>
+
+            {/* Managerial Decision */}
+            {requiresApproval && (
+              <div className="flex items-center justify-between">
+                <span className="text-[#6D8AA2] font-medium">Managerial Decision:</span>
+                <div>
+                  {workOrder.approvedAt ? (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Authorized on {formatDate(workOrder.approvedAt)}
+                    </span>
+                  ) : workOrder.status === "CANCELLED" ? (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1">
+                      <XCircle size={12} /> Rejected by Manager
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                      <Clock size={12} /> Pending Authorization
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {workOrder.decisionRemarks && (
+              <div className="bg-white p-2.5 rounded-xl border border-[#BCE1F1]/40 text-slate-700 italic text-[11px] mt-1">
+                "{workOrder.decisionRemarks}"
+              </div>
             )}
           </div>
         </div>
 
-        {/* Finalized Maintenance Log (if COMPLETED) */}
+        {/* 6. FINALIZED MAINTENANCE RECEIPT (if available) */}
         {workOrder.maintenanceLog && (
-          <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5 space-y-2">
+          <div className="bg-emerald-50/90 rounded-2xl p-4 border border-emerald-200/80 space-y-3 text-xs">
             <div className="flex items-center justify-between">
-              <div className="text-xs font-bold text-emerald-950 flex items-center gap-1.5 uppercase tracking-wider">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                <ShieldCheck size={16} className="text-emerald-600" />
                 <span>Finalized Maintenance Receipt</span>
               </div>
-              <span className="font-mono text-xs font-bold text-emerald-900 bg-white px-2 py-0.5 rounded border border-emerald-200">
-                {workOrder.maintenanceLog.officialReceiptNumber}
-              </span>
+              <div className="flex items-center gap-1 font-mono text-[11px] font-bold text-emerald-900 bg-white px-2.5 py-0.5 rounded-full border border-emerald-200">
+                <Receipt size={12} />
+                <span>{workOrder.maintenanceLog.officialReceiptNumber}</span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1 text-emerald-950">
-              <div className="bg-white p-2 rounded-lg border border-emerald-100">
-                <div className="text-[10px] text-slate-500 uppercase">Parts Cost</div>
-                <div className="font-semibold text-slate-800">
-                  ₱{(Number(workOrder.maintenanceLog.partsCost) || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
-                </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+              <div className="bg-white p-2.5 rounded-xl border border-emerald-100 text-center">
+                <p className="text-[10px] text-slate-500 uppercase font-semibold">Parts Cost</p>
+                <p className="font-bold text-slate-800 mt-0.5">
+                  {formatCurrency(workOrder.maintenanceLog.partsCost)}
+                </p>
               </div>
-              <div className="bg-white p-2 rounded-lg border border-emerald-100">
-                <div className="text-[10px] text-slate-500 uppercase">Labor Cost</div>
-                <div className="font-semibold text-slate-800">
-                  ₱{(Number(workOrder.maintenanceLog.laborCost) || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
-                </div>
+
+              <div className="bg-white p-2.5 rounded-xl border border-emerald-100 text-center">
+                <p className="text-[10px] text-slate-500 uppercase font-semibold">Labor Cost</p>
+                <p className="font-bold text-slate-800 mt-0.5">
+                  {formatCurrency(workOrder.maintenanceLog.laborCost)}
+                </p>
               </div>
-              <div className="bg-white p-2 rounded-lg border border-emerald-100">
-                <div className="text-[10px] text-slate-500 uppercase">Total Settled</div>
-                <div className="font-bold text-[#0B4A6E]">
-                  ₱{(Number(workOrder.maintenanceLog.totalCost) || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
-                </div>
+
+              <div className="bg-white p-2.5 rounded-xl border border-emerald-100 text-center">
+                <p className="text-[10px] text-slate-500 uppercase font-semibold">Total Settled</p>
+                <p className="font-bold text-[#0A4B6E] mt-0.5">
+                  {formatCurrency(workOrder.maintenanceLog.totalCost)}
+                </p>
               </div>
-              <div className="bg-white p-2 rounded-lg border border-emerald-100">
-                <div className="text-[10px] text-slate-500 uppercase">Downtime</div>
-                <div className="font-semibold text-slate-800">
-                  {workOrder.maintenanceLog.downtimeDays || 1} day(s)
-                </div>
+
+              <div className="bg-white p-2.5 rounded-xl border border-emerald-100 text-center">
+                <p className="text-[10px] text-slate-500 uppercase font-semibold">Downtime</p>
+                <p className="font-bold text-amber-700 mt-0.5">
+                  {workOrder.maintenanceLog.downtimeDays || 1} Day(s)
+                </p>
               </div>
             </div>
           </div>
         )}
-
-        {/* Modal Actions */}
-        <div className="flex items-center justify-end pt-3 border-t border-slate-100">
-          <Button
-            type="button"
-            onClick={onClose}
-            className="rounded-full bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0B4A6E] font-bold px-6 shadow-sm"
-          >
-            Close
-          </Button>
-        </div>
       </div>
-    </Modal>
+    </SideDrawer>
   );
 }

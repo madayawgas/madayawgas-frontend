@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { UserPlus, UserRound, ShieldCheck, CheckCircle2 } from "lucide-react";
 import UserFormStep from "./UserFormStep";
 import UserConfirmStep from "./UserConfirmStep";
 import UserSuccessStep from "./UserSuccessStep";
@@ -50,8 +51,7 @@ export default function UserModal({
       if (user) {
         const isUserBlocked = user.isBlocked === true || user.status === "SUSPENDED";
         const currentStatus = isUserBlocked ? "SUSPENDED" : "ACTIVE";
-        
-        // Ensure phone number translates properly to the 10-digit UI state
+
         let rawPhone = user.phone || user.contactNumber || "";
         let cleanPhone = rawPhone.replace(/\D/g, "");
         if (cleanPhone.startsWith("63") && cleanPhone.length === 12) {
@@ -93,7 +93,7 @@ export default function UserModal({
   ];
 
   const safeRole =
-    typeof formData.role === "string" ? formData.role : formData.role?.name || "driver";
+    typeof formData.role === "string" ? formData.role : formData.role?.name || "Driver";
 
   const validateForm = () => {
     const newErrors = {};
@@ -145,7 +145,7 @@ export default function UserModal({
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -224,37 +224,52 @@ export default function UserModal({
   };
 
   let modalTitle = "";
-  if (step === 1) modalTitle = user ? "Edit User" : "Add New User";
-  if (step === 2) modalTitle = "Confirm Information";
-  if (step === 3) modalTitle = user ? "User Updated" : "User Created";
+  let modalSubtitle = "";
+  let modalIcon = UserPlus;
+  let modalBadge = null;
+
+  if (step === 1) {
+    modalTitle = user ? "Edit User Account" : "Add New User";
+    modalSubtitle = user ? "Update personal information and role access" : "Register user credentials, details & system privileges";
+    modalIcon = user ? UserRound : UserPlus;
+    modalBadge = !user ? (
+      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1]">
+        Step 1 of 3
+      </span>
+    ) : null;
+  } else if (step === 2) {
+    modalTitle = "Confirm Information";
+    modalSubtitle = "Review account details before finalizing registration";
+    modalIcon = ShieldCheck;
+    modalBadge = (
+      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1]">
+        Step 2 of 3
+      </span>
+    );
+  } else if (step === 3) {
+    modalTitle = "User Account Created";
+    modalSubtitle = "Credentials successfully generated";
+    modalIcon = CheckCircle2;
+    modalBadge = (
+      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+        Completed
+      </span>
+    );
+  }
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={modalTitle}
-      maxWidth={step === 3 ? "max-w-md" : "max-w-2xl"} 
+      subtitle={modalSubtitle}
+      icon={modalIcon}
+      badge={modalBadge}
+      onBack={step === 2 ? () => setStep(1) : undefined}
+      maxWidth={step === 3 ? "max-w-md" : "max-w-xl"}
       closeOnBackdrop={false}
     >
-      <div className="py-2">
-        {step === 2 && (
-          <button
-            onClick={() => step > 1 && setStep(step - 1)}
-            className="absolute top-8 right-8 text-[#0B4A6E] hover:opacity-70 transition-opacity p-1 cursor-pointer"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-              className="w-6 h-6"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-            </svg>
-          </button>
-        )}
-
+      <div className="py-1">
         {step === 1 && (
           <UserFormStep
             formData={formData}

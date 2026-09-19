@@ -1,4 +1,5 @@
-import { KeyRound, AlertCircle } from "lucide-react";
+// src/components/users/UserFormStep.jsx
+import { User, KeyRound, AlertCircle, Phone, Calendar, Shield, Sparkles } from "lucide-react";
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
 import { toProperCase } from "../../utils/text.js";
@@ -28,30 +29,37 @@ export default function UserFormStep({
   };
 
   const handleNameChange = (field, value) => {
-    // Letters, hyphen/dash, period, apostrophe, accented unicode letters, and spaces
     const sanitized = value.replace(/[^\p{L}\s\-.']/gu, "");
     setFormData((prev) => ({ ...prev, [field]: sanitized }));
     clearFieldError(field);
   };
 
   return (
-    <form onSubmit={onSubmit} className="px-8 pb-8">
+    <form onSubmit={onSubmit} className="space-y-4">
       {submitError && (
-        <div className="bg-red-50 border border-red-200 text-red-600 text-xs font-medium p-3.5 rounded-2xl flex items-center gap-2.5 mb-5 animate-fade-in">
+        <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-medium p-3.5 rounded-2xl flex items-center gap-2.5 animate-fade-in">
           <AlertCircle size={16} className="shrink-0 text-red-600" />
           <span>{submitError}</span>
         </div>
       )}
 
-      <div className="space-y-5">
-        <div className="grid grid-cols-2 gap-4">
+      {/* CARD 1: Personal Information */}
+      <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3.5">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
+          <User size={14} />
+          <span>Personal Information</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* First Name */}
           <div>
-            <label className="block text-[15px] text-gray-900 mb-1.5">
-              First Name<span className="text-[#CD3E3E]">*</span>
+            <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1">
+              First Name <span className="text-[#CD3E3E]">*</span>
             </label>
             <input
               type="text"
               required
+              placeholder="e.g. Juan"
               value={formData.firstName}
               onChange={(e) => handleNameChange("firstName", e.target.value)}
               onBlur={(e) =>
@@ -60,26 +68,29 @@ export default function UserFormStep({
                   firstName: toProperCase(e.target.value),
                 }))
               }
-              className={`w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 ${
+              className={`w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all placeholder:text-slate-400 ${
                 errors.firstName
-                  ? "border-2 border-[#CD3E3E] focus:ring-red-200"
-                  : "focus:ring-[#0B4A6E]/20"
+                  ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
+                  : "border-slate-200 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
               }`}
             />
             {errors.firstName && (
-              <p className="text-[#CD3E3E] text-xs mt-1.5 ml-3 font-medium flex items-center gap-1">
-                <AlertCircle size={13} className="shrink-0" />
+              <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium flex items-center gap-1">
+                <AlertCircle size={12} className="shrink-0" />
                 <span>{errors.firstName}</span>
               </p>
             )}
           </div>
+
+          {/* Last Name */}
           <div>
-            <label className="block text-[15px] text-gray-900 mb-1.5">
-              Last Name<span className="text-[#CD3E3E]">*</span>
+            <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1">
+              Last Name <span className="text-[#CD3E3E]">*</span>
             </label>
             <input
               type="text"
               required
+              placeholder="e.g. Dela Cruz"
               value={formData.lastName}
               onChange={(e) => handleNameChange("lastName", e.target.value)}
               onBlur={(e) =>
@@ -88,62 +99,69 @@ export default function UserFormStep({
                   lastName: toProperCase(e.target.value),
                 }))
               }
-              className={`w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 ${
+              className={`w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all placeholder:text-slate-400 ${
                 errors.lastName
-                  ? "border-2 border-[#CD3E3E] focus:ring-red-200"
-                  : "focus:ring-[#0B4A6E]/20"
+                  ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
+                  : "border-slate-200 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
               }`}
             />
             {errors.lastName && (
-              <p className="text-[#CD3E3E] text-xs mt-1.5 ml-3 font-medium flex items-center gap-1">
-                <AlertCircle size={13} className="shrink-0" />
+              <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium flex items-center gap-1">
+                <AlertCircle size={12} className="shrink-0" />
                 <span>{errors.lastName}</span>
               </p>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Birthday */}
           <div>
-            <label className="block text-[15px] text-gray-900 mb-1.5">Birthday</label>
-            <input
-              type="date"
-              value={formData.birthday}
-              onChange={(e) => {
-                setFormData({ ...formData, birthday: e.target.value });
-                clearFieldError("birthday");
-              }}
-              className={`w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 cursor-pointer ${
-                errors.birthday
-                  ? "border-2 border-[#CD3E3E] focus:ring-red-200"
-                  : "focus:ring-[#0B4A6E]/20"
-              }`}
-            />
+            <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1">
+              Birthday
+            </label>
+            <div className="relative">
+              <input
+                type="date"
+                value={formData.birthday}
+                onChange={(e) => {
+                  setFormData({ ...formData, birthday: e.target.value });
+                  clearFieldError("birthday");
+                }}
+                className={`w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all cursor-pointer ${
+                  errors.birthday
+                    ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
+                    : "border-slate-200 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
+                }`}
+              />
+            </div>
             {errors.birthday && (
-              <p className="text-[#CD3E3E] text-xs mt-1.5 ml-3 font-medium flex items-center gap-1">
-                <AlertCircle size={13} className="shrink-0" />
+              <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium flex items-center gap-1">
+                <AlertCircle size={12} className="shrink-0" />
                 <span>{errors.birthday}</span>
               </p>
             )}
           </div>
+
+          {/* Contact No. */}
           <div>
-            <label className="block text-[15px] text-gray-900 mb-1.5">
-              Contact No.<span className="text-[#CD3E3E]">*</span>
+            <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1">
+              Contact Number <span className="text-[#CD3E3E]">*</span>
             </label>
             <div
-              className={`w-full bg-[#F3F5F5] flex items-center px-4 py-3 rounded-full outline-none focus-within:ring-2 ${
+              className={`w-full bg-white flex items-center px-3 py-1.5 rounded-xl border transition-all ${
                 errors.contactNo
-                  ? "border-2 border-[#CD3E3E] focus-within:ring-red-200"
-                  : "focus-within:ring-[#0B4A6E]/20"
+                  ? "border-[#CD3E3E] ring-2 ring-red-200"
+                  : "border-slate-200 focus-within:border-[#0A4B6E] focus-within:ring-2 focus-within:ring-[#0A4B6E]/10"
               }`}
             >
-              <span className="text-gray-500 text-[13px] mr-2 pr-2 shrink-0 whitespace-nowrap select-none border-r border-gray-300 flex items-center leading-none pb-0.5">
+              <span className="text-slate-500 text-xs font-semibold mr-2 pr-2 border-r border-slate-200 select-none">
                 +63
               </span>
               <input
                 type="text"
                 required
-                placeholder="9999999999"
+                placeholder="9171234567"
                 value={formData.contactNo}
                 maxLength={10}
                 onChange={(e) => {
@@ -151,21 +169,29 @@ export default function UserFormStep({
                   setFormData({ ...formData, contactNo: digits });
                   clearFieldError("contactNo");
                 }}
-                className="bg-transparent text-gray-800 text-sm w-full outline-none"
+                className="bg-transparent text-slate-800 text-xs sm:text-sm w-full outline-none py-1"
               />
             </div>
             {errors.contactNo && (
-              <p className="text-[#CD3E3E] text-xs mt-1.5 ml-3 font-medium flex items-center gap-1">
-                <AlertCircle size={13} className="shrink-0" />
+              <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium flex items-center gap-1">
+                <AlertCircle size={12} className="shrink-0" />
                 <span>{errors.contactNo}</span>
               </p>
             )}
           </div>
         </div>
+      </div>
+
+      {/* CARD 2: Role & System Privileges */}
+      <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3.5">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
+          <Shield size={14} />
+          <span>Role & Access Privileges</span>
+        </div>
 
         <div>
-          <label className="block text-[15px] text-gray-900 mb-1.5">
-            Role Access<span className="text-[#CD3E3E]">*</span>
+          <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1">
+            System Role Access <span className="text-[#CD3E3E]">*</span>
           </label>
           <select
             required
@@ -174,10 +200,10 @@ export default function UserFormStep({
               setFormData({ ...formData, role: e.target.value });
               clearFieldError("role");
             }}
-            className={`w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 cursor-pointer appearance-none ${
+            className={`w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all cursor-pointer ${
               errors.role
-                ? "border-2 border-[#CD3E3E] focus:ring-red-200"
-                : "focus:ring-[#0B4A6E]/20"
+                ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
+                : "border-slate-200 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
             }`}
           >
             {roles && roles.length > 0 ? (
@@ -198,44 +224,48 @@ export default function UserFormStep({
             )}
           </select>
           {errors.role && (
-            <p className="text-[#CD3E3E] text-xs mt-1.5 ml-3 font-medium flex items-center gap-1">
-              <AlertCircle size={13} className="shrink-0" />
+            <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium flex items-center gap-1">
+              <AlertCircle size={12} className="shrink-0" />
               <span>{errors.role}</span>
             </p>
           )}
         </div>
 
+        {/* Editing mode specific options */}
         {user && (
-          <>
+          <div className="space-y-3 pt-2 border-t border-[#BCE1F1]/50">
             <div>
-              <label className="block text-[15px] text-gray-900 mb-1.5">Username</label>
+              <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1">
+                Username
+              </label>
               <input
                 type="text"
                 readOnly
                 disabled
                 value={formData.username}
-                className="w-full bg-[#F3F5F5] text-gray-500 text-sm px-4 py-3 rounded-full outline-none cursor-not-allowed select-all border border-gray-200/50"
+                className="w-full bg-slate-100 text-slate-500 font-mono text-xs sm:text-sm px-3.5 py-2 rounded-xl border border-slate-200 cursor-not-allowed select-all"
               />
             </div>
 
-            <div className="p-4 bg-[#F3F5F5] rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-gray-200/60">
+            <div className="p-3 bg-white rounded-xl flex items-center justify-between gap-3 border border-[#BCE1F1]/70">
               <div>
-                <p className="text-sm font-semibold text-gray-900">Account Password</p>
-                <p className="text-xs text-gray-500">Reset password and generate temporary credentials</p>
+                <p className="text-xs font-bold text-[#0A4B6E]">Reset Credentials</p>
+                <p className="text-[11px] text-[#6D8AA2]">Issue temporary credentials to user</p>
               </div>
-              <Button
+              <button
                 type="button"
-                variant="primary"
                 onClick={() => onResetPassword && onResetPassword(user)}
-                className="!text-xs uppercase tracking-wider shrink-0 px-4 py-2"
+                className="bg-[#0A4B6E] hover:bg-[#083b57] text-white text-xs font-bold uppercase tracking-wider px-3.5 py-2 rounded-full flex items-center gap-1.5 transition cursor-pointer shadow-xs"
               >
-                <KeyRound size={14} />
-                RESET PASSWORD
-              </Button>
+                <KeyRound size={13} className="text-[#FFDF2C]" />
+                <span>Reset Password</span>
+              </button>
             </div>
 
             <div>
-              <label className="block text-[15px] text-gray-900 mb-2">Status</label>
+              <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1.5">
+                Operational Status
+              </label>
               <div className="flex items-center gap-2">
                 {statuses.map((s) => {
                   const isSelected = formData.status === s.value;
@@ -257,10 +287,10 @@ export default function UserFormStep({
                       />
                       <Badge
                         variant={s.variant}
-                        className={`px-5 py-2 transition-all duration-200 ease-in-out ${
+                        className={`px-4 py-1.5 text-xs transition-all duration-150 ${
                           isSelected
-                            ? "filter saturate-150 brightness-95 shadow-inner scale-[1.02] border-2"
-                            : "opacity-60 grayscale-[40%] hover:opacity-80"
+                            ? "ring-2 ring-offset-1 ring-[#0A4B6E] font-bold shadow-xs scale-102"
+                            : "opacity-50 hover:opacity-80"
                         }`}
                       >
                         {s.label}
@@ -270,34 +300,34 @@ export default function UserFormStep({
                 })}
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
 
-      <div className="mt-8 flex flex-col gap-3">
-        <Button
+      {/* FOOTER ACTIONS */}
+      <div className="pt-2 flex flex-col gap-2">
+        <button
           type="submit"
-          variant="yellow"
           disabled={isSubmitting}
-          className="w-full font-bold uppercase tracking-widest text-[11px]"
+          className="w-full bg-[#FFDF2C] hover:bg-[#ebd024] active:scale-[0.98] text-[#0A4B6E] font-bold py-3.5 px-6 rounded-full text-xs md:text-sm uppercase tracking-wider transition-all duration-150 shadow-sm cursor-pointer disabled:opacity-50"
         >
           {isSubmitting
             ? user
-              ? "SAVING..."
+              ? "SAVING CHANGES..."
               : "PROCESSING..."
             : user
             ? "SAVE CHANGES"
-            : "CREATE ACCOUNT"}
-        </Button>
-        <Button
+            : "CONTINUE TO CONFIRMATION"}
+        </button>
+
+        <button
           type="button"
-          variant="cancel"
           onClick={onClose}
           disabled={isSubmitting}
-          className="w-full uppercase tracking-widest text-[11px]"
+          className="w-full bg-transparent hover:bg-slate-50 text-slate-500 font-semibold py-2 rounded-full text-xs uppercase tracking-wider transition-all cursor-pointer"
         >
           CANCEL
-        </Button>
+        </button>
       </div>
     </form>
   );

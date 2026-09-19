@@ -28,7 +28,7 @@ export default function Layout() {
   // If loading session check on refresh, show lightweight fallback
   if (loading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#F2F2F2]">
+      <div className="flex h-screen w-full items-center justify-center bg-white">
         <p className="text-[#0F7AB2] font-semibold">Loading session...</p>
       </div>
     );
@@ -52,7 +52,7 @@ export default function Layout() {
     }`;
 
   return (
-    <div className="flex h-screen w-full bg-[#F2F2F2] font-sans overflow-hidden">
+    <div className="flex h-screen w-full bg-white font-sans overflow-hidden">
       {/* SIDEBAR */}
       <aside
         className={`fixed md:static z-30 top-0 left-0 h-full w-[260px] bg-[#0A4B6E] flex flex-col justify-between text-white transform transition-transform duration-300 shrink-0
@@ -230,7 +230,7 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 animate-fade-in bg-[#F2F2F2]">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 animate-fade-in bg-white">
           <Outlet />
         </main>
       </div>

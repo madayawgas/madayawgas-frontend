@@ -2,13 +2,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { AlertOctagon, AlertTriangle, Plus, Clock, MapPin, User, Search, Filter } from "lucide-react";
 import { fleetApi } from "../../api/fleet.js";
-import Modal from "../ui/Modal";
+import SideDrawer from "../ui/SideDrawer";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
 
 /**
  * IncidentHistoryModal
- * Displays chronological breakdown, failure, and incident logs for a truck or fleet-wide.
+ * Displays chronological breakdown, failure, and incident logs in a right-sliding panel.
  */
 export default function IncidentHistoryModal({
   isOpen,
@@ -90,7 +90,7 @@ export default function IncidentHistoryModal({
         );
       case "MEDIUM":
         return (
-          <span className="px-2 py-0.5 bg-blue-100 text-blue-800 border border-blue-200 rounded-full text-[10px] font-semibold">
+          <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 border border-blue-200 rounded-full text-[10px] font-semibold">
             MEDIUM
           </span>
         );
@@ -122,49 +122,57 @@ export default function IncidentHistoryModal({
   };
 
   return (
-    <Modal
+    <SideDrawer
       isOpen={isOpen}
       onClose={onClose}
       title={truck ? `Incident Logs — ${truck.plateNumber || "Truck"}` : "Fleet Incident & Breakdown Logs"}
-      maxWidth="max-w-3xl"
-      footer={
-        <div className="flex items-center justify-between w-full">
-          {onOpenReport ? (
-            <Button
+      subtitle={truck ? `${truck.model || "Isuzu Elf"} • Roadside incidents & defects` : "Fleet-wide breakdown & incident records"}
+      icon={AlertOctagon}
+      badge={
+        truck ? (
+          <Badge variant="neutral" className="px-2.5 py-0.5 text-[10px] font-bold">
+            {truck.plateNumber || "Truck"}
+          </Badge>
+        ) : null
+      }
+      width="max-w-xl lg:max-w-2xl"
+      footer={({ onClose: closeDrawer }) => (
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
+          {onOpenReport && (
+            <button
               type="button"
-              variant="yellow"
               onClick={() => {
-                onClose();
                 onOpenReport(truck);
               }}
-              className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+              className="flex-1 py-3 px-5 rounded-full font-bold text-xs uppercase tracking-wider bg-amber-50 hover:bg-amber-100 text-amber-900 border-2 border-[#F6C445] flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer active:scale-95"
             >
-              <Plus size={14} />
+              <Plus size={15} />
               <span>Report Incident</span>
-            </Button>
-          ) : <div />}
-          <Button
+            </button>
+          )}
+          <button
             type="button"
-            variant="neutral"
-            onClick={onClose}
-            className="text-xs uppercase tracking-wider font-semibold"
+            onClick={closeDrawer}
+            className={`py-3 px-5 rounded-full font-bold text-xs uppercase tracking-wider bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0B4A6E] transition-all shadow-2xs cursor-pointer active:scale-95 text-center ${
+              onOpenReport ? "flex-1" : "w-full"
+            }`}
           >
-            Close
-          </Button>
+            CLOSE
+          </button>
         </div>
-      }
+      )}
     >
-      <div className="space-y-4 text-left pt-1">
+      <div className="space-y-4">
         {/* FILTER TOOLBAR */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pb-2 border-b border-gray-100">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pb-3 border-b border-gray-100">
           {/* Search */}
           <div className="relative">
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search description, location..."
-              className="w-full text-xs bg-[#F3F5F5] border border-gray-200 rounded-xl py-2 pl-8 pr-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]"
+              placeholder="Search notes, location..."
+              className="w-full text-xs bg-gray-50 border border-gray-200 rounded-full py-2 pl-8 pr-3 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all"
             />
             <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
           </div>
@@ -173,7 +181,7 @@ export default function IncidentHistoryModal({
           <select
             value={selectedSeverity}
             onChange={(e) => setSelectedSeverity(e.target.value)}
-            className="text-xs bg-[#F3F5F5] border border-gray-200 rounded-xl py-2 px-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]"
+            className="text-xs bg-gray-50 border border-gray-200 rounded-full py-2 px-3 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all"
           >
             <option value="All">All Severities</option>
             <option value="CRITICAL">Critical</option>
@@ -186,7 +194,7 @@ export default function IncidentHistoryModal({
           <select
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
-            className="text-xs bg-[#F3F5F5] border border-gray-200 rounded-xl py-2 px-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]"
+            className="text-xs bg-gray-50 border border-gray-200 rounded-full py-2 px-3 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all"
           >
             <option value="All">All Types</option>
             {incidentTypes.map((t) => (
@@ -199,35 +207,35 @@ export default function IncidentHistoryModal({
 
         {/* INCIDENT CARDS LIST */}
         {isLoading ? (
-          <div className="py-12 text-center text-xs text-gray-500 font-medium">
+          <div className="py-16 text-center text-xs text-gray-500 font-medium">
             Loading incident records...
           </div>
         ) : incidents.length > 0 ? (
-          <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+          <div className="space-y-3">
             {incidents.map((inc) => (
               <div
                 key={inc.id}
-                className="bg-[#F8FBFC] hover:bg-[#EBF5FB] border border-gray-100 rounded-xl p-3.5 transition-colors text-xs space-y-2.5"
+                className="bg-[#F8FBFC] hover:bg-[#EBF5FB] border border-gray-100 rounded-2xl p-4 transition-colors text-xs space-y-2.5 shadow-2xs"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-bold text-[#0A4B6E] text-sm">
                       {inc.plateNumber || "Truck"}
                     </span>
-                    <span className="text-gray-400">•</span>
-                    <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-md font-semibold text-[10px]">
+                    <span className="text-gray-300">•</span>
+                    <span className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded-full font-semibold text-[10px]">
                       {inc.incidentTypeName?.replace(/_/g, " ") || "INCIDENT"}
                     </span>
                     {getSeverityBadge(inc.severity)}
                   </div>
 
-                  <div className="text-[#5B8399] flex items-center gap-1">
+                  <div className="text-[#5B8399] flex items-center gap-1 font-medium">
                     <Clock size={13} />
                     <span>{formatDate(inc.reportDate)}</span>
                   </div>
                 </div>
 
-                <div className="bg-white/80 border border-gray-100 rounded-lg p-2.5 text-gray-800 leading-relaxed font-sans">
+                <div className="bg-white border border-gray-100 rounded-xl p-3 text-gray-800 leading-relaxed font-sans text-xs shadow-2xs">
                   {inc.description}
                 </div>
 
@@ -246,10 +254,10 @@ export default function IncidentHistoryModal({
             ))}
           </div>
         ) : (
-          <div className="py-12 text-center text-gray-400 space-y-2">
-            <AlertOctagon size={36} className="mx-auto text-gray-300 stroke-[1.5]" />
-            <p className="text-sm font-medium">No incidents recorded</p>
-            <p className="text-xs">
+          <div className="py-16 text-center text-gray-400 space-y-2">
+            <AlertOctagon size={42} className="mx-auto text-gray-300 stroke-[1.5]" />
+            <p className="text-sm font-semibold text-gray-600">No incidents recorded</p>
+            <p className="text-xs text-gray-400 max-w-sm mx-auto">
               {searchTerm || selectedSeverity !== "All" || selectedType !== "All"
                 ? "No incident logs matched your filter criteria."
                 : "No roadside breakdowns or mechanical incidents recorded."}
@@ -257,6 +265,6 @@ export default function IncidentHistoryModal({
           </div>
         )}
       </div>
-    </Modal>
+    </SideDrawer>
   );
 }

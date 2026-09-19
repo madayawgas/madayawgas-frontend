@@ -2,13 +2,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { ShieldCheck, Plus, Calendar, User, Clock, AlertTriangle, AlertOctagon, CheckCircle2 } from "lucide-react";
 import { fleetApi } from "../../api/fleet.js";
-import Modal from "../ui/Modal";
+import SideDrawer from "../ui/SideDrawer";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
 
 /**
  * InspectionHistoryModal
- * Displays chronological safety inspection logs for a specific truck.
+ * Displays chronological safety inspection logs in a right-sliding panel.
  */
 export default function InspectionHistoryModal({
   isOpen,
@@ -85,58 +85,54 @@ export default function InspectionHistoryModal({
   };
 
   return (
-    <Modal
+    <SideDrawer
       isOpen={isOpen}
       onClose={onClose}
       title="Safety Inspection History"
-      maxWidth="max-w-2xl"
-      footer={
-        <div className="flex items-center justify-between w-full">
-          {onOpenInspect ? (
-            <Button
+      subtitle={`${truck.plateNumber || "Truck"} • ${truck.model || "Isuzu Elf"}`}
+      icon={ShieldCheck}
+      badge={
+        <Badge variant="neutral" className="px-2.5 py-0.5 text-[10px] font-bold">
+          {truck.plateNumber || "Truck"}
+        </Badge>
+      }
+      footer={({ onClose: closeDrawer }) => (
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
+          {onOpenInspect && (
+            <button
               type="button"
-              variant="yellow"
               onClick={() => {
-                onClose();
                 onOpenInspect(truck);
               }}
-              className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+              className="flex-1 py-3 px-5 rounded-full font-bold text-xs uppercase tracking-wider bg-white hover:bg-sky-50 text-[#0A4B6E] border-2 border-[#0A4B6E] flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer active:scale-95"
             >
-              <Plus size={14} />
+              <Plus size={15} />
               <span>New Inspection</span>
-            </Button>
-          ) : <div />}
-          <Button
+            </button>
+          )}
+          <button
             type="button"
-            variant="neutral"
-            onClick={onClose}
-            className="text-xs uppercase tracking-wider font-semibold"
+            onClick={closeDrawer}
+            className={`py-3 px-5 rounded-full font-bold text-xs uppercase tracking-wider bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0B4A6E] transition-all shadow-2xs cursor-pointer active:scale-95 text-center ${
+              onOpenInspect ? "flex-1" : "w-full"
+            }`}
           >
-            Close
-          </Button>
+            CLOSE
+          </button>
         </div>
-      }
+      )}
     >
-      <div className="space-y-4 text-left pt-1">
-        {/* TRUCK CONTEXT & FILTER BAR */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
-          <div>
-            <h3 className="font-bold text-base text-[#0A4B6E]">
-              {truck.plateNumber || "Truck"}
-            </h3>
-            <p className="text-xs text-[#5B8399]">
-              {truck.model || "Isuzu Elf"} • Driver: {truck.driverName || "No Assigned"}
-            </p>
-          </div>
-
-          {/* OUTCOME FILTER PILLS */}
-          <div className="flex items-center gap-1.5 bg-[#F3F5F5] p-1 rounded-xl">
+      <div className="space-y-4">
+        {/* OUTCOME FILTER PILLS */}
+        <div className="flex items-center justify-between gap-2 pb-3 border-b border-gray-100">
+          <span className="text-xs font-semibold text-[#6D8AA2]">Filter by Outcome:</span>
+          <div className="flex items-center gap-1.5 bg-[#F3F5F5] p-1 rounded-full">
             {["All", "PASSED", "NEEDS_ATTENTION", "FAILED"].map((opt) => (
               <button
                 key={opt}
                 type="button"
                 onClick={() => setFilterResult(opt)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
                   filterResult === opt
                     ? "bg-[#0A4B6E] text-white shadow-xs"
                     : "text-[#5B8399] hover:text-[#0A4B6E]"
@@ -150,21 +146,21 @@ export default function InspectionHistoryModal({
 
         {/* LOGS LIST */}
         {isLoading ? (
-          <div className="py-12 text-center text-xs text-gray-500 font-medium">
+          <div className="py-16 text-center text-xs text-gray-500 font-medium">
             Loading inspection history...
           </div>
         ) : inspections.length > 0 ? (
-          <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+          <div className="space-y-3">
             {inspections.map((insp) => (
               <div
                 key={insp.id}
-                className="bg-[#F8FBFC] hover:bg-[#EBF5FB] border border-gray-100 rounded-xl p-3.5 transition-colors text-xs space-y-2"
+                className="bg-[#F8FBFC] hover:bg-[#EBF5FB] border border-gray-100 rounded-2xl p-4 transition-colors text-xs space-y-2.5 shadow-2xs"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     {getResultBadge(insp.result, insp.allowDispatch)}
-                    <span className="text-gray-400">•</span>
-                    <span className="text-[#5B8399] flex items-center gap-1">
+                    <span className="text-gray-300">•</span>
+                    <span className="text-[#5B8399] flex items-center gap-1 font-medium">
                       <Clock size={13} />
                       {formatDate(insp.inspectionDate)}
                     </span>
@@ -176,24 +172,24 @@ export default function InspectionHistoryModal({
                   </div>
                 </div>
 
-                <div className="bg-white/80 border border-gray-100 rounded-lg p-2.5 text-gray-800 leading-relaxed font-sans">
+                <div className="bg-white border border-gray-100 rounded-xl p-3 text-gray-800 leading-relaxed font-sans text-xs shadow-2xs">
                   {insp.findings}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="py-12 text-center text-gray-400 space-y-2">
-            <ShieldCheck size={36} className="mx-auto text-gray-300 stroke-[1.5]" />
-            <p className="text-sm font-medium">No inspection logs found</p>
-            <p className="text-xs">
+          <div className="py-16 text-center text-gray-400 space-y-2">
+            <ShieldCheck size={42} className="mx-auto text-gray-300 stroke-[1.5]" />
+            <p className="text-sm font-semibold text-gray-600">No inspection logs found</p>
+            <p className="text-xs text-gray-400 max-w-sm mx-auto">
               {filterResult !== "All"
-                ? `No inspections matched "${filterResult}".`
+                ? `No inspection records matched "${filterResult}".`
                 : "No physical safety inspections have been conducted on this vehicle yet."}
             </p>
           </div>
         )}
       </div>
-    </Modal>
+    </SideDrawer>
   );
 }

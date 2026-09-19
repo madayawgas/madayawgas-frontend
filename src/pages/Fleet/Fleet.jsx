@@ -24,7 +24,9 @@ import CreateWorkOrderModal from "../../components/fleet/work-orders/CreateWorkO
 import CostApprovalModal from "../../components/fleet/work-orders/CostApprovalModal";
 import FinalizeMaintenanceModal from "../../components/fleet/work-orders/FinalizeMaintenanceModal";
 import WorkOrderDetailModal from "../../components/fleet/work-orders/WorkOrderDetailModal";
+import WorkOrderControls from "../../components/fleet/work-orders/WorkOrderControls";
 import WorkOrderTable from "../../components/fleet/work-orders/WorkOrderTable";
+import MaintenanceLogsControls from "../../components/fleet/logs/MaintenanceLogsControls";
 import MaintenanceLogsTable from "../../components/fleet/logs/MaintenanceLogsTable";
 import RecurringIssuesAnalytics from "../../components/fleet/analytics/RecurringIssuesAnalytics";
 import { Truck as TruckIcon, Wrench, FileText, AlertOctagon } from "lucide-react";
@@ -97,6 +99,14 @@ export default function Fleet() {
   const [maintenanceLogs, setMaintenanceLogs] = useState([]);
   const [isLoadingWorkOrders, setIsLoadingWorkOrders] = useState(false);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+
+  // Work Orders Search & Status States
+  const [workOrderSearch, setWorkOrderSearch] = useState("");
+  const [workOrderStatus, setWorkOrderStatus] = useState("ALL");
+
+  // Maintenance Logs Search & Type States
+  const [logsSearch, setLogsSearch] = useState("");
+  const [logsType, setLogsType] = useState("ALL");
 
   // Work Order Modals State
   const [isCreatingWorkOrder, setIsCreatingWorkOrder] = useState(false);
@@ -715,9 +725,57 @@ export default function Fleet() {
     });
   }, [trucks, searchTerm, filters]);
 
+  // Filtered Work Orders (Search + Status)
+  const filteredWorkOrders = useMemo(() => {
+    return workOrders.filter((wo) => {
+      if (workOrderStatus !== "ALL" && wo.status !== workOrderStatus) {
+        return false;
+      }
+      if (workOrderSearch.trim()) {
+        const query = workOrderSearch.toLowerCase().trim();
+        const woNumber = (wo.workOrderNumber || "").toLowerCase();
+        const plate = (wo.truck?.plateNumber || "").toLowerCase();
+        const model = (wo.truck?.model || "").toLowerCase();
+        const shop = (wo.shopName || "").toLowerCase();
+        const type = (wo.maintenanceType?.name || wo.maintenanceTypeName || "").toLowerCase();
+        return (
+          woNumber.includes(query) ||
+          plate.includes(query) ||
+          model.includes(query) ||
+          shop.includes(query) ||
+          type.includes(query)
+        );
+      }
+      return true;
+    });
+  }, [workOrders, workOrderStatus, workOrderSearch]);
+
+  // Filtered Maintenance Logs (Search + Type)
+  const filteredMaintenanceLogs = useMemo(() => {
+    return maintenanceLogs.filter((log) => {
+      const type = (log.maintenanceTypeName || "").toUpperCase();
+      if (logsType !== "ALL" && type !== logsType) {
+        return false;
+      }
+      if (logsSearch.trim()) {
+        const q = logsSearch.toLowerCase().trim();
+        const receipt = (log.officialReceiptNumber || "").toLowerCase();
+        const plate = (log.plateNumber || log.truck?.plateNumber || "").toLowerCase();
+        const shop = (log.workOrder?.shopName || log.shopName || "").toLowerCase();
+        const desc = (log.workOrder?.description || log.description || "").toLowerCase();
+        return (
+          receipt.includes(q) ||
+          plate.includes(q) ||
+          shop.includes(q) ||
+          desc.includes(q)
+        );
+      }
+      return true;
+    });
+  }, [maintenanceLogs, logsType, logsSearch]);
+
   return (
-    <div className="p-6 md:p-8">
-      <div className="w-full max-w-[1400px] mx-auto">
+    <div className="p-8">
         {/* Header with Title, PM Health Overview, Incident Logs & Add New Fleet */}
         <FleetHeader
           canCreate={canManage}
@@ -735,78 +793,80 @@ export default function Fleet() {
           }}
         />
 
-        {/* Sub-Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-2 mb-4 border-b border-slate-200/80 pb-2.5">
-          <button
-            type="button"
-            onClick={() => setActiveSubTab("vehicles")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeSubTab === "vehicles"
-                ? "bg-[#0B4A6E] text-[#FFDF2C] shadow-sm"
-                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-            }`}
-          >
-            <TruckIcon className="w-4 h-4" />
-            <span>Vehicles & Fleets</span>
-            <span
-              className={`px-2 py-0.2 rounded-full text-[10px] ${
-                activeSubTab === "vehicles" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+        {/* Sub-Navigation Tabs: Unified Segmented Control */}
+        <div className="flex items-center mb-6">
+          <div className="inline-flex items-center p-1 bg-slate-100 rounded-full border border-slate-200/80 gap-1 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setActiveSubTab("vehicles")}
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                activeSubTab === "vehicles"
+                  ? "bg-[#0B4A6E] text-[#FFDF2C] shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 bg-transparent"
               }`}
             >
-              {trucks.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveSubTab("work-orders")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeSubTab === "work-orders"
-                ? "bg-[#0B4A6E] text-[#FFDF2C] shadow-sm"
-                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-            }`}
-          >
-            <Wrench className="w-4 h-4" />
-            <span>Work Orders</span>
-            {pendingApprovalCount > 0 && (
-              <span className="bg-amber-500 text-white px-2 py-0.2 rounded-full text-[10px] font-bold animate-pulse">
-                {pendingApprovalCount} pending
+              <TruckIcon className="w-4 h-4" />
+              <span>Vehicles & Fleets</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                  activeSubTab === "vehicles" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+                }`}
+              >
+                {trucks.length}
               </span>
-            )}
-          </button>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveSubTab("logs")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeSubTab === "logs"
-                ? "bg-[#0B4A6E] text-[#FFDF2C] shadow-sm"
-                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>Maintenance Logs</span>
-            <span
-              className={`px-2 py-0.2 rounded-full text-[10px] ${
-                activeSubTab === "logs" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+            <button
+              type="button"
+              onClick={() => setActiveSubTab("work-orders")}
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                activeSubTab === "work-orders"
+                  ? "bg-[#0B4A6E] text-[#FFDF2C] shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 bg-transparent"
               }`}
             >
-              {maintenanceLogs.length}
-            </span>
-          </button>
+              <Wrench className="w-4 h-4" />
+              <span>Work Orders</span>
+              {pendingApprovalCount > 0 && (
+                <span className="bg-amber-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold animate-pulse">
+                  {pendingApprovalCount} pending
+                </span>
+              )}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveSubTab("analytics")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-              activeSubTab === "analytics"
-                ? "bg-[#0B4A6E] text-[#FFDF2C] shadow-sm"
-                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-            }`}
-          >
-            <AlertOctagon className="w-4 h-4 text-red-500" />
-            <span>Recurring Defect Intelligence</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveSubTab("logs")}
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                activeSubTab === "logs"
+                  ? "bg-[#0B4A6E] text-[#FFDF2C] shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 bg-transparent"
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              <span>Maintenance Logs</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                  activeSubTab === "logs" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+                }`}
+              >
+                {maintenanceLogs.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSubTab("analytics")}
+              className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                activeSubTab === "analytics"
+                  ? "bg-[#0B4A6E] text-[#FFDF2C] shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 bg-transparent"
+              }`}
+            >
+              <AlertOctagon className="w-4 h-4" />
+              <span>Recurring Defect Intelligence</span>
+            </button>
+          </div>
         </div>
 
         {/* Tab View 1: Vehicles & Fleets */}
@@ -837,14 +897,6 @@ export default function Fleet() {
                     key={truck.id}
                     truck={truck}
                     onClick={() => setSelectedTruck(truck)}
-                    onCheckIn={() => setTruckForCheckIn(truck)}
-                    onHistory={() => setTruckForHistory(truck)}
-                    onInspect={(t) => setTruckForInspection(t)}
-                    onReportIncident={(t) => {
-                      setTruckForIncident(t);
-                      setIsReportingIncident(true);
-                    }}
-                    onCreateWorkOrder={(t) => handleOpenCreateWorkOrder(t)}
                   />
                 ))}
               </div>
@@ -863,34 +915,53 @@ export default function Fleet() {
 
         {/* Tab View 2: Work Orders */}
         {activeSubTab === "work-orders" && (
-          <div className="h-[calc(100vh-280px)] min-h-[500px]">
-            <WorkOrderTable
-              workOrders={workOrders}
-              trucks={trucks}
-              isLoading={isLoadingWorkOrders}
+          <>
+            <WorkOrderControls
+              searchQuery={workOrderSearch}
+              onSearchChange={setWorkOrderSearch}
+              selectedStatus={workOrderStatus}
+              onStatusChange={setWorkOrderStatus}
+              pendingCount={pendingApprovalCount}
               onCreateWorkOrder={() => handleOpenCreateWorkOrder(null)}
-              onOpenApproval={(wo) => setWorkOrderForApproval(wo)}
-              onOpenFinalize={(wo) => setWorkOrderForFinalize(wo)}
-              onOpenDetail={(wo) => setWorkOrderForDetail(wo)}
-              onAdvanceStatus={handleAdvanceWorkOrderStatus}
+              canCreate={canManage}
             />
-          </div>
+
+            <div className="h-[calc(100vh-340px)] min-h-[460px] w-full min-w-0">
+              <WorkOrderTable
+                workOrders={filteredWorkOrders}
+                isLoading={isLoadingWorkOrders}
+                onOpenApproval={(wo) => setWorkOrderForApproval(wo)}
+                onOpenFinalize={(wo) => setWorkOrderForFinalize(wo)}
+                onOpenDetail={(wo) => setWorkOrderForDetail(wo)}
+                onAdvanceStatus={handleAdvanceWorkOrderStatus}
+              />
+            </div>
+          </>
         )}
 
         {/* Tab View 3: Maintenance Logs */}
         {activeSubTab === "logs" && (
-          <div className="h-[calc(100vh-280px)] min-h-[500px]">
-            <MaintenanceLogsTable
-              logs={maintenanceLogs}
-              isLoading={isLoadingLogs}
-              onRefresh={refreshMaintenanceLogs}
+          <>
+            <MaintenanceLogsControls
+              searchQuery={logsSearch}
+              onSearchChange={setLogsSearch}
+              selectedType={logsType}
+              onTypeChange={setLogsType}
             />
-          </div>
+
+            <div className="h-[calc(100vh-340px)] min-h-[460px] w-full min-w-0">
+              <MaintenanceLogsTable
+                logs={filteredMaintenanceLogs}
+                isLoading={isLoadingLogs}
+                onRefresh={refreshMaintenanceLogs}
+              />
+            </div>
+          </>
         )}
 
         {/* Tab View 4: Recurring Issues Analytics */}
         {activeSubTab === "analytics" && (
-          <div className="h-[calc(100vh-280px)] min-h-[500px]">
+          <div className="h-[calc(100vh-280px)] min-h-[500px] w-full min-w-0">
             <RecurringIssuesAnalytics
               trucks={trucks}
               onCreateWorkOrderForTruck={(truck) => handleOpenCreateWorkOrder(truck)}
@@ -898,8 +969,20 @@ export default function Fleet() {
           </div>
         )}
 
-        {/* View / Edit Truck Modal */}
-        {selectedTruck && (
+        {/* View / Edit Truck Modal (Returns automatically when sub-modals are closed/cancelled) */}
+        {selectedTruck && !(
+          truckForInspection ||
+          truckForInspectionHistory ||
+          isReportingIncident ||
+          showIncidentHistoryModal ||
+          truckForCheckIn ||
+          truckForHistory ||
+          truckForAvailability ||
+          isCreatingWorkOrder ||
+          truckToDelete ||
+          showDeletePasswordModal ||
+          showReactivatePasswordModal
+        ) && (
           <TruckModal
             truck={selectedTruck}
             trucks={trucks}
@@ -1092,6 +1175,9 @@ export default function Fleet() {
             isOpen={!!workOrderForDetail}
             workOrder={workOrderForDetail}
             onClose={() => setWorkOrderForDetail(null)}
+            onOpenApproval={(wo) => setWorkOrderForApproval(wo)}
+            onOpenFinalize={(wo) => setWorkOrderForFinalize(wo)}
+            onAdvanceStatus={handleAdvanceWorkOrderStatus}
           />
         )}
 
@@ -1104,6 +1190,5 @@ export default function Fleet() {
           />
         )}
       </div>
-    </div>
   );
 }

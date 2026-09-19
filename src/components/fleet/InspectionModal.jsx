@@ -1,17 +1,13 @@
 // src/components/fleet/InspectionModal.jsx
 import { useState } from "react";
-import { ShieldCheck, AlertTriangle, AlertOctagon, CheckCircle2, Truck, User } from "lucide-react";
+import { ShieldCheck, AlertTriangle, AlertOctagon, CheckCircle2 } from "lucide-react";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
-import Badge from "../ui/Badge";
 
 /**
  * InspectionModal
- * Findings-Only vehicle safety inspection modal without checklist schemas.
- * In accordance with docs/api-contracts/fleet/maintenance.api.md:
- * - Collects: result ('PASSED' | 'NEEDS_ATTENTION' | 'FAILED'), findings (text), and allowDispatch (boolean)
- * - FAILED or NEEDS_ATTENTION with allowDispatch:false grounds the truck to UNDER_MAINTENANCE
- * - Retains 1:1 driver soft-binding during maintenance grounding
+ * Findings-Only vehicle safety inspection modal matching the exact design and feel
+ * of Vehicle Return Odometer Check-In (OdometerCheckInModal).
  */
 export default function InspectionModal({
   isOpen,
@@ -22,7 +18,7 @@ export default function InspectionModal({
   const [result, setResult] = useState("PASSED");
   const [findings, setFindings] = useState("");
   const [allowDispatch, setAllowDispatch] = useState(true);
-  const [error, setError] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen || !truck) return null;
@@ -38,15 +34,15 @@ export default function InspectionModal({
   const willGroundTruck = isFailed || isNeedsAttentionGrounded;
 
   const handleSubmit = async (e) => {
-    e?.preventDefault();
+    if (e) e.preventDefault();
     if (!findings.trim()) {
-      setError("Inspection findings and observations are required.");
+      setErrorMsg("Inspection findings and observations are required.");
       return;
     }
 
     try {
       setIsSubmitting(true);
-      setError("");
+      setErrorMsg("");
 
       const payload = {
         truckId: truck.id,
@@ -61,69 +57,92 @@ export default function InspectionModal({
       onClose();
     } catch (err) {
       console.error("Failed to record inspection:", err);
-      setError(err?.message || "Failed to submit inspection record. Please try again.");
+      setErrorMsg(err?.message || "Failed to submit inspection record. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const footerContent = (
+    <div className="w-full flex flex-col items-center">
+      {errorMsg && (
+        <div className="w-full bg-red-50 text-red-700 p-3 rounded-xl text-xs font-medium border border-red-200 mb-3 text-left">
+          {errorMsg}
+        </div>
+      )}
+      <Button
+        type="button"
+        variant="yellow"
+        disabled={isSubmitting || !findings.trim()}
+        onClick={handleSubmit}
+        className="w-full font-bold text-sm uppercase tracking-wider mb-2"
+      >
+        {isSubmitting ? "RECORDING..." : "CONFIRM INSPECTION"}
+      </Button>
+      <Button
+        type="button"
+        variant="cancel"
+        disabled={isSubmitting}
+        onClick={onClose}
+        className="text-xs"
+      >
+        CANCEL
+      </Button>
+    </div>
+  );
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Daily Safety Inspection"
-      maxWidth="max-w-xl"
-      footer={
-        <div className="flex items-center justify-end gap-3 w-full">
-          <Button
-            type="button"
-            variant="neutral"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="text-xs uppercase tracking-wider font-semibold"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="yellow"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="text-xs uppercase tracking-wider font-bold px-6 shadow-xs"
-          >
-            {isSubmitting ? "Recording..." : "Submit Inspection"}
-          </Button>
-        </div>
-      }
+      maxWidth="max-w-lg"
+      footer={footerContent}
     >
-      <div className="space-y-4 text-left pt-1">
-        {/* VEHICLE INFO STRIP */}
-        <div className="bg-[#DDF4FF] border border-[#BAE6FD] rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-[#0A4B6E]">
-            <Truck size={18} className="stroke-[2.2]" />
-            <span className="font-bold text-sm tracking-wide">
-              {truck.plateNumber || "Truck"}
-            </span>
-            <span className="text-[#5B8399]">
-              ({truck.model || "Isuzu Elf"})
+      <div className="space-y-4 text-left py-2">
+        {/* VEHICLE CONTEXT BANNER */}
+        <div className="bg-[#BAE6FD]/40 rounded-xl p-3.5 flex items-center justify-between border border-[#0A4B6E]/15">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#0A4B6E] text-white flex items-center justify-center shrink-0">
+              <ShieldCheck size={20} />
+            </div>
+            <div>
+              <h3 className="font-bold text-[#0A4B6E] text-base leading-tight">
+                {truck.plateNumber || "Truck"}
+              </h3>
+              <p className="text-xs text-[#588094]">
+                {truck.model || "Isuzu Elf"} {truck.yearModel ? `(${truck.yearModel})` : ""}
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-[11px] text-[#588094] block">Assigned Driver</span>
+            <span className="font-semibold text-xs text-[#0A4B6E]">{driverDisplay}</span>
+          </div>
+        </div>
+
+        {/* CURRENT REGISTERED METRICS */}
+        <div className="grid grid-cols-2 gap-3 bg-[#F3F5F5] rounded-xl p-3.5 text-xs">
+          <div>
+            <span className="text-[#588094] block text-[11px]">Operational Status</span>
+            <span className="font-bold text-sm text-[#0A4B6E]">
+              {(truck.status || truck.operationalStatus || "ACTIVE").replace("_", " ")}
             </span>
           </div>
-
-          <div className="flex items-center gap-1.5 text-[#5B8399]">
-            <User size={14} />
-            <span>Driver:</span>
-            <span className="font-semibold text-[#0A4B6E]">
-              {driverDisplay}
+          <div>
+            <span className="text-[#588094] block text-[11px]">Current Odometer</span>
+            <span className="font-bold text-sm text-[#0A4B6E]">
+              {Number(truck.currentOdometer || 0).toLocaleString()} KM
             </span>
           </div>
         </div>
 
         {/* OUTCOME / RESULT SELECTOR PILLS */}
         <div>
-          <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-2">
+          <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
             Inspection Result <span className="text-red-500">*</span>
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-3 gap-2.5">
             {/* PASSED */}
             <button
               type="button"
@@ -133,8 +152,8 @@ export default function InspectionModal({
               }}
               className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                 result === "PASSED"
-                  ? "bg-green-500 text-white border-green-600 shadow-xs scale-[1.02]"
-                  : "bg-white text-green-700 border-green-200 hover:bg-green-50"
+                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                  : "bg-[#F3F5F5] text-emerald-800 border-gray-200 hover:bg-emerald-50"
               }`}
             >
               <CheckCircle2 size={16} />
@@ -147,8 +166,8 @@ export default function InspectionModal({
               onClick={() => setResult("NEEDS_ATTENTION")}
               className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                 result === "NEEDS_ATTENTION"
-                  ? "bg-[#F6C445] text-[#854D0E] border-[#E0AC2B] shadow-xs scale-[1.02]"
-                  : "bg-white text-amber-700 border-amber-200 hover:bg-amber-50"
+                  ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                  : "bg-[#F3F5F5] text-amber-800 border-gray-200 hover:bg-amber-50"
               }`}
             >
               <AlertTriangle size={16} />
@@ -164,8 +183,8 @@ export default function InspectionModal({
               }}
               className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                 result === "FAILED"
-                  ? "bg-[#D93025] text-white border-red-700 shadow-xs scale-[1.02]"
-                  : "bg-white text-red-700 border-red-200 hover:bg-red-50"
+                  ? "bg-[#D93025] text-white border-[#D93025] shadow-xs"
+                  : "bg-[#F3F5F5] text-rose-800 border-gray-200 hover:bg-rose-50"
               }`}
             >
               <AlertOctagon size={16} />
@@ -176,36 +195,32 @@ export default function InspectionModal({
 
         {/* DISPATCH DECISION TOGGLE (SHOWN ONLY ON NEEDS_ATTENTION) */}
         {result === "NEEDS_ATTENTION" && (
-          <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3.5 space-y-1.5 transition-all">
-            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+          <div className="bg-amber-50 text-amber-900 border border-amber-200 rounded-xl p-3.5 space-y-1 text-xs">
+            <label className="flex items-center gap-2.5 cursor-pointer font-bold">
               <input
                 type="checkbox"
                 checked={allowDispatch}
                 onChange={(e) => setAllowDispatch(e.target.checked)}
                 className="w-4 h-4 rounded text-[#0A4B6E] focus:ring-[#0A4B6E] border-gray-300 cursor-pointer"
               />
-              <span className="text-xs font-bold text-amber-900">
-                Allow vehicle to dispatch?
-              </span>
+              <span>Allow vehicle to dispatch?</span>
             </label>
-            <p className="text-[11.5px] text-amber-800 leading-relaxed pl-6.5">
+            <p className="text-[11px] text-amber-800 pl-6.5">
               {allowDispatch
-                ? "The vehicle is cleared for operations with advisory notes. Status remains ACTIVE."
-                : "The vehicle is NOT cleared for dispatch. Submitting will immediately ground the truck to UNDER_MAINTENANCE."}
+                ? "Cleared for route dispatch with advisory notes. Vehicle remains ACTIVE."
+                : "NOT cleared for dispatch. Submitting will ground the vehicle to UNDER_MAINTENANCE."}
             </p>
           </div>
         )}
 
         {/* GROUNDING WARNING ALERT */}
         {willGroundTruck && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 flex items-start gap-2.5 text-red-800 text-xs">
-            <AlertOctagon size={18} className="text-red-600 shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <p className="font-bold">
-                Vehicle Grounding Action
-              </p>
-              <p className="text-[11.5px] text-red-700 leading-relaxed">
-                This vehicle will be immediately moved to <strong className="font-bold">UNDER_MAINTENANCE</strong> and restricted from new route assignments. The assigned driver ({driverDisplay}) will be retained.
+          <div className="bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 text-xs flex items-start gap-2.5">
+            <AlertOctagon size={18} className="shrink-0 text-red-600 mt-0.5" />
+            <div>
+              <p className="font-bold">Vehicle Grounding Action</p>
+              <p className="mt-0.5 text-[11.5px] leading-relaxed text-red-700">
+                This vehicle will be automatically moved to <strong>UNDER_MAINTENANCE</strong>. Assigned driver ({driverDisplay}) will be retained.
               </p>
             </div>
           </div>
@@ -213,30 +228,23 @@ export default function InspectionModal({
 
         {/* FINDINGS / OBSERVATIONS TEXT AREA */}
         <div>
-          <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1.5">
+          <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
             Inspection Findings & Observations <span className="text-red-500">*</span>
           </label>
           <textarea
-            rows={4}
+            rows={3}
             value={findings}
             onChange={(e) => {
               setFindings(e.target.value);
-              if (error) setError("");
+              setErrorMsg("");
             }}
-            placeholder="Document physical observations, brake performance, fluid leaks, tire conditions, lights, and any required actions..."
-            className="w-full text-xs sm:text-sm bg-[#F3F5F5] border border-gray-200 rounded-xl p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] focus:border-transparent transition-all placeholder:text-gray-400 resize-none"
+            placeholder="Document physical observations, brake performance, fluid leaks, tire conditions, lights..."
+            className="w-full bg-[#F3F5F5] border border-gray-200 rounded-xl p-3 text-xs font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] resize-none"
           />
-          <p className="text-[11px] text-[#5B8399] mt-1">
-            Inspections are findings-only records for operational auditing without checklists.
-          </p>
+          <span className="text-[11px] text-[#588094] mt-1 block">
+            Logged upon plant safety inspection by Fleet Supervisor.
+          </span>
         </div>
-
-        {/* ERROR MESSAGE */}
-        {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-700">
-            {error}
-          </div>
-        )}
       </div>
     </Modal>
   );

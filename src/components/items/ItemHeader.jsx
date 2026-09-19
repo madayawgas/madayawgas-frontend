@@ -12,7 +12,7 @@ export default function ItemHeader({ onAddItem, canCreate = true }) {
           <button
             type="button"
             onClick={onAddItem}
-            className="flex items-center gap-2 bg-white hover:bg-gray-50 border border-[#0A4B6E] text-[#0A4B6E] font-semibold text-xs px-4 py-2.5 rounded-full transition-colors cursor-pointer shadow-xs active:scale-95"
+            className="flex items-center gap-2 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs md:text-sm px-4 py-2.5 rounded-full shadow-xs transition-all active:scale-95 cursor-pointer"
           >
             <Plus size={16} />
             <span>Add New Item</span>

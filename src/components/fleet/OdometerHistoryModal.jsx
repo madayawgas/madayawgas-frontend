@@ -1,11 +1,15 @@
 // src/components/fleet/OdometerHistoryModal.jsx
 import { useState, useEffect, useCallback } from "react";
-import { History, Gauge, Calendar, User, Clock } from "lucide-react";
-import Modal from "../ui/Modal";
+import { History, Gauge, Calendar, User, Clock, Plus } from "lucide-react";
+import SideDrawer from "../ui/SideDrawer";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
 import { fleetApi } from "../../api/fleet.js";
 
+/**
+ * OdometerHistoryModal
+ * Displays chronological odometer logs and trip deltas in a right-sliding panel.
+ */
 export default function OdometerHistoryModal({
   isOpen,
   truck,
@@ -43,7 +47,11 @@ export default function OdometerHistoryModal({
   if (!isOpen || !truck) return null;
 
   const currentOdo = Number(truck.currentOdometer) || 0;
-  const lastPmOdo = Number(truck.lastPmOdometer) || 0;
+  const lastPmOdo = Number(
+    truck.lastPmOdometer !== undefined
+      ? truck.lastPmOdometer
+      : truck.lastPMOdometer || 0
+  );
   const distanceSinceLastPm = Math.max(0, currentOdo - lastPmOdo);
   const isPmDue = distanceSinceLastPm >= 5000;
 
@@ -63,52 +71,57 @@ export default function OdometerHistoryModal({
     }
   };
 
-  const footerContent = (
-    <div className="w-full flex items-center justify-between gap-3">
-      {onOpenCheckIn && (
-        <Button
-          type="button"
-          variant="yellow"
-          onClick={() => {
-            onClose();
-            onOpenCheckIn(truck);
-          }}
-          className="!w-auto px-5 py-2 text-xs font-bold uppercase tracking-wider"
-        >
-          LOG RETURN ODOMETER
-        </Button>
-      )}
-      <Button
-        type="button"
-        variant="cancel"
-        onClick={onClose}
-        className="ml-auto text-xs"
-      >
-        CLOSE
-      </Button>
-    </div>
-  );
-
   return (
-    <Modal
+    <SideDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title="Odometer & Mileage Audit History"
-      maxWidth="max-w-3xl"
-      footer={footerContent}
+      title="Mileage & Odometer History"
+      subtitle={`${truck.plateNumber || "Truck"} • ${truck.model || "Isuzu Elf"}`}
+      icon={History}
+      badge={
+        <Badge variant="neutral" className="px-2.5 py-0.5 text-[10px] font-bold">
+          {truck.plateNumber || "Truck"}
+        </Badge>
+      }
+      width="max-w-xl lg:max-w-3xl"
+      footer={({ onClose: closeDrawer }) => (
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
+          {onOpenCheckIn && (
+            <button
+              type="button"
+              onClick={() => {
+                onOpenCheckIn(truck);
+              }}
+              className="flex-1 py-3 px-5 rounded-full font-bold text-xs uppercase tracking-wider bg-white hover:bg-sky-50 text-[#0A4B6E] border-2 border-[#0A4B6E] flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer active:scale-95"
+            >
+              <Gauge size={15} />
+              <span>Record Return Odometer</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={closeDrawer}
+            className={`py-3 px-5 rounded-full font-bold text-xs uppercase tracking-wider bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0B4A6E] transition-all shadow-2xs cursor-pointer active:scale-95 text-center ${
+              onOpenCheckIn ? "flex-1" : "w-full"
+            }`}
+          >
+            CLOSE
+          </button>
+        </div>
+      )}
     >
-      <div className="py-2 text-left space-y-4">
+      <div className="space-y-4">
         {/* VEHICLE STATS BANNER */}
-        <div className="bg-[#BAE6FD]/40 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 border border-[#0A4B6E]/15">
+        <div className="bg-[#BAE6FD]/40 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 border border-[#0A4B6E]/15">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-[#0A4B6E] text-white flex items-center justify-center shrink-0">
-              <History size={22} />
+            <div className="w-10 h-10 rounded-xl bg-[#0A4B6E] text-white flex items-center justify-center shrink-0">
+              <Gauge size={20} />
             </div>
             <div>
-              <h3 className="font-bold text-[#0A4B6E] text-base leading-tight">
+              <h3 className="font-bold text-[#0A4B6E] text-sm">
                 {truck.plateNumber || "Truck"}
               </h3>
-              <p className="text-xs text-[#588094]">
+              <p className="text-[11px] text-[#588094]">
                 {truck.model || "Isuzu Elf"} {truck.yearModel ? `(${truck.yearModel})` : ""}
               </p>
             </div>
@@ -116,20 +129,20 @@ export default function OdometerHistoryModal({
 
           <div className="flex flex-wrap items-center gap-4 text-xs">
             <div>
-              <span className="text-[#588094] block text-[11px]">Current Odometer</span>
+              <span className="text-[#588094] block text-[10.5px]">Current Odometer</span>
               <span className="font-bold text-sm text-[#0A4B6E]">
                 {currentOdo.toLocaleString()} KM
               </span>
             </div>
             <div className="h-7 w-[1px] bg-gray-300 hidden sm:block" />
             <div>
-              <span className="text-[#588094] block text-[11px]">Since Last PM</span>
-              <span className={`font-bold text-sm ${isPmDue ? "text-red-600" : "text-[#0A4B6E]"}`}>
+              <span className="text-[#588094] block text-[10.5px]">Since Last PM</span>
+              <span className={`font-bold text-sm ${isPmDue ? "text-[#C93B32]" : "text-[#0A4B6E]"}`}>
                 {distanceSinceLastPm.toLocaleString()} / 5,000 KM
               </span>
             </div>
             {isPmDue && (
-              <Badge variant="danger" className="px-3 py-1 font-bold">
+              <Badge variant="danger" className="px-2.5 py-0.5 font-bold text-[10px]">
                 PM DUE
               </Badge>
             )}
@@ -146,61 +159,61 @@ export default function OdometerHistoryModal({
         {/* LOADING SKELETON */}
         {isLoading && (
           <div className="space-y-2.5 py-6">
-            <div className="h-10 bg-gray-100 animate-pulse rounded-xl" />
-            <div className="h-10 bg-gray-100 animate-pulse rounded-xl" />
-            <div className="h-10 bg-gray-100 animate-pulse rounded-xl" />
+            <div className="h-12 bg-gray-100 animate-pulse rounded-xl" />
+            <div className="h-12 bg-gray-100 animate-pulse rounded-xl" />
+            <div className="h-12 bg-gray-100 animate-pulse rounded-xl" />
           </div>
         )}
 
         {/* LOGS TABLE */}
         {!isLoading && logs.length > 0 && (
-          <div className="overflow-x-auto max-h-[360px] overflow-y-auto border border-gray-200 rounded-xl custom-scrollbar">
+          <div className="overflow-x-auto border border-gray-200 rounded-2xl custom-scrollbar shadow-2xs">
             <table className="w-full text-left border-collapse text-xs">
               <thead className="bg-[#F3F5F5] sticky top-0 z-10 text-[#0A4B6E] font-bold border-b border-gray-200">
                 <tr>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Date & Time</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Reading (KM)</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Trip Delta</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Source</th>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Logged By</th>
-                  <th className="py-2.5 px-3">Notes</th>
+                  <th className="py-3 px-3.5 whitespace-nowrap">Date & Time</th>
+                  <th className="py-3 px-3.5 whitespace-nowrap">Reading (KM)</th>
+                  <th className="py-3 px-3.5 whitespace-nowrap">Trip Delta</th>
+                  <th className="py-3 px-3.5 whitespace-nowrap">Source</th>
+                  <th className="py-3 px-3.5 whitespace-nowrap">Logged By</th>
+                  <th className="py-3 px-3.5">Notes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {logs.map((log) => (
                   <tr key={log.id} className="hover:bg-[#EBF5FB]/60 transition-colors">
-                    <td className="py-2.5 px-3 text-gray-700 whitespace-nowrap font-medium">
+                    <td className="py-3 px-3.5 text-gray-700 whitespace-nowrap font-medium">
                       <div className="flex items-center gap-1.5">
                         <Clock size={13} className="text-[#588094] shrink-0" />
                         <span>{formatDateTime(log.loggedAt)}</span>
                       </div>
                     </td>
-                    <td className="py-2.5 px-3 font-bold text-[#0A4B6E] whitespace-nowrap">
+                    <td className="py-3 px-3.5 font-bold text-[#0A4B6E] whitespace-nowrap">
                       {Number(log.odometerReading).toLocaleString()} KM
                     </td>
-                    <td className="py-2.5 px-3 whitespace-nowrap">
+                    <td className="py-3 px-3.5 whitespace-nowrap">
                       {log.distanceDelta !== undefined && log.distanceDelta !== null ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#E8F5E9] text-[#2E7D32]">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[#E8F5E9] text-[#2E7D32]">
                           +{Number(log.distanceDelta).toLocaleString()} KM
                         </span>
                       ) : (
                         <span className="text-gray-400">-</span>
                       )}
                     </td>
-                    <td className="py-2.5 px-3 text-gray-600 whitespace-nowrap">
+                    <td className="py-3 px-3.5 text-gray-600 whitespace-nowrap">
                       {log.source === "POST_DISPATCH_RETURN"
                         ? "Post-Dispatch Return"
                         : log.source === "MAINTENANCE_SERVICE"
                         ? "Maintenance Check"
                         : log.source?.replace(/_/g, " ") || "Manual Entry"}
                     </td>
-                    <td className="py-2.5 px-3 text-gray-700 whitespace-nowrap">
+                    <td className="py-3 px-3.5 text-gray-700 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <User size={13} className="text-[#588094] shrink-0" />
                         <span>{log.loggedByName || "Supervisor"}</span>
                       </div>
                     </td>
-                    <td className="py-2.5 px-3 text-gray-500 max-w-xs truncate" title={log.notes}>
+                    <td className="py-3 px-3.5 text-gray-500 max-w-xs truncate" title={log.notes}>
                       {log.notes || "-"}
                     </td>
                   </tr>
@@ -212,15 +225,15 @@ export default function OdometerHistoryModal({
 
         {/* EMPTY STATE */}
         {!isLoading && logs.length === 0 && !error && (
-          <div className="flex flex-col items-center justify-center py-12 text-center text-gray-400">
-            <Gauge size={36} className="mb-2 stroke-[1.5] text-gray-300" />
+          <div className="flex flex-col items-center justify-center py-16 text-center text-gray-400">
+            <Gauge size={42} className="mb-2 stroke-[1.5] text-gray-300" />
             <p className="font-semibold text-sm text-gray-600">No Odometer Logs Found</p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-400 mt-1 max-w-sm">
               No single-point return check-ins have been recorded for this vehicle yet.
             </p>
           </div>
         )}
       </div>
-    </Modal>
+    </SideDrawer>
   );
 }

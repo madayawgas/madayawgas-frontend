@@ -1,7 +1,7 @@
-// src/pages/Dashboard.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import StatCard from "../../components/dashboard/StatCard";
 import SalesGraph from "../../components/dashboard/SalesGraph";
+import MaintenanceDashboardSection from "../../components/dashboard/MaintenanceDashboardSection";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { dashboardApi } from "../../api/dashboard.js";
 import { salesApi } from "../../api/sales.js";
@@ -12,6 +12,8 @@ import { Truck, Wrench } from "lucide-react";
 
 export default function Dashboard() {
   const { currentUser } = useAuth();
+  const isSuperAdmin =
+    (currentUser?.role || "").trim().toLowerCase() === "super admin";
 
   const [metrics, setMetrics] = useState({
     grossIncome: 1285000,
@@ -48,15 +50,49 @@ export default function Dashboard() {
   });
 
   const [salesData, setSalesData] = useState(mockSales.data);
+  const [maintenanceLogs, setMaintenanceLogs] = useState(() => {
+    try {
+      const cached = localStorage.getItem("app_maintenance_logs_cache");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error("Error reading cached maintenance logs for dashboard:", e);
+    }
+    return [];
+  });
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+
+  const refreshMaintenanceLogs = useCallback(async () => {
+    if (!isSuperAdmin) return;
+    setIsLoadingLogs(true);
+    try {
+      const res = await fleetApi.getMaintenanceLogs();
+      const logs = res?.data?.logs || res?.logs || [];
+      setMaintenanceLogs(logs);
+    } catch (err) {
+      console.error("Failed to load maintenance logs for dashboard:", err);
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     async function loadDashboardData() {
       try {
-        const [dashMetrics, sales, trucksData] = await Promise.allSettled([
+        const promises = [
           dashboardApi.getMetrics(),
           salesApi.getSalesOverview(),
           fleetApi.getTrucks(),
-        ]);
+        ];
+
+        if (isSuperAdmin) {
+          promises.push(fleetApi.getMaintenanceLogs());
+        }
+
+        const results = await Promise.allSettled(promises);
+        const [dashMetrics, sales, trucksData, logsData] = results;
 
         if (dashMetrics.status === "fulfilled" && dashMetrics.value) {
           setMetrics(dashMetrics.value);
@@ -82,12 +118,23 @@ export default function Dashboard() {
             underRepair: 0,
           });
         }
+
+        if (
+          isSuperAdmin &&
+          logsData &&
+          logsData.status === "fulfilled" &&
+          logsData.value
+        ) {
+          const logs =
+            logsData.value?.data?.logs || logsData.value?.logs || [];
+          setMaintenanceLogs(logs);
+        }
       } catch {
         // Retain fallback state on network failure
       }
     }
     loadDashboardData();
-  }, []);
+  }, [isSuperAdmin]);
 
   const {
     grossIncome = 0,
@@ -214,6 +261,15 @@ export default function Dashboard() {
           <SalesGraph salesData={salesData} />
         </div>
       </div>
+
+      {/* ================= SUPER ADMIN: HISTORICAL MAINTENANCE INTELLIGENCE ================= */}
+      {isSuperAdmin && (
+        <MaintenanceDashboardSection
+          logs={maintenanceLogs}
+          isLoading={isLoadingLogs}
+          onRefresh={refreshMaintenanceLogs}
+        />
+      )}
     </div>
   );
 }

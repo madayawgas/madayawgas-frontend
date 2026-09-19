@@ -16,7 +16,7 @@ export default function Badge({
 
   return (
     <span
-      className={`px-3 py-0.5 text-[10px] font-bold rounded-full border uppercase tracking-wider transition-all duration-200 ${
+      className={`inline-flex items-center justify-center whitespace-nowrap px-3 py-0.5 text-[10px] font-bold rounded-full border uppercase tracking-wider transition-all duration-200 ${
         variants[variant] || variants.neutral
       } ${className}`}
     >

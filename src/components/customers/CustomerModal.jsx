@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { UserRoundPlus, UserRound, ShieldCheck, CheckCircle2, Building2 } from "lucide-react";
 import { isValidPhilippinePhone, formatPhilippinePhone } from "../../utils/phone.js";
 import CustomerFormStep from "./CustomerFormStep";
 import CustomerConfirmStep from "./CustomerConfirmStep";
 import CustomerSuccessStep from "./CustomerSuccessStep";
+import Modal from "../ui/Modal";
 
 export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
   const [step, setStep] = useState(1);
@@ -48,7 +50,7 @@ export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
   if (!isOpen) return null;
 
   const handleFormSubmit = (e) => {
-    e.preventDefault();
+    e?.preventDefault();
 
     if (!formData.contactNumber.trim()) {
       setPhoneError("Contact number is required.");
@@ -65,7 +67,6 @@ export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
     setPhoneError("");
     setSubmitError("");
 
-    // Clean format
     setFormData((prev) => ({
       ...prev,
       contactNumber: formatPhilippinePhone(prev.contactNumber),
@@ -88,45 +89,53 @@ export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div
-        className={`bg-white rounded-[2rem] w-full shadow-xl flex flex-col overflow-hidden transition-all duration-300 ${
-          step === 3 ? "max-w-md" : "max-w-lg"
-        }`}
-      >
-        {/* Header */}
-        <div className="p-8 pb-4 flex justify-between items-center">
-          <h2 className="text-[28px] font-bold text-[#0B4A6E]">
-            {step === 1 && (customer ? "Edit Customer" : "Add New Customer")}
-            {step === 2 && "Confirm Information"}
-            {step === 3 && (customer ? "Customer Updated" : "Customer Created")}
-          </h2>
-          {step === 2 && (
-            <button
-              onClick={() => setStep(1)}
-              disabled={isSubmitting}
-              className="text-[#0B4A6E] hover:opacity-70 transition-opacity p-1 cursor-pointer disabled:opacity-50"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-                className="w-6 h-6"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
-                />
-              </svg>
-            </button>
-          )}
-        </div>
+  let modalTitle = "";
+  let modalSubtitle = "";
+  let modalIcon = UserRoundPlus;
+  let modalBadge = null;
 
-        {/* Step 1: Form Input */}
+  if (step === 1) {
+    modalTitle = customer ? "Edit Customer Profile" : "Add New Customer";
+    modalSubtitle = customer ? "Update client segment, delivery and contact details" : "Register client account, segment & delivery destination";
+    modalIcon = customer ? UserRound : UserRoundPlus;
+    modalBadge = !customer ? (
+      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1]">
+        Step 1 of 3
+      </span>
+    ) : null;
+  } else if (step === 2) {
+    modalTitle = "Confirm Information";
+    modalSubtitle = "Verify customer details before saving to directory";
+    modalIcon = ShieldCheck;
+    modalBadge = (
+      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1]">
+        Step 2 of 3
+      </span>
+    );
+  } else if (step === 3) {
+    modalTitle = customer ? "Customer Profile Updated" : "Customer Profile Created";
+    modalSubtitle = "Customer is active in sales directory";
+    modalIcon = CheckCircle2;
+    modalBadge = (
+      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+        Completed
+      </span>
+    );
+  }
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={modalTitle}
+      subtitle={modalSubtitle}
+      icon={modalIcon}
+      badge={modalBadge}
+      onBack={step === 2 ? () => setStep(1) : undefined}
+      maxWidth={step === 3 ? "max-w-md" : "max-w-xl"}
+      closeOnBackdrop={false}
+    >
+      <div className="py-1">
         {step === 1 && (
           <CustomerFormStep
             formData={formData}
@@ -139,11 +148,10 @@ export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
           />
         )}
 
-        {/* Step 2: Confirmation Summary */}
         {step === 2 && (
           <div className="flex flex-col">
             {submitError && (
-              <p className="text-red-500 text-xs font-semibold px-8 pb-2">
+              <p className="text-red-500 text-xs font-semibold pb-2">
                 {submitError}
               </p>
             )}
@@ -155,11 +163,10 @@ export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
           </div>
         )}
 
-        {/* Step 3: Success Display */}
         {step === 3 && (
           <CustomerSuccessStep formData={formData} onDone={onClose} />
         )}
       </div>
-    </div>
+    </Modal>
   );
 }

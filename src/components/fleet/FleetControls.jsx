@@ -24,8 +24,8 @@ export default function FleetControls({
         className="w-full max-w-md"
       />
 
-      {/* Filter Controls - Single Row (no overflow-x-auto to prevent clipping Filter Trucks dropdown) */}
-      <div className="flex items-center gap-2 justify-end flex-nowrap shrink-0">
+      {/* Filter Controls */}
+      <div className="flex items-center gap-2 justify-end flex-wrap shrink-0">
         <ActiveFleetFilters
           selectedDriver={activeFilters.driver}
           selectedStatus={activeFilters.status}

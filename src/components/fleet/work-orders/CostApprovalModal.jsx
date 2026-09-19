@@ -1,6 +1,6 @@
 // src/components/fleet/work-orders/CostApprovalModal.jsx
 import { useState } from "react";
-import { DollarSign, CheckCircle2, XCircle, AlertTriangle, Building2, Truck, FileText, UserCheck } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, Building2, Truck, FileText, UserCheck } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../../utils/permissions.js";
 import Modal from "../../ui/Modal";

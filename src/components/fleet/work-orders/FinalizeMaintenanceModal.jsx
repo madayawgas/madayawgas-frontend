@@ -1,6 +1,6 @@
 // src/components/fleet/work-orders/FinalizeMaintenanceModal.jsx
 import { useState, useEffect, useMemo } from "react";
-import { CheckCircle2, AlertTriangle, FileText, Wrench, DollarSign, Calendar, Gauge, ShieldCheck, Clock } from "lucide-react";
+import { CheckCircle2, AlertTriangle, FileText, Wrench, Calendar, Gauge, ShieldCheck, Clock } from "lucide-react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 
@@ -139,53 +139,44 @@ export default function FinalizeMaintenanceModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Finalize Maintenance & Release Truck"
-      maxWidth="max-w-2xl"
+      maxWidth="max-w-xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+      <form onSubmit={handleSubmit} className="space-y-4 text-left py-2">
         {/* Work Order & Truck Banner */}
-        <div className="bg-[#E8F3F8] rounded-xl p-3.5 border border-[#BCE1F1] flex flex-wrap items-center justify-between gap-3 text-sm">
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-[#6D8AA2]">
-              Vehicle & Work Order
+        <div className="bg-[#BAE6FD]/40 rounded-xl p-3.5 flex items-center justify-between border border-[#0A4B6E]/15">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#0A4B6E] text-white flex items-center justify-center shrink-0">
+              <Wrench size={20} />
             </div>
-            <div className="font-bold text-[#1B4B75] text-base flex items-center gap-1.5 mt-0.5">
-              <span>{truckPlate}</span>
-              {truckModel && <span className="text-xs font-medium text-slate-500 font-normal">({truckModel})</span>}
-            </div>
-            <div className="text-xs text-slate-600 mt-0.5">
-              WO #{workOrder.workOrderNumber || workOrder.id?.slice(0, 8)} •{" "}
-              <span className="font-semibold text-[#0B4A6E]">
-                {workOrder.maintenanceType?.name || workOrder.maintenanceTypeName || "MAINTENANCE"}
-              </span>
+            <div>
+              <h3 className="font-bold text-[#0A4B6E] text-base leading-tight">
+                {truckPlate}
+              </h3>
+              <p className="text-xs text-[#588094]">
+                {truckModel ? `${truckModel} • ` : ""}WO #{workOrder.workOrderNumber || workOrder.id?.slice(0, 8)}
+              </p>
             </div>
           </div>
-
           <div className="text-right">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-[#6D8AA2]">
-              Service Provider
-            </div>
-            <div className="font-semibold text-slate-800 text-sm mt-0.5">
+            <span className="text-[11px] text-[#588094] block">Service Provider</span>
+            <span className="font-semibold text-xs text-[#0A4B6E]">
               {workOrder.shopName || "External Facility"}
-            </div>
-            <div className="text-xs text-slate-500">
-              Est. Cost: ₱{(Number(workOrder.estimatedCost) || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
-            </div>
+            </span>
           </div>
         </div>
 
         {/* Informational Alert Box */}
-        <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3 flex gap-3 text-xs text-emerald-900">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex gap-2.5 text-xs text-emerald-900">
           <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <p className="font-semibold text-emerald-950">
-              Finalizing will mark this Work Order as <span className="underline">COMPLETED</span> and restore the vehicle.
+            <p className="font-bold text-emerald-950">
+              Finalizing will mark this Work Order as COMPLETED and restore the vehicle to ACTIVE status.
             </p>
-            <p className="text-emerald-800 leading-relaxed">
-              • Operational status will transition from <span className="font-medium">UNDER_MAINTENANCE</span> to <span className="font-medium">ACTIVE</span>.<br />
-              • Assigned driver relationship will be strictly preserved.<br />
+            <p className="text-emerald-800 leading-relaxed text-[11px]">
+              • Operational status will transition to <strong>ACTIVE</strong> with driver relationship preserved.<br />
               {isPreventive && (
-                <span className="font-medium text-emerald-950 block mt-0.5">
-                  • <strong>Preventive Baseline Reset:</strong> The vehicle's PM baseline odometer will be updated to the serviced odometer, resetting the 5,000-km interval.
+                <span className="font-semibold text-emerald-950 block mt-0.5">
+                  • Preventive Baseline Reset: The vehicle's PM baseline odometer will update to the serviced odometer.
                 </span>
               )}
             </p>
@@ -194,7 +185,7 @@ export default function FinalizeMaintenanceModal({
 
         {/* Error Banner */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-xl text-xs flex items-start gap-2 animate-fade-in">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-xl text-xs flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
             <span>{error}</span>
           </div>
@@ -203,7 +194,7 @@ export default function FinalizeMaintenanceModal({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {/* Official Receipt Number */}
           <div className="md:col-span-2">
-            <label className="block text-[11px] font-bold tracking-wider uppercase text-[#6D8AA2] mb-1">
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
               Official Receipt Number (OR#) <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -213,18 +204,18 @@ export default function FinalizeMaintenanceModal({
                 value={officialReceiptNumber}
                 onChange={(e) => setOfficialReceiptNumber(e.target.value)}
                 placeholder="e.g. OR-2026-88991"
-                className="w-full pl-9 pr-3.5 py-2 text-sm bg-[#F3F5F5] rounded-xl border border-slate-200 focus:outline-none focus:border-[#0B4A6E] focus:bg-white transition-all text-slate-800 font-mono"
+                className="w-full pl-9 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800 font-mono"
               />
-              <FileText className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <FileText className="w-4 h-4 text-[#588094] absolute left-3 top-2.5" />
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Must be the unique receipt issued by {workOrder.shopName || "the repair facility"}.
-            </p>
+            <span className="text-[11px] text-[#588094] mt-1 block">
+              Unique receipt issued by {workOrder.shopName || "the repair facility"}.
+            </span>
           </div>
 
           {/* Severity */}
           <div className="md:col-span-2">
-            <label className="block text-[11px] font-bold tracking-wider uppercase text-[#6D8AA2] mb-1.5">
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
               Service Severity <span className="text-red-500">*</span>
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -235,10 +226,10 @@ export default function FinalizeMaintenanceModal({
                     key={opt.value}
                     type="button"
                     onClick={() => setSeverity(opt.value)}
-                    className={`py-1.5 px-3 rounded-xl text-xs font-semibold border transition-all text-center ${
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all text-center cursor-pointer ${
                       isSelected
-                        ? `${opt.color} border-current ring-2 ring-offset-1 ring-slate-400 font-bold shadow-sm`
-                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                        ? `${opt.color} border-current ring-2 ring-[#0A4B6E]/30 font-bold shadow-xs`
+                        : "bg-[#F3F5F5] border-gray-200 text-gray-700 hover:bg-gray-100"
                     }`}
                   >
                     {opt.label}
@@ -250,7 +241,7 @@ export default function FinalizeMaintenanceModal({
 
           {/* Date Started */}
           <div>
-            <label className="block text-[11px] font-bold tracking-wider uppercase text-[#6D8AA2] mb-1">
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
               Date Started <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -259,15 +250,15 @@ export default function FinalizeMaintenanceModal({
                 required
                 value={dateStarted}
                 onChange={(e) => setDateStarted(e.target.value)}
-                className="w-full pl-9 pr-3.5 py-2 text-sm bg-[#F3F5F5] rounded-xl border border-slate-200 focus:outline-none focus:border-[#0B4A6E] focus:bg-white transition-all text-slate-800"
+                className="w-full pl-9 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800"
               />
-              <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Calendar className="w-4 h-4 text-[#588094] absolute left-3 top-2.5" />
             </div>
           </div>
 
           {/* Date Resolved */}
           <div>
-            <label className="block text-[11px] font-bold tracking-wider uppercase text-[#6D8AA2] mb-1">
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
               Date Resolved <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -276,18 +267,19 @@ export default function FinalizeMaintenanceModal({
                 required
                 value={dateResolved}
                 onChange={(e) => setDateResolved(e.target.value)}
-                className="w-full pl-9 pr-3.5 py-2 text-sm bg-[#F3F5F5] rounded-xl border border-slate-200 focus:outline-none focus:border-[#0B4A6E] focus:bg-white transition-all text-slate-800"
+                className="w-full pl-9 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800"
               />
-              <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Calendar className="w-4 h-4 text-[#588094] absolute left-3 top-2.5" />
             </div>
           </div>
 
           {/* Parts Cost */}
           <div>
-            <label className="block text-[11px] font-bold tracking-wider uppercase text-[#6D8AA2] mb-1">
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
               Parts Cost (PHP)
             </label>
             <div className="relative">
+              <span className="text-gray-500 absolute left-3.5 top-2 text-xs font-bold">₱</span>
               <input
                 type="number"
                 min="0"
@@ -295,18 +287,18 @@ export default function FinalizeMaintenanceModal({
                 value={partsCost}
                 onChange={(e) => setPartsCost(e.target.value)}
                 placeholder="0.00"
-                className="w-full pl-9 pr-3.5 py-2 text-sm bg-[#F3F5F5] rounded-xl border border-slate-200 focus:outline-none focus:border-[#0B4A6E] focus:bg-white transition-all text-slate-800"
+                className="w-full pl-7 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800"
               />
-              <span className="text-slate-400 absolute left-3.5 top-2 text-sm font-semibold">₱</span>
             </div>
           </div>
 
           {/* Labor Cost */}
           <div>
-            <label className="block text-[11px] font-bold tracking-wider uppercase text-[#6D8AA2] mb-1">
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
               Labor Cost (PHP)
             </label>
             <div className="relative">
+              <span className="text-gray-500 absolute left-3.5 top-2 text-xs font-bold">₱</span>
               <input
                 type="number"
                 min="0"
@@ -314,26 +306,27 @@ export default function FinalizeMaintenanceModal({
                 value={laborCost}
                 onChange={(e) => setLaborCost(e.target.value)}
                 placeholder="0.00"
-                className="w-full pl-9 pr-3.5 py-2 text-sm bg-[#F3F5F5] rounded-xl border border-slate-200 focus:outline-none focus:border-[#0B4A6E] focus:bg-white transition-all text-slate-800"
+                className="w-full pl-7 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800"
               />
-              <span className="text-slate-400 absolute left-3.5 top-2 text-sm font-semibold">₱</span>
             </div>
           </div>
 
           {/* Total Cost Display */}
-          <div className="md:col-span-2 bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between">
+          <div className="md:col-span-2 bg-[#F3F5F5] border border-gray-200 rounded-xl p-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-emerald-600" />
-              <span className="text-xs font-semibold text-slate-700">Total Maintenance Cost</span>
+              <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px] leading-none shrink-0">
+                ₱
+              </span>
+              <span className="text-xs font-semibold text-[#0A4B6E]">Total Settled Maintenance Cost</span>
             </div>
-            <span className="text-base font-bold text-[#0B4A6E]">
+            <span className="text-base font-bold text-[#0A4B6E]">
               ₱{totalCost.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
 
           {/* Downtime Days */}
           <div>
-            <label className="block text-[11px] font-bold tracking-wider uppercase text-[#6D8AA2] mb-1">
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
               Downtime (Days)
             </label>
             <div className="relative">
@@ -342,18 +335,18 @@ export default function FinalizeMaintenanceModal({
                 min="0"
                 value={downtimeDays}
                 onChange={(e) => setDowntimeDays(e.target.value)}
-                className="w-full pl-9 pr-3.5 py-2 text-sm bg-[#F3F5F5] rounded-xl border border-slate-200 focus:outline-none focus:border-[#0B4A6E] focus:bg-white transition-all text-slate-800"
+                className="w-full pl-9 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800"
               />
-              <Clock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Clock className="w-4 h-4 text-[#588094] absolute left-3 top-2.5" />
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <span className="text-[11px] text-[#588094] mt-1 block">
               Computed: {calculatedDowntime} day(s) based on dates.
-            </p>
+            </span>
           </div>
 
           {/* Odometer at Service */}
           <div>
-            <label className="block text-[11px] font-bold tracking-wider uppercase text-[#6D8AA2] mb-1">
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
               Odometer at Service (km) <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -364,40 +357,34 @@ export default function FinalizeMaintenanceModal({
                 value={odometerAtService}
                 onChange={(e) => setOdometerAtService(e.target.value)}
                 placeholder="e.g. 46500"
-                className="w-full pl-9 pr-3.5 py-2 text-sm bg-[#F3F5F5] rounded-xl border border-slate-200 focus:outline-none focus:border-[#0B4A6E] focus:bg-white transition-all text-slate-800 font-mono"
+                className="w-full pl-9 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800 font-mono"
               />
-              <Gauge className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Gauge className="w-4 h-4 text-[#588094] absolute left-3 top-2.5" />
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Current vehicle odometer: {currentOdometer.toLocaleString()} km
-            </p>
+            <span className="text-[11px] text-[#588094] mt-1 block">
+              Current odometer: {currentOdometer.toLocaleString()} km
+            </span>
           </div>
         </div>
 
         {/* Modal Actions */}
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="rounded-full px-5 text-slate-600"
-          >
-            Cancel
-          </Button>
+        <div className="w-full flex flex-col items-center pt-2">
           <Button
             type="submit"
+            variant="yellow"
             disabled={isSubmitting}
-            className="rounded-full bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0B4A6E] font-bold px-6 shadow-sm flex items-center gap-1.5"
+            className="w-full font-bold text-sm uppercase tracking-wider mb-2"
           >
-            {isSubmitting ? (
-              <>Finalizing...</>
-            ) : (
-              <>
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Finalize & Release Truck</span>
-              </>
-            )}
+            {isSubmitting ? "FINALIZING..." : "FINALIZE & RELEASE TRUCK"}
+          </Button>
+          <Button
+            type="button"
+            variant="cancel"
+            disabled={isSubmitting}
+            onClick={onClose}
+            className="text-xs"
+          >
+            CANCEL
           </Button>
         </div>
       </form>
