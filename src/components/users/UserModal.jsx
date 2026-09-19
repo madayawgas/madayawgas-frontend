@@ -3,7 +3,7 @@ import UserFormStep from "./UserFormStep";
 import UserConfirmStep from "./UserConfirmStep";
 import UserSuccessStep from "./UserSuccessStep";
 import { toProperCase } from "../../utils/text.js";
-import { isValidPhilippinePhone, formatPhilippinePhone } from "../../utils/phone.js";
+import Modal from "../ui/Modal";
 
 export default function UserModal({
   isOpen,
@@ -50,12 +50,21 @@ export default function UserModal({
       if (user) {
         const isUserBlocked = user.isBlocked === true || user.status === "SUSPENDED";
         const currentStatus = isUserBlocked ? "SUSPENDED" : "ACTIVE";
+        
+        // Ensure phone number translates properly to the 10-digit UI state
+        let rawPhone = user.phone || user.contactNumber || "";
+        let cleanPhone = rawPhone.replace(/\D/g, "");
+        if (cleanPhone.startsWith("63") && cleanPhone.length === 12) {
+          cleanPhone = cleanPhone.slice(2);
+        } else if (cleanPhone.startsWith("0") && cleanPhone.length === 11) {
+          cleanPhone = cleanPhone.slice(1);
+        }
 
         setFormData({
           firstName: user.firstName || "",
           lastName: user.lastName || "",
           birthday: user.birthday || user.birthdate || "",
-          contactNo: user.phone || user.contactNumber || "",
+          contactNo: cleanPhone || "",
           role: user.role || defaultRole || "",
           username: user.username || "",
           status: currentStatus,
@@ -101,11 +110,10 @@ export default function UserModal({
       newErrors.lastName = "Last name must be at least 2 characters.";
     }
 
-    if (!formData.contactNo || !formData.contactNo.trim()) {
-      newErrors.contactNo = "Contact number is required.";
-    } else if (!isValidPhilippinePhone(formData.contactNo)) {
-      newErrors.contactNo =
-        "Please enter a valid Philippine phone number (e.g. 09171234567 or +639171234567).";
+    if (!formData.contactNo || formData.contactNo.length !== 10) {
+      newErrors.contactNo = "Please enter exactly 10 digits.";
+    } else if (!formData.contactNo.startsWith("9")) {
+      newErrors.contactNo = "Mobile number must start with 9.";
     }
 
     if (formData.birthday) {
@@ -150,7 +158,7 @@ export default function UserModal({
     const cleanFirstName = toProperCase(formData.firstName);
     const cleanLastName = toProperCase(formData.lastName);
     const isBlocked = formData.status === "SUSPENDED";
-    const formattedContactNo = formatPhilippinePhone(formData.contactNo);
+    const formattedContactNo = `+63${formData.contactNo}`;
 
     const cleanedData = {
       ...formData,
@@ -160,7 +168,7 @@ export default function UserModal({
       isBlocked,
       status: isBlocked ? "SUSPENDED" : "ACTIVE",
     };
-    setFormData(cleanedData);
+    setFormData((prev) => ({ ...prev, contactNo: formData.contactNo }));
 
     if (user) {
       setIsSubmitting(true);
@@ -184,7 +192,7 @@ export default function UserModal({
     try {
       const cleanFirstName = toProperCase(formData.firstName);
       const cleanLastName = toProperCase(formData.lastName);
-      const formattedContactNo = formatPhilippinePhone(formData.contactNo);
+      const formattedContactNo = `+63${formData.contactNo}`;
       const finalData = {
         ...formData,
         firstName: cleanFirstName,
@@ -209,43 +217,43 @@ export default function UserModal({
     } catch (err) {
       console.error("Failed to create user:", err);
       setSubmitError(err?.message || "Failed to create user. Please try again.");
+      setStep(1);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  let modalTitle = "";
+  if (step === 1) modalTitle = user ? "Edit User" : "Add New User";
+  if (step === 2) modalTitle = "Confirm Information";
+  if (step === 3) modalTitle = user ? "User Updated" : "User Created";
+
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div
-        className={`bg-white rounded-[2rem] w-full shadow-xl flex flex-col overflow-hidden transition-all duration-300 ${
-          step === 3 ? "max-w-sm" : "max-w-lg"
-        }`}
-      >
-        {/* Header */}
-        <div className="p-8 pb-4 flex justify-between items-center">
-          <h2 className="text-[28px] font-bold text-[#0B4A6E]">
-            {step === 1 && (user ? "Edit User" : "Add New User")}
-            {step === 2 && "Confirm Information"}
-            {step === 3 && (user ? "User Updated" : "User Created")}
-          </h2>
-          {step === 2 && (
-            <button
-              onClick={() => step > 1 && setStep(step - 1)}
-              className="text-[#0B4A6E] hover:opacity-70 transition-opacity p-1 cursor-pointer"
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={modalTitle}
+      maxWidth={step === 3 ? "max-w-md" : "max-w-2xl"} 
+      closeOnBackdrop={false}
+    >
+      <div className="py-2">
+        {step === 2 && (
+          <button
+            onClick={() => step > 1 && setStep(step - 1)}
+            className="absolute top-8 right-8 text-[#0B4A6E] hover:opacity-70 transition-opacity p-1 cursor-pointer"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className="w-6 h-6"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-                className="w-6 h-6"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-              </svg>
-            </button>
-          )}
-        </div>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+            </svg>
+          </button>
+        )}
 
         {step === 1 && (
           <UserFormStep
@@ -285,6 +293,6 @@ export default function UserModal({
           />
         )}
       </div>
-    </div>
+    </Modal>
   );
 }

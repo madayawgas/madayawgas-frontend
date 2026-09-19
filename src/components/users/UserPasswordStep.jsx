@@ -19,7 +19,7 @@ export default function UserPasswordStep({
           onProceed();
         }
       }}
-      className="px-8 pb-8 overflow-y-auto max-h-[85vh]"
+      className="px-8 pb-8"
     >
       <p className="text-gray-700 text-[15px] mb-6">
         For security, please enter your password to confirm this action.

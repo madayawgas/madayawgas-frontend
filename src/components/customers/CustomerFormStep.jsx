@@ -67,7 +67,7 @@ export default function CustomerFormStep({
             <input
               type="text"
               required
-              placeholder="e.g. 09171234567 or +63822245678"
+              placeholder="e.g. +63822245678"
               value={formData.contactNumber}
               onChange={(e) => {
                 setFormData({ ...formData, contactNumber: e.target.value });

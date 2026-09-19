@@ -27,8 +27,15 @@ export default function UserFormStep({
     }
   };
 
+  const handleNameChange = (field, value) => {
+    // Letters, hyphen/dash, period, apostrophe, accented unicode letters, and spaces
+    const sanitized = value.replace(/[^\p{L}\s\-.']/gu, "");
+    setFormData((prev) => ({ ...prev, [field]: sanitized }));
+    clearFieldError(field);
+  };
+
   return (
-    <form onSubmit={onSubmit} className="px-8 pb-8 overflow-y-auto max-h-[85vh]">
+    <form onSubmit={onSubmit} className="px-8 pb-8">
       {submitError && (
         <div className="bg-red-50 border border-red-200 text-red-600 text-xs font-medium p-3.5 rounded-2xl flex items-center gap-2.5 mb-5 animate-fade-in">
           <AlertCircle size={16} className="shrink-0 text-red-600" />
@@ -46,10 +53,7 @@ export default function UserFormStep({
               type="text"
               required
               value={formData.firstName}
-              onChange={(e) => {
-                setFormData({ ...formData, firstName: e.target.value });
-                clearFieldError("firstName");
-              }}
+              onChange={(e) => handleNameChange("firstName", e.target.value)}
               onBlur={(e) =>
                 setFormData((prev) => ({
                   ...prev,
@@ -77,10 +81,7 @@ export default function UserFormStep({
               type="text"
               required
               value={formData.lastName}
-              onChange={(e) => {
-                setFormData({ ...formData, lastName: e.target.value });
-                clearFieldError("lastName");
-              }}
+              onChange={(e) => handleNameChange("lastName", e.target.value)}
               onBlur={(e) =>
                 setFormData((prev) => ({
                   ...prev,
@@ -129,21 +130,30 @@ export default function UserFormStep({
             <label className="block text-[15px] text-gray-900 mb-1.5">
               Contact No.<span className="text-[#CD3E3E]">*</span>
             </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. 09171234567 or +639171234567"
-              value={formData.contactNo}
-              onChange={(e) => {
-                setFormData({ ...formData, contactNo: e.target.value });
-                clearFieldError("contactNo");
-              }}
-              className={`w-full bg-[#F3F5F5] text-gray-800 text-sm px-4 py-3 rounded-full outline-none focus:ring-2 ${
+            <div
+              className={`w-full bg-[#F3F5F5] flex items-center px-4 py-3 rounded-full outline-none focus-within:ring-2 ${
                 errors.contactNo
-                  ? "border-2 border-[#CD3E3E] focus:ring-red-200"
-                  : "focus:ring-[#0B4A6E]/20"
+                  ? "border-2 border-[#CD3E3E] focus-within:ring-red-200"
+                  : "focus-within:ring-[#0B4A6E]/20"
               }`}
-            />
+            >
+              <span className="text-gray-500 text-[13px] mr-2 pr-2 shrink-0 whitespace-nowrap select-none border-r border-gray-300 flex items-center leading-none pb-0.5">
+                +63
+              </span>
+              <input
+                type="text"
+                required
+                placeholder="9999999999"
+                value={formData.contactNo}
+                maxLength={10}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  setFormData({ ...formData, contactNo: digits });
+                  clearFieldError("contactNo");
+                }}
+                className="bg-transparent text-gray-800 text-sm w-full outline-none"
+              />
+            </div>
             {errors.contactNo && (
               <p className="text-[#CD3E3E] text-xs mt-1.5 ml-3 font-medium flex items-center gap-1">
                 <AlertCircle size={13} className="shrink-0" />
@@ -213,14 +223,15 @@ export default function UserFormStep({
                 <p className="text-sm font-semibold text-gray-900">Account Password</p>
                 <p className="text-xs text-gray-500">Reset password and generate temporary credentials</p>
               </div>
-              <button
+              <Button
                 type="button"
+                variant="primary"
                 onClick={() => onResetPassword && onResetPassword(user)}
-                className="px-4 py-2 bg-[#0F7AB2] hover:bg-[#0c628f] text-white text-xs font-bold rounded-full flex items-center justify-center gap-1.5 transition-colors cursor-pointer uppercase tracking-wider shrink-0"
+                className="!text-xs uppercase tracking-wider shrink-0 px-4 py-2"
               >
                 <KeyRound size={14} />
                 RESET PASSWORD
-              </button>
+              </Button>
             </div>
 
             <div>
@@ -246,9 +257,9 @@ export default function UserFormStep({
                       />
                       <Badge
                         variant={s.variant}
-                        className={`px-5 py-2 text-[11px] transition-all duration-200 ease-in-out ${
+                        className={`px-5 py-2 transition-all duration-200 ease-in-out ${
                           isSelected
-                            ? "filter saturate-150 brightness-95 shadow-inner scale-[1.02] border-2 font-extrabold"
+                            ? "filter saturate-150 brightness-95 shadow-inner scale-[1.02] border-2"
                             : "opacity-60 grayscale-[40%] hover:opacity-80"
                         }`}
                       >
@@ -266,8 +277,9 @@ export default function UserFormStep({
       <div className="mt-8 flex flex-col gap-3">
         <Button
           type="submit"
+          variant="yellow"
           disabled={isSubmitting}
-          className="w-full py-3.5 bg-[#F6C445] hover:bg-[#e2b23b] disabled:opacity-50 disabled:cursor-not-allowed border-none !text-[#0B4A6E] rounded-full font-bold uppercase tracking-widest text-[11px] transition-colors"
+          className="w-full font-bold uppercase tracking-widest text-[11px]"
         >
           {isSubmitting
             ? user
@@ -279,9 +291,10 @@ export default function UserFormStep({
         </Button>
         <Button
           type="button"
+          variant="cancel"
           onClick={onClose}
           disabled={isSubmitting}
-          className="w-full py-2.5 bg-transparent border-none !text-[#0B4A6E] font-bold uppercase tracking-widest text-[11px] hover:bg-gray-50 disabled:opacity-50 rounded-full transition-colors cursor-pointer"
+          className="w-full uppercase tracking-widest text-[11px]"
         >
           CANCEL
         </Button>

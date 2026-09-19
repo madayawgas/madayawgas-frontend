@@ -21,7 +21,7 @@ export default function UserSuccessStep({
   };
 
   return (
-    <div className="px-8 pb-8 overflow-y-auto max-h-[85vh]">
+    <div className="px-8 pb-8">
       <div className="flex flex-col gap-5 px-4 mb-8">
         <div className="grid grid-cols-[120px_1fr] items-center">
           <span className="text-gray-600 text-[15px]">Name</span>
@@ -72,7 +72,7 @@ export default function UserSuccessStep({
           <span className="text-gray-600 text-[15px]">Status</span>
           <div>
             <Badge
-              variant={formData.status === "SUSPENDED" ? "neutral" : "success"}
+              variant={formData.status === "SUSPENDED" ? "danger" : "success"}
               className="px-5 py-1.5 text-[11px] font-extrabold filter saturate-150 brightness-95"
             >
               {formData.status || "ACTIVE"}
