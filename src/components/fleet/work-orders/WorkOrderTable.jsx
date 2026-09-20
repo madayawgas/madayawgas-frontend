@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../../utils/permissions.js";
+import { canApproveWorkOrderCost } from "../../../utils/fleetGuards.js";
 import Badge from "../../ui/Badge";
 import Pagination from "../../ui/Pagination";
 
@@ -70,10 +71,7 @@ export default function WorkOrderTable({
   const { currentUser, can } = useAuth();
 
   const canManageFleet = can && can(PERMISSIONS?.FLEET_MANAGE || "fleet.manage");
-  const isManager =
-    currentUser?.role === "Super Admin" ||
-    currentUser?.role === "Admin" ||
-    (can && can(PERMISSIONS?.USERS_MANAGE || "users.manage"));
+  const canApprove = canApproveWorkOrderCost(currentUser, can);
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden border border-[#0A4B6E]/30 rounded-2xl bg-white shadow-sm">
@@ -211,13 +209,13 @@ export default function WorkOrderTable({
                     {/* Contextual Action Button */}
                     <td className="py-3.5 px-4 md:px-5 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                        {wo.status === "PENDING" && onOpenApproval && (
+                        {wo.status === "PENDING" && canApprove && onOpenApproval && (
                           <button
                             type="button"
                             onClick={() => onOpenApproval(wo)}
                             className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
                           >
-                            {isManager ? "Review" : "Approval"}
+                            Review
                           </button>
                         )}
 

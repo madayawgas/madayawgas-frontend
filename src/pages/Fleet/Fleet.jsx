@@ -7,6 +7,7 @@ import { PERMISSIONS } from "../../utils/permissions.js";
 import {
   checkActiveWorkOrder,
   ACTIVE_RESTRICTED_ERROR,
+  canApproveWorkOrderCost,
 } from "../../utils/fleetGuards.js";
 import initialMockFleet from "../../mocks/fleet.json";
 
@@ -39,12 +40,13 @@ import { Truck as TruckIcon, Wrench, FileText, AlertOctagon } from "lucide-react
 const LOCAL_STORAGE_KEY = "app_fleet_cache";
 
 export default function Fleet() {
-  const { can } = useAuth();
+  const { currentUser, can } = useAuth();
 
   // RBAC Permission Guard
   const canManage = can
     ? can(PERMISSIONS?.FLEET_MANAGE || "fleet.manage")
     : true;
+  const canApproveCost = canApproveWorkOrderCost(currentUser, can);
 
   // Initialize from cache or fallback to initialMockFleet
   const [trucks, setTrucks] = useState(() => {
@@ -1091,7 +1093,7 @@ export default function Fleet() {
               <WorkOrderTable
                 workOrders={workOrders}
                 isLoading={isLoadingWorkOrders}
-                onOpenApproval={(wo) => setWorkOrderForApproval(wo)}
+                onOpenApproval={canApproveCost ? (wo) => setWorkOrderForApproval(wo) : null}
                 onOpenFinalize={(wo) => setWorkOrderForFinalize(wo)}
                 onOpenDetail={(wo) => setWorkOrderForDetail(wo)}
                 onAdvanceStatus={handleAdvanceWorkOrderStatus}
@@ -1367,7 +1369,7 @@ export default function Fleet() {
             )}
             trucks={trucks}
             onClose={() => setWorkOrderForDetail(null)}
-            onOpenApproval={(wo) => setWorkOrderForApproval(wo)}
+            onOpenApproval={canApproveCost ? (wo) => setWorkOrderForApproval(wo) : null}
             onOpenFinalize={(wo) => setWorkOrderForFinalize(wo)}
             onAdvanceStatus={handleAdvanceWorkOrderStatus}
           />

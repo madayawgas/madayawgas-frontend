@@ -1,10 +1,32 @@
 // src/utils/fleetGuards.js
+import { PERMISSIONS } from "./permissions.js";
 
 export const ACTIVE_RESTRICTED_TOOLTIP =
   "Cannot set to Active while Work Order is in progress";
 
 export const ACTIVE_RESTRICTED_ERROR =
   "Cannot activate vehicle: This truck is currently linked to an ongoing work order. Complete or cancel the work order first.";
+
+/**
+ * Checks whether a user has executive administrative authority to approve/reject
+ * high-cost work orders (₱5,000 threshold).
+ * Allowed roles: Super Admin, Admin, or any user possessing `users.manage` permission.
+ *
+ * @param {object|null} user - Current user object
+ * @param {Function} [canFn] - `can` permission checker function from useAuth()
+ * @returns {boolean}
+ */
+export function canApproveWorkOrderCost(user, canFn) {
+  if (!user) return false;
+  const role = (user.role || "").toUpperCase();
+  const isAdminRole = role.includes("ADMIN");
+  const hasManagePermission = Boolean(
+    canFn
+      ? canFn(PERMISSIONS?.USERS_MANAGE || "users.manage")
+      : user.permissions?.includes("users.manage")
+  );
+  return isAdminRole || hasManagePermission;
+}
 
 /**
  * Checks whether a truck is currently undergoing an active / unresolved work order.

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { CheckCircle2, XCircle, AlertTriangle, Building2, Truck, FileText, UserCheck } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../../utils/permissions.js";
+import { canApproveWorkOrderCost } from "../../../utils/fleetGuards.js";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 
@@ -25,10 +26,7 @@ export default function CostApprovalModal({
   if (!isOpen || !workOrder) return null;
 
   // Executive managerial permission check (Super Admin, Admin, or users.manage)
-  const canApprove =
-    currentUser?.role === "Super Admin" ||
-    currentUser?.role === "Admin" ||
-    (can && can(PERMISSIONS?.USERS_MANAGE || "users.manage"));
+  const canApprove = canApproveWorkOrderCost(currentUser, can);
 
   const estimatedCost = Number(workOrder.estimatedCost) || 0;
 
@@ -64,35 +62,37 @@ export default function CostApprovalModal({
         <div className="flex items-center justify-between w-full">
           <Button
             type="button"
-            variant="neutral"
+            variant={canApprove ? "neutral" : "yellow"}
             onClick={onClose}
             disabled={isSubmitting}
-            className="text-xs uppercase tracking-wider font-semibold"
+            className={`${canApprove ? "text-xs uppercase tracking-wider font-semibold" : "w-full text-xs uppercase tracking-wider font-bold py-2.5 rounded-full"}`}
           >
-            Cancel
+            {canApprove ? "Cancel" : "CLOSE"}
           </Button>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={isSubmitting || !canApprove}
-              onClick={() => handleDecision(false)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition disabled:opacity-50 cursor-pointer shadow-xs"
-            >
-              <XCircle size={15} />
-              <span>Reject Cost</span>
-            </button>
+          {canApprove && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => handleDecision(false)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition disabled:opacity-50 cursor-pointer shadow-xs"
+              >
+                <XCircle size={15} />
+                <span>Reject Cost</span>
+              </button>
 
-            <button
-              type="button"
-              disabled={isSubmitting || !canApprove}
-              onClick={() => handleDecision(true)}
-              className="flex items-center gap-1.5 px-5 py-2 rounded-full text-xs font-bold text-white bg-green-600 hover:bg-green-700 transition disabled:opacity-50 cursor-pointer shadow-xs"
-            >
-              <CheckCircle2 size={15} />
-              <span>Approve & Authorize</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => handleDecision(true)}
+                className="flex items-center gap-1.5 px-5 py-2 rounded-full text-xs font-bold text-white bg-green-600 hover:bg-green-700 transition disabled:opacity-50 cursor-pointer shadow-xs"
+              >
+                <CheckCircle2 size={15} />
+                <span>Approve & Authorize</span>
+              </button>
+            </div>
+          )}
         </div>
       }
     >
@@ -136,26 +136,28 @@ export default function CostApprovalModal({
           </div>
         </div>
 
-        {/* REMARKS INPUT */}
-        <div>
-          <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1.5">
-            Approval / Rejection Remarks
-          </label>
-          <textarea
-            rows={3}
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
-            placeholder="Add executive justification, shop instructions, or reason for rejection..."
-            className="w-full text-xs sm:text-sm bg-[#F3F5F5] border border-gray-200 rounded-xl p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] focus:border-transparent transition placeholder:text-gray-400 resize-none"
-          />
-        </div>
+        {/* REMARKS INPUT - ONLY VISIBLE TO AUTHORIZED ROLES */}
+        {canApprove && (
+          <div>
+            <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1.5">
+              Approval / Rejection Remarks
+            </label>
+            <textarea
+              rows={3}
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              placeholder="Add executive justification, shop instructions, or reason for rejection..."
+              className="w-full text-xs sm:text-sm bg-[#F3F5F5] border border-gray-200 rounded-xl p-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] focus:border-transparent transition placeholder:text-gray-400 resize-none"
+            />
+          </div>
+        )}
 
-        {/* PERMISSION WARNING IF NOT AUTHORIZED */}
+        {/* PERMISSION NOTICE IF NOT AUTHORIZED */}
         {!canApprove && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-xs text-red-800">
-            <AlertTriangle size={16} className="text-red-600 shrink-0 mt-0.5" />
+          <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-xs text-amber-900">
+            <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              <strong>Managerial Authorization Required:</strong> Only executive users (Super Admin / Admin) possess privileges to decide cost approvals. Decision buttons are disabled.
+              <strong>Managerial Authorization Required:</strong> This expenditure exceeds the ₱5,000.00 threshold and is awaiting executive review. Only authorized administrators (Admin or Super Admin) can approve or reject this work order.
             </p>
           </div>
         )}

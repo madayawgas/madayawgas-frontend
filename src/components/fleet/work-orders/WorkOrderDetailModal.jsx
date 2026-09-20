@@ -22,6 +22,7 @@ import SideDrawer from "../../ui/SideDrawer";
 import Badge from "../../ui/Badge";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../../utils/permissions.js";
+import { canApproveWorkOrderCost } from "../../../utils/fleetGuards.js";
 
 const STATUS_CONFIG = {
   PENDING: {
@@ -102,10 +103,7 @@ export default function WorkOrderDetailModal({
   if (!isOpen || !workOrder) return null;
 
   const canManageFleet = can && can(PERMISSIONS?.FLEET_MANAGE || "fleet.manage");
-  const isManager =
-    currentUser?.role === "Super Admin" ||
-    currentUser?.role === "Admin" ||
-    (can && can(PERMISSIONS?.USERS_MANAGE || "users.manage"));
+  const canApprove = canApproveWorkOrderCost(currentUser, can);
 
   const statusStyle = STATUS_CONFIG[workOrder.status] || {
     label: workOrder.status,
@@ -212,7 +210,7 @@ export default function WorkOrderDetailModal({
       footer={({ onClose: closeDrawer }) => (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
           {/* Action trigger based on current lifecycle status */}
-          {workOrder.status === "PENDING" && onOpenApproval && (
+          {workOrder.status === "PENDING" && canApprove && onOpenApproval && (
             <button
               type="button"
               onClick={() => {
@@ -222,7 +220,7 @@ export default function WorkOrderDetailModal({
               className="flex-1 py-3 px-5 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-[#0A4B6E] hover:bg-[#083b57] text-[#FFDF2C] border border-[#0A4B6E] flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95"
             >
               <Clock size={16} />
-              <span>{isManager ? "Review Approval" : "View Approval"}</span>
+              <span>Review Approval</span>
             </button>
           )}
 
@@ -258,7 +256,7 @@ export default function WorkOrderDetailModal({
             type="button"
             onClick={closeDrawer}
             className={`py-3 px-6 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all shadow-xs cursor-pointer active:scale-95 text-center ${
-              (workOrder.status === "PENDING" && onOpenApproval) ||
+              (workOrder.status === "PENDING" && canApprove && onOpenApproval) ||
               (workOrder.status === "SCHEDULED" && canManageFleet && onAdvanceStatus) ||
               (workOrder.status === "IN_PROGRESS" && canManageFleet && onOpenFinalize)
                 ? "flex-1"
