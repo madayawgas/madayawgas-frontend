@@ -17,6 +17,11 @@ import {
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
+import {
+  checkActiveWorkOrder,
+  ACTIVE_RESTRICTED_TOOLTIP,
+  ACTIVE_RESTRICTED_ERROR,
+} from "../../utils/fleetGuards.js";
 
 const getStatusVariant = (status) => {
   const normalized = (status || "").toUpperCase().replace("_", " ");
@@ -67,41 +72,60 @@ const getInitialFormData = (t) => {
 /**
  * Interactive Status Pills selector for Edit / Add forms utilizing the unified Badge component
  */
-const StatusPills = ({ currentStatus, onSelect }) => {
+const StatusPills = ({ currentStatus, onSelect, hasActiveWorkOrder = false }) => {
   const statuses = ["ACTIVE", "UNDER MAINTENANCE", "INACTIVE", "RETIRED"];
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {statuses.map((status) => {
-        const isSelected =
-          (currentStatus || "").toUpperCase().replace("_", " ") === status;
+    <div>
+      <div className="flex flex-wrap gap-2">
+        {statuses.map((status) => {
+          const isSelected =
+            (currentStatus || "").toUpperCase().replace("_", " ") === status;
+          const isRestrictedActive = status === "ACTIVE" && hasActiveWorkOrder;
 
-        return (
-          <label
-            key={status}
-            className="cursor-pointer relative flex items-center"
-          >
-            <input
-              type="radio"
-              name="truckStatus"
-              value={status.replace(" ", "_")}
-              checked={isSelected}
-              onChange={(e) => onSelect(e.target.value)}
-              className="sr-only"
-            />
-            <Badge
-              variant={getStatusVariant(status)}
-              className={`px-4 py-1.5 transition-all duration-200 ease-in-out ${
-                isSelected
-                  ? "filter saturate-150 brightness-95 shadow-inner scale-[1.05] border-2 ring-1 ring-offset-1 ring-[#0A4B6E]/20"
-                  : "opacity-60 grayscale-[40%] hover:opacity-100"
+          return (
+            <label
+              key={status}
+              title={isRestrictedActive ? ACTIVE_RESTRICTED_TOOLTIP : ""}
+              className={`relative flex items-center ${
+                isRestrictedActive ? "cursor-not-allowed" : "cursor-pointer"
               }`}
             >
-              {status}
-            </Badge>
-          </label>
-        );
-      })}
+              <input
+                type="radio"
+                name="truckStatus"
+                value={status.replace(" ", "_")}
+                checked={isSelected}
+                disabled={isRestrictedActive}
+                onChange={(e) => {
+                  if (!isRestrictedActive) {
+                    onSelect(e.target.value);
+                  }
+                }}
+                className="sr-only"
+              />
+              <Badge
+                variant={getStatusVariant(status)}
+                className={`px-4 py-1.5 transition-all duration-200 ease-in-out ${
+                  isRestrictedActive
+                    ? "opacity-35 grayscale-[70%] cursor-not-allowed"
+                    : isSelected
+                    ? "filter saturate-150 brightness-95 shadow-inner scale-[1.05] border-2 ring-1 ring-offset-1 ring-[#0A4B6E]/20"
+                    : "opacity-60 grayscale-[40%] hover:opacity-100 cursor-pointer"
+                }`}
+              >
+                {status}
+              </Badge>
+            </label>
+          );
+        })}
+      </div>
+      {hasActiveWorkOrder && (
+        <p className="text-[#CD3E3E] text-[11px] mt-1.5 flex items-center gap-1.5 font-medium">
+          <AlertTriangle size={13} className="shrink-0 text-[#CD3E3E]" />
+          <span>{ACTIVE_RESTRICTED_TOOLTIP}</span>
+        </p>
+      )}
     </div>
   );
 };
@@ -137,20 +161,9 @@ export default function TruckModal({
 
   const [formData, setFormData] = useState(() => getInitialFormData(truck));
 
-  // Find active work order for this truck
-  const activeWorkOrder = useMemo(() => {
-    if (!truck || !workOrders || workOrders.length === 0) return null;
-    const truckId = truck.id || truck.truckId;
-    const plate = truck.plateNumber;
-    return workOrders.find(
-      (wo) =>
-        (wo.truckId === truckId ||
-          wo.truck?.id === truckId ||
-          wo.plateNumber === plate ||
-          wo.truck?.plateNumber === plate) &&
-        wo.status !== "COMPLETED" &&
-        wo.status !== "CANCELLED"
-    );
+  // Check active work order and guard status for this truck
+  const { hasActiveWorkOrder, activeWorkOrder } = useMemo(() => {
+    return checkActiveWorkOrder(truck, workOrders);
   }, [truck, workOrders]);
 
   useEffect(() => {
@@ -274,6 +287,15 @@ export default function TruckModal({
       }
     }
 
+    if (
+      formData.status === "ACTIVE" &&
+      truck?.status !== "ACTIVE" &&
+      hasActiveWorkOrder
+    ) {
+      newErrors.status = ACTIVE_RESTRICTED_TOOLTIP;
+      setSubmitError(ACTIVE_RESTRICTED_ERROR);
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -314,6 +336,15 @@ export default function TruckModal({
   }
 
   const submitUpdate = async () => {
+    if (
+      formData.status === "ACTIVE" &&
+      truck?.status !== "ACTIVE" &&
+      hasActiveWorkOrder
+    ) {
+      setSubmitError(ACTIVE_RESTRICTED_ERROR);
+      return;
+    }
+
     const isDeactivated =
       formData.status === "INACTIVE" || formData.status === "RETIRED";
     const finalDriverId = isDeactivated
@@ -514,6 +545,27 @@ export default function TruckModal({
       (displayTruck.status || "").toUpperCase() === "INACTIVE" ||
       (displayTruck.status || "").toUpperCase() === "RETIRED";
 
+    const latestInspection = displayTruck.latestInspection || null;
+    const inspectionResult = (
+      displayTruck.lastInspectionResult ||
+      displayTruck.latestInspectionResult ||
+      latestInspection?.result ||
+      (displayTruck.hasPendingIssues ? "NEEDS_ATTENTION" : "") ||
+      ""
+    ).toUpperCase();
+    const hasNeedsAttention = inspectionResult === "NEEDS_ATTENTION";
+    const isDispatchRestricted =
+      hasNeedsAttention &&
+      (latestInspection?.allowDispatch === false || displayTruck.allowDispatch === false);
+
+    const advisoryTooltip = isDispatchRestricted
+      ? `Safety inspection flagged items requiring attention — Dispatch restricted${
+          latestInspection?.findings ? `: "${latestInspection.findings}"` : ""
+        }`
+      : `Safety inspection flagged items requiring attention${
+          latestInspection?.findings ? `: "${latestInspection.findings}"` : ""
+        }`;
+
     const headerBadge = (
       <div className="flex items-center gap-2">
         <Badge
@@ -522,6 +574,19 @@ export default function TruckModal({
         >
           {displayTruck.status?.replace("_", " ") || "ACTIVE"}
         </Badge>
+
+        {hasNeedsAttention && (
+          <Badge
+            variant="warning"
+            className="px-2.5 py-0.5 text-xs flex items-center gap-1 cursor-help"
+            title={advisoryTooltip}
+          >
+            <AlertTriangle size={12} className="shrink-0 text-[#B06000]" />
+            <span>
+              {isDispatchRestricted ? "NEEDS ATTN (RESTRICTED)" : "NEEDS ATTENTION"}
+            </span>
+          </Badge>
+        )}
 
         {canManage && (
           <button
@@ -730,6 +795,35 @@ export default function TruckModal({
                 )}
               </div>
             )}
+
+            {/* Safety Inspection Advisory Banner for Active Trucks */}
+            {hasNeedsAttention &&
+              !activeWorkOrder &&
+              !displayTruck.activeRepair &&
+              (displayTruck.status || "").toUpperCase() === "ACTIVE" && (
+                <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-3.5 flex items-center justify-between gap-3 text-xs text-amber-900 shadow-2xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <AlertTriangle size={18} className="text-amber-600 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-bold text-amber-900 leading-tight">
+                        Safety Inspection Advisory
+                      </p>
+                      <p className="text-[11px] text-amber-800 truncate" title={latestInspection?.findings}>
+                        {latestInspection?.findings || "Safety inspection flagged items requiring attention."}
+                      </p>
+                    </div>
+                  </div>
+                  {onOpenInspectionHistory && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenInspectionHistory(displayTruck)}
+                      className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] px-3.5 py-1.5 rounded-full shrink-0 transition cursor-pointer shadow-2xs active:scale-95 uppercase tracking-wider"
+                    >
+                      View Log
+                    </button>
+                  )}
+                </div>
+              )}
           </div>
 
           {/* ==================================================== */}
@@ -1244,6 +1338,7 @@ export default function TruckModal({
             </label>
             <StatusPills
               currentStatus={formData.status}
+              hasActiveWorkOrder={hasActiveWorkOrder}
               onSelect={(status) =>
                 setFormData((prev) => ({ ...prev, status }))
               }
@@ -1257,7 +1352,12 @@ export default function TruckModal({
           <Button
             type="submit"
             variant="yellow"
-            disabled={isSubmitting}
+            disabled={
+              isSubmitting ||
+              (formData.status === "ACTIVE" &&
+                truck?.status !== "ACTIVE" &&
+                hasActiveWorkOrder)
+            }
             className="w-full font-bold text-sm uppercase tracking-wider py-3.5 rounded-full"
           >
             {isSubmitting

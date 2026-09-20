@@ -4,6 +4,10 @@ import { useSearchParams } from "react-router-dom";
 import { fleetApi } from "../../api/fleet.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
+import {
+  checkActiveWorkOrder,
+  ACTIVE_RESTRICTED_ERROR,
+} from "../../utils/fleetGuards.js";
 import initialMockFleet from "../../mocks/fleet.json";
 
 import FleetHeader from "../../components/fleet/FleetHeader";
@@ -235,6 +239,17 @@ export default function Fleet() {
       const trucksData = await fleetApi.getTrucks();
       if (trucksData && Array.isArray(trucksData)) {
         updateFleetState(trucksData);
+        setSelectedTruck((prevSelected) => {
+          if (!prevSelected) return null;
+          const fresh = trucksData.find(
+            (t) =>
+              t.id === prevSelected.id ||
+              t.truckId === prevSelected.id ||
+              (prevSelected.truckId && t.id === prevSelected.truckId) ||
+              (prevSelected.plateNumber && t.plateNumber === prevSelected.plateNumber)
+          );
+          return fresh ? { ...prevSelected, ...fresh } : prevSelected;
+        });
       }
     } catch (err) {
       console.error("Failed to refresh trucks:", err);
@@ -422,6 +437,20 @@ export default function Fleet() {
     const isBecomingActive =
       updatedData.status === "ACTIVE" || updatedData.status === "AVAILABLE";
 
+    if (isBecomingActive && existing?.status !== "ACTIVE") {
+      const { hasActiveWorkOrder } = checkActiveWorkOrder(
+        existing || { id: truckId },
+        workOrders
+      );
+      if (hasActiveWorkOrder) {
+        setToast({
+          type: "error",
+          message: ACTIVE_RESTRICTED_ERROR,
+        });
+        throw new Error(ACTIVE_RESTRICTED_ERROR);
+      }
+    }
+
     if (wasInactive && isBecomingActive) {
       setPendingReactivation({ truckId, updatedData });
       setShowReactivatePasswordModal(true);
@@ -477,6 +506,20 @@ export default function Fleet() {
     if (!truckForAvailability) return;
     const targetId = truckForAvailability.id;
 
+    if (status === "ACTIVE") {
+      const { hasActiveWorkOrder } = checkActiveWorkOrder(
+        truckForAvailability,
+        workOrders
+      );
+      if (hasActiveWorkOrder) {
+        setToast({
+          type: "error",
+          message: ACTIVE_RESTRICTED_ERROR,
+        });
+        throw new Error(ACTIVE_RESTRICTED_ERROR);
+      }
+    }
+
     try {
       const res = await fleetApi.setVehicleAvailabilityStatus(targetId, { status, reason });
       const updatedTruck = res?.data?.truck || res?.truck || {
@@ -505,6 +548,10 @@ export default function Fleet() {
       });
     } catch (err) {
       console.error("Failed to update availability status:", err);
+      setToast({
+        type: "error",
+        message: err.message || "Failed to update availability status.",
+      });
       throw err;
     }
   };
@@ -530,6 +577,15 @@ export default function Fleet() {
                 activeRepair: updatedTruckInfo.isGrounded
                   ? `Safety Inspection: ${inspectionData.findings.slice(0, 45)}...`
                   : t.activeRepair,
+                latestInspection:
+                  inspection || updatedTruckInfo.latestInspection || t.latestInspection,
+                lastInspectionResult:
+                  inspection?.result ||
+                  updatedTruckInfo.lastInspectionResult ||
+                  t.lastInspectionResult,
+                hasPendingIssues:
+                  (inspection?.result || updatedTruckInfo.lastInspectionResult) ===
+                  "NEEDS_ATTENTION",
                 updatedAt: new Date().toISOString(),
               };
               if (selectedTruck && (selectedTruck.id === t.id || selectedTruck.truckId === t.id)) {
@@ -618,6 +674,46 @@ export default function Fleet() {
   const handleCreateWorkOrder = async (payload) => {
     try {
       const res = await fleetApi.createWorkOrder(payload);
+      const targetTruckId = payload.truckId;
+      const createdWo = res?.data?.workOrder;
+
+      // Immediately ground truck in local fleet state
+      updateFleetState((prev) =>
+        prev.map((t) => {
+          if (t.id === targetTruckId || t.truckId === targetTruckId) {
+            return {
+              ...t,
+              status: "UNDER_MAINTENANCE",
+              operationalStatus: "UNDER_MAINTENANCE",
+              isAvailable: false,
+              activeRepair: `Work Order: ${payload.description.trim().slice(0, 45)}...`,
+              hasActiveWorkOrder: true,
+              activeWorkOrder: createdWo || null,
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          return t;
+        })
+      );
+
+      // Immediately update selectedTruck if open
+      setSelectedTruck((prev) => {
+        if (!prev) return null;
+        if (prev.id === targetTruckId || prev.truckId === targetTruckId) {
+          return {
+            ...prev,
+            status: "UNDER_MAINTENANCE",
+            operationalStatus: "UNDER_MAINTENANCE",
+            isAvailable: false,
+            activeRepair: `Work Order: ${payload.description.trim().slice(0, 45)}...`,
+            hasActiveWorkOrder: true,
+            activeWorkOrder: createdWo || null,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return prev;
+      });
+
       await Promise.all([refreshWorkOrders(), refreshTrucks()]);
       setIsCreatingWorkOrder(false);
       setTruckForWorkOrder(null);
@@ -927,7 +1023,7 @@ export default function Fleet() {
               }`}
             >
               <AlertOctagon className="w-4 h-4" />
-              <span>Recurring Defect Intelligence</span>
+              <span>Recurring Defect Report</span>
             </button>
           </div>
         </div>
@@ -1174,6 +1270,7 @@ export default function Fleet() {
           <SetAvailabilityModal
             isOpen={!!truckForAvailability}
             truck={truckForAvailability}
+            workOrders={workOrders}
             onClose={() => setTruckForAvailability(null)}
             onSubmit={handleSetAvailability}
           />
@@ -1262,6 +1359,13 @@ export default function Fleet() {
           <WorkOrderDetailModal
             isOpen={!!workOrderForDetail}
             workOrder={workOrderForDetail}
+            truck={trucks.find(
+              (t) =>
+                t.id === workOrderForDetail.truckId ||
+                t.id === workOrderForDetail.truck?.id ||
+                t.plateNumber === (workOrderForDetail.plateNumber || workOrderForDetail.truck?.plateNumber)
+            )}
+            trucks={trucks}
             onClose={() => setWorkOrderForDetail(null)}
             onOpenApproval={(wo) => setWorkOrderForApproval(wo)}
             onOpenFinalize={(wo) => setWorkOrderForFinalize(wo)}

@@ -1,4 +1,3 @@
-// src/components/fleet/SetAvailabilityModal.jsx
 import { useState, useEffect } from "react";
 import {
   SlidersHorizontal,
@@ -7,10 +6,16 @@ import {
   Wrench,
   PowerOff,
   Info,
+  AlertTriangle,
 } from "lucide-react";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
+import {
+  checkActiveWorkOrder,
+  ACTIVE_RESTRICTED_TOOLTIP,
+  ACTIVE_RESTRICTED_ERROR,
+} from "../../utils/fleetGuards.js";
 
 const getStatusVariant = (status) => {
   const normalized = (status || "").toUpperCase().replace("_", " ");
@@ -31,9 +36,15 @@ const getStatusVariant = (status) => {
 export default function SetAvailabilityModal({
   isOpen,
   truck,
+  workOrders = [],
   onClose,
   onSubmit,
 }) {
+  const { hasActiveWorkOrder, activeWorkOrder } = checkActiveWorkOrder(
+    truck,
+    workOrders
+  );
+
   const [status, setStatus] = useState("UNDER_MAINTENANCE");
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,13 +54,15 @@ export default function SetAvailabilityModal({
     if (truck) {
       if (truck.status === "ACTIVE") {
         setStatus("UNDER_MAINTENANCE");
+      } else if (hasActiveWorkOrder) {
+        setStatus("UNDER_MAINTENANCE");
       } else {
         setStatus("ACTIVE");
       }
       setReason("");
       setErrorMsg("");
     }
-  }, [truck]);
+  }, [truck, hasActiveWorkOrder]);
 
   if (!isOpen || !truck) return null;
 
@@ -63,6 +76,10 @@ export default function SetAvailabilityModal({
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
+    if (status === "ACTIVE" && hasActiveWorkOrder) {
+      setErrorMsg(ACTIVE_RESTRICTED_ERROR);
+      return;
+    }
     try {
       setIsSubmitting(true);
       setErrorMsg("");
@@ -91,7 +108,11 @@ export default function SetAvailabilityModal({
       <Button
         type="button"
         variant="yellow"
-        disabled={isSubmitting || status === currentStatus}
+        disabled={
+          isSubmitting ||
+          status === currentStatus ||
+          (status === "ACTIVE" && hasActiveWorkOrder)
+        }
         onClick={handleSubmit}
         className="w-full font-bold text-sm uppercase tracking-wider mb-2"
       >
@@ -180,11 +201,15 @@ export default function SetAvailabilityModal({
             {/* ACTIVE */}
             <button
               type="button"
-              onClick={() => setStatus("ACTIVE")}
-              className={`w-full h-9 flex items-center justify-center gap-1.5 rounded-full border text-xs font-bold transition-all cursor-pointer ${
-                status === "ACTIVE"
-                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                  : "bg-white text-emerald-800 border-[#BCE1F1]/80 hover:bg-emerald-50"
+              disabled={hasActiveWorkOrder}
+              onClick={() => !hasActiveWorkOrder && setStatus("ACTIVE")}
+              title={hasActiveWorkOrder ? ACTIVE_RESTRICTED_TOOLTIP : ""}
+              className={`w-full h-9 flex items-center justify-center gap-1.5 rounded-full border text-xs font-bold transition-all ${
+                hasActiveWorkOrder
+                  ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-50"
+                  : status === "ACTIVE"
+                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs cursor-pointer"
+                  : "bg-white text-emerald-800 border-[#BCE1F1]/80 hover:bg-emerald-50 cursor-pointer"
               }`}
             >
               <CheckCircle2 size={15} className="shrink-0" />
@@ -219,30 +244,45 @@ export default function SetAvailabilityModal({
               <span>INACTIVE</span>
             </button>
           </div>
+          {hasActiveWorkOrder && (
+            <p className="text-[#CD3E3E] text-[11px] mt-2 flex items-center gap-1.5 font-medium">
+              <AlertTriangle size={13} className="shrink-0 text-[#CD3E3E]" />
+              <span>{ACTIVE_RESTRICTED_TOOLTIP}</span>
+            </p>
+          )}
         </div>
 
         {/* CONDITION IMPACT & SOFT-BINDING HELPER CARD */}
-        <div className="bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-[#0A4B6E]">
-          <Info size={16} className="shrink-0 mt-0.5 text-[#0F7AB2]" />
-          <div className="leading-relaxed">
-            {status === "ACTIVE" ? (
-              <span>
-                <strong>Operational Restoration:</strong> Vehicle will be marked{" "}
-                <strong>ACTIVE</strong> and cleared for daily route dispatch.
-              </span>
-            ) : status === "UNDER_MAINTENANCE" ? (
-              <span>
-                <strong>Maintenance Soft-Binding:</strong> Grounds vehicle for repair while{" "}
-                <strong>preserving driver ({driverDisplay})</strong> for when maintenance concludes.
-              </span>
-            ) : (
-              <span>
-                <strong>Deactivation Release:</strong> Setting vehicle to <strong>INACTIVE</strong> will unbind driver{" "}
-                <strong>({driverDisplay})</strong> back to the unassigned driver pool.
-              </span>
-            )}
+        {hasActiveWorkOrder ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-amber-900">
+            <AlertTriangle size={16} className="shrink-0 mt-0.5 text-amber-600" />
+            <div className="leading-relaxed">
+              <strong>Ongoing Work Order Active:</strong> Vehicle is currently linked to an active repair ({activeWorkOrder?.orderNumber || "Work Order"}). Vehicles undergoing maintenance can only return to <strong>ACTIVE</strong> condition when the work order is officially finalized in the Maintenance tab.
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-[#0A4B6E]">
+            <Info size={16} className="shrink-0 mt-0.5 text-[#0F7AB2]" />
+            <div className="leading-relaxed">
+              {status === "ACTIVE" ? (
+                <span>
+                  <strong>Operational Restoration:</strong> Vehicle will be marked{" "}
+                  <strong>ACTIVE</strong> and cleared for daily route dispatch.
+                </span>
+              ) : status === "UNDER_MAINTENANCE" ? (
+                <span>
+                  <strong>Maintenance Soft-Binding:</strong> Grounds vehicle for repair while{" "}
+                  <strong>preserving driver ({driverDisplay})</strong> for when maintenance concludes.
+                </span>
+              ) : (
+                <span>
+                  <strong>Deactivation Release:</strong> Setting vehicle to <strong>INACTIVE</strong> will unbind driver{" "}
+                  <strong>({driverDisplay})</strong> back to the unassigned driver pool.
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* REASON / REMARKS */}
         <div>

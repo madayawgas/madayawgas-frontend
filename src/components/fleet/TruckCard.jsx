@@ -1,5 +1,5 @@
 // src/components/fleet/TruckCard.jsx
-import { Truck, List } from "lucide-react";
+import { Truck, List, AlertTriangle } from "lucide-react";
 import Badge from "../ui/Badge";
 
 export default function TruckCard({ truck, onClick }) {
@@ -33,6 +33,29 @@ export default function TruckCard({ truck, onClick }) {
   const pmPercent = Math.min(100, Math.round((distanceSinceLastPm / 5000) * 100));
 
   const odometerDisplay = `${currentOdo.toLocaleString()} KM`;
+
+  // Safety Inspection Advisory Derivation
+  const latestInspection = truck.latestInspection || null;
+  const inspectionResult = (
+    truck.lastInspectionResult ||
+    truck.latestInspectionResult ||
+    latestInspection?.result ||
+    (truck.hasPendingIssues ? "NEEDS_ATTENTION" : "") ||
+    ""
+  ).toUpperCase();
+
+  const hasNeedsAttention = inspectionResult === "NEEDS_ATTENTION";
+  const isDispatchRestricted =
+    hasNeedsAttention &&
+    (latestInspection?.allowDispatch === false || truck.allowDispatch === false);
+
+  const advisoryTooltip = isDispatchRestricted
+    ? `Safety inspection flagged items requiring attention — Dispatch restricted${
+        latestInspection?.findings ? `: "${latestInspection.findings}"` : ""
+      }`
+    : `Safety inspection flagged items requiring attention${
+        latestInspection?.findings ? `: "${latestInspection.findings}"` : ""
+      }`;
 
   return (
     <div
@@ -120,11 +143,26 @@ export default function TruckCard({ truck, onClick }) {
 
       {/* CARD FOOTER */}
       <div className="flex items-center justify-between mt-auto pt-3 border-t border-[#BCE1F1]/40 group-hover:border-[#F6C445]/30 transition-colors px-0.5">
-        <Badge variant={getStatusVariant(normalizedStatus)} className="px-3.5 py-0.5 text-[10.5px]">
-          {normalizedStatus || "ACTIVE"}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+          <Badge variant={getStatusVariant(normalizedStatus)} className="px-3.5 py-0.5 text-[10.5px] shrink-0">
+            {normalizedStatus || "ACTIVE"}
+          </Badge>
 
-        <div className="w-8 h-8 rounded-full bg-[#BAE6FD]/70 group-hover:bg-[#FFDF2C] text-[#0A4B6E] group-hover:text-[#0A4B6E] flex items-center justify-center transition-all duration-200 border border-[#BCE1F1]/60 group-hover:border-[#F6C445] shadow-2xs">
+          {hasNeedsAttention && (
+            <Badge
+              variant="warning"
+              className="px-2.5 py-0.5 text-[10px] font-bold flex items-center gap-1 cursor-help shrink-0"
+              title={advisoryTooltip}
+            >
+              <AlertTriangle size={11} className="shrink-0 text-[#B06000]" />
+              <span>
+                {isDispatchRestricted ? "NEEDS ATTN (RESTRICTED)" : "NEEDS ATTENTION"}
+              </span>
+            </Badge>
+          )}
+        </div>
+
+        <div className="w-8 h-8 rounded-full bg-[#BAE6FD]/70 group-hover:bg-[#FFDF2C] text-[#0A4B6E] group-hover:text-[#0A4B6E] flex items-center justify-center transition-all duration-200 border border-[#BCE1F1]/60 group-hover:border-[#F6C445] shadow-2xs shrink-0 ml-2">
           <List size={15} className="stroke-[2.2]" />
         </div>
       </div>

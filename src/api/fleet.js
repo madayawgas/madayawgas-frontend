@@ -189,15 +189,29 @@ const DEFAULT_MOCK_INSPECTIONS = [
     inspectionDate: "2026-09-17T07:30:00.000Z",
   },
   {
-    id: "insp-5005-1",
-    truckId: "trk-55555555-6666-7777-8888-999999999999",
-    plateNumber: "ABC-5005",
-    truckModel: "Isuzu Forward F-Series",
+    id: "insp-4004-1",
+    truckId: "trk-44444444-5555-6666-7777-888888888888",
+    plateNumber: "LMN-4321",
+    truckModel: "Isuzu Elf 250",
     inspectorId: "08df2719-0473-4a31-8b5c-dc977d6006c5",
     inspectorName: "Super Admin (Logistics Supervisor)",
     inspectorUsername: "superadmin",
     result: "NEEDS_ATTENTION",
     findings: "Minor hairline exhaust bracket vibration noticed during idle. Fasteners torqued. Safe for standard city deliveries.",
+    issueDetected: true,
+    allowDispatch: true,
+    inspectionDate: "2026-09-18T07:15:00.000Z",
+  },
+  {
+    id: "insp-5005-1",
+    truckId: "trk-55555555-6666-7777-8888-999999999999",
+    plateNumber: "PQR-6789",
+    truckModel: "Mitsubishi Fuso Canter",
+    inspectorId: "08df2719-0473-4a31-8b5c-dc977d6006c5",
+    inspectorName: "Super Admin (Logistics Supervisor)",
+    inspectorUsername: "superadmin",
+    result: "NEEDS_ATTENTION",
+    findings: "Oil sweating around valve cover gasket noticed. Monitored for next maintenance cycle.",
     issueDetected: true,
     allowDispatch: true,
     inspectionDate: "2026-09-16T08:00:00.000Z",
@@ -776,6 +790,42 @@ export const fleetApi = {
         list = list.filter((t) => (!!t.driverId) === assignedBool);
       }
 
+      // Dynamically attach hasActiveWorkOrder, activeWorkOrder, and latest safety inspection in mock mode
+      const orders = getInMemoryWorkOrders();
+      const inspections = getInMemoryInspections();
+      list = list.map((t) => {
+        const activeOrder = orders.find(
+          (wo) =>
+            (wo.truckId === t.id ||
+              wo.truckId === t.truckId ||
+              wo.plateNumber === t.plateNumber ||
+              wo.truck?.plateNumber === t.plateNumber) &&
+            ["PENDING", "APPROVED", "SCHEDULED", "IN_PROGRESS"].includes(wo.status)
+        );
+
+        const matchingInspections = inspections
+          .filter(
+            (i) =>
+              i.truckId === t.id ||
+              i.truckId === t.truckId ||
+              (t.plateNumber && i.plateNumber === t.plateNumber)
+          )
+          .sort(
+            (a, b) =>
+              new Date(b.inspectionDate || 0) - new Date(a.inspectionDate || 0)
+          );
+        const latestInspection = matchingInspections[0] || t.latestInspection || null;
+
+        return {
+          ...t,
+          hasActiveWorkOrder: Boolean(activeOrder),
+          activeWorkOrder: activeOrder || null,
+          latestInspection,
+          lastInspectionResult: latestInspection?.result || t.lastInspectionResult || null,
+          hasPendingIssues: latestInspection?.result === "NEEDS_ATTENTION",
+        };
+      });
+
       return list;
     }
 
@@ -874,6 +924,26 @@ export const fleetApi = {
       const existing = index !== -1 ? inMemoryTrucks[index] : {};
 
       const newStatus = truckData.status || existing.status || "ACTIVE";
+      if (newStatus === "ACTIVE" && existing.status !== "ACTIVE") {
+        const orders = getInMemoryWorkOrders();
+        const hasActiveWorkOrder = orders.some(
+          (wo) =>
+            (wo.truckId === id ||
+              wo.truckId === existing.truckId ||
+              wo.plateNumber === existing.plateNumber ||
+              wo.truck?.plateNumber === existing.plateNumber) &&
+            ["PENDING", "APPROVED", "SCHEDULED", "IN_PROGRESS"].includes(wo.status)
+        );
+        if (hasActiveWorkOrder) {
+          const err = new Error(
+            "Cannot activate vehicle: This truck is currently linked to an ongoing work order. Complete or cancel the work order first."
+          );
+          err.status = 409;
+          err.code = "TRUCK_HAS_ACTIVE_WORK_ORDER";
+          throw err;
+        }
+      }
+
       const isAvailable = newStatus === "ACTIVE";
 
       // If status is INACTIVE or RETIRED, release driver
@@ -1221,6 +1291,25 @@ export const fleetApi = {
       const inMemoryTrucks = getInMemoryTrucks();
       const index = inMemoryTrucks.findIndex((t) => t.id === id || t.truckId === id);
       const existing = index !== -1 ? inMemoryTrucks[index] : {};
+      if (status === "ACTIVE") {
+        const orders = getInMemoryWorkOrders();
+        const hasActiveWorkOrder = orders.some(
+          (wo) =>
+            (wo.truckId === id ||
+              wo.truckId === existing.truckId ||
+              wo.plateNumber === existing.plateNumber ||
+              wo.truck?.plateNumber === existing.plateNumber) &&
+            ["PENDING", "APPROVED", "SCHEDULED", "IN_PROGRESS"].includes(wo.status)
+        );
+        if (hasActiveWorkOrder) {
+          const err = new Error(
+            "Cannot activate vehicle: This truck is currently linked to an ongoing work order. Complete or cancel the work order first."
+          );
+          err.status = 409;
+          err.code = "TRUCK_HAS_ACTIVE_WORK_ORDER";
+          throw err;
+        }
+      }
 
       const isAvailable = status === "ACTIVE";
       // If inactive or retired, release driver
@@ -1770,6 +1859,12 @@ export const fleetApi = {
       const existingInspections = getInMemoryInspections();
       saveInMemoryInspections([newInspection, ...existingInspections]);
 
+      targetTruck.latestInspection = newInspection;
+      targetTruck.lastInspectionResult = newInspection.result;
+      targetTruck.hasPendingIssues = newInspection.result === "NEEDS_ATTENTION";
+      targetTruck.updatedAt = new Date().toISOString();
+      saveInMemoryTrucks(trucks);
+
       return {
         status: "success",
         message: "Vehicle inspection recorded successfully.",
@@ -1781,6 +1876,9 @@ export const fleetApi = {
             previousStatus: prevStatus,
             currentStatus,
             isGrounded: currentStatus === "UNDER_MAINTENANCE",
+            latestInspection: newInspection,
+            lastInspectionResult: newInspection.result,
+            hasPendingIssues: newInspection.result === "NEEDS_ATTENTION",
           },
         },
       };
@@ -2217,6 +2315,16 @@ export const fleetApi = {
         plateNumber: targetTruck.plateNumber,
         truckModel: targetTruck.model || "Isuzu Elf",
         truckStatus: "UNDER_MAINTENANCE",
+        truck: {
+          id: targetTruck.id,
+          plateNumber: targetTruck.plateNumber,
+          model: targetTruck.model || "Isuzu Elf",
+          status: "UNDER_MAINTENANCE",
+          operationalStatus: "UNDER_MAINTENANCE",
+          driver: targetTruck.driver,
+          driverName: targetTruck.driverName,
+          currentOdometer: targetTruck.currentOdometer,
+        },
         maintenanceTypeId: Number(payload.maintenanceTypeId),
         maintenanceTypeName,
         inspectionId: payload.inspectionId || null,
@@ -2269,6 +2377,41 @@ export const fleetApi = {
     if (isMock) {
       await delay(150);
       let list = getInMemoryWorkOrders();
+      const inMemoryTrucks = getInMemoryTrucks();
+
+      list = list.map((w) => {
+        const trk = inMemoryTrucks.find(
+          (t) =>
+            t.id === w.truckId ||
+            t.truckId === w.truckId ||
+            t.plateNumber === w.plateNumber ||
+            w.truck?.id === t.id ||
+            w.truck?.plateNumber === t.plateNumber
+        );
+        const resolvedTruckStatus =
+          trk?.status ||
+          w.truckStatus ||
+          (w.status !== "COMPLETED" && w.status !== "CANCELLED"
+            ? "UNDER_MAINTENANCE"
+            : "ACTIVE");
+        return {
+          ...w,
+          truckStatus: resolvedTruckStatus,
+          truck: trk
+            ? {
+                ...trk,
+                status: resolvedTruckStatus,
+                operationalStatus: resolvedTruckStatus,
+              }
+            : w.truck || {
+                id: w.truckId,
+                plateNumber: w.plateNumber,
+                model: w.truckModel,
+                status: resolvedTruckStatus,
+                operationalStatus: resolvedTruckStatus,
+              },
+        };
+      });
 
       if (params.truckId) {
         list = list.filter(
@@ -2346,7 +2489,39 @@ export const fleetApi = {
       const orders = getInMemoryWorkOrders();
       const found = orders.find((w) => w.id === id);
       if (!found) throw new Error("Work order not found");
-      return { status: "success", data: { workOrder: found } };
+      const inMemoryTrucks = getInMemoryTrucks();
+      const trk = inMemoryTrucks.find(
+        (t) =>
+          t.id === found.truckId ||
+          t.truckId === found.truckId ||
+          t.plateNumber === found.plateNumber ||
+          found.truck?.id === t.id ||
+          found.truck?.plateNumber === t.plateNumber
+      );
+      const resolvedTruckStatus =
+        trk?.status ||
+        found.truckStatus ||
+        (found.status !== "COMPLETED" && found.status !== "CANCELLED"
+          ? "UNDER_MAINTENANCE"
+          : "ACTIVE");
+      const enrichedFound = {
+        ...found,
+        truckStatus: resolvedTruckStatus,
+        truck: trk
+          ? {
+              ...trk,
+              status: resolvedTruckStatus,
+              operationalStatus: resolvedTruckStatus,
+            }
+          : found.truck || {
+              id: found.truckId,
+              plateNumber: found.plateNumber,
+              model: found.truckModel,
+              status: resolvedTruckStatus,
+              operationalStatus: resolvedTruckStatus,
+            },
+      };
+      return { status: "success", data: { workOrder: enrichedFound } };
     }
 
     const result = await apiClient(`/fleet/maintenance/work-orders/${id}`);

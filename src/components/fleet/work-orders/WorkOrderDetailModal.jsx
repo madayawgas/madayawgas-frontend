@@ -90,6 +90,8 @@ function formatCurrency(val) {
 export default function WorkOrderDetailModal({
   isOpen,
   workOrder,
+  truck,
+  trucks = [],
   onClose,
   onOpenApproval,
   onOpenFinalize,
@@ -110,17 +112,64 @@ export default function WorkOrderDetailModal({
     badgeClass: "bg-slate-100 text-slate-700 border-slate-300",
   };
 
+  const matchedTruck =
+    truck ||
+    (trucks &&
+      trucks.find(
+        (t) =>
+          t.id === workOrder.truckId ||
+          t.id === workOrder.truck?.id ||
+          t.plateNumber === (workOrder.plateNumber || workOrder.truck?.plateNumber)
+      )) ||
+    workOrder.truck;
+
+  const isWorkOrderActive =
+    workOrder.status !== "COMPLETED" && workOrder.status !== "CANCELLED";
+
+  const resolvedTruckStatus =
+    matchedTruck?.status ||
+    workOrder.truckStatus ||
+    workOrder.truck?.status ||
+    (isWorkOrderActive ? "UNDER_MAINTENANCE" : "ACTIVE");
+
+  const getTruckBadgeVariant = (status) => {
+    const normalized = (status || "").toUpperCase().replace("_", " ");
+    switch (normalized) {
+      case "ACTIVE":
+        return "success";
+      case "UNDER MAINTENANCE":
+        return "danger";
+      case "INACTIVE":
+        return "neutral";
+      case "RETIRED":
+        return "deactivated";
+      default:
+        return "danger";
+    }
+  };
+
   const estimatedCost = Number(workOrder.estimatedCost) || 0;
   const requiresApproval = estimatedCost >= 5000.0;
-  const truckPlate = workOrder.truck?.plateNumber || workOrder.plateNumber || "N/A";
-  const truckModel = workOrder.truck?.model || workOrder.truckModel || "";
+  const truckPlate = matchedTruck?.plateNumber || workOrder.truck?.plateNumber || workOrder.plateNumber || "N/A";
+  const truckModel = matchedTruck?.model || workOrder.truck?.model || workOrder.truckModel || "";
   const driverName =
+    matchedTruck?.driverName ||
+    (matchedTruck?.driver
+      ? `${matchedTruck.driver.firstName || ""} ${matchedTruck.driver.lastName || ""}`.trim() || matchedTruck.driver.username
+      : null) ||
     workOrder.truck?.driver?.name ||
     workOrder.truck?.driverName ||
     (workOrder.truck?.driver
       ? `${workOrder.truck.driver.firstName || ""} ${workOrder.truck.driver.lastName || ""}`.trim()
       : null) ||
-    "Unassigned";
+    "No Assigned";
+
+  const odometerDisplay =
+    matchedTruck?.currentOdometer !== undefined
+      ? `${Number(matchedTruck.currentOdometer).toLocaleString()} KM`
+      : workOrder.truck?.currentOdometer !== undefined
+      ? `${Number(workOrder.truck.currentOdometer).toLocaleString()} KM`
+      : "N/A";
 
   const typeName =
     workOrder.maintenanceType?.name ||
@@ -345,15 +394,9 @@ export default function WorkOrderDetailModal({
             </div>
 
             <Badge
-              variant={
-                workOrder.truck?.status === "UNDER_MAINTENANCE"
-                  ? "warning"
-                  : workOrder.truck?.status === "INACTIVE"
-                  ? "deactivated"
-                  : "success"
-              }
+              variant={getTruckBadgeVariant(resolvedTruckStatus)}
             >
-              {workOrder.truck?.status || "ACTIVE"}
+              {resolvedTruckStatus.replace("_", " ")}
             </Badge>
           </div>
 
@@ -375,9 +418,7 @@ export default function WorkOrderDetailModal({
               <div className="min-w-0">
                 <p className="text-[10px] text-[#6D8AA2] uppercase font-semibold">Current Odometer</p>
                 <p className="font-bold text-[#0A4B6E] truncate">
-                  {workOrder.truck?.currentOdometer
-                    ? `${Number(workOrder.truck.currentOdometer).toLocaleString()} KM`
-                    : "N/A"}
+                  {odometerDisplay}
                 </p>
               </div>
             </div>
