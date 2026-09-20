@@ -7,6 +7,8 @@ import ActiveWorkOrderFilters from "./ActiveWorkOrderFilters";
 export default function WorkOrderControls({
   searchQuery,
   onSearchChange,
+  onSearch,
+  onClear,
   selectedStatus,
   onStatusChange,
   pendingCount = 0,
@@ -15,11 +17,13 @@ export default function WorkOrderControls({
 }) {
   return (
     <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-6">
-      {/* Search Bar */}
+      {/* Search Bar with Search-on-Enter (Strategy B) */}
       <SearchBar
-        placeholder="Search work orders by WO#, plate, or facility..."
+        placeholder="Search work orders (Press Enter)..."
         value={searchQuery}
-        onChange={(e) => onSearchChange(e.target.value)}
+        onChange={onSearchChange}
+        onSearch={onSearch}
+        onClear={onClear}
         className="w-full max-w-md"
       />
 

@@ -1,5 +1,5 @@
 // src/components/ui/SideDrawer.jsx
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
 /**
@@ -19,21 +19,18 @@ export default function SideDrawer({
   width = "max-w-xl lg:max-w-2xl",
 }) {
   const [isClosing, setIsClosing] = useState(false);
-  const closeTimerRef = useRef(null);
 
   useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    };
-  }, []);
-
-  const handleClose = () => {
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    setIsClosing(true);
-    closeTimerRef.current = setTimeout(() => {
+    if (!isClosing) return;
+    const timer = setTimeout(() => {
       setIsClosing(false);
       onClose();
     }, 220);
+    return () => clearTimeout(timer);
+  }, [isClosing, onClose]);
+
+  const handleClose = () => {
+    setIsClosing(true);
   };
 
   if (!isOpen) return null;

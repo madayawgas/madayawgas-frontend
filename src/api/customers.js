@@ -29,6 +29,19 @@ export const customersApi = {
       await delay(250);
       let list = [...mockCustomers.data.customers];
 
+      // Use cached customers if present in localStorage
+      try {
+        const cached = localStorage.getItem("app_customers_cache");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            list = [...parsed];
+          }
+        }
+      } catch (e) {
+        console.error("Failed to read customers cache in mock mode:", e);
+      }
+
       if (params.customerType && params.customerType !== "All Types") {
         list = list.filter(
           (c) =>
@@ -62,20 +75,59 @@ export const customersApi = {
         );
       }
 
+      // Sorting
+      if (params.sortBy) {
+        list.sort((a, b) => {
+          const dir = params.sortOrder === "desc" ? -1 : 1;
+          const aVal = a[params.sortBy] || "";
+          const bVal = b[params.sortBy] || "";
+          if (typeof aVal === "string") {
+            return aVal.localeCompare(bVal) * dir;
+          }
+          return (aVal > bVal ? 1 : -1) * dir;
+        });
+      }
+
+      // If page or limit is provided, paginate and return { data, meta }
+      if (params.page !== undefined || params.limit !== undefined) {
+        const page = Math.max(1, Number(params.page) || 1);
+        const limit = Math.max(1, Number(params.limit) || 20);
+        const totalItems = list.length;
+        const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+        const paginatedData = list.slice((page - 1) * limit, page * limit);
+
+        return {
+          status: "success",
+          data: paginatedData,
+          meta: {
+            page,
+            limit,
+            totalItems,
+            totalPages,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+          },
+        };
+      }
+
       return list;
     }
 
     const query = new URLSearchParams();
+    if (params.page) query.append("page", params.page);
+    if (params.limit) query.append("limit", params.limit);
     if (params.search) query.append("search", params.search);
     if (params.customerType && params.customerType !== "All Types") {
       query.append("customerType", params.customerType);
     }
     if (params.status) query.append("status", params.status);
     if (params.isActive !== undefined) query.append("isActive", params.isActive);
+    if (params.sortBy) query.append("sortBy", params.sortBy);
+    if (params.sortOrder) query.append("sortOrder", params.sortOrder);
 
     const queryString = query.toString() ? `?${query.toString()}` : "";
     const result = await apiClient(`/sales/customers${queryString}`);
-    return result.data.customers;
+    return result;
   },
 
   /**

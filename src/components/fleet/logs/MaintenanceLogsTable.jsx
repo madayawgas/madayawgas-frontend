@@ -10,6 +10,7 @@ import {
   FileText,
 } from "lucide-react";
 import Badge from "../../ui/Badge";
+import Pagination from "../../ui/Pagination";
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -45,6 +46,7 @@ function getServiceTypeBadgeVariant(typeName) {
 export default function MaintenanceLogsTable({
   logs = [],
   isLoading = false,
+  pagination = null,
 }) {
   const [expandedRowId, setExpandedRowId] = useState(null);
 
@@ -251,6 +253,19 @@ export default function MaintenanceLogsTable({
           </tbody>
         </table>
       </div>
+
+      {/* Pinned Pagination Footer */}
+      {pagination && (
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          limit={pagination.limit}
+          onPageChange={pagination.onPageChange}
+          isLoading={pagination.isLoading || isLoading}
+          itemLabel="logs"
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { UserRound, Phone, Calendar, MapPin } from "lucide-react";
 import { formatPhilippinePhone } from "../../utils/phone.js";
 import Badge from "../ui/Badge";
+import Pagination from "../ui/Pagination";
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -22,6 +23,7 @@ export default function CustomerTable({
   onSelectCustomer,
   sortConfig = { key: "name", direction: "asc" },
   onSort,
+  pagination,
 }) {
   return (
     <div className="w-full h-full flex flex-col overflow-hidden border border-[#0A4B6E]/30 rounded-2xl bg-white shadow-sm">
@@ -160,6 +162,17 @@ export default function CustomerTable({
           </tbody>
         </table>
       </div>
+
+      {pagination && (
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          limit={pagination.limit}
+          onPageChange={pagination.onPageChange}
+          isLoading={pagination.isLoading}
+        />
+      )}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../../utils/permissions.js";
 import Badge from "../../ui/Badge";
+import Pagination from "../../ui/Pagination";
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -64,6 +65,7 @@ export default function WorkOrderTable({
   onOpenFinalize,
   onOpenDetail,
   onAdvanceStatus,
+  pagination,
 }) {
   const { currentUser, can } = useAuth();
 
@@ -259,6 +261,17 @@ export default function WorkOrderTable({
           </tbody>
         </table>
       </div>
+
+      {pagination && (
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          limit={pagination.limit}
+          onPageChange={pagination.onPageChange}
+          isLoading={pagination.isLoading}
+        />
+      )}
     </div>
   );
 }

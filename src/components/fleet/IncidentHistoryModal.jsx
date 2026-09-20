@@ -1,10 +1,10 @@
-// src/components/fleet/IncidentHistoryModal.jsx
 import { useState, useEffect, useCallback } from "react";
-import { AlertOctagon, AlertTriangle, Plus, Clock, MapPin, User, Search, Filter } from "lucide-react";
+import { AlertOctagon, AlertTriangle, Plus, Clock, MapPin, User, Search, Filter, X } from "lucide-react";
 import { fleetApi } from "../../api/fleet.js";
 import SideDrawer from "../ui/SideDrawer";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
+import Pagination from "../ui/Pagination";
 
 /**
  * IncidentHistoryModal
@@ -21,50 +21,59 @@ export default function IncidentHistoryModal({
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSeverity, setSelectedSeverity] = useState("All");
   const [selectedType, setSelectedType] = useState("All");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchDraft, setSearchDraft] = useState("");
+  const [committedSearch, setCommittedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const limit = 10;
+  const [meta, setMeta] = useState({ page: 1, limit: 10, totalPages: 1, totalItems: 0 });
+
+  // React 19 render-time state reset when opening
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (isOpen) {
+      setPage(1);
+      setSearchDraft("");
+      setCommittedSearch("");
+      setSelectedSeverity("All");
+      setSelectedType("All");
+    }
+  }
 
   const loadIncidents = useCallback(async () => {
     try {
       setIsLoading(true);
       const [incRes, typesRes] = await Promise.all([
-        truck?.id
-          ? fleetApi.getTruckIncidents(truck.id)
-          : fleetApi.getIncidents({
-              severity: selectedSeverity === "All" ? undefined : selectedSeverity,
-              incidentTypeId: selectedType === "All" ? undefined : selectedType,
-              search: searchTerm || undefined,
-            }),
+        fleetApi.getIncidents({
+          truckId: truck?.id || undefined,
+          severity: selectedSeverity === "All" ? undefined : selectedSeverity,
+          incidentTypeId: selectedType === "All" ? undefined : selectedType,
+          search: committedSearch || undefined,
+          page,
+          limit,
+        }),
         fleetApi.getIncidentTypes(),
       ]);
 
-      let list = incRes?.data?.incidents || [];
-      // Apply client filtering if truck-specific
-      if (truck?.id) {
-        if (selectedSeverity !== "All") {
-          list = list.filter((i) => i.severity === selectedSeverity);
-        }
-        if (selectedType !== "All") {
-          list = list.filter((i) => i.incidentTypeId === Number(selectedType));
-        }
-        if (searchTerm) {
-          const q = searchTerm.toLowerCase();
-          list = list.filter(
-            (i) =>
-              i.description?.toLowerCase().includes(q) ||
-              i.incidentLocation?.toLowerCase().includes(q) ||
-              i.incidentTypeName?.toLowerCase().includes(q)
-          );
-        }
+      setIncidents(incRes?.data?.incidents || []);
+      if (incRes?.meta) {
+        setMeta(incRes.meta);
+      } else {
+        const total = incRes?.data?.total || (incRes?.data?.incidents || []).length;
+        setMeta({
+          page,
+          limit,
+          totalItems: total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        });
       }
-
-      setIncidents(list);
       setIncidentTypes(typesRes?.data?.types || []);
     } catch (err) {
       console.error("Failed to load incidents:", err);
     } finally {
       setIsLoading(false);
     }
-  }, [truck?.id, selectedSeverity, selectedType, searchTerm]);
+  }, [truck?.id, selectedSeverity, selectedType, committedSearch, page, limit]);
 
   useEffect(() => {
     if (isOpen) {
@@ -165,23 +174,47 @@ export default function IncidentHistoryModal({
       <div className="space-y-4">
         {/* FILTER TOOLBAR */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pb-3 border-b border-gray-100">
-          {/* Search */}
+          {/* Search with Search-on-Enter (Strategy B) */}
           <div className="relative">
             <input
               type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search notes, location..."
-              className="w-full text-xs bg-gray-50 border border-gray-200 rounded-full py-2 pl-8 pr-3 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all"
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  setCommittedSearch(searchDraft.trim());
+                  setPage(1);
+                }
+              }}
+              placeholder="Search (Press Enter)..."
+              className="w-full text-xs bg-gray-50 border border-gray-200 rounded-full py-2 pl-8 pr-7 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all"
             />
             <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+            {searchDraft && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchDraft("");
+                  setCommittedSearch("");
+                  setPage(1);
+                }}
+                className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                title="Clear search"
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
 
           {/* Severity Filter */}
           <select
             value={selectedSeverity}
-            onChange={(e) => setSelectedSeverity(e.target.value)}
-            className="text-xs bg-gray-50 border border-gray-200 rounded-full py-2 px-3 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all"
+            onChange={(e) => {
+              setSelectedSeverity(e.target.value);
+              setPage(1);
+            }}
+            className="text-xs bg-gray-50 border border-gray-200 rounded-full py-2 px-3 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all cursor-pointer"
           >
             <option value="All">All Severities</option>
             <option value="CRITICAL">Critical</option>
@@ -193,8 +226,11 @@ export default function IncidentHistoryModal({
           {/* Incident Type Filter */}
           <select
             value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
-            className="text-xs bg-gray-50 border border-gray-200 rounded-full py-2 px-3 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all"
+            onChange={(e) => {
+              setSelectedType(e.target.value);
+              setPage(1);
+            }}
+            className="text-xs bg-gray-50 border border-gray-200 rounded-full py-2 px-3 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all cursor-pointer"
           >
             <option value="All">All Types</option>
             {incidentTypes.map((t) => (
@@ -252,13 +288,28 @@ export default function IncidentHistoryModal({
                 </div>
               </div>
             ))}
+
+            {/* Pagination Controls */}
+            {meta.totalPages > 1 && (
+              <div className="pt-2">
+                <Pagination
+                  currentPage={page}
+                  totalPages={meta.totalPages}
+                  totalItems={meta.totalItems}
+                  limit={limit}
+                  onPageChange={(p) => setPage(p)}
+                  isLoading={isLoading}
+                  itemLabel="incidents"
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div className="py-16 text-center text-gray-400 space-y-2">
             <AlertOctagon size={42} className="mx-auto text-gray-300 stroke-[1.5]" />
             <p className="text-sm font-semibold text-gray-600">No incidents recorded</p>
             <p className="text-xs text-gray-400 max-w-sm mx-auto">
-              {searchTerm || selectedSeverity !== "All" || selectedType !== "All"
+              {committedSearch || selectedSeverity !== "All" || selectedType !== "All"
                 ? "No incident logs matched your filter criteria."
                 : "No roadside breakdowns or mechanical incidents recorded."}
             </p>

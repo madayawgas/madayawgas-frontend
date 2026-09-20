@@ -1525,8 +1525,10 @@ export const fleetApi = {
       const allLogs = getInMemoryOdometerLogs();
       const truckLogs = allLogs.filter((l) => l.truckId === truckId);
 
-      const page = Number(params.page) || 1;
-      const limit = Number(params.limit) || 50;
+      const page = Math.max(1, Number(params.page) || 1);
+      const limit = Math.max(1, Number(params.limit) || 20);
+      const totalItems = truckLogs.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / limit));
       const startIndex = (page - 1) * limit;
       const paginatedLogs = truckLogs.slice(startIndex, startIndex + limit);
 
@@ -1539,10 +1541,18 @@ export const fleetApi = {
           currentOdometer: truck?.currentOdometer || 0,
           lastPmOdometer: truck?.lastPmOdometer || 0,
           count: paginatedLogs.length,
-          total: truckLogs.length,
+          total: totalItems,
           page,
           limit,
           logs: paginatedLogs,
+        },
+        meta: {
+          page,
+          limit,
+          totalItems,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
         },
       };
     }
@@ -2000,14 +2010,28 @@ export const fleetApi = {
         );
       }
 
+      const page = Math.max(1, Number(params.page) || 1);
+      const limit = Math.max(1, Number(params.limit) || 20);
+      const totalItems = list.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+      const paginated = list.slice((page - 1) * limit, page * limit);
+
       return {
         status: "success",
         data: {
-          count: list.length,
-          total: list.length,
-          page: Number(params.page) || 1,
-          limit: Number(params.limit) || 50,
-          incidents: list,
+          count: paginated.length,
+          total: totalItems,
+          page,
+          limit,
+          incidents: paginated,
+        },
+        meta: {
+          page,
+          limit,
+          totalItems,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
         },
       };
     }
@@ -2047,16 +2071,30 @@ export const fleetApi = {
         (t) => t.id === truckId || t.truckId === truckId
       );
 
+      const page = Math.max(1, Number(params.page) || 1);
+      const limit = Math.max(1, Number(params.limit) || 20);
+      const totalItems = list.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+      const paginated = list.slice((page - 1) * limit, page * limit);
+
       return {
         status: "success",
         data: {
           truckId,
           plateNumber: targetTruck?.plateNumber || "ABC-1001",
-          count: list.length,
-          total: list.length,
-          page: Number(params.page) || 1,
-          limit: Number(params.limit) || 50,
-          incidents: list,
+          count: paginated.length,
+          total: totalItems,
+          page,
+          limit,
+          incidents: paginated,
+        },
+        meta: {
+          page,
+          limit,
+          totalItems,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
         },
       };
     }
@@ -2254,14 +2292,28 @@ export const fleetApi = {
         );
       }
 
+      const page = Math.max(1, Number(params.page) || 1);
+      const limit = Math.max(1, Number(params.limit) || 20);
+      const totalItems = list.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+      const paginated = list.slice((page - 1) * limit, page * limit);
+
       return {
         status: "success",
         data: {
-          count: list.length,
-          total: list.length,
-          page: Number(params.page) || 1,
-          limit: Number(params.limit) || 50,
-          workOrders: list,
+          count: paginated.length,
+          total: totalItems,
+          page,
+          limit,
+          workOrders: paginated,
+        },
+        meta: {
+          page,
+          limit,
+          totalItems,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
         },
       };
     }
@@ -2581,14 +2633,28 @@ export const fleetApi = {
         );
       }
 
+      const page = Math.max(1, Number(params.page) || 1);
+      const limit = Math.max(1, Number(params.limit) || 20);
+      const totalItems = list.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+      const paginated = list.slice((page - 1) * limit, page * limit);
+
       return {
         status: "success",
         data: {
-          count: list.length,
-          total: list.length,
-          page: Number(params.page) || 1,
-          limit: Number(params.limit) || 50,
-          logs: list,
+          count: paginated.length,
+          total: totalItems,
+          page,
+          limit,
+          logs: paginated,
+        },
+        meta: {
+          page,
+          limit,
+          totalItems,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
         },
       };
     }

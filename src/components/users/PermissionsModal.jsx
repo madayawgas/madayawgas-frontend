@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import Select from "../ui/Select";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
@@ -66,35 +66,31 @@ export default function PermissionsModal({
   });
 
   const syncKey = `${isOpen}-${selectedRole}`;
-  const lastSyncedKey = useRef("");
+  const [prevSyncKey, setPrevSyncKey] = useState("");
 
-  // Sync state ONLY when modal opens or when role selection changes
-  useEffect(() => {
-    if (isOpen && lastSyncedKey.current !== syncKey) {
-      lastSyncedKey.current = syncKey;
+  // Sync state ONLY when modal opens or when role selection changes (React 19 render-time adjustment)
+  if (isOpen && prevSyncKey !== syncKey) {
+    setPrevSyncKey(syncKey);
 
-      const activeRoleObj = roles.find((r) => getRoleName(r) === selectedRole);
-      const rolePerms =
-        permissionsMap[selectedRole] || activeRoleObj?.permissions;
+    const activeRoleObj = roles.find((r) => getRoleName(r) === selectedRole);
+    const rolePerms =
+      permissionsMap[selectedRole] || activeRoleObj?.permissions;
 
-      const newLocalPerms = {};
-      DEFAULT_PERMISSION_MAPPING.forEach((item) => {
-        if (rolePerms === undefined && selectedRole === "Super Admin") {
-          newLocalPerms[item.key] = true;
-        } else {
-          newLocalPerms[item.key] = Array.isArray(rolePerms)
-            ? rolePerms.includes(item.dataKey)
-            : false;
-        }
-      });
+    const newLocalPerms = {};
+    DEFAULT_PERMISSION_MAPPING.forEach((item) => {
+      if (rolePerms === undefined && selectedRole === "Super Admin") {
+        newLocalPerms[item.key] = true;
+      } else {
+        newLocalPerms[item.key] = Array.isArray(rolePerms)
+          ? rolePerms.includes(item.dataKey)
+          : false;
+      }
+    });
 
-      setLocalPermissions(newLocalPerms);
-    }
-
-    if (!isOpen) {
-      lastSyncedKey.current = "";
-    }
-  }, [isOpen, selectedRole, roles, permissionsMap, syncKey]);
+    setLocalPermissions(newLocalPerms);
+  } else if (!isOpen && prevSyncKey !== "") {
+    setPrevSyncKey("");
+  }
 
   const roleOptions = combinedRoleNames.map((name) => ({
     value: name,

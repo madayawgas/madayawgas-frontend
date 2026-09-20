@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { UserRoundPlus, UserRound, ShieldCheck, CheckCircle2, Building2 } from "lucide-react";
 import { isValidPhilippinePhone, formatPhilippinePhone } from "../../utils/phone.js";
 import CustomerFormStep from "./CustomerFormStep";
@@ -20,7 +20,12 @@ export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
     isActive: true,
   });
 
-  useEffect(() => {
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [prevCustomer, setPrevCustomer] = useState(customer);
+
+  if (isOpen !== prevIsOpen || customer !== prevCustomer) {
+    setPrevIsOpen(isOpen);
+    setPrevCustomer(customer);
     if (isOpen) {
       setStep(1);
       setPhoneError("");
@@ -45,7 +50,7 @@ export default function CustomerModal({ isOpen, onSave, onClose, customer }) {
         });
       }
     }
-  }, [isOpen, customer]);
+  }
 
   if (!isOpen) return null;
 

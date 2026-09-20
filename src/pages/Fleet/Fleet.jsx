@@ -109,16 +109,34 @@ export default function Fleet() {
 
   // Part 3 Work Orders & Maintenance Logs States
   const [workOrders, setWorkOrders] = useState([]);
+  const [workOrderPage, setWorkOrderPage] = useState(1);
+  const workOrderLimit = 20;
+  const [workOrdersMeta, setWorkOrdersMeta] = useState({
+    page: 1,
+    limit: 20,
+    totalPages: 1,
+    totalItems: 0,
+  });
   const [maintenanceLogs, setMaintenanceLogs] = useState([]);
+  const [logsPage, setLogsPage] = useState(1);
+  const logsLimit = 20;
+  const [logsMeta, setLogsMeta] = useState({
+    page: 1,
+    limit: 20,
+    totalPages: 1,
+    totalItems: 0,
+  });
   const [isLoadingWorkOrders, setIsLoadingWorkOrders] = useState(false);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
   // Work Orders Search & Status States
   const [workOrderSearch, setWorkOrderSearch] = useState("");
+  const [committedWorkOrderSearch, setCommittedWorkOrderSearch] = useState("");
   const [workOrderStatus, setWorkOrderStatus] = useState("ALL");
 
   // Maintenance Logs Search & Type States
   const [logsSearch, setLogsSearch] = useState("");
+  const [committedLogsSearch, setCommittedLogsSearch] = useState("");
   const [logsType, setLogsType] = useState("ALL");
 
   // Work Order Modals State
@@ -161,26 +179,56 @@ export default function Fleet() {
   const refreshWorkOrders = useCallback(async () => {
     try {
       setIsLoadingWorkOrders(true);
-      const res = await fleetApi.getWorkOrders();
+      const res = await fleetApi.getWorkOrders({
+        page: workOrderPage,
+        limit: workOrderLimit,
+        status: workOrderStatus !== "ALL" ? workOrderStatus : undefined,
+        search: committedWorkOrderSearch || undefined,
+      });
       setWorkOrders(res?.data?.workOrders || []);
+      if (res?.meta) {
+        setWorkOrdersMeta(res.meta);
+      } else {
+        setWorkOrdersMeta({
+          page: workOrderPage,
+          limit: workOrderLimit,
+          totalPages: 1,
+          totalItems: (res?.data?.workOrders || []).length,
+        });
+      }
     } catch (err) {
       console.error("Failed to load work orders:", err);
     } finally {
       setIsLoadingWorkOrders(false);
     }
-  }, []);
+  }, [workOrderPage, workOrderLimit, workOrderStatus, committedWorkOrderSearch]);
 
   const refreshMaintenanceLogs = useCallback(async () => {
     try {
       setIsLoadingLogs(true);
-      const res = await fleetApi.getMaintenanceLogs();
+      const res = await fleetApi.getMaintenanceLogs({
+        page: logsPage,
+        limit: logsLimit,
+        maintenanceTypeId: logsType !== "ALL" ? logsType : undefined,
+        search: committedLogsSearch || undefined,
+      });
       setMaintenanceLogs(res?.data?.logs || []);
+      if (res?.meta) {
+        setLogsMeta(res.meta);
+      } else {
+        setLogsMeta({
+          page: logsPage,
+          limit: logsLimit,
+          totalPages: 1,
+          totalItems: (res?.data?.logs || []).length,
+        });
+      }
     } catch (err) {
       console.error("Failed to load maintenance logs:", err);
     } finally {
       setIsLoadingLogs(false);
     }
-  }, []);
+  }, [logsPage, logsLimit, logsType, committedLogsSearch]);
 
   const refreshTrucks = useCallback(async () => {
     try {
@@ -193,6 +241,15 @@ export default function Fleet() {
     }
   }, []);
 
+  // Dedicated effects for Work Orders & Maintenance Logs
+  useEffect(() => {
+    refreshWorkOrders();
+  }, [refreshWorkOrders]);
+
+  useEffect(() => {
+    refreshMaintenanceLogs();
+  }, [refreshMaintenanceLogs]);
+
   useEffect(() => {
     async function loadFleet() {
       try {
@@ -200,8 +257,6 @@ export default function Fleet() {
         const [trucksData] = await Promise.all([
           fleetApi.getTrucks(),
           refreshDrivers(),
-          refreshWorkOrders(),
-          refreshMaintenanceLogs(),
         ]);
 
         if (trucksData && Array.isArray(trucksData) && trucksData.length > 0) {
@@ -218,7 +273,49 @@ export default function Fleet() {
       }
     }
     loadFleet();
-  }, [refreshDrivers, refreshWorkOrders, refreshMaintenanceLogs]);
+  }, [refreshDrivers]);
+
+  // Handlers for Work Orders Pagination, Search-on-Enter & Filtering
+  const handleWorkOrderSearchSubmit = (val) => {
+    setCommittedWorkOrderSearch(val);
+    setWorkOrderPage(1);
+  };
+
+  const handleWorkOrderSearchClear = () => {
+    setWorkOrderSearch("");
+    setCommittedWorkOrderSearch("");
+    setWorkOrderPage(1);
+  };
+
+  const handleWorkOrderStatusChange = (status) => {
+    setWorkOrderStatus(status);
+    setWorkOrderPage(1);
+  };
+
+  const handleWorkOrderPageChange = (newPage) => {
+    setWorkOrderPage(newPage);
+  };
+
+  // Handlers for Maintenance Logs Pagination, Search-on-Enter & Filtering
+  const handleLogsSearchSubmit = (val) => {
+    setCommittedLogsSearch(val);
+    setLogsPage(1);
+  };
+
+  const handleLogsSearchClear = () => {
+    setLogsSearch("");
+    setCommittedLogsSearch("");
+    setLogsPage(1);
+  };
+
+  const handleLogsTypeChange = (type) => {
+    setLogsType(type);
+    setLogsPage(1);
+  };
+
+  const handleLogsPageChange = (newPage) => {
+    setLogsPage(newPage);
+  };
 
   // Pending cost approval counter for tab badge
   const pendingApprovalCount = useMemo(() => {
@@ -738,54 +835,7 @@ export default function Fleet() {
     });
   }, [trucks, searchTerm, filters]);
 
-  // Filtered Work Orders (Search + Status)
-  const filteredWorkOrders = useMemo(() => {
-    return workOrders.filter((wo) => {
-      if (workOrderStatus !== "ALL" && wo.status !== workOrderStatus) {
-        return false;
-      }
-      if (workOrderSearch.trim()) {
-        const query = workOrderSearch.toLowerCase().trim();
-        const woNumber = (wo.workOrderNumber || "").toLowerCase();
-        const plate = (wo.truck?.plateNumber || "").toLowerCase();
-        const model = (wo.truck?.model || "").toLowerCase();
-        const shop = (wo.shopName || "").toLowerCase();
-        const type = (wo.maintenanceType?.name || wo.maintenanceTypeName || "").toLowerCase();
-        return (
-          woNumber.includes(query) ||
-          plate.includes(query) ||
-          model.includes(query) ||
-          shop.includes(query) ||
-          type.includes(query)
-        );
-      }
-      return true;
-    });
-  }, [workOrders, workOrderStatus, workOrderSearch]);
 
-  // Filtered Maintenance Logs (Search + Type)
-  const filteredMaintenanceLogs = useMemo(() => {
-    return maintenanceLogs.filter((log) => {
-      const type = (log.maintenanceTypeName || "").toUpperCase();
-      if (logsType !== "ALL" && type !== logsType) {
-        return false;
-      }
-      if (logsSearch.trim()) {
-        const q = logsSearch.toLowerCase().trim();
-        const receipt = (log.officialReceiptNumber || "").toLowerCase();
-        const plate = (log.plateNumber || log.truck?.plateNumber || "").toLowerCase();
-        const shop = (log.workOrder?.shopName || log.shopName || "").toLowerCase();
-        const desc = (log.workOrder?.description || log.description || "").toLowerCase();
-        return (
-          receipt.includes(q) ||
-          plate.includes(q) ||
-          shop.includes(q) ||
-          desc.includes(q)
-        );
-      }
-      return true;
-    });
-  }, [maintenanceLogs, logsType, logsSearch]);
 
   return (
     <div className="p-8">
@@ -863,7 +913,7 @@ export default function Fleet() {
                   activeSubTab === "logs" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
                 }`}
               >
-                {maintenanceLogs.length}
+                {logsMeta.totalItems ?? maintenanceLogs.length}
               </span>
             </button>
 
@@ -932,8 +982,10 @@ export default function Fleet() {
             <WorkOrderControls
               searchQuery={workOrderSearch}
               onSearchChange={setWorkOrderSearch}
+              onSearch={handleWorkOrderSearchSubmit}
+              onClear={handleWorkOrderSearchClear}
               selectedStatus={workOrderStatus}
-              onStatusChange={setWorkOrderStatus}
+              onStatusChange={handleWorkOrderStatusChange}
               pendingCount={pendingApprovalCount}
               onCreateWorkOrder={() => handleOpenCreateWorkOrder(null)}
               canCreate={canManage}
@@ -941,12 +993,20 @@ export default function Fleet() {
 
             <div className="h-[calc(100vh-340px)] min-h-[460px] w-full min-w-0">
               <WorkOrderTable
-                workOrders={filteredWorkOrders}
+                workOrders={workOrders}
                 isLoading={isLoadingWorkOrders}
                 onOpenApproval={(wo) => setWorkOrderForApproval(wo)}
                 onOpenFinalize={(wo) => setWorkOrderForFinalize(wo)}
                 onOpenDetail={(wo) => setWorkOrderForDetail(wo)}
                 onAdvanceStatus={handleAdvanceWorkOrderStatus}
+                pagination={{
+                  page: workOrderPage,
+                  limit: workOrderLimit,
+                  totalPages: workOrdersMeta.totalPages,
+                  totalItems: workOrdersMeta.totalItems,
+                  onPageChange: handleWorkOrderPageChange,
+                  isLoading: isLoadingWorkOrders,
+                }}
               />
             </div>
           </>
@@ -958,15 +1018,25 @@ export default function Fleet() {
             <MaintenanceLogsControls
               searchQuery={logsSearch}
               onSearchChange={setLogsSearch}
+              onSearch={handleLogsSearchSubmit}
+              onClear={handleLogsSearchClear}
               selectedType={logsType}
-              onTypeChange={setLogsType}
+              onTypeChange={handleLogsTypeChange}
             />
 
             <div className="h-[calc(100vh-340px)] min-h-[460px] w-full min-w-0">
               <MaintenanceLogsTable
-                logs={filteredMaintenanceLogs}
+                logs={maintenanceLogs}
                 isLoading={isLoadingLogs}
                 onRefresh={refreshMaintenanceLogs}
+                pagination={{
+                  page: logsPage,
+                  limit: logsLimit,
+                  totalPages: logsMeta.totalPages,
+                  totalItems: logsMeta.totalItems,
+                  onPageChange: handleLogsPageChange,
+                  isLoading: isLoadingLogs,
+                }}
               />
             </div>
           </>

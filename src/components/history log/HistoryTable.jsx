@@ -1,13 +1,14 @@
 import React from "react";
 import ActionTypePill from "./ActionTypePill";
 import Badge from "../ui/Badge";
+import Pagination from "../ui/Pagination";
 import { Clock } from "lucide-react";
 
-export default function HistoryTable({ logs }) {
+export default function HistoryTable({ logs = [], pagination }) {
   return (
-    <div className="w-full overflow-hidden border border-[#0A4B6E]/30 rounded-2xl bg-white shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse table-fixed text-xs md:text-sm">
+    <div className="w-full h-full flex flex-col overflow-hidden border border-[#0A4B6E]/30 rounded-2xl bg-white shadow-sm">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar overflow-x-auto">
+        <table className="w-full text-left border-collapse table-fixed text-xs md:text-sm min-w-[760px]">
           <thead className="bg-[#0D4B6E] text-white sticky top-0 z-10 shadow-xs">
             <tr>
               <th scope="col" className="py-3.5 px-6 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[20%]">Timestamp</th>
@@ -62,6 +63,17 @@ export default function HistoryTable({ logs }) {
           </tbody>
         </table>
       </div>
+
+      {pagination && (
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          limit={pagination.limit}
+          onPageChange={pagination.onPageChange}
+          isLoading={pagination.isLoading}
+        />
+      )}
     </div>
   );
 }
