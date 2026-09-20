@@ -57,7 +57,7 @@ export default function UsersTable({
           <thead className="bg-[#0D4B6E] text-white text-xs md:text-sm sticky top-0 z-10 shadow-xs">
             <tr>
               <th
-                className="py-3 px-4 md:px-5 font-medium cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[32%]"
+                className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[32%]"
                 onClick={() => onSort("firstName")}
               >
                 User Account{" "}
@@ -66,7 +66,7 @@ export default function UsersTable({
                 ) : ""}
               </th>
               <th
-                className="py-3 px-4 md:px-5 font-medium cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[18%]"
+                className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[18%]"
                 onClick={() => onSort("role")}
               >
                 Role{" "}
@@ -74,14 +74,14 @@ export default function UsersTable({
                   sortConfig.direction === "asc" ? "▲" : "▼"
                 ) : ""}
               </th>
-              <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[20%]">
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[20%]">
                 Contact No.
               </th>
-              <th className="py-3 px-4 md:px-5 font-medium text-center whitespace-nowrap w-[15%]">
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-center whitespace-nowrap w-[15%]">
                 Status
               </th>
               <th
-                className="py-3 px-4 md:px-5 font-medium text-center cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[15%]"
+                className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-center cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[15%]"
                 onClick={() => onSort("createdAt")}
               >
                 Date Created{" "}
@@ -126,8 +126,8 @@ export default function UsersTable({
                     onClick={() => onSelectUser && onSelectUser(user)}
                     className={`transition-colors duration-150 cursor-pointer ${
                       isSelected
-                        ? "bg-[#E2EDF3] text-[#0A4B6E] font-medium"
-                        : "hover:bg-[#E8F3F8]/70 bg-white"
+                        ? "bg-[#FEF6D1] text-[#0A4B6E] font-medium"
+                        : "hover:bg-[#FEF6D1] bg-white"
                     }`}
                   >
                     {/* User Account with Avatar, Full Name & Username handle */}

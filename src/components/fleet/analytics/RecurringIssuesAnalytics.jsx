@@ -281,22 +281,22 @@ export default function RecurringIssuesAnalytics({
           <table className="w-full text-left border-collapse table-fixed">
             <thead className="bg-[#0D4B6E] text-white text-xs md:text-sm sticky top-0 z-10 shadow-xs">
               <tr>
-                <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[20%]">
+                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[20%]">
                   Vehicle Asset
                 </th>
-                <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[24%]">
+                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[24%]">
                   Defect Classification
                 </th>
-                <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[15%]">
+                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[15%]">
                   Recurrences
                 </th>
-                <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[13%]">
+                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[13%]">
                   Latest Severity
                 </th>
-                <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[13%]">
+                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[13%]">
                   Last Reported
                 </th>
-                <th className="py-3 px-4 md:px-5 font-medium text-right whitespace-nowrap w-[15%]">
+                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[15%]">
                   Actions
                 </th>
               </tr>
@@ -351,21 +351,21 @@ export default function RecurringIssuesAnalytics({
                         onClick={() => toggleRow(rowKey)}
                         className={`transition-colors duration-150 cursor-pointer ${
                           isExpanded
-                            ? "bg-[#E2EDF3] text-[#0A4B6E]"
-                            : "hover:bg-[#E8F3F8]/70 bg-white"
+                            ? "bg-[#FEF6D1] text-[#0A4B6E]"
+                            : "hover:bg-[#FEF6D1] bg-white"
                         }`}
                       >
                         {/* Vehicle Asset */}
                         <td className="py-3.5 px-4 md:px-5">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0 border border-[#BCE1F1]/70">
-                              <Truck size={16} />
+                            <div className="w-8 h-8 rounded-full bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 shadow-2xs">
+                              <Truck size={15} />
                             </div>
                             <div className="min-w-0">
-                              <span className="font-bold text-[#0B4A6E] block truncate">
+                              <span className="font-bold text-[#0A4B6E] block truncate">
                                 {item.plateNumber}
                               </span>
-                              <span className="text-[11px] text-[#6D8AA2] block truncate">
+                              <span className="text-[11px] text-[#6D8AA2] font-medium block truncate">
                                 {item.truckModel || "Fleet Vehicle"}
                               </span>
                             </div>

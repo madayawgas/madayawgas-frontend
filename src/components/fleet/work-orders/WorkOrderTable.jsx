@@ -1,12 +1,13 @@
 // src/components/fleet/work-orders/WorkOrderTable.jsx
 import {
   Wrench,
-  Clock,
   Calendar,
+  Eye,
+  Building2,
+  Truck,
   Play,
   CheckCheck,
-  Eye,
-  AlertTriangle,
+  Clock,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../../utils/permissions.js";
@@ -43,9 +44,18 @@ const STATUS_BADGES = {
   CANCELLED: { label: "CANCELLED", variant: "danger" },
 };
 
+function getServiceTypeBadgeVariant(typeName) {
+  const lower = (typeName || "").toLowerCase();
+  if (lower.includes("preventive")) return "roles";
+  if (lower.includes("corrective")) return "maintenance";
+  if (lower.includes("emergency")) return "danger";
+  if (lower.includes("accident")) return "neutral";
+  return "roles";
+}
+
 /**
  * WorkOrderTable
- * Clean, simplified master table for fleet maintenance work orders matching CustomerTable & UsersTable design.
+ * Professional, high-finish master table for fleet maintenance work orders matching CustomerTable & UsersTable design.
  */
 export default function WorkOrderTable({
   workOrders = [],
@@ -69,29 +79,47 @@ export default function WorkOrderTable({
         <table className="w-full text-left border-collapse table-fixed">
           <thead className="bg-[#0D4B6E] text-white text-xs md:text-sm sticky top-0 z-10 shadow-xs">
             <tr>
-              <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[16%]">WO Number</th>
-              <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[17%]">Vehicle Asset</th>
-              <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[15%]">Service Type</th>
-              <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[20%]">Service Facility</th>
-              <th className="py-3 px-4 md:px-5 font-medium text-right whitespace-nowrap w-[11%]">Est. Cost</th>
-              <th className="py-3 px-4 md:px-5 font-medium text-center whitespace-nowrap w-[11%]">Status</th>
-              <th className="py-3 px-4 md:px-5 font-medium text-right whitespace-nowrap w-[10%]">Action</th>
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[17%]">
+                WO Number
+              </th>
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[20%]">
+                Vehicle Asset
+              </th>
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[15%]">
+                Service Type
+              </th>
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[18%]">
+                Service Facility
+              </th>
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[11%]">
+                Est. Cost
+              </th>
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-center whitespace-nowrap w-[10%]">
+                Status
+              </th>
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[9%]">
+                Action
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-xs md:text-sm">
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-slate-400">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="w-6 h-6 border-2 border-[#0B4A6E] border-t-transparent rounded-full animate-spin" />
-                    <span>Loading work orders...</span>
+                <td colSpan={7} className="py-14 text-center text-slate-400">
+                  <div className="flex flex-col items-center gap-2.5">
+                    <div className="w-7 h-7 border-2 border-[#0B4A6E] border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs font-semibold text-[#0B4A6E]">Loading work orders...</span>
                   </div>
                 </td>
               </tr>
             ) : workOrders.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-gray-400 italic">
-                  No work orders match your search or filter.
+                <td colSpan={7} className="py-14 text-center text-gray-400 italic">
+                  <div className="flex flex-col items-center gap-1">
+                    <Wrench className="w-8 h-8 text-gray-300 stroke-1 mb-1" />
+                    <p className="text-sm font-semibold text-gray-500">No work orders found</p>
+                    <p className="text-xs text-gray-400">Try adjusting your search criteria or status filter.</p>
+                  </div>
                 </td>
               </tr>
             ) : (
@@ -104,68 +132,88 @@ export default function WorkOrderTable({
                 const plate = wo.truck?.plateNumber || wo.plateNumber || "N/A";
                 const model = wo.truck?.model || wo.truckModel || "";
                 const typeName =
-                  wo.maintenanceType?.name || wo.maintenanceTypeName || "General";
-                const shop = wo.shopName || "External Facility";
+                  wo.maintenanceType?.name || wo.maintenanceTypeName || "General Service";
+                const shop = wo.shopName || "Bunawan Heavy Repair Center";
                 const woNumber =
                   wo.workOrderNumber ||
                   (wo.id?.startsWith("wo-")
                     ? wo.id.toUpperCase()
-                    : wo.id?.slice(0, 10)?.toUpperCase() || "WO-N/A");
+                    : `WO #${wo.id?.slice(0, 8)?.toUpperCase() || "N/A"}`);
 
                 return (
                   <tr
                     key={wo.id}
                     onClick={() => onOpenDetail && onOpenDetail(wo)}
-                    className="hover:bg-[#E8F3F8]/70 transition-colors duration-150 cursor-pointer bg-white"
+                    className="hover:bg-[#FEF6D1] transition-colors duration-150 cursor-pointer bg-white group"
                   >
                     {/* WO Number & Scheduled Date */}
                     <td className="py-3.5 px-4 md:px-5">
-                      <div className="font-mono font-bold text-[#0B4A6E] truncate">{woNumber}</div>
-                      <div className="text-[11px] text-[#6D8AA2] italic truncate">
-                        {formatDate(wo.scheduledDate || wo.createdAt)}
+                      <div className="font-mono font-bold text-[#0A4B6E] text-xs md:text-sm truncate">
+                        {woNumber}
+                      </div>
+                      <div className="text-[11px] text-[#6D8AA2] flex items-center gap-1 mt-0.5 truncate">
+                        <Calendar size={11} className="shrink-0" />
+                        <span>{formatDate(wo.scheduledDate || wo.createdAt)}</span>
                       </div>
                     </td>
 
                     {/* Vehicle */}
                     <td className="py-3.5 px-4 md:px-5">
-                      <div className="font-bold text-gray-800 truncate">{plate}</div>
-                      {model && <div className="text-[11px] text-[#6D8AA2] font-normal truncate">{model}</div>}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-[#0A4B6E] flex items-center justify-center text-[#FFDF2C] shrink-0 shadow-2xs">
+                          <Truck size={15} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-gray-900 truncate">{plate}</div>
+                          {model && (
+                            <div className="text-[11px] text-[#6D8AA2] font-medium truncate">
+                              {model}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </td>
 
                     {/* Maintenance Type */}
                     <td className="py-3.5 px-4 md:px-5">
-                      <Badge variant="roles" className="text-[10px] px-2 py-0.5 truncate max-w-full inline-block">
+                      <Badge
+                        variant={getServiceTypeBadgeVariant(typeName)}
+                        className="text-[10px] px-2.5 py-0.5 truncate max-w-full inline-block"
+                      >
                         {typeName}
                       </Badge>
                     </td>
 
                     {/* Facility */}
-                    <td className="py-3.5 px-4 md:px-5 text-gray-700 font-medium">
-                      <div className="truncate" title={shop}>
-                        {shop}
+                    <td className="py-3.5 px-4 md:px-5 text-gray-800">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Building2 size={13} className="text-[#6D8AA2] shrink-0" />
+                        <span className="font-medium text-xs truncate" title={shop}>
+                          {shop}
+                        </span>
                       </div>
                     </td>
 
                     {/* Estimated Cost */}
-                    <td className="py-3.5 px-4 md:px-5 text-right font-semibold text-gray-800 whitespace-nowrap">
+                    <td className="py-3.5 px-4 md:px-5 text-right font-bold text-gray-900 whitespace-nowrap">
                       {formatCurrency(estimatedCost)}
                     </td>
 
                     {/* Status Badge */}
                     <td className="py-3.5 px-4 md:px-5 text-center whitespace-nowrap">
-                      <Badge variant={statusInfo.variant} className="text-[10px] px-2 py-0.5">
+                      <Badge variant={statusInfo.variant} className="text-[10px] px-2.5 py-0.5">
                         {statusInfo.label}
                       </Badge>
                     </td>
 
                     {/* Contextual Action Button */}
                     <td className="py-3.5 px-4 md:px-5 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                         {wo.status === "PENDING" && onOpenApproval && (
                           <button
                             type="button"
                             onClick={() => onOpenApproval(wo)}
-                            className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300 transition cursor-pointer"
+                            className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 transition-all cursor-pointer active:scale-95 shadow-2xs"
                           >
                             {isManager ? "Review" : "Approval"}
                           </button>
@@ -175,9 +223,10 @@ export default function WorkOrderTable({
                           <button
                             type="button"
                             onClick={() => onAdvanceStatus(wo.id, "IN_PROGRESS")}
-                            className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-orange-100 text-orange-800 hover:bg-orange-200 border border-orange-300 transition cursor-pointer"
+                            className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#07324A] transition-all cursor-pointer active:scale-95 shadow-2xs flex items-center gap-1"
                           >
-                            Start
+                            <Play size={10} className="fill-current text-[#FFDF2C]" />
+                            <span>Start</span>
                           </button>
                         )}
 
@@ -185,9 +234,10 @@ export default function WorkOrderTable({
                           <button
                             type="button"
                             onClick={() => onOpenFinalize(wo)}
-                            className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition cursor-pointer shadow-xs"
+                            className="px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-2xs active:scale-95 flex items-center gap-1"
                           >
-                            Finalize
+                            <CheckCheck size={11} />
+                            <span>Finalize</span>
                           </button>
                         )}
 
@@ -196,7 +246,7 @@ export default function WorkOrderTable({
                           type="button"
                           onClick={() => onOpenDetail && onOpenDetail(wo)}
                           title="View Details"
-                          className="p-1 text-gray-400 hover:text-[#0B4A6E] hover:bg-gray-100 rounded-lg transition cursor-pointer"
+                          className="p-1.5 text-gray-400 hover:text-[#0A4B6E] hover:bg-white/80 rounded-lg transition-colors cursor-pointer"
                         >
                           <Eye size={15} />
                         </button>

@@ -1,5 +1,6 @@
 // src/pages/Fleet/Fleet.jsx
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { fleetApi } from "../../api/fleet.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
@@ -92,7 +93,19 @@ export default function Fleet() {
   });
 
   // Sub-Navigation Tab State ('vehicles' | 'work-orders' | 'logs' | 'analytics')
-  const [activeSubTab, setActiveSubTab] = useState("vehicles");
+  const [searchParams] = useSearchParams();
+  const urlTab = searchParams.get("tab");
+  const [activeSubTab, setActiveSubTab] = useState(
+    urlTab && ["vehicles", "work-orders", "logs", "analytics"].includes(urlTab)
+      ? urlTab
+      : "vehicles"
+  );
+
+  useEffect(() => {
+    if (urlTab && ["vehicles", "work-orders", "logs", "analytics"].includes(urlTab)) {
+      setActiveSubTab(urlTab);
+    }
+  }, [urlTab]);
 
   // Part 3 Work Orders & Maintenance Logs States
   const [workOrders, setWorkOrders] = useState([]);

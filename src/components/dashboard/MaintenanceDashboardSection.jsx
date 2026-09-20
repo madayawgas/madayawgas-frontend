@@ -269,7 +269,7 @@ export default function MaintenanceDashboardSection({
       <div className="w-full border border-[#0A4B6E]/25 rounded-2xl overflow-hidden bg-white shadow-xs">
         <div className="overflow-x-auto max-h-[480px] custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[1000px]">
-            <thead className="bg-[#0D4B6E] text-white text-xs uppercase tracking-wider sticky top-0 z-10 shadow-xs">
+            <thead className="bg-[#0D4B6E] text-white text-[11px] font-semibold uppercase tracking-wider sticky top-0 z-10 shadow-xs">
               <tr>
                 <th className="py-3.5 px-4 font-semibold whitespace-nowrap">
                   Official Receipt (OR#)
@@ -361,8 +361,8 @@ export default function MaintenanceDashboardSection({
                         onClick={() => toggleRow(logId)}
                         className={`transition-colors duration-150 cursor-pointer ${
                           isExpanded
-                            ? "bg-[#E2EDF3] text-[#0A4B6E]"
-                            : "hover:bg-[#E8F3F8]/70 bg-white"
+                            ? "bg-[#FEF6D1] text-[#0A4B6E]"
+                            : "hover:bg-[#FEF6D1] bg-white"
                         }`}
                       >
                         {/* OR# */}

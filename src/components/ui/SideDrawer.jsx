@@ -58,21 +58,30 @@ export default function SideDrawer({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between shrink-0 bg-gray-50/50">
-          <div className="flex items-center gap-3 truncate">
+        <div className="px-6 py-4.5 border-b border-gray-100 flex items-center justify-between shrink-0 bg-[#F8FBFC]">
+          <div className="flex items-center gap-3.5 min-w-0 flex-1">
             {Icon && (
-              <div className="w-10 h-10 rounded-2xl bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 shadow-2xs">
+              <div className="w-10 h-10 rounded-2xl bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 shadow-xs">
                 <Icon size={20} />
               </div>
             )}
-            <div className="truncate">
-              <div className="flex items-center gap-2 truncate">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2.5 flex-wrap">
                 <h2 className="text-lg font-bold text-[#0A4B6E] truncate">{title}</h2>
                 {badge}
               </div>
               {subtitle && <p className="text-xs text-[#6D8AA2] mt-0.5 truncate">{subtitle}</p>}
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label="Close drawer"
+            className="p-1.5 hover:bg-gray-200/70 text-[#6D8AA2] hover:text-[#0A4B6E] rounded-full transition-colors cursor-pointer shrink-0 ml-2"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         {/* Scrollable Content Body */}

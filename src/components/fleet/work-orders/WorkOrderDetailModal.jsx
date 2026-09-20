@@ -8,14 +8,15 @@ import {
   Clock,
   AlertTriangle,
   FileText,
-  User,
+  UserRound,
   ShieldCheck,
   Building2,
   Gauge,
-  Tag,
   Receipt,
   Play,
   CheckCheck,
+  DollarSign,
+  Info,
 } from "lucide-react";
 import SideDrawer from "../../ui/SideDrawer";
 import Badge from "../../ui/Badge";
@@ -24,43 +25,37 @@ import { PERMISSIONS } from "../../../utils/permissions.js";
 
 const STATUS_CONFIG = {
   PENDING: {
-    label: "Pending Approval",
-    badgeVariant: "pending",
+    label: "PENDING APPROVAL",
     badgeClass: "bg-amber-100 text-amber-800 border-amber-300",
   },
   APPROVED: {
-    label: "Approved",
-    badgeVariant: "roles",
+    label: "APPROVED",
     badgeClass: "bg-blue-100 text-blue-800 border-blue-300",
   },
   SCHEDULED: {
-    label: "Scheduled",
-    badgeVariant: "roles",
+    label: "SCHEDULED",
     badgeClass: "bg-purple-100 text-purple-800 border-purple-300",
   },
   IN_PROGRESS: {
-    label: "In Progress",
-    badgeVariant: "warning",
+    label: "IN PROGRESS",
     badgeClass: "bg-orange-100 text-orange-800 border-orange-300",
   },
   COMPLETED: {
-    label: "Completed",
-    badgeVariant: "success",
+    label: "COMPLETED",
     badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-300",
   },
   CANCELLED: {
-    label: "Cancelled",
-    badgeVariant: "danger",
+    label: "CANCELLED",
     badgeClass: "bg-rose-100 text-rose-800 border-rose-300",
   },
 };
 
 const LIFECYCLE_STEPS = [
-  { key: "PENDING", label: "Pending" },
-  { key: "APPROVED", label: "Approved" },
-  { key: "SCHEDULED", label: "Scheduled" },
-  { key: "IN_PROGRESS", label: "In Progress" },
-  { key: "COMPLETED", label: "Completed" },
+  { key: "PENDING", label: "Pending", number: "1" },
+  { key: "APPROVED", label: "Approved", number: "2" },
+  { key: "SCHEDULED", label: "Scheduled", number: "3" },
+  { key: "IN_PROGRESS", label: "In Progress", number: "4" },
+  { key: "COMPLETED", label: "Completed", number: "5" },
 ];
 
 function formatDate(dateStr) {
@@ -144,16 +139,22 @@ export default function WorkOrderDetailModal({
       ? 100
       : 0;
 
+  const formattedWONumber =
+    workOrder.workOrderNumber ||
+    (workOrder.id?.startsWith("wo-")
+      ? workOrder.id.toUpperCase()
+      : `WO #${workOrder.id?.slice(0, 8)?.toUpperCase() || "N/A"}`);
+
   return (
     <SideDrawer
       isOpen={isOpen}
       onClose={onClose}
-      title={workOrder.workOrderNumber || `Work Order ${workOrder.id?.slice(0, 8)}`}
+      title={formattedWONumber}
       subtitle={`${typeName} • ${shop}`}
       icon={Wrench}
       badge={
         <span
-          className={`px-3 py-0.5 rounded-full text-[11px] font-bold border uppercase tracking-wider ${statusStyle.badgeClass}`}
+          className={`px-3 py-0.5 rounded-full text-[10.5px] font-bold border uppercase tracking-wider ${statusStyle.badgeClass}`}
         >
           {statusStyle.label}
         </span>
@@ -169,7 +170,7 @@ export default function WorkOrderDetailModal({
                 closeDrawer();
                 onOpenApproval(workOrder);
               }}
-              className="flex-1 py-3.5 px-5 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95"
+              className="flex-1 py-3 px-5 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-[#0A4B6E] hover:bg-[#083b57] text-[#FFDF2C] border border-[#0A4B6E] flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95"
             >
               <Clock size={16} />
               <span>{isManager ? "Review Approval" : "View Approval"}</span>
@@ -183,9 +184,9 @@ export default function WorkOrderDetailModal({
                 closeDrawer();
                 onAdvanceStatus(workOrder.id, "IN_PROGRESS");
               }}
-              className="flex-1 py-3.5 px-5 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95"
+              className="flex-1 py-3 px-5 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-[#0A4B6E] hover:bg-[#083b57] text-[#FFDF2C] flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95"
             >
-              <Play size={15} className="fill-current" />
+              <Play size={15} className="fill-current text-[#FFDF2C]" />
               <span>Start Repair</span>
             </button>
           )}
@@ -197,7 +198,7 @@ export default function WorkOrderDetailModal({
                 closeDrawer();
                 onOpenFinalize(workOrder);
               }}
-              className="flex-1 py-3.5 px-5 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95"
+              className="flex-1 py-3 px-5 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95"
             >
               <CheckCheck size={16} />
               <span>Finalize Maintenance</span>
@@ -207,7 +208,7 @@ export default function WorkOrderDetailModal({
           <button
             type="button"
             onClick={closeDrawer}
-            className={`py-3.5 px-6 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all shadow-sm cursor-pointer active:scale-95 text-center ${
+            className={`py-3 px-6 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all shadow-xs cursor-pointer active:scale-95 text-center ${
               (workOrder.status === "PENDING" && onOpenApproval) ||
               (workOrder.status === "SCHEDULED" && canManageFleet && onAdvanceStatus) ||
               (workOrder.status === "IN_PROGRESS" && canManageFleet && onOpenFinalize)
@@ -221,50 +222,97 @@ export default function WorkOrderDetailModal({
       )}
     >
       <div className="space-y-4">
-        {/* Sub-Header Label */}
-        <p className="text-center text-xs md:text-sm font-semibold text-[#6D8AA2] mb-1 tracking-wide">
-          Work Order Lifecycle & Details
-        </p>
-
-        {/* 1. BRANDED LIFECYCLE PIPELINE TRACK */}
+        {/* 1. BRANDED LIFECYCLE PIPELINE TRACKER */}
         {workOrder.status !== "CANCELLED" ? (
-          <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3">
+          <div className="bg-[#E8F3F8] rounded-2xl p-4.5 border border-[#BCE1F1]/70 shadow-2xs space-y-3.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-[#0A4B6E] uppercase tracking-wider text-[11px]">
-                Lifecycle Progress
-              </span>
-              <span className="font-bold text-[#0A4B6E] bg-white px-2.5 py-0.5 rounded-full border border-[#BCE1F1] text-[10px]">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-[#0A4B6E] uppercase tracking-wider text-[11px]">
+                  Lifecycle Progress
+                </span>
+              </div>
+              <span className="font-bold text-[#0A4B6E] bg-white px-2.5 py-0.5 rounded-full border border-[#BCE1F1] text-[10.5px]">
                 {progressPercent}% Complete
               </span>
             </div>
 
-            {/* Pipeline Stage Badges */}
-            <div className="grid grid-cols-5 gap-1.5 pt-1">
-              {LIFECYCLE_STEPS.map((step, idx) => {
-                const isPassed = currentStepIdx > idx;
-                const isCurrent = currentStepIdx === idx;
+            {/* Stepper Pipeline */}
+            <div className="w-full px-4 sm:px-6 pt-1 pb-1">
+              {/* Circles & Connecting Line Segments */}
+              <div className="flex items-center justify-between w-full">
+                {LIFECYCLE_STEPS.map((step, idx) => {
+                  const isCompletedOrder = workOrder.status === "COMPLETED";
+                  const isPassed = isCompletedOrder || currentStepIdx > idx;
+                  const isCurrent = !isCompletedOrder && currentStepIdx === idx;
+                  const isLast = idx === LIFECYCLE_STEPS.length - 1;
 
-                let badgeStyles = "bg-white/70 text-slate-400 border-slate-200";
-                if (isCurrent) {
-                  badgeStyles =
-                    "bg-[#0A4B6E] text-[#FFDF2C] border-[#0A4B6E] font-bold shadow-xs ring-2 ring-[#0A4B6E]/20";
-                } else if (isPassed) {
-                  badgeStyles =
-                    "bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold";
-                }
+                  let circleStyle = "bg-white text-slate-400 border-2 border-slate-300";
+                  if (isPassed) {
+                    circleStyle = "bg-emerald-600 text-white border-2 border-emerald-600 font-bold";
+                  } else if (isCurrent) {
+                    circleStyle =
+                      "bg-[#0A4B6E] text-[#FFDF2C] border-2 border-[#0A4B6E] ring-4 ring-[#0A4B6E]/15 font-bold shadow-xs";
+                  }
 
-                return (
-                  <div
-                    key={step.key}
-                    className={`flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all ${badgeStyles}`}
-                  >
-                    <div className="flex items-center gap-1 text-[11px]">
-                      {isPassed && <CheckCircle2 size={12} className="text-emerald-600 shrink-0" />}
-                      <span className="truncate">{step.label}</span>
+                  const lineIsFilled = isCompletedOrder || currentStepIdx > idx;
+
+                  return (
+                    <div
+                      key={step.key}
+                      className={`flex items-center ${isLast ? "flex-none" : "flex-1"}`}
+                    >
+                      <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 transition-all ${circleStyle}`}
+                      >
+                        {isPassed ? (
+                          <CheckCircle2 size={15} />
+                        ) : (
+                          <span>{step.number}</span>
+                        )}
+                      </div>
+
+                      {!isLast && (
+                        <div className="flex-1 h-[2px] mx-1.5 sm:mx-2 bg-slate-200 overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-300 ${
+                              lineIsFilled ? "bg-emerald-600 w-full" : "bg-transparent w-0"
+                            }`}
+                          />
+                        </div>
+                      )}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+
+              {/* Step Labels Row */}
+              <div className="flex items-center justify-between w-full mt-2">
+                {LIFECYCLE_STEPS.map((step, idx) => {
+                  const isCompletedOrder = workOrder.status === "COMPLETED";
+                  const isPassed = isCompletedOrder || currentStepIdx > idx;
+                  const isCurrent = !isCompletedOrder && currentStepIdx === idx;
+
+                  let labelStyle = "text-slate-400 font-normal";
+                  if (isPassed) {
+                    labelStyle = "text-emerald-800 font-semibold";
+                  } else if (isCurrent) {
+                    labelStyle = "text-[#0A4B6E] font-bold";
+                  }
+
+                  return (
+                    <div
+                      key={step.key}
+                      className="text-center w-7 flex justify-center"
+                    >
+                      <span
+                        className={`text-[9.5px] sm:text-[10px] uppercase tracking-wide whitespace-nowrap ${labelStyle}`}
+                      >
+                        {step.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : (
@@ -273,25 +321,25 @@ export default function WorkOrderDetailModal({
             <div>
               <p className="font-bold text-sm">Work Order Cancelled</p>
               <p className="text-rose-700 mt-0.5">
-                This maintenance order was terminated and will not be dispatched for repair.
+                This maintenance order was terminated and will not proceed with repair.
               </p>
             </div>
           </div>
         )}
 
         {/* 2. ASSIGNED VEHICLE CARD */}
-        <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3">
+        <div className="bg-[#E8F3F8] rounded-2xl p-4.5 border border-[#BCE1F1]/70 shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-11 h-11 rounded-full bg-[#0A4B6E] flex items-center justify-center text-white shrink-0 shadow-xs">
-                <Truck size={22} className="text-[#FFDF2C]" />
+              <div className="w-11 h-11 rounded-2xl bg-[#0A4B6E] flex items-center justify-center text-[#FFDF2C] shrink-0 shadow-xs">
+                <Truck size={22} />
               </div>
-              <div>
-                <h3 className="text-base md:text-lg font-bold text-[#0A4B6E] leading-tight">
+              <div className="min-w-0">
+                <h3 className="text-base md:text-lg font-bold text-[#0A4B6E] leading-tight truncate">
                   {truckPlate}
                 </h3>
                 {truckModel && (
-                  <p className="text-xs text-[#6D8AA2] font-medium">{truckModel}</p>
+                  <p className="text-xs text-[#6D8AA2] font-medium truncate">{truckModel}</p>
                 )}
               </div>
             </div>
@@ -309,27 +357,35 @@ export default function WorkOrderDetailModal({
             </Badge>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-[#BCE1F1]/40">
-            <div className="flex items-center gap-2">
-              <User size={14} className="text-[#6D8AA2] shrink-0" />
-              <span className="text-[#6D8AA2]">Driver:</span>
-              <span className="font-bold text-[#0A4B6E] truncate">{driverName}</span>
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#BCE1F1]/50 text-xs">
+            <div className="bg-white/80 p-2.5 rounded-xl border border-[#BCE1F1]/40 flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
+                <UserRound size={14} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-[#6D8AA2] uppercase font-semibold">Assigned Driver</p>
+                <p className="font-bold text-[#0A4B6E] truncate">{driverName}</p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Gauge size={14} className="text-[#6D8AA2] shrink-0" />
-              <span className="text-[#6D8AA2]">Odometer:</span>
-              <span className="font-bold text-[#0A4B6E]">
-                {workOrder.truck?.currentOdometer
-                  ? `${Number(workOrder.truck.currentOdometer).toLocaleString()} KM`
-                  : "N/A"}
-              </span>
+            <div className="bg-white/80 p-2.5 rounded-xl border border-[#BCE1F1]/40 flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
+                <Gauge size={14} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-[#6D8AA2] uppercase font-semibold">Current Odometer</p>
+                <p className="font-bold text-[#0A4B6E] truncate">
+                  {workOrder.truck?.currentOdometer
+                    ? `${Number(workOrder.truck.currentOdometer).toLocaleString()} KM`
+                    : "N/A"}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* 3. SERVICE SPECIFICATION CARD */}
-        <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3 text-xs">
+        <div className="bg-[#E8F3F8] rounded-2xl p-4.5 border border-[#BCE1F1]/70 shadow-2xs space-y-3 text-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-[#0A4B6E] font-bold uppercase tracking-wider text-[11px]">
               <Wrench size={15} />
@@ -340,15 +396,17 @@ export default function WorkOrderDetailModal({
             </span>
           </div>
 
-          <div className="space-y-2 text-slate-700">
-            <div className="flex items-center justify-between">
+          <div className="space-y-2 text-slate-700 pt-1">
+            <div className="flex items-center justify-between py-1 border-b border-[#BCE1F1]/30">
               <span className="text-[#6D8AA2] font-medium flex items-center gap-1.5">
                 <Building2 size={14} /> Repair Facility:
               </span>
-              <span className="font-bold text-[#0A4B6E]">{shop}</span>
+              <span className="font-bold text-[#0A4B6E] text-right truncate max-w-[200px]" title={shop}>
+                {shop}
+              </span>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between py-1 border-b border-[#BCE1F1]/30">
               <span className="text-[#6D8AA2] font-medium flex items-center gap-1.5">
                 <Calendar size={14} /> Scheduled Date:
               </span>
@@ -357,9 +415,9 @@ export default function WorkOrderDetailModal({
               </span>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between py-1">
               <span className="text-[#6D8AA2] font-medium flex items-center gap-1.5">
-                <Calendar size={14} /> Date Created:
+                <Clock size={14} /> Date Created:
               </span>
               <span className="font-bold text-[#0A4B6E]">
                 {formatDate(workOrder.createdAt)}
@@ -370,10 +428,10 @@ export default function WorkOrderDetailModal({
 
         {/* 4. SCOPE OF WORK & DESCRIPTION */}
         {workOrder.description && (
-          <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-2">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-[#6D8AA2] flex items-center gap-1.5">
+          <div className="bg-[#E8F3F8] rounded-2xl p-4.5 border border-[#BCE1F1]/70 shadow-2xs space-y-2">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#0A4B6E] flex items-center gap-1.5">
               <FileText size={14} />
-              <span>Scope of Work & Repair Scope</span>
+              <span>Scope of Work & Repair Details</span>
             </div>
             <div className="bg-white rounded-xl p-3.5 border border-[#BCE1F1]/40 text-xs md:text-sm text-slate-800 leading-relaxed font-normal shadow-2xs">
               {workOrder.description}
@@ -382,40 +440,38 @@ export default function WorkOrderDetailModal({
         )}
 
         {/* 5. FINANCIAL & EXECUTIVE APPROVAL SUMMARY */}
-        <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3 text-xs">
+        <div className="bg-[#E8F3F8] rounded-2xl p-4.5 border border-[#BCE1F1]/70 shadow-2xs space-y-3 text-xs">
           <div className="flex items-center justify-between">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-[#6D8AA2] flex items-center gap-1.5">
-              <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px] leading-none shrink-0">
-                ₱
-              </span>
-              <span>Cost & Approval Summary</span>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#0A4B6E] flex items-center gap-1.5">
+              <DollarSign size={15} className="text-emerald-700" />
+              <span>Cost & Authorization Summary</span>
             </div>
             <div className="text-xl font-bold text-[#0A4B6E]">
               {formatCurrency(estimatedCost)}
             </div>
           </div>
 
-          <div className="space-y-2 pt-2 border-t border-[#BCE1F1]/40">
+          <div className="space-y-2.5 pt-2 border-t border-[#BCE1F1]/50">
             {/* Gatekeeper Policy Badge */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-[#6D8AA2] font-medium">Policy Threshold:</span>
               {requiresApproval ? (
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
                   <AlertTriangle size={12} />
-                  <span>Requires ₱5,000+ Authorization</span>
+                  <span>Requires ₱5,000+ Sign-off</span>
                 </span>
               ) : (
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
                   <CheckCircle2 size={12} />
-                  <span>Auto-Approved (&lt; ₱5,000)</span>
+                  <span>Auto-Authorized (&lt; ₱5,000)</span>
                 </span>
               )}
             </div>
 
             {/* Managerial Decision */}
             {requiresApproval && (
-              <div className="flex items-center justify-between">
-                <span className="text-[#6D8AA2] font-medium">Managerial Decision:</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[#6D8AA2] font-medium">Manager Decision:</span>
                 <div>
                   {workOrder.approvedAt ? (
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
@@ -435,8 +491,9 @@ export default function WorkOrderDetailModal({
             )}
 
             {workOrder.decisionRemarks && (
-              <div className="bg-white p-2.5 rounded-xl border border-[#BCE1F1]/40 text-slate-700 italic text-[11px] mt-1">
-                "{workOrder.decisionRemarks}"
+              <div className="bg-white p-3 rounded-xl border border-[#BCE1F1]/40 text-slate-700 italic text-[11px] mt-1 flex items-start gap-2">
+                <Info size={14} className="text-[#0F7AB2] shrink-0 mt-0.5" />
+                <span>"{workOrder.decisionRemarks}"</span>
               </div>
             )}
           </div>
@@ -444,7 +501,7 @@ export default function WorkOrderDetailModal({
 
         {/* 6. FINALIZED MAINTENANCE RECEIPT (if available) */}
         {workOrder.maintenanceLog && (
-          <div className="bg-emerald-50/90 rounded-2xl p-4 border border-emerald-200/80 space-y-3 text-xs">
+          <div className="bg-emerald-50/90 rounded-2xl p-4.5 border border-emerald-200/80 shadow-2xs space-y-3 text-xs">
             <div className="flex items-center justify-between">
               <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
                 <ShieldCheck size={16} className="text-emerald-600" />
