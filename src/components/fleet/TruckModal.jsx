@@ -705,7 +705,7 @@ export default function TruckModal({
 
             <div className="space-y-2.5">
               {/* Category 1: Safety & Inspections */}
-              <div className="bg-[#E8F3F8]/70 hover:bg-[#E8F3F8] p-3 rounded-2xl border border-[#BCE1F1]/70 shadow-2xs flex items-center justify-between gap-2 transition-all">
+              <div className="p-3 rounded-2xl border border-slate-200/90 hover:border-slate-300 bg-white hover:bg-slate-50/60 shadow-2xs flex items-center justify-between gap-2 transition-all">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] min-w-0 pr-1">
                   <ShieldCheck size={16} className="text-[#0A4B6E] shrink-0" />
                   <span className="truncate">Safety & Inspections</span>
@@ -739,7 +739,7 @@ export default function TruckModal({
               </div>
 
               {/* Category 2: Incidents & Roadside */}
-              <div className="bg-[#E8F3F8]/70 hover:bg-[#E8F3F8] p-3 rounded-2xl border border-[#BCE1F1]/70 shadow-2xs flex items-center justify-between gap-2 transition-all">
+              <div className="p-3 rounded-2xl border border-slate-200/90 hover:border-slate-300 bg-white hover:bg-slate-50/60 shadow-2xs flex items-center justify-between gap-2 transition-all">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 min-w-0 pr-1">
                   <AlertTriangle size={16} className="text-amber-600 shrink-0" />
                   <span className="truncate">Incidents & Breakdowns</span>
@@ -773,7 +773,7 @@ export default function TruckModal({
               </div>
 
               {/* Category 3: Mileage & Odometer */}
-              <div className="bg-[#E8F3F8]/70 hover:bg-[#E8F3F8] p-3 rounded-2xl border border-[#BCE1F1]/70 shadow-2xs flex items-center justify-between gap-2 transition-all">
+              <div className="p-3 rounded-2xl border border-slate-200/90 hover:border-slate-300 bg-white hover:bg-slate-50/60 shadow-2xs flex items-center justify-between gap-2 transition-all">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] min-w-0 pr-1">
                   <Gauge size={16} className="text-[#0A4B6E] shrink-0" />
                   <span className="truncate">Mileage & Odometer</span>
@@ -807,7 +807,7 @@ export default function TruckModal({
               </div>
 
               {/* Category 4: Maintenance & Operational Condition */}
-              <div className="bg-[#E8F3F8]/70 hover:bg-[#E8F3F8] p-3 rounded-2xl border border-[#BCE1F1]/70 shadow-2xs flex items-center justify-between gap-2 transition-all">
+              <div className="p-3 rounded-2xl border border-slate-200/90 hover:border-slate-300 bg-white hover:bg-slate-50/60 shadow-2xs flex items-center justify-between gap-2 transition-all">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] min-w-0 pr-1">
                   <Wrench size={16} className="text-[#0A4B6E] shrink-0" />
                   <span className="truncate">Maintenance & Condition</span>
