@@ -1,5 +1,5 @@
 // src/components/fleet/TruckModal.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Truck,
   Pencil,
@@ -115,6 +115,7 @@ export default function TruckModal({
   onAdd,
   isAdding = false,
   trucks = [],
+  workOrders = [],
   availableDrivers = [],
   allDrivers = [],
   canManage = true,
@@ -126,6 +127,7 @@ export default function TruckModal({
   onOpenInspectionHistory,
   onOpenIncidentHistory,
   onCreateWorkOrder,
+  onOpenWorkOrderDetail,
 }) {
   const [isEditing, setIsEditing] = useState(isAdding);
   const [step, setStep] = useState(1);
@@ -134,6 +136,22 @@ export default function TruckModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState(() => getInitialFormData(truck));
+
+  // Find active work order for this truck
+  const activeWorkOrder = useMemo(() => {
+    if (!truck || !workOrders || workOrders.length === 0) return null;
+    const truckId = truck.id || truck.truckId;
+    const plate = truck.plateNumber;
+    return workOrders.find(
+      (wo) =>
+        (wo.truckId === truckId ||
+          wo.truck?.id === truckId ||
+          wo.plateNumber === plate ||
+          wo.truck?.plateNumber === plate) &&
+        wo.status !== "COMPLETED" &&
+        wo.status !== "CANCELLED"
+    );
+  }, [truck, workOrders]);
 
   useEffect(() => {
     if (truck && !isEditing) {
@@ -652,10 +670,38 @@ export default function TruckModal({
                 </p>
               )}
 
-              {displayTruck.activeRepair && (
-                <div className="bg-rose-50 text-[#C93B32] p-2 rounded-xl text-xs font-medium border border-rose-200 mt-1">
-                  <span className="font-bold">Active Repair:</span>{" "}
-                  {displayTruck.activeRepair}
+              {(activeWorkOrder || displayTruck.activeRepair) && (
+                <div
+                  onClick={() =>
+                    activeWorkOrder &&
+                    onOpenWorkOrderDetail &&
+                    onOpenWorkOrderDetail(activeWorkOrder)
+                  }
+                  className={`bg-rose-50 text-[#C93B32] p-2.5 rounded-xl text-xs font-medium border border-rose-200 mt-1 flex items-center justify-between ${
+                    activeWorkOrder && onOpenWorkOrderDetail
+                      ? "cursor-pointer hover:bg-rose-100/90 transition-colors"
+                      : ""
+                  }`}
+                  title={
+                    activeWorkOrder
+                      ? "Click to view current work order details"
+                      : undefined
+                  }
+                >
+                  <div className="min-w-0 pr-2 truncate">
+                    <span className="font-bold">Active Repair:</span>{" "}
+                    <span>
+                      {activeWorkOrder
+                        ? activeWorkOrder.description ||
+                          `WO #${activeWorkOrder.workOrderNumber || (activeWorkOrder.id?.startsWith("wo-") ? activeWorkOrder.id.toUpperCase() : activeWorkOrder.id?.slice(0, 8))}`
+                        : displayTruck.activeRepair}
+                    </span>
+                  </div>
+                  {activeWorkOrder && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-rose-200/80 text-rose-900 rounded-full uppercase shrink-0">
+                      {activeWorkOrder.status.replace("_", " ")}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -672,19 +718,34 @@ export default function TruckModal({
                       Vehicle Grounded
                     </p>
                     <p className="text-[10.5px] text-rose-700 truncate">
-                      Under maintenance. Driver retained.
+                      {activeWorkOrder
+                        ? `Under repair (${activeWorkOrder.status.replace("_", " ")})`
+                        : "Under maintenance. Driver retained."}
                     </p>
                   </div>
                 </div>
-                {onCreateWorkOrder && canManage && (
-                  <button
-                    type="button"
-                    onClick={() => onCreateWorkOrder(displayTruck)}
-                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] px-3 py-1 rounded-full shrink-0 transition flex items-center gap-1 cursor-pointer shadow-2xs"
-                  >
-                    <Wrench size={12} />
-                    <span>Work Order</span>
-                  </button>
+                {canManage && (
+                  activeWorkOrder && onOpenWorkOrderDetail ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenWorkOrderDetail(activeWorkOrder)}
+                      className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] px-3 py-1 rounded-full shrink-0 transition flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
+                      title="View Current Work Order"
+                    >
+                      <Wrench size={12} />
+                      <span>Work Order</span>
+                    </button>
+                  ) : onCreateWorkOrder ? (
+                    <button
+                      type="button"
+                      onClick={() => onCreateWorkOrder(displayTruck)}
+                      className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] px-3 py-1 rounded-full shrink-0 transition flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
+                      title="Create Work Order"
+                    >
+                      <Wrench size={12} />
+                      <span>Work Order</span>
+                    </button>
+                  ) : null
                 )}
               </div>
             )}
@@ -813,16 +874,28 @@ export default function TruckModal({
                   <span className="truncate">Maintenance & Condition</span>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5 w-[205px] shrink-0">
-                  {onCreateWorkOrder && canManage && (
-                    <button
-                      type="button"
-                      onClick={() => onCreateWorkOrder(displayTruck)}
-                      className="w-full h-7.5 flex items-center justify-center gap-1 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold rounded-full px-1.5 text-[11px] transition-all shadow-2xs cursor-pointer active:scale-95"
-                      title="Create Work Order"
-                    >
-                      <Wrench size={12} className="shrink-0" />
-                      <span className="truncate">Work Order</span>
-                    </button>
+                  {canManage && (
+                    activeWorkOrder && onOpenWorkOrderDetail ? (
+                      <button
+                        type="button"
+                        onClick={() => onOpenWorkOrderDetail(activeWorkOrder)}
+                        className="w-full h-7.5 flex items-center justify-center gap-1 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold rounded-full px-1.5 text-[11px] transition-all shadow-2xs cursor-pointer active:scale-95"
+                        title={`View Active Work Order: ${activeWorkOrder.workOrderNumber || activeWorkOrder.id}`}
+                      >
+                        <Wrench size={12} className="shrink-0" />
+                        <span className="truncate">Work Order</span>
+                      </button>
+                    ) : onCreateWorkOrder ? (
+                      <button
+                        type="button"
+                        onClick={() => onCreateWorkOrder(displayTruck)}
+                        className="w-full h-7.5 flex items-center justify-center gap-1 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold rounded-full px-1.5 text-[11px] transition-all shadow-2xs cursor-pointer active:scale-95"
+                        title="Create Work Order"
+                      >
+                        <Wrench size={12} className="shrink-0" />
+                        <span className="truncate">Work Order</span>
+                      </button>
+                    ) : null
                   )}
                   {onOpenAvailability && canManage && (
                     <button

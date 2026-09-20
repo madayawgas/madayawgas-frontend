@@ -979,6 +979,9 @@ export default function Fleet() {
           truckForHistory ||
           truckForAvailability ||
           isCreatingWorkOrder ||
+          workOrderForDetail ||
+          workOrderForApproval ||
+          workOrderForFinalize ||
           truckToDelete ||
           showDeletePasswordModal ||
           showReactivatePasswordModal
@@ -986,6 +989,7 @@ export default function Fleet() {
           <TruckModal
             truck={selectedTruck}
             trucks={trucks}
+            workOrders={workOrders}
             availableDrivers={availableDrivers}
             allDrivers={allDrivers}
             canManage={canManage}
@@ -1007,6 +1011,7 @@ export default function Fleet() {
               setShowIncidentHistoryModal(true);
             }}
             onCreateWorkOrder={(truck) => handleOpenCreateWorkOrder(truck)}
+            onOpenWorkOrderDetail={(wo) => setWorkOrderForDetail(wo)}
           />
         )}
 
