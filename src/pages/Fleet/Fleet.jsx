@@ -738,17 +738,53 @@ export default function Fleet() {
   const handleAdvanceWorkOrderStatus = async (workOrderId, newStatus) => {
     try {
       const res = await fleetApi.updateWorkOrderStatus(workOrderId, { status: newStatus });
-      await refreshWorkOrders();
+      const updatedWo = res?.data?.workOrder || { id: workOrderId, status: newStatus };
+
+      // Update workOrderForDetail in place so open drawer immediately reflects new status
+      setWorkOrderForDetail((prev) => {
+        if (!prev) return null;
+        if (prev.id === workOrderId || prev.workOrderId === workOrderId) {
+          return {
+            ...prev,
+            status: newStatus,
+            currentStatus: newStatus,
+            ...updatedWo,
+          };
+        }
+        return prev;
+      });
+
+      // Update selectedTruck in place so TruckModal reflects new activeWorkOrder status
+      setSelectedTruck((prev) => {
+        if (!prev) return null;
+        const targetWo = prev.activeWorkOrder;
+        if (targetWo && (targetWo.id === workOrderId || targetWo.workOrderId === workOrderId)) {
+          return {
+            ...prev,
+            activeWorkOrder: {
+              ...targetWo,
+              status: newStatus,
+              currentStatus: newStatus,
+              ...updatedWo,
+            },
+          };
+        }
+        return prev;
+      });
+
+      await Promise.all([refreshWorkOrders(), refreshTrucks()]);
       setToast({
         type: "success",
         message: res?.message || `Work order updated to ${newStatus}`,
       });
+      return updatedWo;
     } catch (err) {
       console.error("Failed to update work order status:", err);
       setToast({
         type: "error",
         message: err?.message || "Failed to advance work order status",
       });
+      throw err;
     }
   };
 

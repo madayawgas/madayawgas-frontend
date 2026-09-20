@@ -877,7 +877,7 @@ export default function TruckModal({
               {/* Category 2: Roadside Incidents */}
               <div className="bg-white hover:bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between gap-3 transition-colors shadow-2xs">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
                     <AlertTriangle size={16} />
                   </div>
                   <span className="font-bold text-[#0A4B6E] text-xs truncate">Roadside Incident</span>
@@ -887,7 +887,7 @@ export default function TruckModal({
                     <button
                       type="button"
                       onClick={() => onOpenIncident(displayTruck)}
-                      className="w-full h-8 flex items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-semibold rounded-full transition-all active:scale-95 cursor-pointer text-center"
+                      className="w-full h-8 flex items-center justify-center bg-[#0A4B6E] hover:bg-[#083b57] text-white text-xs font-semibold rounded-full shadow-2xs transition-all active:scale-95 cursor-pointer text-center"
                       title="Report Incident"
                     >
                       Report
@@ -956,7 +956,7 @@ export default function TruckModal({
                       <button
                         type="button"
                         onClick={() => onOpenWorkOrderDetail(activeWorkOrder)}
-                        className="w-full h-8 flex items-center justify-center bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] text-xs font-bold rounded-full shadow-2xs transition-all active:scale-95 cursor-pointer text-center"
+                        className="w-full h-8 flex items-center justify-center bg-[#0A4B6E] hover:bg-[#083b57] text-white text-xs font-semibold rounded-full shadow-2xs transition-all active:scale-95 cursor-pointer text-center"
                         title={`View Active Work Order: ${activeWorkOrder.workOrderNumber || activeWorkOrder.id}`}
                       >
                         Work Order
@@ -965,7 +965,7 @@ export default function TruckModal({
                       <button
                         type="button"
                         onClick={() => onCreateWorkOrder(displayTruck)}
-                        className="w-full h-8 flex items-center justify-center bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] text-xs font-bold rounded-full shadow-2xs transition-all active:scale-95 cursor-pointer text-center"
+                        className="w-full h-8 flex items-center justify-center bg-[#0A4B6E] hover:bg-[#083b57] text-white text-xs font-semibold rounded-full shadow-2xs transition-all active:scale-95 cursor-pointer text-center"
                         title="Create Work Order"
                       >
                         Work Order

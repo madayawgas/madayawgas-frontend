@@ -12,6 +12,23 @@ const SEVERITY_OPTIONS = [
 ];
 
 /**
+ * Timezone-safe date helper to format Date objects or ISO date strings to YYYY-MM-DD in local time.
+ */
+function toLocalDateString(dateInput) {
+  if (!dateInput) return "";
+  if (typeof dateInput === "string") {
+    const match = dateInput.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match && !dateInput.includes("T")) return match[1];
+  }
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return "";
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * FinalizeMaintenanceModal
  * Captures official receipt, final parts & labor costs, downtime, and serviced odometer.
  * Completes the work order, resets PM baseline if PREVENTIVE, and releases vehicle to ACTIVE status.
@@ -44,15 +61,14 @@ export default function FinalizeMaintenanceModal({
   // Initialize modal state on open
   useEffect(() => {
     if (isOpen && workOrder) {
-      const today = new Date().toISOString().split("T")[0];
-      const scheduled = workOrder.scheduledDate 
-        ? new Date(workOrder.scheduledDate).toISOString().split("T")[0]
-        : today;
+      const localToday = toLocalDateString(new Date());
+      const scheduled = toLocalDateString(workOrder.scheduledDate) || localToday;
+      const initialResolved = scheduled > localToday ? scheduled : localToday;
 
       setOfficialReceiptNumber("");
       setSeverity("MEDIUM");
-      setDateStarted(scheduled || today);
-      setDateResolved(today);
+      setDateStarted(scheduled);
+      setDateResolved(initialResolved);
       setPartsCost("");
       setLaborCost("");
       setDowntimeDays(1);
@@ -75,6 +91,25 @@ export default function FinalizeMaintenanceModal({
   const numericParts = parseFloat(partsCost) || 0;
   const numericLabor = parseFloat(laborCost) || 0;
   const totalCost = numericParts + numericLabor;
+
+  const handleDateStartedChange = (e) => {
+    const newStart = e.target.value;
+    setDateStarted(newStart);
+    if (dateResolved && newStart && dateResolved < newStart) {
+      setDateResolved(newStart);
+    }
+    if (error && error.includes("Resolution date")) {
+      setError("");
+    }
+  };
+
+  const handleDateResolvedChange = (e) => {
+    const newResolved = e.target.value;
+    setDateResolved(newResolved);
+    if (error && error.includes("Resolution date")) {
+      setError("");
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -254,7 +289,7 @@ export default function FinalizeMaintenanceModal({
                 type="date"
                 required
                 value={dateStarted}
-                onChange={(e) => setDateStarted(e.target.value)}
+                onChange={handleDateStartedChange}
                 className="w-full pl-9 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800"
               />
               <Calendar className="w-4 h-4 text-[#588094] absolute left-3 top-2.5" />
@@ -270,8 +305,9 @@ export default function FinalizeMaintenanceModal({
               <input
                 type="date"
                 required
+                min={dateStarted}
                 value={dateResolved}
-                onChange={(e) => setDateResolved(e.target.value)}
+                onChange={handleDateResolvedChange}
                 className="w-full pl-9 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800"
               />
               <Calendar className="w-4 h-4 text-[#588094] absolute left-3 top-2.5" />

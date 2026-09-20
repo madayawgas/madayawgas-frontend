@@ -40,14 +40,31 @@ export function canApproveWorkOrderCost(user, canFn) {
 export function checkActiveWorkOrder(truck, workOrders = []) {
   if (!truck) return { hasActiveWorkOrder: false, activeWorkOrder: null };
 
-  // 1. Direct explicit flags from backend / enriched truck object
-  if (truck.hasActiveWorkOrder) {
-    return {
-      hasActiveWorkOrder: true,
-      activeWorkOrder: truck.activeWorkOrder || null,
-    };
+  const truckId = truck.id || truck.truckId;
+  const plate = truck.plateNumber;
+
+  // 1. Check live workOrders collection FIRST (authoritative reactive state)
+  if (Array.isArray(workOrders) && workOrders.length > 0) {
+    const matchingOrders = workOrders.filter((wo) => {
+      const matchesId =
+        truckId && (wo.truckId === truckId || wo.truck?.id === truckId);
+      const matchesPlate =
+        plate && (wo.plateNumber === plate || wo.truck?.plateNumber === plate);
+      return Boolean(matchesId || matchesPlate);
+    });
+
+    if (matchingOrders.length > 0) {
+      const activeOrder = matchingOrders.find(
+        (wo) => !["COMPLETED", "CANCELLED"].includes(wo.status)
+      );
+      return {
+        hasActiveWorkOrder: Boolean(activeOrder),
+        activeWorkOrder: activeOrder || null,
+      };
+    }
   }
 
+  // 2. Fallback: inspect direct explicit flags from backend / enriched truck object
   if (
     truck.activeWorkOrder &&
     !["COMPLETED", "CANCELLED"].includes(truck.activeWorkOrder.status)
@@ -58,23 +75,11 @@ export function checkActiveWorkOrder(truck, workOrders = []) {
     };
   }
 
-  // 2. Check workOrders collection if available
-  const truckId = truck.id || truck.truckId;
-  const plate = truck.plateNumber;
-
-  if (Array.isArray(workOrders) && workOrders.length > 0) {
-    const found = workOrders.find((wo) => {
-      const matchesId =
-        truckId && (wo.truckId === truckId || wo.truck?.id === truckId);
-      const matchesPlate =
-        plate && (wo.plateNumber === plate || wo.truck?.plateNumber === plate);
-      const isOpen = !["COMPLETED", "CANCELLED"].includes(wo.status);
-      return (matchesId || matchesPlate) && isOpen;
-    });
-
-    if (found) {
-      return { hasActiveWorkOrder: true, activeWorkOrder: found };
-    }
+  if (truck.hasActiveWorkOrder && truck.activeWorkOrder) {
+    return {
+      hasActiveWorkOrder: true,
+      activeWorkOrder: truck.activeWorkOrder,
+    };
   }
 
   // 3. Fallback: inspect activeRepair string if it references an ongoing work order

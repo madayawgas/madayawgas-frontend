@@ -1,4 +1,5 @@
 // src/components/fleet/work-orders/WorkOrderDetailModal.jsx
+import { useState } from "react";
 import {
   Wrench,
   Truck,
@@ -99,6 +100,7 @@ export default function WorkOrderDetailModal({
   onAdvanceStatus,
 }) {
   const { currentUser, can } = useAuth();
+  const [isAdvancing, setIsAdvancing] = useState(false);
 
   if (!isOpen || !workOrder) return null;
 
@@ -227,14 +229,21 @@ export default function WorkOrderDetailModal({
           {workOrder.status === "SCHEDULED" && canManageFleet && onAdvanceStatus && (
             <button
               type="button"
-              onClick={() => {
-                closeDrawer();
-                onAdvanceStatus(workOrder.id, "IN_PROGRESS");
+              disabled={isAdvancing}
+              onClick={async () => {
+                try {
+                  setIsAdvancing(true);
+                  await onAdvanceStatus(workOrder.id, "IN_PROGRESS");
+                } catch (err) {
+                  console.error("Failed to advance work order:", err);
+                } finally {
+                  setIsAdvancing(false);
+                }
               }}
-              className="flex-1 py-3 px-5 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-[#0A4B6E] hover:bg-[#083b57] text-[#FFDF2C] flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95"
+              className="flex-1 py-3 px-5 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-[#0A4B6E] hover:bg-[#083b57] text-[#FFDF2C] flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
             >
               <Play size={15} className="fill-current text-[#FFDF2C]" />
-              <span>Start Repair</span>
+              <span>{isAdvancing ? "Starting..." : "Start Repair"}</span>
             </button>
           )}
 

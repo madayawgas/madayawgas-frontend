@@ -6,6 +6,17 @@ import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 
 /**
+ * Helper to get today's calendar date in YYYY-MM-DD format based on local time.
+ */
+function getTodayDateString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * CreateWorkOrderModal
  * Creates manual work orders for preventive maintenance, corrective repairs, or accidents.
  * Matches the exact look, feel, and layout of Vehicle Return Odometer Check-In (OdometerCheckInModal).
@@ -18,20 +29,19 @@ export default function CreateWorkOrderModal({
   onClose,
   onSubmit,
 }) {
+  const todayStr = getTodayDateString();
   const [selectedTruckId, setSelectedTruckId] = useState(truck?.id || "");
   const [maintenanceTypes, setMaintenanceTypes] = useState([]);
   const [maintenanceTypeId, setMaintenanceTypeId] = useState("1");
   const [shopName, setShopName] = useState("Bunawan Heavy Repair Center");
   const [estimatedCost, setEstimatedCost] = useState("");
-  const [scheduledDate, setScheduledDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split("T")[0];
-  });
+  const [scheduledDate, setScheduledDate] = useState(() => getTodayDateString());
   const [description, setDescription] = useState("");
   const [isLoadingTypes, setIsLoadingTypes] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  const isPastDate = Boolean(scheduledDate && scheduledDate < todayStr);
 
   useEffect(() => {
     async function loadTypes() {
@@ -60,6 +70,13 @@ export default function CreateWorkOrderModal({
     }
   }, [isOpen, truck, trucks, selectedTruckId, maintenanceTypeId]);
 
+  useEffect(() => {
+    if (isOpen) {
+      setScheduledDate(getTodayDateString());
+      setError("");
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const currentTruck = truck || trucks.find((t) => t.id === selectedTruckId) || null;
@@ -72,10 +89,28 @@ export default function CreateWorkOrderModal({
     ? currentTruck.driverName
     : "No Assigned";
 
+  const handleDateChange = (e) => {
+    const val = e.target.value;
+    setScheduledDate(val);
+    if (val && val < todayStr) {
+      setError("Scheduled date cannot be in the past. Please select today or a future date.");
+    } else if (error && error.includes("Scheduled date")) {
+      setError("");
+    }
+  };
+
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     if (!selectedTruckId) {
       setError("Please select a target vehicle.");
+      return;
+    }
+    if (!scheduledDate) {
+      setError("Scheduled date is required.");
+      return;
+    }
+    if (scheduledDate < todayStr) {
+      setError("Scheduled date cannot be in the past. Please select today or a future date.");
       return;
     }
     if (!description.trim()) {
@@ -92,7 +127,9 @@ export default function CreateWorkOrderModal({
         maintenanceTypeId: Number(maintenanceTypeId),
         shopName: shopName.trim() || "Bunawan Heavy Repair Center",
         estimatedCost: numCost,
-        scheduledDate: scheduledDate ? new Date(scheduledDate).toISOString() : new Date().toISOString(),
+        scheduledDate: scheduledDate
+          ? new Date(`${scheduledDate}T08:00:00`).toISOString()
+          : new Date().toISOString(),
         description: description.trim(),
       };
 
@@ -106,6 +143,13 @@ export default function CreateWorkOrderModal({
     }
   };
 
+  const isSubmitDisabled =
+    isSubmitting ||
+    isLoadingTypes ||
+    !description.trim() ||
+    !scheduledDate ||
+    isPastDate;
+
   const footerContent = (
     <div className="w-full flex flex-col items-center">
       {error && (
@@ -116,7 +160,7 @@ export default function CreateWorkOrderModal({
       <Button
         type="button"
         variant="yellow"
-        disabled={isSubmitting || isLoadingTypes || !description.trim()}
+        disabled={isSubmitDisabled}
         onClick={handleSubmit}
         className="w-full font-bold text-sm uppercase tracking-wider mb-2"
       >
@@ -265,17 +309,36 @@ export default function CreateWorkOrderModal({
 
           <div>
             <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
-              Scheduled Date
+              Scheduled Date <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <input
                 type="date"
+                min={todayStr}
                 value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                className="w-full bg-[#F3F5F5] border border-gray-200 rounded-xl py-2 pl-9 pr-3 text-xs font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]"
+                onChange={handleDateChange}
+                className={`w-full bg-[#F3F5F5] border rounded-xl py-2 pl-9 pr-3 text-xs font-medium text-gray-800 focus:outline-none focus:ring-2 ${
+                  isPastDate
+                    ? "border-red-400 focus:ring-red-400 bg-red-50/20"
+                    : "border-gray-200 focus:ring-[#0A4B6E]"
+                }`}
               />
-              <Calendar size={15} className="absolute left-3 top-2.5 text-[#588094]" />
+              <Calendar
+                size={15}
+                className={`absolute left-3 top-2.5 ${
+                  isPastDate ? "text-red-500" : "text-[#588094]"
+                }`}
+              />
             </div>
+            {isPastDate ? (
+              <span className="text-[11px] text-red-600 font-medium mt-1 block">
+                Scheduled date cannot be in the past.
+              </span>
+            ) : (
+              <span className="text-[11px] text-[#588094] mt-1 block">
+                Defaults to today. Must be today or a future date.
+              </span>
+            )}
           </div>
         </div>
 
