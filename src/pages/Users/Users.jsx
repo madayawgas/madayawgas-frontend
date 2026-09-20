@@ -14,6 +14,7 @@ import SavedChangesToast from "../../components/ui/SavedChangesToast";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { usersApi } from "../../api/users.js";
 import { PERMISSIONS } from "../../utils/permissions.js";
+import { getUserRoleNames, formatUserRoles, hasUserRole } from "../../utils/userRoles.js";
 
 const LOCAL_STORAGE_KEY = "app_users_cache";
 
@@ -135,11 +136,11 @@ export default function Users() {
     let result = [...users];
 
     if (filters.role && filters.role !== "All Roles") {
-      result = result.filter(
-        (u) =>
-          (typeof u.role === "string" ? u.role : u.role?.name || "")
-            .toLowerCase() === filters.role.toLowerCase()
-      );
+      const target = filters.role.toLowerCase();
+      result = result.filter((u) => {
+        const uRoles = getUserRoleNames(u, "");
+        return uRoles.some((r) => r.toLowerCase() === target);
+      });
     }
 
     if (filters.status) {
@@ -179,8 +180,8 @@ export default function Users() {
         aVal = `${a.firstName || ""} ${a.lastName || ""}`.trim().toLowerCase();
         bVal = `${b.firstName || ""} ${b.lastName || ""}`.trim().toLowerCase();
       } else if (sortConfig.key === "role") {
-        aVal = (typeof a.role === "string" ? a.role : a.role?.name || "").toLowerCase();
-        bVal = (typeof b.role === "string" ? b.role : b.role?.name || "").toLowerCase();
+        aVal = formatUserRoles(a, "").toLowerCase();
+        bVal = formatUserRoles(b, "").toLowerCase();
       } else if (sortConfig.key === "createdAt") {
         aVal = aVal ? new Date(aVal).getTime() : 0;
         bVal = bVal ? new Date(bVal).getTime() : 0;
@@ -357,21 +358,21 @@ export default function Users() {
 
   // Triggers warning confirmation modals first
   const handleInitiateDeactivate = (targetUser) => {
-    if (!targetUser || targetUser.role === "Super Admin") return;
+    if (!targetUser || hasUserRole(targetUser, "Super Admin")) return;
     setUserToDeactivate(targetUser);
     setPendingAction("DEACTIVATE");
     setShowPasswordModal(false);
   };
 
   const handleInitiateReactivate = (targetUser) => {
-    if (!targetUser || targetUser.role === "Super Admin") return;
+    if (!targetUser || hasUserRole(targetUser, "Super Admin")) return;
     setUserToReactivate(targetUser);
     setPendingAction("REACTIVATE");
     setShowPasswordModal(false);
   };
 
   const handleInitiateResetPassword = (targetUser) => {
-    if (!targetUser || targetUser.role === "Super Admin") return;
+    if (!targetUser || hasUserRole(targetUser, "Super Admin")) return;
     setUserToResetPassword(targetUser);
     setPendingAction("RESET_PASSWORD");
     setShowPasswordModal(false);
@@ -474,6 +475,7 @@ export default function Users() {
           onApplyFilters={setFilters}
           onClearRole={() => setFilters((prev) => ({ ...prev, role: "All Roles" }))}
           onClearStatus={() => setFilters((prev) => ({ ...prev, status: "" }))}
+          roles={roles}
         />
       </div>
 

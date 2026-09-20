@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { usersApi } from "../../api/users.js";
 import { authApi } from "../../api/auth.js";
+import { getUserRoleNames, hasUserRole } from "../../utils/userRoles.js";
 import {
   UserRound,
   Eye,
@@ -220,7 +221,8 @@ export default function Profile() {
   const displayPhone = formatPhilippinePhone(formData.phone) || "N/A";
   const displayBirthday = formData.birthdate || "N/A";
   const displayUsername = formData.username || "adoe_admin";
-  const roleName = typeof currentUser?.role === "string" ? currentUser.role : currentUser?.role?.name || "Super Admin";
+  const userRoles = getUserRoleNames(currentUser, "Super Admin");
+  const isSuperAdmin = hasUserRole(currentUser, "Super Admin");
 
   return (
     <div className="p-6 md:p-8">
@@ -330,7 +332,11 @@ export default function Profile() {
 
               {/* Badges Row */}
               <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
-                <Badge variant="roles">{roleName}</Badge>
+                {userRoles.map((role, idx) => (
+                  <Badge key={`profile-role-${idx}`} variant="roles">
+                    {role}
+                  </Badge>
+                ))}
                 <Badge variant="success">ACTIVE</Badge>
               </div>
             </div>
@@ -340,7 +346,7 @@ export default function Profile() {
               <div className="flex justify-between items-center">
                 <span className="text-[#6D8AA2] font-medium">System Access:</span>
                 <span className="font-bold text-[#0A4B6E]">
-                  {roleName === "Super Admin" ? "Full Admin Control" : "Role-Scoped"}
+                  {isSuperAdmin ? "Full Admin Control" : "Role-Scoped"}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -504,10 +510,14 @@ export default function Profile() {
                   {/* Role */}
                   <div>
                     <span className="text-[11px] font-semibold text-[#6D8AA2] uppercase tracking-wider block mb-1">
-                      Assigned Role
+                      {userRoles.length > 1 ? "Assigned Roles" : "Assigned Role"}
                     </span>
-                    <div className="pt-0.5">
-                      <Badge variant="roles">{roleName}</Badge>
+                    <div className="pt-0.5 flex flex-wrap items-center gap-1.5">
+                      {userRoles.map((role, idx) => (
+                        <Badge key={`profile-assigned-role-${idx}`} variant="roles">
+                          {role}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
                 </div>

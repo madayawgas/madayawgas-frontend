@@ -4,6 +4,7 @@ import UserFormStep from "./UserFormStep";
 import UserConfirmStep from "./UserConfirmStep";
 import UserSuccessStep from "./UserSuccessStep";
 import { toProperCase } from "../../utils/text.js";
+import { hasUserRole } from "../../utils/userRoles.js";
 import Modal from "../ui/Modal";
 
 export default function UserModal({
@@ -66,6 +67,10 @@ export default function UserModal({
           birthday: user.birthday || user.birthdate || "",
           contactNo: cleanPhone || "",
           role: user.role || defaultRole || "",
+          roles: user.roles || [],
+          roleNames: user.roleNames || [],
+          roleId: user.roleId || "",
+          roleIds: user.roleIds || [],
           username: user.username || "",
           status: currentStatus,
           isBlocked: isUserBlocked,
@@ -77,6 +82,10 @@ export default function UserModal({
           birthday: "",
           contactNo: "",
           role: defaultRole,
+          roles: [],
+          roleNames: [],
+          roleId: "",
+          roleIds: [],
           username: "",
           status: "ACTIVE",
           isBlocked: false,
@@ -85,7 +94,7 @@ export default function UserModal({
     }
   }, [isOpen, user, roles]);
 
-  if (!isOpen || user?.role === "Super Admin") return null;
+  if (!isOpen || hasUserRole(user, "Super Admin")) return null;
 
   const statuses = [
     { value: "ACTIVE", label: "ACTIVE", variant: "success" },

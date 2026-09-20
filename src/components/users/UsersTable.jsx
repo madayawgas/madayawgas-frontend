@@ -1,5 +1,6 @@
 import { UserRound, Phone, Calendar } from "lucide-react";
 import { formatPhilippinePhone } from "../../utils/phone.js";
+import { getUserRoleNames } from "../../utils/userRoles.js";
 import Badge from "../ui/Badge";
 
 function formatDate(dateStr) {
@@ -112,10 +113,7 @@ export default function UsersTable({
                   user.username?.charAt(0).toUpperCase() ||
                   "";
 
-                const roleName =
-                  typeof user.role === "string"
-                    ? user.role
-                    : user.role?.name || "User";
+                const userRoles = getUserRoleNames(user, "User");
 
                 const phoneVal =
                   user.phone || user.contactNumber || user.contactNo || "";
@@ -149,14 +147,19 @@ export default function UsersTable({
                       </div>
                     </td>
 
-                    {/* Role Badge */}
-                    <td className="py-3.5 px-3 md:px-4 whitespace-nowrap">
-                      <Badge
-                        variant="roles"
-                        className="text-[10px] px-2 py-0.5 whitespace-nowrap inline-flex items-center"
-                      >
-                        {roleName}
-                      </Badge>
+                    {/* Role Badges */}
+                    <td className="py-3.5 px-3 md:px-4">
+                      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                        {userRoles.map((role, idx) => (
+                          <Badge
+                            key={`${user.id || user.userId || "usr"}-role-${idx}`}
+                            variant="roles"
+                            className="text-[10px] px-2 py-0.5 whitespace-nowrap inline-flex items-center"
+                          >
+                            {role}
+                          </Badge>
+                        ))}
+                      </div>
                     </td>
 
                     {/* Contact Number */}

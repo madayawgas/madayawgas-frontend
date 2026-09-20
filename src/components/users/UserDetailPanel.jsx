@@ -1,6 +1,7 @@
 import { Pencil, Trash2, RotateCcw, KeyRound, UserRound } from "lucide-react";
 import Badge from "../ui/Badge";
 import { formatPhilippinePhone } from "../../utils/phone.js";
+import { getUserRoleNames, hasUserRole } from "../../utils/userRoles.js";
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -53,7 +54,7 @@ export default function UserDetailPanel({
   };
 
   const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username || "User Profile";
-  const roleName = typeof user.role === "string" ? user.role : user.role?.name || "Driver";
+  const userRoles = getUserRoleNames(user, "Driver");
 
   return (
     <div className="w-full h-full bg-white border border-[#0A4B6E]/30 rounded-3xl p-6 shadow-sm flex flex-col justify-between overflow-hidden">
@@ -81,7 +82,7 @@ export default function UserDetailPanel({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {canManage && user.role !== "Super Admin" && (
+            {canManage && !hasUserRole(user, "Super Admin") && (
               <>
                 <button
                   type="button"
@@ -127,11 +128,17 @@ export default function UserDetailPanel({
 
         {/* 2. Role & Status Card */}
         <div className="bg-[#E8F3F8] rounded-2xl p-4 space-y-2.5 mb-4 text-sm">
-          <div className="flex items-center">
-            <span className="text-[#6D8AA2] font-medium">Role:</span>
-            <span className="text-[#0A4B6E] font-bold ml-2">
-              <Badge variant="roles">{roleName}</Badge>
+          <div className="flex items-start">
+            <span className="text-[#6D8AA2] font-medium pt-0.5 mr-2 shrink-0">
+              {userRoles.length > 1 ? "Roles:" : "Role:"}
             </span>
+            <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+              {userRoles.map((role, idx) => (
+                <Badge key={`detail-role-${idx}`} variant="roles">
+                  {role}
+                </Badge>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center">

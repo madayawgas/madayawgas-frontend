@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Funnel } from "lucide-react";
 import Button from "../ui/Button";
 import StatusFilterGroup from "./StatusFilterGroup";
@@ -9,6 +9,7 @@ export default function FilterRole({
   label = "Filter Roles",
   onApply,
   className = "",
+  roles = [],
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("ACTIVE");
@@ -18,15 +19,23 @@ export default function FilterRole({
 
   const dropdownRef = useRef(null);
 
-  const rolesList = [
-    "All Roles",
-    "Super Admin",
-    "Admin",
-    "Fleet Manager",
-    "Driver",
-    "Sales Manager",
-    "Sales Person",
-  ];
+  const rolesList = useMemo(() => {
+    const defaultRoles = [
+      "All Roles",
+      "Super Admin",
+      "Admin",
+      "Fleet Manager",
+      "Driver",
+      "Sales Manager",
+      "Sales Person",
+      "Sales Supervisor",
+      "Logistics Supervisor",
+    ];
+    const fromProps = (roles || [])
+      .map((r) => (typeof r === "string" ? r : r?.name))
+      .filter(Boolean);
+    return Array.from(new Set([...defaultRoles, ...fromProps]));
+  }, [roles]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {

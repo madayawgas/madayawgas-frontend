@@ -9,6 +9,7 @@ export default function UsersControls({
   onApplyFilters,
   onClearRole,
   onClearStatus,
+  roles = [],
 }) {
   return (
     <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-6">
@@ -29,7 +30,7 @@ export default function UsersControls({
           onClearStatus={onClearStatus}
         />
 
-        <FilterRole onApply={onApplyFilters} />
+        <FilterRole onApply={onApplyFilters} roles={roles} />
       </div>
     </div>
   );

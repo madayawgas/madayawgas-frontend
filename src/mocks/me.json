@@ -10,6 +10,16 @@
       "birthdate": null,
       "role": "Super Admin",
       "roleId": "d710521e-2549-43dd-a890-470fc0988ef8",
+      "roles": [
+        {
+          "id": "d710521e-2549-43dd-a890-470fc0988ef8",
+          "name": "Super Admin",
+          "isPrimary": true
+        }
+      ],
+      "roleNames": [
+        "Super Admin"
+      ],
       "isActive": true,
       "isBlocked": false,
       "mustChangePassword": false,

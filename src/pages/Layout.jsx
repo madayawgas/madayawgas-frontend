@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet, NavLink, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../utils/permissions.js";
+import { formatUserRoles } from "../utils/userRoles.js";
 import {
   LayoutDashboard,
   Truck,
@@ -223,8 +224,8 @@ export default function Layout() {
                   ? `${currentUser.firstName} ${currentUser.lastName}`
                   : "Super Admin"}
               </p>
-              <div className="text-[12px] md:text-[14px] font-medium opacity-90 tracking-wide text-[#FFDF2C]">
-                {currentUser?.role || "Super Admin"}
+              <div className="text-[12px] md:text-[14px] font-medium opacity-90 tracking-wide text-[#FFDF2C] truncate max-w-[280px] md:max-w-[400px]">
+                {formatUserRoles(currentUser, "Super Admin")}
               </div>
             </div>
           </div>

@@ -1,5 +1,6 @@
 // src/utils/fleetGuards.js
 import { PERMISSIONS } from "./permissions.js";
+import { getUserRoleNames } from "./userRoles.js";
 
 export const ACTIVE_RESTRICTED_TOOLTIP =
   "Cannot set to Active while Work Order is in progress";
@@ -18,8 +19,8 @@ export const ACTIVE_RESTRICTED_ERROR =
  */
 export function canApproveWorkOrderCost(user, canFn) {
   if (!user) return false;
-  const role = (user.role || "").toUpperCase();
-  const isAdminRole = role.includes("ADMIN");
+  const userRoles = getUserRoleNames(user, "");
+  const isAdminRole = userRoles.some((r) => r.toUpperCase().includes("ADMIN"));
   const hasManagePermission = Boolean(
     canFn
       ? canFn(PERMISSIONS?.USERS_MANAGE || "users.manage")

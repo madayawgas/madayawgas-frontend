@@ -1,7 +1,7 @@
-// src/components/users/UserConfirmStep.jsx
 import { UserRound, AlertCircle, Shield, Phone, Calendar, CheckCircle2 } from "lucide-react";
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
+import { getUserRoleNames } from "../../utils/userRoles.js";
 
 export default function UserConfirmStep({
   formData,
@@ -10,6 +10,7 @@ export default function UserConfirmStep({
   isSubmitting = false,
   submitError = "",
 }) {
+  const userRoles = getUserRoleNames(formData, safeRole || "User");
   return (
     <div className="space-y-4">
       {submitError && (
@@ -35,9 +36,13 @@ export default function UserConfirmStep({
             </div>
           </div>
 
-          <Badge variant="roles" className="shrink-0">
-            {safeRole}
-          </Badge>
+          <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 max-w-[50%]">
+            {userRoles.map((role, idx) => (
+              <Badge key={`confirm-role-${idx}`} variant="roles" className="shrink-0">
+                {role}
+              </Badge>
+            ))}
+          </div>
         </div>
 
         {/* Detailed User Attributes */}
@@ -62,9 +67,9 @@ export default function UserConfirmStep({
 
           <div className="bg-white/80 p-3 rounded-xl border border-[#BCE1F1]/40 space-y-1">
             <span className="text-[#6D8AA2] font-semibold flex items-center gap-1.5">
-              <Shield size={13} /> Role Privileges
+              <Shield size={13} /> {userRoles.length > 1 ? "Role Privileges" : "Role Privilege"}
             </span>
-            <p className="font-bold text-[#0A4B6E] text-sm">{safeRole}</p>
+            <p className="font-bold text-[#0A4B6E] text-sm">{userRoles.join(", ")}</p>
           </div>
 
           <div className="bg-white/80 p-3 rounded-xl border border-[#BCE1F1]/40 space-y-1">

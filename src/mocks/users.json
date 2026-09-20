@@ -144,6 +144,50 @@
         "createdAt": "2026-08-25T09:30:00.000Z"
       },
       {
+        "id": "5752c002-125c-42ae-9bc6-e78fffeaa583",
+        "username": "sdoe",
+        "firstName": "Samantha",
+        "lastName": "Doe",
+        "phone": "+639171234588",
+        "birthdate": "1992-04-10",
+        "role": "Sales Supervisor",
+        "roleId": "5752c002-125c-42ae-9bc6-e78fffeaa583",
+        "roles": [
+          {
+            "id": "5752c002-125c-42ae-9bc6-e78fffeaa583",
+            "name": "Sales Supervisor",
+            "isPrimary": true
+          },
+          {
+            "id": "f2fef090-ffb9-47ff-b52e-6d9b4c4897f2",
+            "name": "Logistics Supervisor",
+            "isPrimary": false
+          }
+        ],
+        "roleNames": [
+          "Sales Supervisor",
+          "Logistics Supervisor"
+        ],
+        "isActive": true,
+        "isBlocked": false,
+        "mustChangePassword": false,
+        "permissions": [
+          "dashboard.view",
+          "fleet.view",
+          "fleet.manage",
+          "route.view",
+          "route.manage",
+          "inventory.view",
+          "inventory.manage",
+          "sales.view",
+          "sales.create",
+          "sales.update",
+          "delivery.view",
+          "delivery.update"
+        ],
+        "createdAt": "2026-08-25T09:35:00.000Z"
+      },
+      {
         "id": "d1111111-aaaa-bbbb-cccc-111111111111",
         "username": "jdriver",
         "firstName": "Juan",

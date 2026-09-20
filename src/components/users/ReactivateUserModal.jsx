@@ -1,7 +1,8 @@
 import Button from "../ui/Button";
+import { hasUserRole } from "../../utils/userRoles.js";
 
 export default function ReactivateUserModal({ user, onClose, onConfirm }) {
-  if (!user || user?.role === "Super Admin") return null;
+  if (!user || hasUserRole(user, "Super Admin")) return null;
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">

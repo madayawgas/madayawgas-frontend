@@ -1,8 +1,8 @@
-// src/components/users/UserSuccessStep.jsx
 import { useState } from "react";
 import { Check, Copy, CheckCircle2, KeyRound, Shield, UserRound } from "lucide-react";
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
+import { getUserRoleNames } from "../../utils/userRoles.js";
 
 export default function UserSuccessStep({
   formData,
@@ -11,6 +11,7 @@ export default function UserSuccessStep({
   temporaryPassword,
   onDone,
 }) {
+  const userRoles = getUserRoleNames(formData, safeRole || "User");
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -39,9 +40,13 @@ export default function UserSuccessStep({
             </div>
           </div>
 
-          <Badge variant="roles" className="shrink-0">
-            {safeRole}
-          </Badge>
+          <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 max-w-[50%]">
+            {userRoles.map((role, idx) => (
+              <Badge key={`success-role-${idx}`} variant="roles" className="shrink-0">
+                {role}
+              </Badge>
+            ))}
+          </div>
         </div>
 
         {/* Credentials Breakdown */}

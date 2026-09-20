@@ -9,11 +9,11 @@ import { fleetApi } from "../../api/fleet.js";
 import mockSales from "../../mocks/sales.json";
 import bgHeader from "../../assets/BG-Madayaw5.png";
 import { Truck, Wrench } from "lucide-react";
+import { hasUserRole } from "../../utils/userRoles.js";
 
 export default function Dashboard() {
   const { currentUser } = useAuth();
-  const isSuperAdmin =
-    (currentUser?.role || "").trim().toLowerCase() === "super admin";
+  const isSuperAdmin = hasUserRole(currentUser, "Super Admin");
 
   const [metrics, setMetrics] = useState({
     grossIncome: 1285000,
