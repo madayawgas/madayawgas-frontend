@@ -171,7 +171,7 @@ export default function WorkOrderTable({
                           </button>
                         )}
 
-                        {wo.status === "SCHEDULED" && canManageFleet && onAdvanceStatus && (
+                        {(wo.status === "APPROVED" || wo.status === "SCHEDULED") && canManageFleet && onAdvanceStatus && (
                           <button
                             type="button"
                             onClick={() => onAdvanceStatus(wo.id, "IN_PROGRESS")}

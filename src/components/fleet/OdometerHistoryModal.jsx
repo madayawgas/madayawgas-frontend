@@ -154,7 +154,7 @@ export default function OdometerHistoryModal({
     >
       <div className="space-y-4">
         {/* VEHICLE STATS BANNER */}
-        <div className="bg-[#BAE6FD]/40 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 border border-[#0A4B6E]/15">
+        <div className="bg-[#E8F3F8] rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 border border-[#BCE1F1]/60">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#0A4B6E] text-white flex items-center justify-center shrink-0">
               <Gauge size={20} />

@@ -625,7 +625,7 @@ export default function TruckModal({
                 </span>
               </div>
 
-              <div className="w-full h-2 bg-[#BAE6FD]/80 rounded-full overflow-hidden mb-2">
+              <div className="w-full h-2 bg-slate-100 border border-slate-200/60 rounded-full overflow-hidden mb-2">
                 <div
                   className={`h-full rounded-full transition-all duration-300 ${
                     isPmDue

@@ -129,7 +129,7 @@ export default function SetAvailabilityModal({
     >
       <div className="space-y-4 text-left py-1 text-xs">
         {/* VEHICLE CONTEXT BANNER */}
-        <div className="bg-[#BAE6FD]/40 rounded-xl p-3.5 flex items-center justify-between border border-[#0A4B6E]/15">
+        <div className="bg-[#E8F3F8] rounded-xl p-3.5 flex items-center justify-between border border-[#BCE1F1]/60">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#0A4B6E] text-white flex items-center justify-center shrink-0 shadow-xs">
               <Truck size={20} className="text-[#FFDF2C]" />
@@ -222,7 +222,7 @@ export default function SetAvailabilityModal({
         </div>
 
         {/* CONDITION IMPACT & SOFT-BINDING HELPER CARD */}
-        <div className="bg-[#BAE6FD]/30 border border-[#0A4B6E]/20 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-[#0A4B6E]">
+        <div className="bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-[#0A4B6E]">
           <Info size={16} className="shrink-0 mt-0.5 text-[#0F7AB2]" />
           <div className="leading-relaxed">
             {status === "ACTIVE" ? (
