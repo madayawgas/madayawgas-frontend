@@ -217,7 +217,7 @@ export default function TruckModal({
     const raw = val.replace(/[^A-Z0-9]/g, "");
 
     const letters = raw.slice(0, 3).replace(/[^A-Z]/g, "");
-    const numbers = raw.slice(3, 6).replace(/[^0-9]/g, "");
+    const numbers = raw.slice(3, 7).replace(/[^0-9]/g, "");
 
     let formatted = letters;
     if (raw.length > 3 || (letters.length === 3 && val.length > 3)) {
@@ -227,7 +227,7 @@ export default function TruckModal({
     handleInputChange({
       target: {
         name: "plateNumber",
-        value: formatted.slice(0, 7),
+        value: formatted.slice(0, 8),
       },
     });
   };
@@ -235,12 +235,12 @@ export default function TruckModal({
   const validate = () => {
     const newErrors = {};
 
-    const plateRegex = /^[A-Z]{3}-\d{3}$/;
+    const plateRegex = /^[A-Z]{3}-\d{3,4}$/;
     if (!formData.plateNumber || !formData.plateNumber.toString().trim()) {
       newErrors.plateNumber = "Plate number is required";
     } else if (!plateRegex.test(formData.plateNumber)) {
       newErrors.plateNumber =
-        "Plate number must be in ABC-123 format (3 letters, hyphen, 3 digits)";
+        "Plate number must be in ABC-123 or ABC-1234 format (3 letters, hyphen, 3 or 4 digits)";
     } else {
       const plateExists = trucks.find(
         (t) =>
@@ -1151,8 +1151,8 @@ export default function TruckModal({
                 type="text"
                 required
                 name="plateNumber"
-                placeholder="ABC-123"
-                maxLength={7}
+                placeholder="ABC-1234"
+                maxLength={8}
                 value={formData.plateNumber || ""}
                 onChange={handlePlateNumberChange}
                 className={`w-full bg-white text-slate-800 font-mono font-bold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all placeholder:text-slate-400 ${
