@@ -1,5 +1,5 @@
 // src/components/fleet/analytics/RecurringIssuesAnalytics.jsx
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, Fragment } from "react";
 import {
   AlertOctagon,
   AlertTriangle,
@@ -7,14 +7,16 @@ import {
   Wrench,
   Truck,
   RotateCcw,
-  Calendar,
-  Filter,
   CheckCircle2,
-  ChevronRight,
-  TrendingUp,
+  ChevronDown,
+  ChevronUp,
+  SlidersHorizontal,
+  Search,
+  FileText,
 } from "lucide-react";
 import { fleetApi } from "../../../api/fleet.js";
-import Button from "../../ui/Button";
+import Badge from "../../ui/Badge";
+import SearchBar from "../../ui/SearchBar";
 
 const LOOKBACK_OPTIONS = [
   { value: 30, label: "Last 30 Days" },
@@ -23,17 +25,39 @@ const LOOKBACK_OPTIONS = [
   { value: 180, label: "Last 180 Days" },
 ];
 
-const SEVERITY_COLORS = {
-  LOW: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  MEDIUM: "bg-amber-50 text-amber-700 border-amber-200",
-  HIGH: "bg-orange-50 text-orange-700 border-orange-200",
-  CRITICAL: "bg-red-50 text-red-700 border-red-200",
+function formatDate(dateStr) {
+  if (!dateStr) return "-";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch {
+    return dateStr;
+  }
+}
+
+const getSeverityBadgeVariant = (severity) => {
+  const normalized = (severity || "").toUpperCase();
+  switch (normalized) {
+    case "CRITICAL":
+      return "danger";
+    case "HIGH":
+      return "warning";
+    case "MEDIUM":
+      return "roles";
+    case "LOW":
+      return "success";
+    default:
+      return "neutral";
+  }
 };
 
 /**
  * RecurringIssuesAnalytics
- * Fleet reliability intelligence surfacing repeated component failures
- * and high-frequency defects across vehicles over configurable time horizons.
+ * Fleet reliability and chronic defect intelligence adhering to Madayaw Gas UI standards.
  */
 export default function RecurringIssuesAnalytics({
   trucks = [],
@@ -42,9 +66,15 @@ export default function RecurringIssuesAnalytics({
   const [days, setDays] = useState(90);
   const [minOccurrences, setMinOccurrences] = useState(2);
   const [selectedTruckId, setSelectedTruckId] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [analyticsData, setAnalyticsData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [expandedRowId, setExpandedRowId] = useState(null);
+
+  const toggleRow = (id) => {
+    setExpandedRowId((prev) => (prev === id ? null : id));
+  };
 
   const fetchAnalytics = useCallback(async () => {
     try {
@@ -60,7 +90,7 @@ export default function RecurringIssuesAnalytics({
       const res = await fleetApi.getRecurringIssuesAnalytics(params);
       setAnalyticsData(res?.data?.recurringIssues || []);
     } catch (err) {
-      console.error("Failed to load recurring issues analytics:", err);
+      console.error("Failed to load recurring defect analytics:", err);
       setError("Unable to compute recurring defect analytics. Please try again.");
     } finally {
       setIsLoading(false);
@@ -80,7 +110,7 @@ export default function RecurringIssuesAnalytics({
     if (analyticsData.length === 0) return "None";
     const freqMap = {};
     analyticsData.forEach((item) => {
-      const type = item.incidentTypeName || "Other";
+      const type = (item.incidentTypeName || "Other").replace(/_/g, " ");
       freqMap[type] = (freqMap[type] || 0) + item.occurrenceCount;
     });
     let maxType = "None";
@@ -94,231 +124,383 @@ export default function RecurringIssuesAnalytics({
     return maxType;
   }, [analyticsData]);
 
+  // Filter analytics data by search query
+  const filteredData = useMemo(() => {
+    if (!searchQuery.trim()) return analyticsData;
+    const q = searchQuery.toLowerCase().trim();
+    return analyticsData.filter((item) => {
+      const plate = (item.plateNumber || "").toLowerCase();
+      const model = (item.truckModel || "").toLowerCase();
+      const type = (item.incidentTypeName || "").toLowerCase();
+      const category = (item.defectCategory || "").toLowerCase();
+      const descs = (item.descriptions || []).join(" ").toLowerCase();
+      return (
+        plate.includes(q) ||
+        model.includes(q) ||
+        type.includes(q) ||
+        category.includes(q) ||
+        descs.includes(q)
+      );
+    });
+  }, [analyticsData, searchQuery]);
+
   return (
-    <div className="flex flex-col h-full bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
-      {/* Header & Filter Controls */}
-      <div className="shrink-0 p-4 border-b border-slate-200/70 bg-white space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold text-[#1B4B75] flex items-center gap-2">
-              <AlertOctagon className="w-5 h-5 text-red-600" />
-              <span>Chronic Defect & Recurring Issues Intelligence</span>
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Identifies chronic mechanical failures across the fleet requiring root-cause intervention.
-            </p>
+    <div className="flex flex-col h-full space-y-4 pb-4">
+      {/* 1. TOP TOOLBAR CONTROLS */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+        <SearchBar
+          placeholder="Search by vehicle plate, model, defect, or notes"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full max-w-md"
+        />
+
+        {/* Filter Controls & Lookback Horizon Pills */}
+        <div className="flex flex-wrap items-center gap-2.5 justify-end shrink-0">
+          {/* Segmented Lookback Horizon */}
+          <div className="inline-flex items-center p-1 bg-slate-100 rounded-full border border-slate-200/80 gap-1">
+            {LOOKBACK_OPTIONS.map((opt) => {
+              const isSelected = days === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setDays(opt.value)}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    isSelected
+                      ? "bg-[#0B4A6E] text-[#FFDF2C] shadow-xs"
+                      : "text-slate-600 hover:text-slate-900 bg-transparent"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
 
+          {/* Min Occurrences Pill Selector */}
+          <select
+            value={minOccurrences}
+            onChange={(e) => setMinOccurrences(parseInt(e.target.value, 10))}
+            className="px-3.5 py-1.5 text-xs bg-white rounded-full border border-[#0A4B6E]/30 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 text-[#0A4B6E] font-semibold cursor-pointer shadow-2xs"
+          >
+            <option value={1}>1+ Repeats</option>
+            <option value={2}>2+ Repeats</option>
+            <option value={3}>3+ Repeats</option>
+            <option value={4}>4+ Repeats</option>
+          </select>
+
+          {/* Vehicle Filter Selector */}
+          <select
+            value={selectedTruckId}
+            onChange={(e) => setSelectedTruckId(e.target.value)}
+            className="px-3.5 py-1.5 text-xs bg-white rounded-full border border-[#0A4B6E]/30 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 text-[#0A4B6E] font-semibold cursor-pointer shadow-2xs max-w-[160px]"
+          >
+            <option value="">All Vehicles</option>
+            {trucks.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.plateNumber} {t.model ? `(${t.model})` : ""}
+              </option>
+            ))}
+          </select>
+
+          {/* Refresh Action Button */}
           <button
             type="button"
             onClick={fetchAnalytics}
             disabled={isLoading}
-            className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-[#0B4A6E] hover:bg-slate-50 transition-all text-xs flex items-center gap-1"
+            className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-[#0A4B6E] font-semibold text-xs px-3.5 py-1.5 rounded-full transition-colors cursor-pointer shadow-2xs active:scale-95"
+            title="Refresh defect analytics"
           >
-            <RotateCcw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            <RotateCcw className={`w-3.5 h-3.5 text-[#0A4B6E] ${isLoading ? "animate-spin" : ""}`} />
             <span>Refresh</span>
           </button>
         </div>
+      </div>
 
-        {/* Filter Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
-          {/* Lookback Horizon Pills */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-bold text-[#6D8AA2] uppercase tracking-wider mr-1">
-              Window:
+      {/* 2. STAT CARDS SUMMARY (Branded Madayaw Gas Palette) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Card 1: Recurring Defect Clusters */}
+        <div className="bg-[#E8F3F8] rounded-2xl p-4 md:p-5 border border-[#BCE1F1]/70 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-bold tracking-wider text-[#6D8AA2] uppercase">
+              Recurring Defect Clusters
             </span>
-            {LOOKBACK_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setDays(opt.value)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
-                  days === opt.value
-                    ? "bg-[#0B4A6E] text-white shadow-sm"
-                    : "bg-[#F3F5F5] text-slate-600 hover:bg-slate-200/80"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+            <p className="text-2xl md:text-[26px] font-bold text-[#1B4B75] mt-0.5">
+              {analyticsData.length}
+            </p>
+            <p className="text-xs text-[#588094] font-medium mt-0.5">
+              Repeated component failure groups
+            </p>
           </div>
-
-          {/* Occurrence & Vehicle Dropdowns */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-500 font-medium">Min Repeats:</span>
-              <select
-                value={minOccurrences}
-                onChange={(e) => setMinOccurrences(parseInt(e.target.value, 10))}
-                className="px-2.5 py-1 text-xs bg-[#F3F5F5] rounded-lg border border-slate-200 focus:outline-none focus:border-[#0B4A6E] text-slate-800 font-medium"
-              >
-                <option value={1}>1+ occurrences</option>
-                <option value={2}>2+ occurrences</option>
-                <option value={3}>3+ occurrences</option>
-                <option value={4}>4+ occurrences</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-500 font-medium">Vehicle:</span>
-              <select
-                value={selectedTruckId}
-                onChange={(e) => setSelectedTruckId(e.target.value)}
-                className="px-2.5 py-1 text-xs bg-[#F3F5F5] rounded-lg border border-slate-200 focus:outline-none focus:border-[#0B4A6E] text-slate-800 font-medium max-w-[150px]"
-              >
-                <option value="">All Trucks</option>
-                {trucks.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.plateNumber} {t.model ? `(${t.model})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="w-12 h-12 rounded-2xl bg-[#0A4B6E] flex items-center justify-center text-white shrink-0 shadow-xs">
+            <AlertOctagon size={24} className="text-[#FFDF2C]" />
           </div>
         </div>
 
-        {/* Insight Badges Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-          <div className="bg-[#E8F3F8] rounded-xl p-3 border border-[#BCE1F1]">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#6D8AA2]">
-              Chronic Issue Groups
-            </div>
-            <div className="text-lg font-bold text-[#1B4B75] mt-0.5">{analyticsData.length}</div>
-            <div className="text-[11px] text-slate-600">Repeated defect clusters</div>
-          </div>
-
-          <div className="bg-amber-50 rounded-xl p-3 border border-amber-200">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
+        {/* Card 2: Total Incident Recurrences */}
+        <div className="bg-[#E8F3F8] rounded-2xl p-4 md:p-5 border border-[#BCE1F1]/70 shadow-2xs flex items-center justify-between">
+          <div>
+            <span className="text-[11px] font-bold tracking-wider text-[#6D8AA2] uppercase">
               Total Incident Recurrences
-            </div>
-            <div className="text-lg font-bold text-amber-800 mt-0.5">{totalRecurrences}</div>
-            <div className="text-[11px] text-amber-700">Aggregated breakdown events</div>
+            </span>
+            <p className="text-2xl md:text-[26px] font-bold text-[#1B4B75] mt-0.5">
+              {totalRecurrences}
+            </p>
+            <p className="text-xs text-[#588094] font-medium mt-0.5">
+              Aggregated breakdown events
+            </p>
           </div>
+          <div className="w-12 h-12 rounded-2xl bg-[#0A4B6E] flex items-center justify-center text-white shrink-0 shadow-xs">
+            <AlertTriangle size={24} className="text-[#FFDF2C]" />
+          </div>
+        </div>
 
-          <div className="bg-[#F3F5F5] rounded-xl p-3 border border-slate-200">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-[#6D8AA2]">
-              Dominant Chronic Defect
-            </div>
-            <div className="text-base font-bold text-slate-800 mt-0.5 truncate">{topIssueType}</div>
-            <div className="text-[11px] text-slate-500">Highest frequency failure</div>
+        {/* Card 3: Dominant Chronic Defect */}
+        <div className="bg-[#E8F3F8] rounded-2xl p-4 md:p-5 border border-[#BCE1F1]/70 shadow-2xs flex items-center justify-between">
+          <div className="min-w-0 pr-2">
+            <span className="text-[11px] font-bold tracking-wider text-[#6D8AA2] uppercase">
+              Most Frequent Defect
+            </span>
+            <p className="text-xl md:text-2xl font-bold text-[#1B4B75] mt-0.5 truncate">
+              {topIssueType}
+            </p>
+            <p className="text-xs text-[#588094] font-medium mt-0.5">
+              Highest recurrence classification
+            </p>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-[#0A4B6E] flex items-center justify-center text-white shrink-0 shadow-xs">
+            <Wrench size={24} className="text-[#FFDF2C]" />
           </div>
         </div>
       </div>
 
-      {/* Content Area - Independent Scroll */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
-            <div className="w-7 h-7 border-2 border-[#0B4A6E] border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs font-medium">Analyzing recurring defect trends...</span>
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-xs flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        ) : analyticsData.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center space-y-2">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
-              <CheckCircle2 className="w-6 h-6" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-800">No Chronic Defects Detected</h3>
-            <p className="text-xs text-slate-500 max-w-md">
-              No vehicle has logged repeated incidents exceeding {minOccurrences} occurrences in the last {days} days. Fleet health and preventive maintenance cycles are performing reliably.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {analyticsData.map((item, idx) => {
-              const severityClass = SEVERITY_COLORS[item.latestSeverity] || "bg-slate-50 text-slate-700 border-slate-200";
-              const targetTruck = trucks.find((t) => t.id === item.truckId);
-
-              return (
-                <div
-                  key={`${item.truckId}-${item.incidentTypeId}-${idx}`}
-                  className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col justify-between hover:border-slate-300 transition-all space-y-3"
-                >
-                  <div>
-                    {/* Header: Truck & Severity */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <Truck className="w-4 h-4 text-[#0B4A6E]" />
-                          <span className="font-bold text-sm text-[#0B4A6E]">{item.plateNumber}</span>
-                          {item.truckModel && (
-                            <span className="text-xs text-slate-400 font-normal">
-                              ({item.truckModel})
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs font-bold text-slate-800 mt-1 flex items-center gap-1.5">
-                          <span>{item.incidentTypeName}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-end gap-1">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${severityClass}`}
-                        >
-                          {item.latestSeverity}
-                        </span>
-                        <span className="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                          {item.occurrenceCount} occurrences
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Timeline Details */}
-                    <div className="text-[11px] text-slate-500 mt-2 flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>
-                        Latest reported:{" "}
-                        {item.latestIncidentDate
-                          ? new Date(item.latestIncidentDate).toLocaleDateString()
-                          : "N/A"}
+      {/* 3. MASTER TABLE: Recurring Defects & Detailed Breakdown History */}
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden border border-[#0A4B6E]/30 rounded-2xl bg-white shadow-sm">
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar overflow-x-auto">
+          <table className="w-full text-left border-collapse table-fixed">
+            <thead className="bg-[#0D4B6E] text-white text-xs md:text-sm sticky top-0 z-10 shadow-xs">
+              <tr>
+                <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[20%]">
+                  Vehicle Asset
+                </th>
+                <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[24%]">
+                  Defect Classification
+                </th>
+                <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[15%]">
+                  Recurrences
+                </th>
+                <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[13%]">
+                  Latest Severity
+                </th>
+                <th className="py-3 px-4 md:px-5 font-medium whitespace-nowrap w-[13%]">
+                  Last Reported
+                </th>
+                <th className="py-3 px-4 md:px-5 font-medium text-right whitespace-nowrap w-[15%]">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 text-xs md:text-sm">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="py-16 text-center text-slate-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-7 h-7 border-2 border-[#0B4A6E] border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs font-semibold text-[#0A4B6E]">
+                        Computing recurring defect intelligence...
                       </span>
                     </div>
-
-                    {/* Incident Descriptions List */}
-                    {item.descriptions && item.descriptions.length > 0 && (
-                      <div className="mt-2.5 bg-slate-50 rounded-lg p-2.5 border border-slate-200/80 space-y-1">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-[#6D8AA2]">
-                          Logged Incident Reports
-                        </div>
-                        <ul className="space-y-1 text-xs text-slate-600">
-                          {item.descriptions.slice(0, 3).map((desc, dIdx) => (
-                            <li key={dIdx} className="flex items-start gap-1.5 leading-snug">
-                              <span className="text-red-500 font-bold">•</span>
-                              <span className="line-clamp-2">{desc}</span>
-                            </li>
-                          ))}
-                        </ul>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-red-600 font-medium">
+                    {error}
+                  </td>
+                </tr>
+              ) : filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shadow-xs">
+                        <CheckCircle2 className="w-6 h-6" />
                       </div>
-                    )}
-                  </div>
+                      <h3 className="text-sm font-bold text-[#0A4B6E]">
+                        No Chronic Defects Detected
+                      </h3>
+                      <p className="text-xs text-slate-500 max-w-md leading-relaxed">
+                        No vehicle has logged repeated incidents exceeding {minOccurrences} occurrences in the last {days} days. Fleet health and preventive maintenance cycles are performing reliably.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((item, idx) => {
+                  const rowKey = `${item.truckId}-${item.incidentTypeId}-${idx}`;
+                  const isExpanded = expandedRowId === rowKey;
+                  const targetTruck = trucks.find((t) => t.id === item.truckId) || {
+                    id: item.truckId,
+                    plateNumber: item.plateNumber,
+                    model: item.truckModel,
+                  };
 
-                  {/* Bottom Action: Create Work Order */}
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400">
-                      Recommendation: Overhaul assembly
-                    </span>
-
-                    {onCreateWorkOrderForTruck && (
-                      <Button
-                        type="button"
-                        onClick={() => onCreateWorkOrderForTruck(targetTruck || { id: item.truckId, plateNumber: item.plateNumber, model: item.truckModel })}
-                        className="rounded-full bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0B4A6E] font-bold text-xs uppercase tracking-wider px-3 py-1 shadow-sm flex items-center gap-1"
+                  return (
+                    <Fragment key={rowKey}>
+                      <tr
+                        onClick={() => toggleRow(rowKey)}
+                        className={`transition-colors duration-150 cursor-pointer ${
+                          isExpanded
+                            ? "bg-[#E2EDF3] text-[#0A4B6E]"
+                            : "hover:bg-[#E8F3F8]/70 bg-white"
+                        }`}
                       >
-                        <Wrench className="w-3 h-3" />
-                        <span>Create Work Order</span>
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                        {/* Vehicle Asset */}
+                        <td className="py-3.5 px-4 md:px-5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0 border border-[#BCE1F1]/70">
+                              <Truck size={16} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-bold text-[#0B4A6E] block truncate">
+                                {item.plateNumber}
+                              </span>
+                              <span className="text-[11px] text-[#6D8AA2] block truncate">
+                                {item.truckModel || "Fleet Vehicle"}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Defect Classification */}
+                        <td className="py-3.5 px-4 md:px-5">
+                          <div className="font-semibold text-slate-800 truncate">
+                            {(item.incidentTypeName || "MECHANICAL_DEFECT").replace(/_/g, " ")}
+                          </div>
+                          {item.defectCategory && (
+                            <div className="text-[11px] font-mono text-[#6D8AA2] truncate">
+                              {item.defectCategory.replace(/_/g, " ")}
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Recurrence Count */}
+                        <td className="py-3.5 px-4 md:px-5">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-[#C93B32] border border-rose-200 shadow-2xs">
+                            <AlertTriangle size={12} className="shrink-0 text-[#C93B32]" />
+                            <span>{item.occurrenceCount} Occurrences</span>
+                          </span>
+                        </td>
+
+                        {/* Latest Severity */}
+                        <td className="py-3.5 px-4 md:px-5">
+                          <Badge
+                            variant={getSeverityBadgeVariant(item.latestSeverity)}
+                            className="px-2.5 py-0.5 text-[10.5px] font-bold uppercase"
+                          >
+                            {item.latestSeverity || "MEDIUM"}
+                          </Badge>
+                        </td>
+
+                        {/* Last Reported Date */}
+                        <td className="py-3.5 px-4 md:px-5">
+                          <div className="flex items-center gap-1 text-slate-700 font-medium">
+                            <Clock size={13} className="text-[#6D8AA2] shrink-0" />
+                            <span>{formatDate(item.latestIncidentDate)}</span>
+                          </div>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-3.5 px-4 md:px-5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {onCreateWorkOrderForTruck && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onCreateWorkOrderForTruck(targetTruck);
+                                }}
+                                className="flex items-center gap-1 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold rounded-full py-1.5 px-3 text-xs transition-all shadow-2xs cursor-pointer active:scale-95"
+                                title="Create Work Order for this vehicle"
+                              >
+                                <Wrench size={12} className="shrink-0" />
+                                <span>Work Order</span>
+                              </button>
+                            )}
+
+                            <div className="w-6 h-6 flex items-center justify-center text-[#0A4B6E]">
+                              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Expanded Incident Reports Drawer */}
+                      {isExpanded && (
+                        <tr className="bg-[#E8F3F8]/40">
+                          <td colSpan={6} className="p-4 md:p-5 border-t border-[#BCE1F1]/60">
+                            <div className="bg-white rounded-xl p-4 border border-[#BCE1F1]/70 shadow-2xs space-y-3">
+                              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                <div className="flex items-center gap-2 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
+                                  <FileText size={14} />
+                                  <span>Logged Incident Observations & Roadside Reports</span>
+                                </div>
+                                <span className="text-[11px] text-[#6D8AA2] font-semibold">
+                                  {item.descriptions?.length || 0} Incident Reports Recorded
+                                </span>
+                              </div>
+
+                              {item.descriptions && item.descriptions.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                                  {item.descriptions.map((desc, dIdx) => (
+                                    <div
+                                      key={dIdx}
+                                      className="bg-[#F8FAFC] rounded-xl p-3 border border-slate-200/80 flex items-start gap-2.5 text-xs text-slate-700 leading-relaxed"
+                                    >
+                                      <div className="w-5 h-5 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5">
+                                        {dIdx + 1}
+                                      </div>
+                                      <div className="space-y-1">
+                                        <p className="font-medium">{desc}</p>
+                                        <span className="text-[10.5px] text-[#6D8AA2] block">
+                                          Logged during mid-route operation
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-slate-500 italic">
+                                  No additional observation notes recorded for this defect cluster.
+                                </p>
+                              )}
+
+                              <div className="pt-2 flex items-center justify-between border-t border-slate-100 text-xs">
+                                <span className="text-slate-500">
+                                  Target Asset: <strong>{item.plateNumber}</strong> ({item.truckModel || "Fleet Vehicle"})
+                                </span>
+                                {onCreateWorkOrderForTruck && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onCreateWorkOrderForTruck(targetTruck)}
+                                    className="flex items-center gap-1.5 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold rounded-full py-1.5 px-4 text-xs transition-all shadow-2xs cursor-pointer active:scale-95"
+                                  >
+                                    <Wrench size={13} />
+                                    <span>Create Corrective Work Order</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

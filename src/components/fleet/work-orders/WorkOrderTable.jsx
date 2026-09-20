@@ -116,7 +116,7 @@ export default function WorkOrderTable({
                   <tr
                     key={wo.id}
                     onClick={() => onOpenDetail && onOpenDetail(wo)}
-                    className="hover:bg-gray-50/80 transition-colors cursor-pointer bg-white"
+                    className="hover:bg-[#E8F3F8]/70 transition-colors duration-150 cursor-pointer bg-white"
                   >
                     {/* WO Number & Scheduled Date */}
                     <td className="py-3.5 px-4 md:px-5">

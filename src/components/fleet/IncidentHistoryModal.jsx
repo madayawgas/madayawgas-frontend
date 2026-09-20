@@ -215,7 +215,7 @@ export default function IncidentHistoryModal({
             {incidents.map((inc) => (
               <div
                 key={inc.id}
-                className="bg-[#F8FBFC] hover:bg-[#EBF5FB] border border-gray-100 rounded-2xl p-4 transition-colors text-xs space-y-2.5 shadow-2xs"
+                className="bg-[#F8FBFC] hover:bg-[#E8F3F8]/70 border border-gray-100 rounded-2xl p-4 transition-colors duration-150 text-xs space-y-2.5 shadow-2xs"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">

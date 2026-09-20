@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import UsersHeader from "../../components/users/UsersHeader";
 import UsersControls from "../../components/users/UsersControls";
 import UsersTable from "../../components/users/UsersTable";
+import UserDetailPanel from "../../components/users/UserDetailPanel";
 import DeactivateUserModal from "../../components/users/DeactivateUserModal";
 import ReactivateUserModal from "../../components/users/ReactivateUserModal";
 import ResetPasswordModal from "../../components/users/ResetPasswordModal";
@@ -58,6 +59,10 @@ export default function Users() {
   });
 
   const [isLoading, setIsLoading] = useState(users.length === 0);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [activeDetailUser, setActiveDetailUser] = useState(null);
+  const [isClosingPanel, setIsClosingPanel] = useState(false);
+  const closeTimerRef = useRef(null);
 
   // System Roles & Dynamic Permissions State
   const [roles, setRoles] = useState([]);
@@ -82,6 +87,9 @@ export default function Users() {
   const [pendingAction, setPendingAction] = useState(null); // 'DEACTIVATE' | 'REACTIVATE' | 'RESET_PASSWORD'
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
+  // Permissions
+  const canManage = can ? can(PERMISSIONS?.USERS_MANAGE || "users.manage") : true;
+
   // Initial API Load
   useEffect(() => {
     async function loadData() {
@@ -104,6 +112,13 @@ export default function Users() {
       }
     }
     loadData();
+  }, []);
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
   }, []);
 
   // Helper to sync local state changes to localStorage
@@ -157,8 +172,23 @@ export default function Users() {
       if (aDeact && !bDeact) return 1;
       if (!aDeact && bDeact) return -1;
 
-      const aVal = a[sortConfig.key]?.toString().toLowerCase() || "";
-      const bVal = b[sortConfig.key]?.toString().toLowerCase() || "";
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+
+      if (sortConfig.key === "firstName" || sortConfig.key === "name") {
+        aVal = `${a.firstName || ""} ${a.lastName || ""}`.trim().toLowerCase();
+        bVal = `${b.firstName || ""} ${b.lastName || ""}`.trim().toLowerCase();
+      } else if (sortConfig.key === "role") {
+        aVal = (typeof a.role === "string" ? a.role : a.role?.name || "").toLowerCase();
+        bVal = (typeof b.role === "string" ? b.role : b.role?.name || "").toLowerCase();
+      } else if (sortConfig.key === "createdAt") {
+        aVal = aVal ? new Date(aVal).getTime() : 0;
+        bVal = bVal ? new Date(bVal).getTime() : 0;
+      } else {
+        aVal = aVal ? aVal.toString().toLowerCase() : "";
+        bVal = bVal ? bVal.toString().toLowerCase() : "";
+      }
+
       if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
       return 0;
@@ -166,6 +196,42 @@ export default function Users() {
 
     return result;
   }, [users, searchTerm, filters, sortConfig]);
+
+  // Close panel with smooth exit animation (left-to-right off screen)
+  const handleCloseDetail = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    setIsClosingPanel(true);
+    setSelectedUser(null);
+    closeTimerRef.current = setTimeout(() => {
+      setActiveDetailUser(null);
+      setIsClosingPanel(false);
+    }, 250);
+  };
+
+  // Select user row handler
+  const handleSelectUser = (user) => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+
+    const isSameUser =
+      (selectedUser?.id && (selectedUser.id === user.id || selectedUser.id === user.userId)) ||
+      (selectedUser?.userId && (selectedUser.userId === user.userId || selectedUser.userId === user.id));
+
+    if (isSameUser) {
+      // Toggle off if already selected
+      handleCloseDetail();
+    } else {
+      setIsClosingPanel(false);
+      setSelectedUser(user);
+      setActiveDetailUser(user);
+    }
+  };
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  };
 
   // Create / Update User Handler
   const handleSaveUser = async (formData, userId) => {
@@ -204,26 +270,42 @@ export default function Users() {
             ? formData.role
             : "Sales Person";
 
+        const updatedUserMerged = {
+          ...formData,
+          ...payload,
+          ...updated,
+          isBlocked,
+          status: isBlocked
+            ? "SUSPENDED"
+            : "ACTIVE",
+          role: roleName,
+        };
+
         updateUsersState((prev) =>
           prev.map((u) =>
             (u.id || u.userId) === userId
               ? {
                   ...u,
-                  ...formData,
-                  ...payload,
-                  ...updated,
-                  isBlocked,
-                  status: isBlocked
-                    ? "SUSPENDED"
-                    : u.isActive === false
-                    ? "DEACTIVATED"
-                    : "ACTIVE",
+                  ...updatedUserMerged,
                   isActive: u.isActive !== undefined ? u.isActive : true,
-                  role: roleName,
                 }
               : u
           )
         );
+
+        if (activeDetailUser && ((activeDetailUser.id || activeDetailUser.userId) === userId)) {
+          setActiveDetailUser((prev) => ({
+            ...prev,
+            ...updatedUserMerged,
+            isActive: prev.isActive !== undefined ? prev.isActive : true,
+          }));
+          setSelectedUser((prev) => ({
+            ...prev,
+            ...updatedUserMerged,
+            isActive: prev.isActive !== undefined ? prev.isActive : true,
+          }));
+        }
+
         setShowToast(true);
         return updated;
       } else {
@@ -311,6 +393,12 @@ export default function Users() {
             : u
         )
       );
+
+      if (activeDetailUser && ((activeDetailUser.id || activeDetailUser.userId) === targetId)) {
+        setActiveDetailUser((prev) => ({ ...prev, status: "DEACTIVATED", isActive: false }));
+        setSelectedUser((prev) => ({ ...prev, status: "DEACTIVATED", isActive: false }));
+      }
+
       setShowToast(true);
       setShowPasswordModal(false);
       setUserToDeactivate(null);
@@ -329,6 +417,12 @@ export default function Users() {
             : u
         )
       );
+
+      if (activeDetailUser && ((activeDetailUser.id || activeDetailUser.userId) === targetId)) {
+        setActiveDetailUser((prev) => ({ ...prev, status: "ACTIVE", isActive: true, isBlocked: false }));
+        setSelectedUser((prev) => ({ ...prev, status: "ACTIVE", isActive: true, isBlocked: false }));
+      }
+
       setShowToast(true);
       setShowPasswordModal(false);
       setUserToReactivate(null);
@@ -346,6 +440,12 @@ export default function Users() {
             : u
         )
       );
+
+      if (activeDetailUser && ((activeDetailUser.id || activeDetailUser.userId) === targetId)) {
+        setActiveDetailUser((prev) => ({ ...prev, mustChangePassword: true }));
+        setSelectedUser((prev) => ({ ...prev, mustChangePassword: true }));
+      }
+
       setShowPasswordModal(false);
       setUserToResetPassword(null);
       setResetCredentials(result);
@@ -355,44 +455,67 @@ export default function Users() {
     setPendingAction(null);
   };
 
-  const canManage = can ? can(PERMISSIONS?.USERS_MANAGE || "users.manage") : true;
-
   return (
-    <div className="p-8">
-      <UsersHeader
-        onOpenPermissions={() => setIsPermissionsModalOpen(true)}
-        onAddUser={() => setIsAddingUser(true)}
-      />
+    <div className="p-6 md:p-8 h-[calc(100vh-112px)] md:h-[calc(100vh-128px)] flex flex-col overflow-hidden">
+      {/* Header (Pinned at Top) */}
+      <div className="shrink-0">
+        <UsersHeader
+          onOpenPermissions={() => setIsPermissionsModalOpen(true)}
+          onAddUser={() => setIsAddingUser(true)}
+        />
+      </div>
 
-      <UsersControls
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        activeFilters={filters}
-        onApplyFilters={setFilters}
-        onClearRole={() => setFilters((prev) => ({ ...prev, role: "All Roles" }))}
-        onClearStatus={() => setFilters((prev) => ({ ...prev, status: "" }))}
-      />
+      {/* Search and Filters Controls (Pinned at Top) */}
+      <div className="shrink-0">
+        <UsersControls
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          activeFilters={filters}
+          onApplyFilters={setFilters}
+          onClearRole={() => setFilters((prev) => ({ ...prev, role: "All Roles" }))}
+          onClearStatus={() => setFilters((prev) => ({ ...prev, status: "" }))}
+        />
+      </div>
 
+      {/* Main Content Area (Table + Locked Expanded View on Select) */}
       {isLoading && users.length === 0 ? (
-        <div className="flex items-center justify-center p-12 text-gray-500 font-medium">
+        <div className="flex-1 flex items-center justify-center p-12 text-gray-500 font-medium">
           Loading user records...
         </div>
       ) : (
-        <UsersTable
-          users={processedUsers}
-          sortConfig={sortConfig}
-          onSort={(key) =>
-            setSortConfig((prev) => ({
-              key,
-              direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
-            }))
-          }
-          canManage={canManage}
-          onEdit={(user) => setEditingUser(user)}
-          onDeactivate={(user) => handleInitiateDeactivate(user)}
-          onReactivate={(user) => handleInitiateReactivate(user)}
-          onResetPassword={(user) => handleInitiateResetPassword(user)}
-        />
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row items-stretch gap-6 overflow-hidden">
+          {/* Users Table Container (Scrolls independently) */}
+          <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden transition-all duration-300">
+            <UsersTable
+              users={processedUsers}
+              selectedUser={selectedUser}
+              onSelectUser={handleSelectUser}
+              sortConfig={sortConfig}
+              onSort={handleSort}
+            />
+          </div>
+
+          {/* Locked Expanded User Details Panel (Right Side with independent scroll & out-animation) */}
+          {activeDetailUser && (
+            <div
+              className={`w-full lg:w-[400px] xl:w-[430px] shrink-0 h-full flex flex-col overflow-hidden transition-all duration-300 ${
+                isClosingPanel
+                  ? "animate-slide-fade-out pointer-events-none"
+                  : "animate-slide-fade-in"
+              }`}
+            >
+              <UserDetailPanel
+                user={activeDetailUser}
+                onClose={handleCloseDetail}
+                onEdit={(u) => setEditingUser(u)}
+                onResetPassword={(u) => handleInitiateResetPassword(u)}
+                onDelete={(u) => handleInitiateDeactivate(u)}
+                onReactivate={(u) => handleInitiateReactivate(u)}
+                canManage={canManage}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {/* Add / Edit User Modal */}

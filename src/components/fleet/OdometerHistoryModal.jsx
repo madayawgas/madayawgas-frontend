@@ -1,14 +1,14 @@
 // src/components/fleet/OdometerHistoryModal.jsx
-import { useState, useEffect, useCallback } from "react";
-import { History, Gauge, Calendar, User, Clock, Plus } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { History, Gauge, Clock, User, Plus, Search } from "lucide-react";
 import SideDrawer from "../ui/SideDrawer";
-import Button from "../ui/Button";
 import Badge from "../ui/Badge";
 import { fleetApi } from "../../api/fleet.js";
 
 /**
  * OdometerHistoryModal
- * Displays chronological odometer logs and trip deltas in a right-sliding panel.
+ * Displays chronological odometer logs and trip deltas in a right-sliding panel
+ * with search and multi-type filters matching the Incident Logs experience.
  */
 export default function OdometerHistoryModal({
   isOpen,
@@ -19,6 +19,9 @@ export default function OdometerHistoryModal({
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSource, setSelectedSource] = useState("All");
+  const [selectedTripRange, setSelectedTripRange] = useState("All");
 
   const fetchLogs = useCallback(async () => {
     if (!truck?.id) return;
@@ -43,6 +46,45 @@ export default function OdometerHistoryModal({
       fetchLogs();
     }
   }, [isOpen, truck?.id, fetchLogs]);
+
+  // Filtered Logs
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      // 1. Source filter
+      if (selectedSource !== "All" && log.source !== selectedSource) {
+        return false;
+      }
+
+      // 2. Trip Delta range filter
+      const delta = Number(log.distanceDelta) || 0;
+      if (selectedTripRange === "HIGH" && delta < 100) {
+        return false;
+      }
+      if (selectedTripRange === "MEDIUM" && (delta < 20 || delta >= 100)) {
+        return false;
+      }
+      if (selectedTripRange === "SHORT" && delta >= 20) {
+        return false;
+      }
+
+      // 3. Search query filter
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase().trim();
+        const notes = (log.notes || "").toLowerCase();
+        const supervisor = (log.loggedByName || "").toLowerCase();
+        const source = (log.source || "").toLowerCase();
+        const odo = String(log.odometerReading || "");
+        return (
+          notes.includes(q) ||
+          supervisor.includes(q) ||
+          source.includes(q) ||
+          odo.includes(q)
+        );
+      }
+
+      return true;
+    });
+  }, [logs, selectedSource, selectedTripRange, searchTerm]);
 
   if (!isOpen || !truck) return null;
 
@@ -122,22 +164,31 @@ export default function OdometerHistoryModal({
                 {truck.plateNumber || "Truck"}
               </h3>
               <p className="text-[11px] text-[#588094]">
-                {truck.model || "Isuzu Elf"} {truck.yearModel ? `(${truck.yearModel})` : ""}
+                {truck.model || "Isuzu Elf"}{" "}
+                {truck.yearModel ? `(${truck.yearModel})` : ""}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-xs">
             <div>
-              <span className="text-[#588094] block text-[10.5px]">Current Odometer</span>
+              <span className="text-[#588094] block text-[10.5px]">
+                Current Odometer
+              </span>
               <span className="font-bold text-sm text-[#0A4B6E]">
                 {currentOdo.toLocaleString()} KM
               </span>
             </div>
             <div className="h-7 w-[1px] bg-gray-300 hidden sm:block" />
             <div>
-              <span className="text-[#588094] block text-[10.5px]">Since Last PM</span>
-              <span className={`font-bold text-sm ${isPmDue ? "text-[#C93B32]" : "text-[#0A4B6E]"}`}>
+              <span className="text-[#588094] block text-[10.5px]">
+                Since Last PM
+              </span>
+              <span
+                className={`font-bold text-sm ${
+                  isPmDue ? "text-[#C93B32]" : "text-[#0A4B6E]"
+                }`}
+              >
                 {distanceSinceLastPm.toLocaleString()} / 5,000 KM
               </span>
             </div>
@@ -147,6 +198,45 @@ export default function OdometerHistoryModal({
               </Badge>
             )}
           </div>
+        </div>
+
+        {/* FILTER TOOLBAR (Search + Source + Trip Range) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pb-3 border-b border-gray-100">
+          {/* Search Input */}
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search notes, supervisor..."
+              className="w-full text-xs bg-gray-50 border border-gray-200 rounded-full py-2 pl-8 pr-3 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all"
+            />
+            <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+          </div>
+
+          {/* Source Filter */}
+          <select
+            value={selectedSource}
+            onChange={(e) => setSelectedSource(e.target.value)}
+            className="text-xs bg-gray-50 border border-gray-200 rounded-full py-2 px-3 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all cursor-pointer"
+          >
+            <option value="All">All Sources</option>
+            <option value="POST_DISPATCH_RETURN">Post-Dispatch Return</option>
+            <option value="MAINTENANCE_SERVICE">Maintenance Check</option>
+            <option value="MANUAL_ENTRY">Manual Entry</option>
+          </select>
+
+          {/* Trip Distance Range Filter */}
+          <select
+            value={selectedTripRange}
+            onChange={(e) => setSelectedTripRange(e.target.value)}
+            className="text-xs bg-gray-50 border border-gray-200 rounded-full py-2 px-3 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all cursor-pointer"
+          >
+            <option value="All">All Trip Ranges</option>
+            <option value="HIGH">High Mileage (≥ 100 KM)</option>
+            <option value="MEDIUM">Medium Trip (20 – 99 KM)</option>
+            <option value="SHORT">Short / Yard (&lt; 20 KM)</option>
+          </select>
         </div>
 
         {/* ERROR STATE */}
@@ -166,7 +256,7 @@ export default function OdometerHistoryModal({
         )}
 
         {/* LOGS TABLE */}
-        {!isLoading && logs.length > 0 && (
+        {!isLoading && filteredLogs.length > 0 && (
           <div className="overflow-x-auto border border-gray-200 rounded-2xl custom-scrollbar shadow-2xs">
             <table className="w-full text-left border-collapse text-xs">
               <thead className="bg-[#F3F5F5] sticky top-0 z-10 text-[#0A4B6E] font-bold border-b border-gray-200">
@@ -180,8 +270,8 @@ export default function OdometerHistoryModal({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-[#EBF5FB]/60 transition-colors">
+                {filteredLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-[#E8F3F8]/70 transition-colors duration-150 bg-white">
                     <td className="py-3 px-3.5 text-gray-700 whitespace-nowrap font-medium">
                       <div className="flex items-center gap-1.5">
                         <Clock size={13} className="text-[#588094] shrink-0" />
@@ -192,7 +282,8 @@ export default function OdometerHistoryModal({
                       {Number(log.odometerReading).toLocaleString()} KM
                     </td>
                     <td className="py-3 px-3.5 whitespace-nowrap">
-                      {log.distanceDelta !== undefined && log.distanceDelta !== null ? (
+                      {log.distanceDelta !== undefined &&
+                      log.distanceDelta !== null ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[#E8F5E9] text-[#2E7D32]">
                           +{Number(log.distanceDelta).toLocaleString()} KM
                         </span>
@@ -213,7 +304,10 @@ export default function OdometerHistoryModal({
                         <span>{log.loggedByName || "Supervisor"}</span>
                       </div>
                     </td>
-                    <td className="py-3 px-3.5 text-gray-500 max-w-xs truncate" title={log.notes}>
+                    <td
+                      className="py-3 px-3.5 text-gray-500 max-w-xs truncate"
+                      title={log.notes}
+                    >
                       {log.notes || "-"}
                     </td>
                   </tr>
@@ -224,12 +318,16 @@ export default function OdometerHistoryModal({
         )}
 
         {/* EMPTY STATE */}
-        {!isLoading && logs.length === 0 && !error && (
+        {!isLoading && filteredLogs.length === 0 && !error && (
           <div className="flex flex-col items-center justify-center py-16 text-center text-gray-400">
             <Gauge size={42} className="mb-2 stroke-[1.5] text-gray-300" />
-            <p className="font-semibold text-sm text-gray-600">No Odometer Logs Found</p>
+            <p className="font-semibold text-sm text-gray-600">
+              No Odometer Logs Found
+            </p>
             <p className="text-xs text-gray-400 mt-1 max-w-sm">
-              No single-point return check-ins have been recorded for this vehicle yet.
+              {searchTerm || selectedSource !== "All" || selectedTripRange !== "All"
+                ? "No odometer records matched your search or filter criteria."
+                : "No single-point return check-ins have been recorded for this vehicle yet."}
             </p>
           </div>
         )}

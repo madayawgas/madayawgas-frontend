@@ -1,9 +1,32 @@
 // src/components/fleet/SetAvailabilityModal.jsx
 import { useState, useEffect } from "react";
-import { AlertCircle, Truck, Info } from "lucide-react";
+import {
+  SlidersHorizontal,
+  Truck,
+  CheckCircle2,
+  Wrench,
+  PowerOff,
+  Info,
+} from "lucide-react";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
+
+const getStatusVariant = (status) => {
+  const normalized = (status || "").toUpperCase().replace("_", " ");
+  switch (normalized) {
+    case "ACTIVE":
+      return "success";
+    case "UNDER MAINTENANCE":
+      return "danger";
+    case "INACTIVE":
+      return "neutral";
+    case "RETIRED":
+      return "deactivated";
+    default:
+      return "neutral";
+  }
+};
 
 export default function SetAvailabilityModal({
   isOpen,
@@ -18,7 +41,6 @@ export default function SetAvailabilityModal({
 
   useEffect(() => {
     if (truck) {
-      // Default to UNDER_MAINTENANCE if currently ACTIVE, otherwise ACTIVE
       if (truck.status === "ACTIVE") {
         setStatus("UNDER_MAINTENANCE");
       } else {
@@ -33,7 +55,8 @@ export default function SetAvailabilityModal({
 
   const currentStatus = truck.status || "ACTIVE";
   const driverDisplay = truck.driver
-    ? `${truck.driver.firstName || ""} ${truck.driver.lastName || ""}`.trim() || truck.driver.username
+    ? `${truck.driver.firstName || ""} ${truck.driver.lastName || ""}`.trim() ||
+      truck.driver.username
     : truck.driverName && truck.driverName !== "Unassigned"
     ? truck.driverName
     : "No Assigned";
@@ -50,7 +73,9 @@ export default function SetAvailabilityModal({
       onClose();
     } catch (err) {
       console.error("Failed to update availability status:", err);
-      setErrorMsg(err.message || "Failed to update availability status. Please try again.");
+      setErrorMsg(
+        err.message || "Failed to update availability status. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -88,124 +113,132 @@ export default function SetAvailabilityModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Set Vehicle Availability Status"
-      maxWidth="max-w-md"
+      title="Set Vehicle Availability"
+      subtitle="Update operational dispatch condition & driver binding"
+      icon={SlidersHorizontal}
+      badge={
+        <Badge
+          variant={getStatusVariant(currentStatus)}
+          className="px-2.5 py-0.5 text-xs"
+        >
+          {currentStatus.replace("_", " ")}
+        </Badge>
+      }
+      maxWidth="max-w-lg"
       footer={footerContent}
     >
-      <div className="py-2 text-left space-y-4 text-xs">
-        {/* VEHICLE INFO */}
+      <div className="space-y-4 text-left py-1 text-xs">
+        {/* VEHICLE CONTEXT BANNER */}
         <div className="bg-[#BAE6FD]/40 rounded-xl p-3.5 flex items-center justify-between border border-[#0A4B6E]/15">
-          <div className="flex items-center gap-2.5">
-            <Truck size={20} className="text-[#0A4B6E]" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#0A4B6E] text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Truck size={20} className="text-[#FFDF2C]" />
+            </div>
             <div>
-              <span className="font-bold text-[#0A4B6E] text-sm block">
+              <h3 className="font-bold text-[#0A4B6E] text-base leading-tight">
                 {truck.plateNumber || "Truck"}
-              </span>
-              <span className="text-[11px] text-[#588094]">
-                {truck.model || "Isuzu Elf"}
-              </span>
+              </h3>
+              <p className="text-xs text-[#588094]">
+                {truck.model || "Isuzu Elf"}{" "}
+                {truck.yearModel ? `(${truck.yearModel})` : ""}
+              </p>
             </div>
           </div>
           <div className="text-right">
-            <span className="text-[10px] text-[#588094] block">Current Status</span>
-            <Badge variant={currentStatus === "ACTIVE" ? "success" : "danger"}>
-              {currentStatus.replace("_", " ")}
-            </Badge>
+            <span className="text-[11px] text-[#588094] block font-medium">
+              Assigned Driver
+            </span>
+            <span className="font-bold text-xs text-[#0A4B6E]">
+              {driverDisplay}
+            </span>
           </div>
         </div>
 
-        {/* STATUS SELECTION */}
-        <div>
-          <label className="block text-xs font-semibold text-[#0A4B6E] mb-2">
-            Target Operational Condition
-          </label>
-          <div className="space-y-2">
-            <label
-              className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                status === "ACTIVE"
-                  ? "bg-[#E8F5E9]/50 border-green-500 ring-1 ring-green-500"
-                  : "border-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              <input
-                type="radio"
-                name="availabilityStatus"
-                value="ACTIVE"
-                checked={status === "ACTIVE"}
-                onChange={(e) => setStatus(e.target.value)}
-                className="mt-0.5 text-[#0A4B6E]"
-              />
-              <div>
-                <span className="font-bold text-gray-800 block">ACTIVE (Available)</span>
-                <span className="text-[11px] text-gray-500">
-                  Ready for route dispatch.
-                </span>
-              </div>
-            </label>
-
-            <label
-              className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                status === "UNDER_MAINTENANCE"
-                  ? "bg-red-50/50 border-red-500 ring-1 ring-red-500"
-                  : "border-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              <input
-                type="radio"
-                name="availabilityStatus"
-                value="UNDER_MAINTENANCE"
-                checked={status === "UNDER_MAINTENANCE"}
-                onChange={(e) => setStatus(e.target.value)}
-                className="mt-0.5 text-[#0A4B6E]"
-              />
-              <div>
-                <span className="font-bold text-gray-800 block">UNDER MAINTENANCE</span>
-                <span className="text-[11px] text-gray-500">
-                  Grounds truck for servicing while <strong>preserving assigned driver</strong>.
-                </span>
-              </div>
-            </label>
-
-            <label
-              className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                status === "INACTIVE"
-                  ? "bg-gray-100 border-gray-400 ring-1 ring-gray-400"
-                  : "border-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              <input
-                type="radio"
-                name="availabilityStatus"
-                value="INACTIVE"
-                checked={status === "INACTIVE"}
-                onChange={(e) => setStatus(e.target.value)}
-                className="mt-0.5 text-[#0A4B6E]"
-              />
-              <div>
-                <span className="font-bold text-gray-800 block">INACTIVE (Standby / Shop)</span>
-                <span className="text-[11px] text-gray-500">
-                  Decommissions truck and <strong>releases driver</strong> to unassigned pool.
-                </span>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        {/* DOMAIN INVARIANT HELPER BANNER */}
-        <div className="bg-[#EBF5FB] border border-[#BAE6FD] rounded-xl p-3 flex items-start gap-2.5 text-[11.5px] text-[#0A4B6E]">
-          <Info size={16} className="shrink-0 mt-0.5 text-[#0F7AB2]" />
+        {/* CURRENT REGISTERED METRICS */}
+        <div className="grid grid-cols-2 gap-3 bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-2xl p-3.5 text-xs shadow-2xs">
           <div>
-            {status === "UNDER_MAINTENANCE" ? (
+            <span className="text-[#6D8AA2] block text-[11px] font-semibold">Current Status</span>
+            <span className="font-bold text-sm text-[#0A4B6E]">
+              {currentStatus.replace("_", " ")}
+            </span>
+          </div>
+          <div>
+            <span className="text-[#6D8AA2] block text-[11px] font-semibold">Current Odometer</span>
+            <span className="font-bold text-sm text-[#0A4B6E] font-mono">
+              {Number(truck.currentOdometer || 0).toLocaleString()} KM
+            </span>
+          </div>
+        </div>
+
+        {/* TARGET CONDITION SELECTOR (Pill Buttons matching InspectionModal) */}
+        <div>
+          <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-2">
+            Target Operational Condition <span className="text-red-500">*</span>
+          </label>
+
+          <div className="grid grid-cols-3 gap-2.5">
+            {/* ACTIVE */}
+            <button
+              type="button"
+              onClick={() => setStatus("ACTIVE")}
+              className={`w-full h-9 flex items-center justify-center gap-1.5 rounded-full border text-xs font-bold transition-all cursor-pointer ${
+                status === "ACTIVE"
+                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                  : "bg-white text-emerald-800 border-[#BCE1F1]/80 hover:bg-emerald-50"
+              }`}
+            >
+              <CheckCircle2 size={15} className="shrink-0" />
+              <span>ACTIVE</span>
+            </button>
+
+            {/* UNDER MAINTENANCE */}
+            <button
+              type="button"
+              onClick={() => setStatus("UNDER_MAINTENANCE")}
+              className={`w-full h-9 flex items-center justify-center gap-1.5 rounded-full border text-xs font-bold transition-all cursor-pointer ${
+                status === "UNDER_MAINTENANCE"
+                  ? "bg-amber-600 text-white border-amber-600 shadow-xs"
+                  : "bg-white text-amber-800 border-[#BCE1F1]/80 hover:bg-amber-50"
+              }`}
+            >
+              <Wrench size={15} className="shrink-0" />
+              <span>MAINTENANCE</span>
+            </button>
+
+            {/* INACTIVE */}
+            <button
+              type="button"
+              onClick={() => setStatus("INACTIVE")}
+              className={`w-full h-9 flex items-center justify-center gap-1.5 rounded-full border text-xs font-bold transition-all cursor-pointer ${
+                status === "INACTIVE"
+                  ? "bg-slate-700 text-white border-slate-700 shadow-xs"
+                  : "bg-white text-slate-700 border-[#BCE1F1]/80 hover:bg-slate-100"
+              }`}
+            >
+              <PowerOff size={15} className="shrink-0" />
+              <span>INACTIVE</span>
+            </button>
+          </div>
+        </div>
+
+        {/* CONDITION IMPACT & SOFT-BINDING HELPER CARD */}
+        <div className="bg-[#BAE6FD]/30 border border-[#0A4B6E]/20 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-[#0A4B6E]">
+          <Info size={16} className="shrink-0 mt-0.5 text-[#0F7AB2]" />
+          <div className="leading-relaxed">
+            {status === "ACTIVE" ? (
               <span>
-                <strong>Maintenance Preservation:</strong> Driver <strong>{driverDisplay}</strong> will remain designated to this vehicle when maintenance concludes.
+                <strong>Operational Restoration:</strong> Vehicle will be marked{" "}
+                <strong>ACTIVE</strong> and cleared for daily route dispatch.
               </span>
-            ) : status === "INACTIVE" ? (
+            ) : status === "UNDER_MAINTENANCE" ? (
               <span>
-                <strong>Deactivation Release:</strong> Setting this vehicle inactive will automatically unbind driver <strong>{driverDisplay}</strong> back to the available driver pool.
+                <strong>Maintenance Soft-Binding:</strong> Grounds vehicle for repair while{" "}
+                <strong>preserving driver ({driverDisplay})</strong> for when maintenance concludes.
               </span>
             ) : (
               <span>
-                <strong>Operational Restoration:</strong> Vehicle will be marked available for logistics dispatch.
+                <strong>Deactivation Release:</strong> Setting vehicle to <strong>INACTIVE</strong> will unbind driver{" "}
+                <strong>({driverDisplay})</strong> back to the unassigned driver pool.
               </span>
             )}
           </div>
@@ -213,7 +246,7 @@ export default function SetAvailabilityModal({
 
         {/* REASON / REMARKS */}
         <div>
-          <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
+          <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1.5">
             Reason / Remarks (Optional)
           </label>
           <textarea
@@ -221,7 +254,7 @@ export default function SetAvailabilityModal({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="e.g. Scheduled oil change, brake caliper check, yard inspection"
-            className="w-full bg-[#F3F5F5] border border-gray-200 rounded-xl p-2.5 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] resize-none"
+            className="w-full bg-[#E8F3F8]/50 border border-[#BCE1F1]/80 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white transition resize-none"
           />
         </div>
       </div>

@@ -1,14 +1,20 @@
 // src/components/fleet/InspectionHistoryModal.jsx
-import { useState, useEffect, useCallback } from "react";
-import { ShieldCheck, Plus, Calendar, User, Clock, AlertTriangle, AlertOctagon, CheckCircle2 } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  ShieldCheck,
+  Plus,
+  User,
+  Clock,
+  Search,
+} from "lucide-react";
 import { fleetApi } from "../../api/fleet.js";
 import SideDrawer from "../ui/SideDrawer";
-import Button from "../ui/Button";
 import Badge from "../ui/Badge";
 
 /**
  * InspectionHistoryModal
- * Displays chronological safety inspection logs in a right-sliding panel.
+ * Displays chronological safety inspection logs in a right-sliding panel
+ * with search and multi-type filters matching the Incident Logs experience.
  */
 export default function InspectionHistoryModal({
   isOpen,
@@ -18,28 +24,61 @@ export default function InspectionHistoryModal({
 }) {
   const [inspections, setInspections] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filterResult, setFilterResult] = useState("All");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedResult, setSelectedResult] = useState("All");
+  const [selectedDispatch, setSelectedDispatch] = useState("All");
 
   const loadHistory = useCallback(async () => {
     if (!truck?.id) return;
     try {
       setIsLoading(true);
-      const res = await fleetApi.getTruckInspections(truck.id, {
-        result: filterResult === "All" ? undefined : filterResult,
-      });
+      const res = await fleetApi.getTruckInspections(truck.id);
       setInspections(res?.data?.inspections || []);
     } catch (err) {
       console.error("Failed to load inspection history:", err);
     } finally {
       setIsLoading(false);
     }
-  }, [truck?.id, filterResult]);
+  }, [truck?.id]);
 
   useEffect(() => {
     if (isOpen && truck) {
       loadHistory();
     }
   }, [isOpen, truck, loadHistory]);
+
+  // Filtered Inspections
+  const filteredInspections = useMemo(() => {
+    return inspections.filter((insp) => {
+      // 1. Result filter
+      if (selectedResult !== "All" && insp.result !== selectedResult) {
+        return false;
+      }
+
+      // 2. Dispatch status filter
+      if (selectedDispatch === "DISPATCHED" && !insp.allowDispatch) {
+        return false;
+      }
+      if (selectedDispatch === "GROUNDED" && insp.allowDispatch) {
+        return false;
+      }
+
+      // 3. Search query filter
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase().trim();
+        const findings = (insp.findings || "").toLowerCase();
+        const inspector = (insp.inspectorName || "").toLowerCase();
+        const username = (insp.inspectorUsername || "").toLowerCase();
+        return (
+          findings.includes(q) ||
+          inspector.includes(q) ||
+          username.includes(q)
+        );
+      }
+
+      return true;
+    });
+  }, [inspections, selectedResult, selectedDispatch, searchTerm]);
 
   if (!isOpen || !truck) return null;
 
@@ -96,6 +135,7 @@ export default function InspectionHistoryModal({
           {truck.plateNumber || "Truck"}
         </Badge>
       }
+      width="max-w-xl lg:max-w-2xl"
       footer={({ onClose: closeDrawer }) => (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
           {onOpenInspect && (
@@ -123,38 +163,55 @@ export default function InspectionHistoryModal({
       )}
     >
       <div className="space-y-4">
-        {/* OUTCOME FILTER PILLS */}
-        <div className="flex items-center justify-between gap-2 pb-3 border-b border-gray-100">
-          <span className="text-xs font-semibold text-[#6D8AA2]">Filter by Outcome:</span>
-          <div className="flex items-center gap-1.5 bg-[#F3F5F5] p-1 rounded-full">
-            {["All", "PASSED", "NEEDS_ATTENTION", "FAILED"].map((opt) => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => setFilterResult(opt)}
-                className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
-                  filterResult === opt
-                    ? "bg-[#0A4B6E] text-white shadow-xs"
-                    : "text-[#5B8399] hover:text-[#0A4B6E]"
-                }`}
-              >
-                {opt === "NEEDS_ATTENTION" ? "Needs Attn" : opt}
-              </button>
-            ))}
+        {/* FILTER TOOLBAR (Search + Result + Dispatch Condition) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pb-3 border-b border-gray-100">
+          {/* Search Input */}
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search findings, inspector..."
+              className="w-full text-xs bg-gray-50 border border-gray-200 rounded-full py-2 pl-8 pr-3 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all"
+            />
+            <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
           </div>
+
+          {/* Inspection Result Filter */}
+          <select
+            value={selectedResult}
+            onChange={(e) => setSelectedResult(e.target.value)}
+            className="text-xs bg-gray-50 border border-gray-200 rounded-full py-2 px-3 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all cursor-pointer"
+          >
+            <option value="All">All Results</option>
+            <option value="PASSED">Passed</option>
+            <option value="NEEDS_ATTENTION">Needs Attention</option>
+            <option value="FAILED">Failed</option>
+          </select>
+
+          {/* Dispatch Status Filter */}
+          <select
+            value={selectedDispatch}
+            onChange={(e) => setSelectedDispatch(e.target.value)}
+            className="text-xs bg-gray-50 border border-gray-200 rounded-full py-2 px-3 text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]/20 transition-all cursor-pointer"
+          >
+            <option value="All">All Dispatch Conditions</option>
+            <option value="DISPATCHED">Cleared for Dispatch</option>
+            <option value="GROUNDED">Grounded from Dispatch</option>
+          </select>
         </div>
 
-        {/* LOGS LIST */}
+        {/* INSPECTION LOGS LIST */}
         {isLoading ? (
           <div className="py-16 text-center text-xs text-gray-500 font-medium">
             Loading inspection history...
           </div>
-        ) : inspections.length > 0 ? (
+        ) : filteredInspections.length > 0 ? (
           <div className="space-y-3">
-            {inspections.map((insp) => (
+            {filteredInspections.map((insp) => (
               <div
                 key={insp.id}
-                className="bg-[#F8FBFC] hover:bg-[#EBF5FB] border border-gray-100 rounded-2xl p-4 transition-colors text-xs space-y-2.5 shadow-2xs"
+                className="bg-[#F8FBFC] hover:bg-[#E8F3F8]/70 border border-gray-100 rounded-2xl p-4 transition-colors duration-150 text-xs space-y-2.5 shadow-2xs"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -183,8 +240,8 @@ export default function InspectionHistoryModal({
             <ShieldCheck size={42} className="mx-auto text-gray-300 stroke-[1.5]" />
             <p className="text-sm font-semibold text-gray-600">No inspection logs found</p>
             <p className="text-xs text-gray-400 max-w-sm mx-auto">
-              {filterResult !== "All"
-                ? `No inspection records matched "${filterResult}".`
+              {searchTerm || selectedResult !== "All" || selectedDispatch !== "All"
+                ? "No inspection records matched your active search or filter criteria."
                 : "No physical safety inspections have been conducted on this vehicle yet."}
             </p>
           </div>

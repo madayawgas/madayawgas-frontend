@@ -20,7 +20,7 @@ export default function HistoryTable({ logs }) {
               logs.map((log, index) => (
                 <tr 
                   key={log.id || index} 
-                  className={`bg-white ${index !== logs.length - 1 ? 'border-b border-gray-200' : ''}`}
+                  className={`bg-white hover:bg-[#E8F3F8]/70 transition-colors duration-150 ${index !== logs.length - 1 ? 'border-b border-gray-200' : ''}`}
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-gray-900 font-medium">{log.date}</div>

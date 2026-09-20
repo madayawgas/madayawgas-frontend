@@ -359,10 +359,10 @@ export default function MaintenanceDashboardSection({
                     <Fragment key={logId}>
                       <tr
                         onClick={() => toggleRow(logId)}
-                        className={`transition-colors cursor-pointer ${
+                        className={`transition-colors duration-150 cursor-pointer ${
                           isExpanded
-                            ? "bg-[#E2EDF3]/40"
-                            : "hover:bg-slate-50/80 bg-white"
+                            ? "bg-[#E2EDF3] text-[#0A4B6E]"
+                            : "hover:bg-[#E8F3F8]/70 bg-white"
                         }`}
                       >
                         {/* OR# */}

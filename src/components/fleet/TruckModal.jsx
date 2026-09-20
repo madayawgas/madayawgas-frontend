@@ -1,3 +1,4 @@
+// src/components/fleet/TruckModal.jsx
 import { useState, useEffect } from "react";
 import {
   Truck,
@@ -13,8 +14,6 @@ import {
   ClipboardList,
   Wrench,
 } from "lucide-react";
-import Input from "../ui/Input";
-import Select from "../ui/Select";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
@@ -41,21 +40,26 @@ const getStatusVariant = (status) => {
 const getInitialFormData = (t) => {
   const driverId = t?.driverId || t?.driver?.id || t?.assignedDriverId || "";
   const driverName = t?.driver
-    ? `${t.driver.firstName || ""} ${t.driver.lastName || ""}`.trim() || t.driver.username
+    ? `${t.driver.firstName || ""} ${t.driver.lastName || ""}`.trim() ||
+      t.driver.username
     : t?.driverName || "";
 
   return {
     status: t?.status || t?.operationalStatus || "ACTIVE",
     plateNumber: t?.plateNumber || "",
     model: t?.model || "Isuzu Elf",
-    yearModel: t?.yearModel !== undefined ? t.yearModel : new Date().getFullYear(),
+    yearModel:
+      t?.yearModel !== undefined ? t.yearModel : new Date().getFullYear(),
     tankNumber: t?.tankNumber || "1234",
     designatedRoute: t?.designatedRoute || "Admin4",
     assignedDriverId: driverId,
     driverName: driverName,
     currentOdometer: t?.currentOdometer !== undefined ? t.currentOdometer : 0,
     inputOdometer: "",
-    lastPmOdometer: t?.lastPmOdometer !== undefined ? t.lastPmOdometer : (t?.lastPMOdometer || 0),
+    lastPmOdometer:
+      t?.lastPmOdometer !== undefined
+        ? t.lastPmOdometer
+        : t?.lastPMOdometer || 0,
     activeRepair: t?.activeRepair || "",
   };
 };
@@ -73,7 +77,10 @@ const StatusPills = ({ currentStatus, onSelect }) => {
           (currentStatus || "").toUpperCase().replace("_", " ") === status;
 
         return (
-          <label key={status} className="cursor-pointer relative flex items-center">
+          <label
+            key={status}
+            className="cursor-pointer relative flex items-center"
+          >
             <input
               type="radio"
               name="truckStatus"
@@ -142,14 +149,17 @@ export default function TruckModal({
     let parsedValue = value;
 
     if (name === "model") {
-      // Added parentheses to the regex to allow valid inputs like "Isuzu Elf (2024)"
       parsedValue = value.replace(/[^a-zA-Z0-9\s\-./()]/g, "");
     }
 
     if (
-      ["currentOdometer", "inputOdometer", "lastPmOdometer", "lastPMOdometer", "yearModel"].includes(
-        name
-      )
+      [
+        "currentOdometer",
+        "inputOdometer",
+        "lastPmOdometer",
+        "lastPMOdometer",
+        "yearModel",
+      ].includes(name)
     ) {
       if (value !== "" && Number(value) < 0) return;
       parsedValue = value === "" ? "" : Number(value);
@@ -186,7 +196,7 @@ export default function TruckModal({
     handleInputChange({
       target: {
         name: "plateNumber",
-        value: formatted.slice(0, 7), // 3 letters + 1 hyphen + 3 numbers
+        value: formatted.slice(0, 7),
       },
     });
   };
@@ -198,7 +208,8 @@ export default function TruckModal({
     if (!formData.plateNumber || !formData.plateNumber.toString().trim()) {
       newErrors.plateNumber = "Plate number is required";
     } else if (!plateRegex.test(formData.plateNumber)) {
-      newErrors.plateNumber = "Plate number must be in ABC-123 format (3 letters, hyphen, 3 digits)";
+      newErrors.plateNumber =
+        "Plate number must be in ABC-123 format (3 letters, hyphen, 3 digits)";
     } else {
       const plateExists = trucks.find(
         (t) =>
@@ -221,7 +232,9 @@ export default function TruckModal({
       Number(formData.yearModel) < 1900 ||
       Number(formData.yearModel) > new Date().getFullYear() + 1
     ) {
-      newErrors.yearModel = `Year model must be between 1900 and ${new Date().getFullYear() + 1}`;
+      newErrors.yearModel = `Year model must be between 1900 and ${
+        new Date().getFullYear() + 1
+      }`;
     }
 
     if (formData.inputOdometer !== "" && formData.inputOdometer !== undefined) {
@@ -248,13 +261,17 @@ export default function TruckModal({
   const hasExistingDriver = !!(truck?.driverId || truck?.driver);
   const currentDriverId = truck?.driverId || truck?.driver?.id;
   const currentDriverName = truck?.driver
-    ? `${truck.driver.firstName || ""} ${truck.driver.lastName || ""}`.trim() || truck.driver.username
+    ? `${truck.driver.firstName || ""} ${truck.driver.lastName || ""}`.trim() ||
+      truck.driver.username
     : truck?.driverName || "Current Driver";
 
   let selectDriverOptions = [];
   if (!isAdding && hasExistingDriver) {
     selectDriverOptions = [
-      { value: currentDriverId, label: `${currentDriverName} (Currently Assigned)` },
+      {
+        value: currentDriverId,
+        label: `${currentDriverName} (Currently Assigned)`,
+      },
       { value: "", label: "Unassign Driver" },
     ];
   } else {
@@ -268,33 +285,42 @@ export default function TruckModal({
   }
 
   const submitUpdate = async () => {
-    const isDeactivated = formData.status === "INACTIVE" || formData.status === "RETIRED";
-    const finalDriverId = isDeactivated ? null : (formData.assignedDriverId || null);
+    const isDeactivated =
+      formData.status === "INACTIVE" || formData.status === "RETIRED";
+    const finalDriverId = isDeactivated
+      ? null
+      : formData.assignedDriverId || null;
 
     const matchedDriver = [...availableDrivers, ...allDrivers].find(
       (d) => d.id === finalDriverId || d.value === finalDriverId
     );
 
-    const finalDriverObj = isDeactivated || !finalDriverId
-      ? null
-      : matchedDriver
-      ? {
-          id: matchedDriver.id || matchedDriver.value,
-          firstName: matchedDriver.firstName || "",
-          lastName: matchedDriver.lastName || "",
-          phone: matchedDriver.phone || "",
-          username: matchedDriver.username || "",
-          role: matchedDriver.role || "Driver",
-        }
-      : truck?.driver && (truck.driver.id === finalDriverId || truck.driverId === finalDriverId)
-      ? truck.driver
-      : null;
+    const finalDriverObj =
+      isDeactivated || !finalDriverId
+        ? null
+        : matchedDriver
+        ? {
+            id: matchedDriver.id || matchedDriver.value,
+            firstName: matchedDriver.firstName || "",
+            lastName: matchedDriver.lastName || "",
+            phone: matchedDriver.phone || "",
+            username: matchedDriver.username || "",
+            role: matchedDriver.role || "Driver",
+          }
+        : truck?.driver &&
+          (truck.driver.id === finalDriverId ||
+            truck.driverId === finalDriverId)
+        ? truck.driver
+        : null;
 
-    const finalDriverName = isDeactivated || !finalDriverId
-      ? "No Assigned"
-      : finalDriverObj
-      ? `${finalDriverObj.firstName || ""} ${finalDriverObj.lastName || ""}`.trim() || finalDriverObj.username
-      : "No Assigned";
+    const finalDriverName =
+      isDeactivated || !finalDriverId
+        ? "No Assigned"
+        : finalDriverObj
+        ? `${finalDriverObj.firstName || ""} ${
+            finalDriverObj.lastName || ""
+          }`.trim() || finalDriverObj.username
+        : "No Assigned";
 
     const effectiveOdometer =
       formData.inputOdometer !== "" && formData.inputOdometer !== undefined
@@ -327,7 +353,10 @@ export default function TruckModal({
       setIsEditing(false);
     } catch (err) {
       console.error("Error submitting truck update:", err);
-      setSubmitError(err.message || "Failed to update vehicle. Please check inputs and try again.");
+      setSubmitError(
+        err.message ||
+          "Failed to update vehicle. Please check inputs and try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -343,27 +372,34 @@ export default function TruckModal({
         ? Number(formData.inputOdometer)
         : Number(formData.currentOdometer) || 0;
 
-    const isDeactivated = formData.status === "INACTIVE" || formData.status === "RETIRED";
-    const finalDriverId = isDeactivated ? null : (formData.assignedDriverId || null);
-
-    const finalDriverObj = isDeactivated || !finalDriverId
+    const isDeactivated =
+      formData.status === "INACTIVE" || formData.status === "RETIRED";
+    const finalDriverId = isDeactivated
       ? null
-      : matchedDriver
-      ? {
-          id: matchedDriver.id,
-          firstName: matchedDriver.firstName || "",
-          lastName: matchedDriver.lastName || "",
-          phone: matchedDriver.phone || "",
-          username: matchedDriver.username || "",
-          role: matchedDriver.role || "Driver",
-        }
-      : null;
+      : formData.assignedDriverId || null;
 
-    const finalDriverName = isDeactivated || !finalDriverId
-      ? "No Assigned"
-      : finalDriverObj
-      ? `${finalDriverObj.firstName || ""} ${finalDriverObj.lastName || ""}`.trim() || finalDriverObj.username
-      : "No Assigned";
+    const finalDriverObj =
+      isDeactivated || !finalDriverId
+        ? null
+        : matchedDriver
+        ? {
+            id: matchedDriver.id,
+            firstName: matchedDriver.firstName || "",
+            lastName: matchedDriver.lastName || "",
+            phone: matchedDriver.phone || "",
+            username: matchedDriver.username || "",
+            role: matchedDriver.role || "Driver",
+          }
+        : null;
+
+    const finalDriverName =
+      isDeactivated || !finalDriverId
+        ? "No Assigned"
+        : finalDriverObj
+        ? `${finalDriverObj.firstName || ""} ${
+            finalDriverObj.lastName || ""
+          }`.trim() || finalDriverObj.username
+        : "No Assigned";
 
     const finalData = {
       plateNumber: formData.plateNumber.trim(),
@@ -405,7 +441,9 @@ export default function TruckModal({
   const displayTruck = truck || {};
 
   const viewDriverDisplay = displayTruck.driver
-    ? `${displayTruck.driver.firstName || ""} ${displayTruck.driver.lastName || ""}`.trim() || displayTruck.driver.username
+    ? `${displayTruck.driver.firstName || ""} ${
+        displayTruck.driver.lastName || ""
+      }`.trim() || displayTruck.driver.username
     : displayTruck.driverName && displayTruck.driverName !== "Unassigned"
     ? displayTruck.driverName
     : "No Assigned";
@@ -415,15 +453,16 @@ export default function TruckModal({
   );
   const formDriverLabel = formData.assignedDriverId
     ? formDriverObj
-      ? `${formDriverObj.firstName || ""} ${formDriverObj.lastName || ""}`.trim() || formDriverObj.username || formDriverObj.label
+      ? `${formDriverObj.firstName || ""} ${
+          formDriverObj.lastName || ""
+        }`.trim() ||
+        formDriverObj.username ||
+        formDriverObj.label
       : "No Assigned"
     : "No Assigned";
 
   // ==========================================
-  // VIEW MODE MODAL
-  // ==========================================
-  // ==========================================
-  // VIEW MODE MODAL
+  // VIEW MODE MODAL (2-COLUMN BALANCED LAYOUT)
   // ==========================================
   if (!isEditing && !isAdding) {
     const currentOdo = Number(displayTruck.currentOdometer) || 0;
@@ -437,14 +476,72 @@ export default function TruckModal({
       displayTruck.isPmDue !== undefined
         ? Boolean(displayTruck.isPmDue)
         : distanceSinceLastPm >= 5000;
-    const pmPercent = Math.min(100, Math.round((distanceSinceLastPm / 5000) * 100));
+    const pmPercent = Math.min(
+      100,
+      Math.round((distanceSinceLastPm / 5000) * 100)
+    );
+
+    const isDeactivated =
+      (displayTruck.status || "").toUpperCase() === "INACTIVE" ||
+      (displayTruck.status || "").toUpperCase() === "RETIRED";
+
+    const headerBadge = (
+      <div className="flex items-center gap-2">
+        <Badge
+          variant={getStatusVariant(displayTruck.status)}
+          className="px-3 py-0.5 text-xs"
+        >
+          {displayTruck.status?.replace("_", " ") || "ACTIVE"}
+        </Badge>
+
+        {canManage && (
+          <button
+            type="button"
+            onClick={handleStartEditing}
+            className="p-1.5 text-[#0A4B6E] hover:bg-[#E8F3F8] rounded-full transition cursor-pointer"
+            title="Edit Vehicle"
+          >
+            <Pencil size={17} />
+          </button>
+        )}
+
+        {canManage &&
+          (isDeactivated ? (
+            <button
+              type="button"
+              onClick={() =>
+                onReactivateClick && onReactivateClick(displayTruck)
+              }
+              className="p-1.5 text-emerald-700 hover:bg-emerald-50 rounded-full transition cursor-pointer"
+              title="Reactivate Vehicle"
+            >
+              <RotateCcw size={17} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onDeleteClick && onDeleteClick(displayTruck)}
+              className="p-1.5 text-rose-700 hover:bg-rose-50 rounded-full transition cursor-pointer"
+              title="Deactivate Vehicle"
+            >
+              <Trash2 size={17} />
+            </button>
+          ))}
+      </div>
+    );
 
     return (
       <Modal
         key={`truck-view-${displayTruck.id || displayTruck.truckId || "view"}`}
         isOpen={true}
         onClose={onClose}
-        maxWidth="max-w-3xl"
+        title={displayTruck.plateNumber || "Vehicle Details"}
+        subtitle={`${displayTruck.model || "Isuzu Elf"} ${
+          displayTruck.yearModel ? `(${displayTruck.yearModel})` : ""
+        }`}
+        icon={Truck}
+        badge={headerBadge}
+        maxWidth="max-w-4xl"
         footer={
           <Button
             type="button"
@@ -456,322 +553,292 @@ export default function TruckModal({
           </Button>
         }
       >
-        <div className="pt-1 pb-2 space-y-4 animate-scale-in">
-          {/* Header Row: Truck Icon + Plate Number & Status + Edit / Delete / Reactivate */}
-          <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-            <div className="flex items-center gap-3 text-[#0A4B6E]">
-              <div className="w-10 h-10 rounded-2xl bg-[#E1F3FE] flex items-center justify-center text-[#0A4B6E] shrink-0">
-                <Truck size={24} className="stroke-[2.2]" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left py-1 text-xs">
+          {/* ==================================================== */}
+          {/* COLUMN 1: VEHICLE SPECIFICATIONS & PM HEALTH         */}
+          {/* ==================================================== */}
+          <div className="space-y-3.5">
+            {/* Vehicle Specifications Card */}
+            <div className="bg-[#E8F3F8] rounded-2xl p-4 md:p-5 border border-[#BCE1F1]/60 space-y-2.5 text-xs shadow-2xs">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1">
+                <Truck size={14} />
+                <span>Vehicle Specifications</span>
               </div>
-              <div>
-                <h2 className="text-xl md:text-2xl font-bold">
-                  {displayTruck.plateNumber || "Truck"}
-                </h2>
-                <p className="text-xs text-[#6D8AA2]">
-                  {displayTruck.model || "Isuzu Elf"} {displayTruck.yearModel ? `(${displayTruck.yearModel})` : ""}
-                </p>
+
+              <div className="flex justify-between items-center py-1.5 border-b border-[#BCE1F1]/60">
+                <span className="text-[#6D8AA2] font-semibold">Assigned Driver:</span>
+                <span className="font-bold text-[#0A4B6E] truncate max-w-[170px]" title={viewDriverDisplay}>
+                  {viewDriverDisplay}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-1.5 border-b border-[#BCE1F1]/60">
+                <span className="text-[#6D8AA2] font-semibold">Model & Year:</span>
+                <span className="font-bold text-[#0A4B6E]">
+                  {displayTruck.model || "Isuzu Elf"}{" "}
+                  {displayTruck.yearModel ? `(${displayTruck.yearModel})` : ""}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-1.5 border-b border-[#BCE1F1]/60">
+                <span className="text-[#6D8AA2] font-semibold">Current Odometer:</span>
+                <span className="font-mono font-bold text-[#0A4B6E]">
+                  {Number(displayTruck.currentOdometer || 0).toLocaleString()} KM
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-1.5 border-b border-[#BCE1F1]/60">
+                <span className="text-[#6D8AA2] font-semibold">Last PM Odometer:</span>
+                <span className="font-mono font-bold text-[#0A4B6E]">
+                  {Number(
+                    displayTruck.lastPmOdometer !== undefined
+                      ? displayTruck.lastPmOdometer
+                      : displayTruck.lastPMOdometer || 0
+                  ).toLocaleString()}{" "}
+                  KM
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center py-1">
+                <span className="text-[#6D8AA2] font-semibold">Designated Route:</span>
+                <span className="font-bold text-[#0A4B6E]">
+                  {displayTruck.designatedRoute || "Admin4"}
+                </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Badge variant={getStatusVariant(displayTruck.status)} className="px-3.5 py-1 text-xs">
-                {displayTruck.status?.replace("_", " ") || "ACTIVE"}
-              </Badge>
+            {/* PM Health Card */}
+            <div className="bg-[#E8F3F8] rounded-2xl p-4 md:p-5 border border-[#BCE1F1]/60 space-y-2.5 text-xs shadow-2xs">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1">
+                <Wrench size={14} />
+                <span>PM Health (5,000-KM)</span>
+              </div>
 
-              {canManage && (
-                <button
-                  type="button"
-                  onClick={handleStartEditing}
-                  className="p-1.5 text-[#0A4B6E] hover:bg-gray-100 rounded-full transition cursor-pointer"
-                  title="Edit Fleet"
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="text-[#6D8AA2] font-semibold">Interval Status:</span>
+                <span
+                  className={`font-bold ${
+                    isPmDue ? "text-[#C93B32]" : "text-[#0A4B6E]"
+                  }`}
                 >
-                  <Pencil size={18} />
-                </button>
+                  {distanceSinceLastPm.toLocaleString()} / 5,000 KM ({pmPercent}%)
+                </span>
+              </div>
+
+              <div className="w-full h-2 bg-[#BAE6FD]/80 rounded-full overflow-hidden mb-2">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    isPmDue
+                      ? "bg-[#CD3E3E]"
+                      : distanceSinceLastPm >= 4000
+                      ? "bg-[#F6C445]"
+                      : "bg-[#0A4B6E]"
+                  }`}
+                  style={{ width: `${pmPercent}%` }}
+                />
+              </div>
+
+              {isPmDue ? (
+                <div className="bg-rose-50 text-[#C93B32] p-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-rose-200">
+                  <AlertTriangle size={14} className="shrink-0" />
+                  <span>PM threshold reached! Overhaul required.</span>
+                </div>
+              ) : (
+                <p className="text-[11.5px] text-[#6D8AA2] leading-relaxed">
+                  <strong className="text-[#0A4B6E]">
+                    {Math.max(0, 5000 - distanceSinceLastPm).toLocaleString()} KM
+                  </strong>{" "}
+                  remaining before next PM service.
+                </p>
               )}
 
-              {canManage &&
-                (((displayTruck.status || "").toUpperCase() === "INACTIVE" ||
-                  (displayTruck.status || "").toUpperCase() === "RETIRED") ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onReactivateClick && onReactivateClick(displayTruck)
-                    }
-                    className="p-1.5 text-[#0A4B6E] hover:text-green-600 hover:bg-green-50 rounded-full transition cursor-pointer"
-                    title="Reactivate Fleet"
-                  >
-                    <RotateCcw size={18} />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => onDeleteClick && onDeleteClick(displayTruck)}
-                    className="p-1.5 text-[#0A4B6E] hover:text-red-600 hover:bg-red-50 rounded-full transition cursor-pointer"
-                    title="Deactivate Fleet"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                ))}
+              {displayTruck.activeRepair && (
+                <div className="bg-rose-50 text-[#C93B32] p-2 rounded-xl text-xs font-medium border border-rose-200 mt-1">
+                  <span className="font-bold">Active Repair:</span>{" "}
+                  {displayTruck.activeRepair}
+                </div>
+              )}
             </div>
+
+            {/* Grounding Warning Banner if Under Maintenance */}
+            {((displayTruck.status || "").toUpperCase() === "UNDER_MAINTENANCE" ||
+              (displayTruck.operationalStatus || "").toUpperCase() ===
+                "UNDER_MAINTENANCE") && (
+              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 flex items-center justify-between gap-2 text-xs text-rose-900 shadow-2xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <AlertOctagon size={18} className="text-rose-600 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-bold text-rose-900 leading-tight text-xs">
+                      Vehicle Grounded
+                    </p>
+                    <p className="text-[10.5px] text-rose-700 truncate">
+                      Under maintenance. Driver retained.
+                    </p>
+                  </div>
+                </div>
+                {onCreateWorkOrder && canManage && (
+                  <button
+                    type="button"
+                    onClick={() => onCreateWorkOrder(displayTruck)}
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] px-3 py-1 rounded-full shrink-0 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                  >
+                    <Wrench size={12} />
+                    <span>Work Order</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ==================================================== */}
-          {/* CATEGORIZED FLEET OPERATIONS & ACTIONS               */}
+          {/* COLUMN 2: FLEET OPERATIONS & ACTIONS                 */}
           {/* ==================================================== */}
-          <div className="bg-gray-50/80 p-4 rounded-2xl border border-gray-100 space-y-3 text-left">
-            <div className="flex items-center justify-between border-b border-gray-200/60 pb-2">
-              <p className="text-[11px] font-bold text-[#6D8AA2] uppercase tracking-wider">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+              <p className="text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
                 Fleet Operations & Actions
               </p>
-              <span className="text-[10.5px] text-gray-400 font-medium">Quick Operation Triggers</span>
+              <span className="text-[11px] text-[#6D8AA2] font-medium">
+                Quick Triggers
+              </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-2.5">
               {/* Category 1: Safety & Inspections */}
-              <div className="bg-white p-3 rounded-xl border border-gray-200/70 shadow-2xs flex flex-col justify-between gap-2.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E]">
-                  <ShieldCheck size={14} className="text-[#0A4B6E]" />
-                  <span>Safety & Inspections</span>
+              <div className="bg-[#E8F3F8]/70 hover:bg-[#E8F3F8] p-3 rounded-2xl border border-[#BCE1F1]/70 shadow-2xs flex items-center justify-between gap-2 transition-all">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] min-w-0 pr-1">
+                  <ShieldCheck size={16} className="text-[#0A4B6E] shrink-0" />
+                  <span className="truncate">Safety & Inspections</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5 w-[205px] shrink-0">
                   {onOpenInspect && canManage && (
                     <button
                       type="button"
                       onClick={() => onOpenInspect(displayTruck)}
-                      className="flex items-center gap-1 bg-white hover:bg-sky-50 text-[#0A4B6E] border border-[#0A4B6E]/40 rounded-full py-1 px-3 text-[11px] font-semibold transition-all shadow-2xs cursor-pointer active:scale-95"
+                      className="w-full h-7.5 flex items-center justify-center gap-1 bg-white hover:bg-slate-50 text-[#0A4B6E] border border-[#0A4B6E] rounded-full px-2 text-[11px] font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+                      title="Inspect Vehicle"
                     >
-                      <ShieldCheck size={12} className="text-[#0A4B6E]" />
-                      <span>Inspect Vehicle</span>
+                      <ShieldCheck size={12} className="shrink-0" />
+                      <span className="truncate">Inspect</span>
                     </button>
                   )}
                   {onOpenInspectionHistory && (
                     <button
                       type="button"
                       onClick={() => onOpenInspectionHistory(displayTruck)}
-                      className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-[#0A4B6E] border border-gray-200 rounded-full py-1 px-3 text-[11px] font-semibold transition-all cursor-pointer active:scale-95"
+                      className={`w-full h-7.5 flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-full px-2 text-[11px] font-bold transition-all cursor-pointer active:scale-95 ${
+                        !onOpenInspect || !canManage ? "col-span-2" : ""
+                      }`}
+                      title="Inspection History Logs"
                     >
-                      <ClipboardList size={12} />
-                      <span>History</span>
+                      <ClipboardList size={12} className="shrink-0" />
+                      <span className="truncate">History</span>
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Category 2: Incident & Roadside */}
-              <div className="bg-white p-3 rounded-xl border border-gray-200/70 shadow-2xs flex flex-col justify-between gap-2.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
-                  <AlertTriangle size={14} className="text-amber-600" />
-                  <span>Incidents & Breakdowns</span>
+              {/* Category 2: Incidents & Roadside */}
+              <div className="bg-[#E8F3F8]/70 hover:bg-[#E8F3F8] p-3 rounded-2xl border border-[#BCE1F1]/70 shadow-2xs flex items-center justify-between gap-2 transition-all">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 min-w-0 pr-1">
+                  <AlertTriangle size={16} className="text-amber-600 shrink-0" />
+                  <span className="truncate">Incidents & Breakdowns</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5 w-[205px] shrink-0">
                   {onOpenIncident && canManage && (
                     <button
                       type="button"
                       onClick={() => onOpenIncident(displayTruck)}
-                      className="flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-full py-1 px-3 text-[11px] font-semibold transition-all shadow-2xs cursor-pointer active:scale-95"
+                      className="w-full h-7.5 flex items-center justify-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-full px-2 text-[11px] font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+                      title="Report Incident"
                     >
-                      <AlertTriangle size={12} className="text-amber-600" />
-                      <span>Report Incident</span>
+                      <AlertTriangle size={12} className="shrink-0" />
+                      <span className="truncate">Report</span>
                     </button>
                   )}
                   {onOpenIncidentHistory && (
                     <button
                       type="button"
                       onClick={() => onOpenIncidentHistory(displayTruck)}
-                      className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-[#0A4B6E] border border-gray-200 rounded-full py-1 px-3 text-[11px] font-semibold transition-all cursor-pointer active:scale-95"
+                      className={`w-full h-7.5 flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-full px-2 text-[11px] font-bold transition-all cursor-pointer active:scale-95 ${
+                        !onOpenIncident || !canManage ? "col-span-2" : ""
+                      }`}
+                      title="Incident Logs"
                     >
-                      <AlertOctagon size={12} />
-                      <span>Incident Logs</span>
+                      <AlertOctagon size={12} className="shrink-0" />
+                      <span className="truncate">Logs</span>
                     </button>
                   )}
                 </div>
               </div>
 
               {/* Category 3: Mileage & Odometer */}
-              <div className="bg-white p-3 rounded-xl border border-gray-200/70 shadow-2xs flex flex-col justify-between gap-2.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E]">
-                  <Gauge size={14} className="text-[#0A4B6E]" />
-                  <span>Mileage & Odometer</span>
+              <div className="bg-[#E8F3F8]/70 hover:bg-[#E8F3F8] p-3 rounded-2xl border border-[#BCE1F1]/70 shadow-2xs flex items-center justify-between gap-2 transition-all">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] min-w-0 pr-1">
+                  <Gauge size={16} className="text-[#0A4B6E] shrink-0" />
+                  <span className="truncate">Mileage & Odometer</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5 w-[205px] shrink-0">
                   {onOpenCheckIn && (
                     <button
                       type="button"
                       onClick={() => onOpenCheckIn(displayTruck)}
-                      className="flex items-center gap-1 bg-white hover:bg-sky-50 text-[#0A4B6E] border border-[#0A4B6E]/40 rounded-full py-1 px-3 text-[11px] font-semibold transition-all shadow-2xs cursor-pointer active:scale-95"
+                      className="w-full h-7.5 flex items-center justify-center gap-1 bg-white hover:bg-slate-50 text-[#0A4B6E] border border-[#0A4B6E] rounded-full px-2 text-[11px] font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+                      title="Record Return Odometer"
                     >
-                      <Gauge size={12} className="text-[#0A4B6E]" />
-                      <span>Record Return</span>
+                      <Gauge size={12} className="shrink-0" />
+                      <span className="truncate">Check-In</span>
                     </button>
                   )}
                   {onOpenHistory && (
                     <button
                       type="button"
                       onClick={() => onOpenHistory(displayTruck)}
-                      className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-[#0A4B6E] border border-gray-200 rounded-full py-1 px-3 text-[11px] font-semibold transition-all cursor-pointer active:scale-95"
+                      className={`w-full h-7.5 flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-full px-2 text-[11px] font-bold transition-all cursor-pointer active:scale-95 ${
+                        !onOpenCheckIn ? "col-span-2" : ""
+                      }`}
+                      title="Mileage History"
                     >
-                      <History size={12} />
-                      <span>Mileage History</span>
+                      <History size={12} className="shrink-0" />
+                      <span className="truncate">History</span>
                     </button>
                   )}
                 </div>
               </div>
 
               {/* Category 4: Maintenance & Operational Condition */}
-              <div className="bg-white p-3 rounded-xl border border-gray-200/70 shadow-2xs flex flex-col justify-between gap-2.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E]">
-                  <Wrench size={14} className="text-[#0A4B6E]" />
-                  <span>Maintenance & Condition</span>
+              <div className="bg-[#E8F3F8]/70 hover:bg-[#E8F3F8] p-3 rounded-2xl border border-[#BCE1F1]/70 shadow-2xs flex items-center justify-between gap-2 transition-all">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] min-w-0 pr-1">
+                  <Wrench size={16} className="text-[#0A4B6E] shrink-0" />
+                  <span className="truncate">Maintenance & Condition</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5 w-[205px] shrink-0">
                   {onCreateWorkOrder && canManage && (
                     <button
                       type="button"
                       onClick={() => onCreateWorkOrder(displayTruck)}
-                      className="flex items-center gap-1 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0B4A6E] rounded-full py-1 px-3.5 text-[11px] font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+                      className="w-full h-7.5 flex items-center justify-center gap-1 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold rounded-full px-1.5 text-[11px] transition-all shadow-2xs cursor-pointer active:scale-95"
+                      title="Create Work Order"
                     >
-                      <Wrench size={12} />
-                      <span>Create Work Order</span>
+                      <Wrench size={12} className="shrink-0" />
+                      <span className="truncate">Work Order</span>
                     </button>
                   )}
                   {onOpenAvailability && canManage && (
                     <button
                       type="button"
                       onClick={() => onOpenAvailability(displayTruck)}
-                      className="flex items-center gap-1 bg-white hover:bg-gray-50 text-[#0A4B6E] border border-[#0A4B6E]/40 rounded-full py-1 px-3 text-[11px] font-semibold transition-all shadow-2xs cursor-pointer active:scale-95"
+                      className={`w-full h-7.5 flex items-center justify-center gap-1 bg-white hover:bg-slate-50 text-[#0A4B6E] border border-[#0A4B6E] rounded-full px-1.5 text-[11px] font-bold transition-all shadow-2xs cursor-pointer active:scale-95 ${
+                        !onCreateWorkOrder || !canManage ? "col-span-2" : ""
+                      }`}
+                      title="Set Vehicle Availability"
                     >
-                      <SlidersHorizontal size={12} />
-                      <span>Set Availability</span>
+                      <SlidersHorizontal size={12} className="shrink-0" />
+                      <span className="truncate">Availability</span>
                     </button>
                   )}
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* GROUNDING WARNING BANNER (When Under Maintenance) */}
-          {((displayTruck.status || "").toUpperCase() === "UNDER_MAINTENANCE" ||
-            (displayTruck.operationalStatus || "").toUpperCase() === "UNDER_MAINTENANCE") && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start justify-between gap-3 text-xs text-red-800 text-left">
-              <div className="flex items-start gap-2.5">
-                <AlertOctagon size={18} className="text-red-600 shrink-0 mt-0.5" />
-                <div className="space-y-0.5">
-                  <p className="font-bold">⚠️ Vehicle Grounded — Under Maintenance</p>
-                  <p className="text-[11.5px] text-red-700 leading-relaxed">
-                    This vehicle is currently grounded from dispatch. Soft-bound driver ({viewDriverDisplay}) is retained.
-                  </p>
-                </div>
-              </div>
-              {onCreateWorkOrder && canManage && (
-                <button
-                  type="button"
-                  onClick={() => onCreateWorkOrder(displayTruck)}
-                  className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3 py-1.5 rounded-full shrink-0 transition flex items-center gap-1 cursor-pointer shadow-xs"
-                >
-                  <Wrench size={13} />
-                  <span>Work Order</span>
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* ==================================================== */}
-          {/* TRUCK DETAILS 2-COLUMN GRID                          */}
-          {/* ==================================================== */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-            {/* Left Card: Vehicle & Driver Attributes */}
-            <div className="bg-[#E1F3FE] rounded-2xl p-5 space-y-3 text-xs">
-              <p className="text-[11px] font-bold text-[#588094] uppercase tracking-wider mb-2">
-                Vehicle Specifications
-              </p>
-
-              <div>
-                <span className="text-[#588094] font-medium">Driver:</span>
-                <span className="font-bold text-[#0A4B6E] ml-2">
-                  {viewDriverDisplay}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-[#588094] font-medium">Model & Year:</span>
-                <span className="font-bold text-[#0A4B6E] ml-2">
-                  {displayTruck.model || "Isuzu Elf"}{" "}
-                  {displayTruck.yearModel ? `(${displayTruck.yearModel})` : ""}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-[#588094] font-medium">Current Odometer:</span>
-                <span className="font-bold text-[#0A4B6E] ml-2">
-                  {displayTruck.currentOdometer !== undefined &&
-                  displayTruck.currentOdometer !== null
-                    ? `${Number(displayTruck.currentOdometer).toLocaleString()} KM`
-                    : "0 KM"}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-[#588094] font-medium">Last PM Odometer:</span>
-                <span className="font-bold text-[#0A4B6E] ml-2">
-                  {displayTruck.lastPmOdometer !== undefined &&
-                  displayTruck.lastPmOdometer !== null
-                    ? `${Number(displayTruck.lastPmOdometer).toLocaleString()} KM`
-                    : `${Number(displayTruck.lastPMOdometer || 0).toLocaleString()} KM`}
-                </span>
-              </div>
-
-              <div>
-                <span className="text-[#588094] font-medium">Operational Status:</span>
-                <span className="font-bold text-[#0A4B6E] ml-2">
-                  {displayTruck.status?.replace("_", " ") || "ACTIVE"}
-                </span>
-              </div>
-            </div>
-
-            {/* Right Card: 5,000-KM PM Progress & Health */}
-            <div className="bg-[#E1F3FE] rounded-2xl p-5 space-y-3 text-xs flex flex-col justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-[#588094] uppercase tracking-wider mb-2">
-                  Preventive Maintenance (PM) Health
-                </p>
-
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="text-[#588094] font-medium">5,000-KM Status:</span>
-                  <span className={`font-bold ${isPmDue ? "text-[#C93B32]" : "text-[#0A4B6E]"}`}>
-                    {distanceSinceLastPm.toLocaleString()} / 5,000 KM ({pmPercent}%)
-                  </span>
-                </div>
-
-                <div className="w-full h-2.5 bg-[#BAE6FD] rounded-full overflow-hidden mb-2">
-                  <div
-                    className={`h-full rounded-full transition-all duration-300 ${
-                      isPmDue
-                        ? "bg-[#CD3E3E]"
-                        : distanceSinceLastPm >= 4000
-                        ? "bg-[#F6C445]"
-                        : "bg-[#0A4B6E]"
-                    }`}
-                    style={{ width: `${pmPercent}%` }}
-                  />
-                </div>
-
-                {isPmDue ? (
-                  <div className="bg-rose-50/80 text-[#C93B32] p-2.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-rose-200/80">
-                    <span>⚠️ PM threshold reached! Maintenance overhaul required.</span>
-                  </div>
-                ) : (
-                  <p className="text-[11.5px] text-[#588094]">
-                    <span className="font-bold text-[#0A4B6E]">{Math.max(0, 5000 - distanceSinceLastPm).toLocaleString()} KM</span> remaining before next preventive service.
-                  </p>
-                )}
-              </div>
-
-              {displayTruck.activeRepair && (
-                <div className="bg-rose-50/80 text-[#C93B32] p-3 rounded-xl text-xs font-medium border border-rose-200/80 mt-2">
-                  <span className="font-bold">Active Repair:</span>{" "}
-                  {displayTruck.activeRepair}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -799,7 +866,7 @@ export default function TruckModal({
         onBack={() => setStep(1)}
         maxWidth="max-w-lg"
       >
-        <div className="space-y-4 py-1">
+        <div className="space-y-4 py-1 text-left">
           <div className="bg-[#E8F3F8] rounded-2xl p-5 border border-[#BCE1F1]/60 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#BCE1F1]/60">
               <div className="flex items-center gap-3 min-w-0 pr-2">
@@ -811,7 +878,8 @@ export default function TruckModal({
                     {formData.plateNumber || "-"}
                   </h3>
                   <p className="text-xs text-[#6D8AA2] font-medium">
-                    {formData.model || "Isuzu Elf"} {formData.yearModel ? `(${formData.yearModel})` : ""}
+                    {formData.model || "Isuzu Elf"}{" "}
+                    {formData.yearModel ? `(${formData.yearModel})` : ""}
                   </p>
                 </div>
               </div>
@@ -835,7 +903,10 @@ export default function TruckModal({
                     <Gauge size={13} /> Initial Odometer
                   </span>
                   <p className="font-bold text-[#0A4B6E] text-sm font-mono">
-                    {Number(formData.inputOdometer || formData.currentOdometer || 0).toLocaleString()} KM
+                    {Number(
+                      formData.inputOdometer || formData.currentOdometer || 0
+                    ).toLocaleString()}{" "}
+                    KM
                   </p>
                 </div>
 
@@ -859,14 +930,15 @@ export default function TruckModal({
           </div>
 
           <div className="pt-2">
-            <button
+            <Button
               type="button"
+              variant="yellow"
               onClick={handleConfirmAdd}
-              className="w-full bg-[#FFDF2C] hover:bg-[#ebd024] active:scale-[0.98] text-[#0A4B6E] font-bold py-3.5 px-6 rounded-full text-xs md:text-sm uppercase tracking-wider transition-all duration-150 shadow-sm cursor-pointer flex items-center justify-center gap-2"
+              className="w-full font-bold text-sm uppercase tracking-wider py-3.5 rounded-full flex items-center justify-center gap-2"
             >
               <ShieldCheck size={16} />
               <span>CONFIRM & REGISTER VEHICLE</span>
-            </button>
+            </Button>
           </div>
         </div>
       </Modal>
@@ -878,11 +950,19 @@ export default function TruckModal({
   // ==========================================
   return (
     <Modal
-      key={isAdding ? "truck-add-modal" : `truck-edit-${displayTruck.id || displayTruck.truckId || "edit"}`}
+      key={
+        isAdding
+          ? "truck-add-modal"
+          : `truck-edit-${displayTruck.id || displayTruck.truckId || "edit"}`
+      }
       isOpen={true}
       onClose={handleCancel}
       title={isAdding ? "Add New Vehicle" : "Edit Vehicle Details"}
-      subtitle={isAdding ? "Register delivery vehicle, soft-bound driver & odometer" : "Update vehicle asset specifications and status"}
+      subtitle={
+        isAdding
+          ? "Register delivery vehicle, soft-bound driver & odometer"
+          : "Update vehicle asset specifications and status"
+      }
       icon={Truck}
       badge={
         isAdding ? (
@@ -893,7 +973,13 @@ export default function TruckModal({
       }
       maxWidth="max-w-xl"
     >
-      <form onSubmit={(e) => { e.preventDefault(); handleFormSubmit(); }} className="space-y-4 py-1">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleFormSubmit();
+        }}
+        className="space-y-4 py-1 text-left"
+      >
         {submitError && (
           <div className="w-full bg-red-50 text-red-700 p-3 rounded-xl text-xs font-medium border border-red-200">
             {submitError}
@@ -901,7 +987,7 @@ export default function TruckModal({
         )}
 
         {/* CARD 1: Vehicle Identification */}
-        <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3.5">
+        <div className="bg-[#E8F3F8] rounded-2xl p-4.5 border border-[#BCE1F1]/60 space-y-3.5">
           <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
             <Truck size={14} />
             <span>Vehicle Identification</span>
@@ -923,11 +1009,13 @@ export default function TruckModal({
                 className={`w-full bg-white text-slate-800 font-mono font-bold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all placeholder:text-slate-400 ${
                   errors.plateNumber
                     ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
-                    : "border-slate-200 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
+                    : "border-[#BCE1F1]/80 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
                 }`}
               />
               {errors.plateNumber && (
-                <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium">{errors.plateNumber}</p>
+                <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium">
+                  {errors.plateNumber}
+                </p>
               )}
             </div>
 
@@ -945,11 +1033,13 @@ export default function TruckModal({
                 className={`w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all placeholder:text-slate-400 ${
                   errors.model
                     ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
-                    : "border-slate-200 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
+                    : "border-[#BCE1F1]/80 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
                 }`}
               />
               {errors.model && (
-                <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium">{errors.model}</p>
+                <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium">
+                  {errors.model}
+                </p>
               )}
             </div>
           </div>
@@ -964,16 +1054,20 @@ export default function TruckModal({
                 required
                 name="yearModel"
                 placeholder="e.g. 2023"
-                value={formData.yearModel !== undefined ? formData.yearModel : ""}
+                value={
+                  formData.yearModel !== undefined ? formData.yearModel : ""
+                }
                 onChange={handleInputChange}
                 className={`w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all placeholder:text-slate-400 ${
                   errors.yearModel
                     ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
-                    : "border-slate-200 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
+                    : "border-[#BCE1F1]/80 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
                 }`}
               />
               {errors.yearModel && (
-                <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium">{errors.yearModel}</p>
+                <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium">
+                  {errors.yearModel}
+                </p>
               )}
             </div>
 
@@ -985,7 +1079,7 @@ export default function TruckModal({
                 name="assignedDriverId"
                 value={formData.assignedDriverId || ""}
                 onChange={handleInputChange}
-                className="w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10 transition-all cursor-pointer"
+                className="w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-[#BCE1F1]/80 outline-none focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10 transition-all cursor-pointer"
               >
                 {selectDriverOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -1003,7 +1097,7 @@ export default function TruckModal({
         </div>
 
         {/* CARD 2: Odometer & PM Baseline */}
-        <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3.5">
+        <div className="bg-[#E8F3F8] rounded-2xl p-4.5 border border-[#BCE1F1]/60 space-y-3.5">
           <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
             <Gauge size={14} />
             <span>Odometer & Maintenance Baseline</span>
@@ -1019,8 +1113,11 @@ export default function TruckModal({
                   type="text"
                   disabled
                   value={
-                    formData.currentOdometer !== undefined && formData.currentOdometer !== null
-                      ? `${Number(formData.currentOdometer).toLocaleString()} KM`
+                    formData.currentOdometer !== undefined &&
+                    formData.currentOdometer !== null
+                      ? `${Number(
+                          formData.currentOdometer
+                        ).toLocaleString()} KM`
                       : "0 KM"
                   }
                   className="w-full bg-slate-100 text-slate-500 font-mono text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 cursor-not-allowed"
@@ -1030,7 +1127,9 @@ export default function TruckModal({
 
             <div className={isAdding ? "sm:col-span-2" : ""}>
               <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1">
-                {isAdding ? "Initial Odometer Reading (KM)" : "Update Odometer Reading (KM)"}
+                {isAdding
+                  ? "Initial Odometer Reading (KM)"
+                  : "Update Odometer Reading (KM)"}
               </label>
               <input
                 type="number"
@@ -1042,11 +1141,13 @@ export default function TruckModal({
                 className={`w-full bg-white text-slate-800 font-mono text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all placeholder:text-slate-400 ${
                   errors.inputOdometer
                     ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
-                    : "border-slate-200 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
+                    : "border-[#BCE1F1]/80 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
                 }`}
               />
               {errors.inputOdometer && (
-                <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium">{errors.inputOdometer}</p>
+                <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium">
+                  {errors.inputOdometer}
+                </p>
               )}
             </div>
 
@@ -1059,46 +1160,54 @@ export default function TruckModal({
                 min="0"
                 name="lastPmOdometer"
                 placeholder="e.g. 40000"
-                value={formData.lastPmOdometer !== undefined ? formData.lastPmOdometer : ""}
+                value={
+                  formData.lastPmOdometer !== undefined
+                    ? formData.lastPmOdometer
+                    : ""
+                }
                 onChange={handleInputChange}
-                className="w-full bg-white text-slate-800 font-mono text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10 transition-all placeholder:text-slate-400"
+                className="w-full bg-white text-slate-800 font-mono text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-[#BCE1F1]/80 outline-none focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10 transition-all placeholder:text-slate-400"
               />
             </div>
           </div>
 
           {/* Status Pills */}
-          <div className="pt-2 border-t border-[#BCE1F1]/50">
+          <div className="pt-2 border-t border-[#BCE1F1]/60">
             <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1.5">
               Operational Status
             </label>
             <StatusPills
               currentStatus={formData.status}
-              onSelect={(status) => setFormData((prev) => ({ ...prev, status }))}
+              onSelect={(status) =>
+                setFormData((prev) => ({ ...prev, status }))
+              }
             />
           </div>
         </div>
 
         {/* FOOTER ACTIONS */}
         <div className="pt-2 flex flex-col gap-2">
-          <button
+          <Button
             type="submit"
+            variant="yellow"
             disabled={isSubmitting}
-            className="w-full bg-[#FFDF2C] hover:bg-[#ebd024] active:scale-[0.98] text-[#0A4B6E] font-bold py-3.5 px-6 rounded-full text-xs md:text-sm uppercase tracking-wider transition-all duration-150 shadow-sm cursor-pointer disabled:opacity-50"
+            className="w-full font-bold text-sm uppercase tracking-wider py-3.5 rounded-full"
           >
             {isSubmitting
               ? "SAVING VEHICLE..."
               : isAdding
               ? "CONTINUE TO CONFIRMATION"
               : "SAVE CHANGES"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="cancel"
             disabled={isSubmitting}
             onClick={handleCancel}
-            className="w-full bg-transparent hover:bg-slate-50 text-slate-500 font-semibold py-2 rounded-full text-xs uppercase tracking-wider transition-all cursor-pointer"
+            className="text-xs"
           >
             CANCEL
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

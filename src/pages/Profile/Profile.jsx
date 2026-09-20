@@ -1,13 +1,32 @@
 // src/pages/Profile/Profile.jsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { usersApi } from "../../api/users.js";
 import { authApi } from "../../api/auth.js";
-import { UserCircle, Eye, EyeOff, X, Check, Lock, AlertTriangle, KeyRound, CheckCircle2 } from "lucide-react";
+import {
+  UserRound,
+  Eye,
+  EyeOff,
+  Check,
+  ShieldCheck,
+  AlertTriangle,
+  KeyRound,
+  CheckCircle2,
+  Pencil,
+  Camera,
+  X,
+  Lock,
+  Mail,
+  Phone,
+  Calendar,
+  Sparkles,
+} from "lucide-react";
 import Modal from "../../components/ui/Modal";
-import Button from "../../components/ui/Button";
+import Badge from "../../components/ui/Badge";
 import ToastNotification from "../../components/ui/ToastNotifications";
+import { formatPhilippinePhone } from "../../utils/phone.js";
+import { toProperCase } from "../../utils/text.js";
 
 export default function Profile() {
   const { currentUser, updateUser, logout } = useAuth();
@@ -17,15 +36,23 @@ export default function Profile() {
   const [profileImage, setProfileImage] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Form State initialized from logged-in user
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    fullName: "",
-    phone: "",
-    birthdate: "",
-    username: "",
+  // Form State initialized lazily from logged-in user
+  const [formData, setFormData] = useState(() => {
+    const fName = currentUser?.firstName || "";
+    const lName = currentUser?.lastName || "";
+    const full = `${fName} ${lName}`.trim() || currentUser?.username || "Alejandro Doe";
+    return {
+      firstName: fName,
+      lastName: lName,
+      fullName: full,
+      phone: currentUser?.phone || "09999999999",
+      birthdate: currentUser?.birthdate || "1995-05-15",
+      username: currentUser?.username || "adoe_admin",
+    };
   });
+
+  // Form validation errors
+  const [errors, setErrors] = useState({});
 
   // Password / Security Modal States
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -37,6 +64,7 @@ export default function Profile() {
   });
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
@@ -46,24 +74,6 @@ export default function Profile() {
     type: "success",
     message: "Saved Changes",
   });
-
-  // Populate from logged-in user details
-  useEffect(() => {
-    if (currentUser) {
-      const fName = currentUser.firstName || "";
-      const lName = currentUser.lastName || "";
-      const full = `${fName} ${lName}`.trim() || currentUser.username || "Alejandro Doe";
-      
-      setFormData({
-        firstName: fName,
-        lastName: lName,
-        fullName: full,
-        phone: currentUser.phone || "09999999999",
-        birthdate: currentUser.birthdate || "DD/MM/YYYY",
-        username: currentUser.username || "adoe_admin",
-      });
-    }
-  }, [currentUser]);
 
   // Handle Profile Picture selection
   const handleImageChange = (e) => {
@@ -84,20 +94,30 @@ export default function Profile() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
   // Save Profile Changes
   const handleSaveChanges = async (e) => {
     e?.preventDefault();
 
-    // Parse full name into firstName and lastName
-    const nameParts = (formData.fullName || "").trim().split(" ");
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(" ") || "";
+    const newErrors = {};
+    if (!formData.firstName.trim()) newErrors.firstName = "First name is required.";
+    if (!formData.lastName.trim()) newErrors.lastName = "Last name is required.";
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    const cleanFirstName = toProperCase(formData.firstName);
+    const cleanLastName = toProperCase(formData.lastName);
+    const full = `${cleanFirstName} ${cleanLastName}`.trim();
 
     const updatedData = {
-      firstName: firstName || formData.firstName,
-      lastName: lastName || formData.lastName,
+      firstName: cleanFirstName,
+      lastName: cleanLastName,
       phone: formData.phone,
       birthdate: formData.birthdate !== "DD/MM/YYYY" ? formData.birthdate : null,
     };
@@ -111,35 +131,40 @@ export default function Profile() {
     }
 
     updateUser(updatedData);
+    setFormData((prev) => ({
+      ...prev,
+      firstName: cleanFirstName,
+      lastName: cleanLastName,
+      fullName: full,
+    }));
     setIsEditing(false);
     setToast({
       show: true,
       type: "success",
-      message: "Saved Changes",
+      message: "Profile Updated Successfully",
     });
   };
 
   const handleCancelEdit = () => {
-    // Revert form data to current user state
     if (currentUser) {
       const fName = currentUser.firstName || "";
       const lName = currentUser.lastName || "";
       const full = `${fName} ${lName}`.trim() || currentUser.username || "Alejandro Doe";
-      
       setFormData({
         firstName: fName,
         lastName: lName,
         fullName: full,
         phone: currentUser.phone || "09999999999",
-        birthdate: currentUser.birthdate || "DD/MM/YYYY",
+        birthdate: currentUser.birthdate || "1995-05-15",
         username: currentUser.username || "adoe_admin",
       });
     }
+    setErrors({});
     setIsEditing(false);
     setToast({
       show: true,
       type: "info",
-      message: "Changes not Saved",
+      message: "Changes Cancelled",
     });
   };
 
@@ -192,235 +217,344 @@ export default function Profile() {
   };
 
   const displayName = formData.fullName || `${formData.firstName} ${formData.lastName}`.trim() || "Alejandro Doe";
-  const displayPhone = formData.phone || "09999999999";
-  const displayBirthday = formData.birthdate || "DD/MM/YYYY";
+  const displayPhone = formatPhilippinePhone(formData.phone) || "N/A";
+  const displayBirthday = formData.birthdate || "N/A";
   const displayUsername = formData.username || "adoe_admin";
+  const roleName = typeof currentUser?.role === "string" ? currentUser.role : currentUser?.role?.name || "Super Admin";
 
   return (
     <div className="p-6 md:p-8">
-      <div className="w-full max-w-[1200px] mx-auto text-left">
-        {/* PAGE HEADER */}
-        <div className="pb-4 border-b border-[#6D8AA2] mb-8">
+      <div className="w-full max-w-[1280px] mx-auto text-left">
+        {/* ================= PAGE HEADER ================= */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[#6D8AA2] mb-6 gap-4">
           <h1 className="text-2xl md:text-[32px] font-bold text-[#1B4B75]">
             Account Profile
           </h1>
-        </div>
 
-        {/* MAIN PROFILE CARD */}
-        <div className="bg-white rounded-3xl p-6 sm:p-10 shadow-xs border border-gray-100">
-          {/* ==================================================== */}
-          {/* SECTION 1: BASIC INFORMATION                         */}
-          {/* ==================================================== */}
-          <div className="mb-10">
-            <h2 className="text-[#1B4B75] font-bold text-lg md:text-xl mb-6">
-              Basic Information
-            </h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setPasswordError("");
+                setPasswordModalStep(1);
+                setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                setShowPasswordModal(true);
+              }}
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-300 text-[#0A4B6E] font-semibold text-xs md:text-sm px-4 py-2.5 rounded-full transition-colors cursor-pointer shadow-2xs active:scale-95"
+            >
+              <KeyRound size={16} />
+              <span>Change Password</span>
+            </button>
 
-            {/* Profile Picture Row */}
-            <div className="flex flex-col sm:flex-row sm:items-center py-4 border-b border-gray-100 gap-4">
-              <span className="w-40 sm:w-48 text-sm font-medium text-gray-500 shrink-0">
-                Profile Picture
-              </span>
-
-              <div className="flex items-center gap-4">
-                {/* Avatar Display */}
-                <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border border-gray-200 overflow-hidden shrink-0">
-                  {profileImage ? (
-                    <img
-                      src={profileImage}
-                      alt="Profile Avatar"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <UserCircle size={56} className="text-gray-300" />
-                  )}
-                </div>
-
-                {/* Upload / Edit Actions */}
-                <div className="flex items-center gap-3">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleImageChange}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="bg-[#FFDF2C] hover:bg-[#F5D020] text-[#0A4B6E] text-xs font-bold px-4 py-2 rounded-full uppercase tracking-wider transition cursor-pointer shadow-xs"
-                  >
-                    Change Image
-                  </button>
-
-                  {isEditing ? (
-                    profileImage && (
-                      <button
-                        type="button"
-                        onClick={handleRemoveImage}
-                        className="text-xs text-gray-500 hover:text-red-600 hover:underline cursor-pointer font-medium"
-                      >
-                        Remove Image
-                      </button>
-                    )
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setIsEditing(true)}
-                      className="text-xs text-[#0A4B6E] hover:underline cursor-pointer font-semibold"
-                    >
-                      Edit Profile
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Fields (View State vs Edit State) */}
             {!isEditing ? (
-              // VIEW STATE
-              <div className="divide-y divide-gray-100">
-                {/* Name */}
-                <div className="flex flex-col sm:flex-row sm:items-center py-4">
-                  <span className="w-40 sm:w-48 text-sm font-medium text-gray-500 shrink-0">
-                    Name
-                  </span>
-                  <span className="text-sm font-bold text-[#0A4B6E]">
-                    {displayName}
-                  </span>
-                </div>
-
-                {/* Mobile No. */}
-                <div className="flex flex-col sm:flex-row sm:items-center py-4">
-                  <span className="w-40 sm:w-48 text-sm font-medium text-gray-500 shrink-0">
-                    Mobile No.
-                  </span>
-                  <span className="text-sm font-bold text-[#0A4B6E]">
-                    {displayPhone}
-                  </span>
-                </div>
-
-                {/* Birthday */}
-                <div className="flex flex-col sm:flex-row sm:items-center py-4">
-                  <span className="w-40 sm:w-48 text-sm font-medium text-gray-500 shrink-0">
-                    Birthday
-                  </span>
-                  <span className="text-sm font-bold text-[#0A4B6E]">
-                    {displayBirthday}
-                  </span>
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-2 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs md:text-sm px-5 py-2.5 rounded-full shadow-xs transition-all active:scale-95 cursor-pointer"
+              >
+                <Pencil size={16} />
+                <span>Edit Profile</span>
+              </button>
             ) : (
-              // EDIT STATE FORM
-              <div className="space-y-4 pt-4">
-                {/* Name Input */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                  <label className="w-40 sm:w-48 text-sm font-medium text-gray-500 shrink-0">
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleInputChange}
-                    placeholder="e.g. Alejandro Doe"
-                    className="w-full max-w-md bg-[#F3F5F5] rounded-full px-5 py-2.5 text-sm text-[#0A4B6E] font-medium border border-transparent focus:border-[#0A4B6E] focus:bg-white outline-none transition"
-                  />
-                </div>
-
-                {/* Mobile No. Input */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                  <label className="w-40 sm:w-48 text-sm font-medium text-gray-500 shrink-0">
-                    Mobile No.
-                  </label>
-                  <input
-                    type="text"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 09999999999"
-                    className="w-full max-w-md bg-[#F3F5F5] rounded-full px-5 py-2.5 text-sm text-[#0A4B6E] font-medium border border-transparent focus:border-[#0A4B6E] focus:bg-white outline-none transition"
-                  />
-                </div>
-
-                {/* Birthday Input */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                  <label className="w-40 sm:w-48 text-sm font-medium text-gray-500 shrink-0">
-                    Birthday
-                  </label>
-                  <input
-                    type="text"
-                    name="birthdate"
-                    value={formData.birthdate}
-                    onChange={handleInputChange}
-                    placeholder="DD/MM/YYYY"
-                    className="w-full max-w-md bg-[#F3F5F5] rounded-full px-5 py-2.5 text-sm text-[#0A4B6E] font-medium border border-transparent focus:border-[#0A4B6E] focus:bg-white outline-none transition"
-                  />
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold text-xs md:text-sm px-4 py-2.5 rounded-full transition-colors cursor-pointer shadow-2xs active:scale-95"
+              >
+                <X size={16} />
+                <span>Cancel</span>
+              </button>
             )}
           </div>
+        </div>
 
-          {/* ==================================================== */}
-          {/* SECTION 2: ACCOUNT INFORMATION                      */}
-          {/* ==================================================== */}
-          <div>
-            <h2 className="text-[#1B4B75] font-bold text-lg md:text-xl mb-6">
-              Account Information
-            </h2>
+        {/* ================= MAIN CONTENT GRID ================= */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          {/* LEFT COLUMN: IDENTITY CARD */}
+          <div className="lg:col-span-4 bg-white border border-[#0A4B6E]/30 rounded-3xl p-6 shadow-sm flex flex-col justify-between items-center text-center relative overflow-hidden h-full">
+            {/* Top decorative gradient banner */}
+            <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-[#E8F3F8] to-transparent pointer-events-none" />
 
-            <div className="divide-y divide-gray-100">
-              {/* Email / Username */}
-              <div className="flex flex-col sm:flex-row sm:items-center py-4">
-                <span className="w-40 sm:w-48 text-sm font-medium text-gray-500 shrink-0">
-                  Email
-                </span>
-                <span className="text-sm font-bold text-[#0A4B6E]">
-                  {displayUsername}
-                </span>
+            {/* Top Identity Block */}
+            <div className="flex flex-col items-center w-full relative z-10">
+              {/* Avatar */}
+              <div className="w-24 h-24 rounded-full bg-[#0A4B6E] flex items-center justify-center text-white border-4 border-white shadow-md overflow-hidden mt-2">
+                {profileImage ? (
+                  <img
+                    src={profileImage}
+                    alt="Profile Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <UserRound size={48} className="text-[#FFDF2C]" />
+                )}
               </div>
 
-              {/* Password */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-2">
-                <div className="flex flex-col sm:flex-row sm:items-center">
-                  <span className="w-40 sm:w-48 text-sm font-medium text-gray-500 shrink-0">
-                    Password
-                  </span>
-                  <span className="text-sm font-bold text-[#0A4B6E] tracking-widest">
-                    ••••••••••••••••
-                  </span>
-                </div>
-
+              {/* Avatar Change Actions */}
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageChange}
+                  accept="image/*"
+                  className="hidden"
+                />
                 <button
                   type="button"
-                  onClick={() => {
-                    setPasswordError("");
-                    setPasswordModalStep(1);
-                    setShowPasswordModal(true);
-                  }}
-                  className="text-xs text-[#0A4B6E] hover:underline font-semibold cursor-pointer shrink-0 self-start sm:self-auto"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 bg-[#E8F3F8] hover:bg-[#BCE1F1] text-[#0A4B6E] font-bold text-[11px] px-3.5 py-1.5 rounded-full uppercase tracking-wider transition cursor-pointer shadow-2xs"
                 >
-                  Change password
+                  <Camera size={13} />
+                  <span>Change Photo</span>
                 </button>
+
+                {profileImage && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="text-xs text-slate-500 hover:text-red-600 cursor-pointer font-medium p-1 transition"
+                    title="Remove Photo"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+
+              {/* User Title & Username */}
+              <h2 className="text-xl font-bold text-[#0A4B6E] mt-4">
+                {displayName}
+              </h2>
+              <p className="text-xs font-semibold text-[#6D8AA2]">
+                @{displayUsername}
+              </p>
+
+              {/* Badges Row */}
+              <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
+                <Badge variant="roles">{roleName}</Badge>
+                <Badge variant="success">ACTIVE</Badge>
               </div>
             </div>
 
-            {/* Bottom Actions for Edit Mode */}
+            {/* Bottom Security / Privilege Summary Card */}
+            <div className="bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-2xl p-4 w-full mt-6 text-left space-y-2.5 text-xs relative z-10">
+              <div className="flex justify-between items-center">
+                <span className="text-[#6D8AA2] font-medium">System Access:</span>
+                <span className="font-bold text-[#0A4B6E]">
+                  {roleName === "Super Admin" ? "Full Admin Control" : "Role-Scoped"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#6D8AA2] font-medium">Account Status:</span>
+                <span className="font-semibold text-emerald-600 flex items-center gap-1">
+                  <Check size={13} /> Active & Verified
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN: DETAILED SECTIONS */}
+          <div className="lg:col-span-8 bg-white border border-[#0A4B6E]/30 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col justify-between space-y-6 h-full">
+            {/* ================= SECTION 1: PERSONAL INFORMATION ================= */}
+            <div>
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-8 h-8 rounded-full bg-[#E8F3F8] flex items-center justify-center text-[#0A4B6E] shrink-0">
+                  <UserRound size={18} />
+                </div>
+                <h3 className="text-base md:text-lg font-bold text-[#1B4B75]">
+                  Personal Information
+                </h3>
+              </div>
+
+              {!isEditing ? (
+                // VIEW STATE
+                <div className="bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-2xl p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <span className="text-[11px] font-semibold text-[#6D8AA2] uppercase tracking-wider block mb-1">
+                      Full Name
+                    </span>
+                    <p className="text-sm md:text-base font-bold text-[#0A4B6E]">
+                      {displayName}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="text-[11px] font-semibold text-[#6D8AA2] uppercase tracking-wider block mb-1">
+                      Mobile No.
+                    </span>
+                    <p className="text-sm md:text-base font-bold text-[#0A4B6E]">
+                      {displayPhone}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="text-[11px] font-semibold text-[#6D8AA2] uppercase tracking-wider block mb-1">
+                      Birthday
+                    </span>
+                    <p className="text-sm md:text-base font-bold text-[#0A4B6E]">
+                      {displayBirthday}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                // EDIT STATE FORM
+                <div className="bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-2xl p-5 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* First Name */}
+                    <div>
+                      <label className="text-xs font-semibold text-[#0A4B6E] block mb-1.5">
+                        First Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleInputChange}
+                        placeholder="e.g. Alejandro"
+                        className={`w-full bg-white rounded-full px-4 py-2.5 text-sm text-[#0A4B6E] font-medium border ${
+                          errors.firstName ? "border-red-500" : "border-[#BCE1F1]"
+                        } focus:border-[#0A4B6E] outline-none transition shadow-2xs`}
+                      />
+                      {errors.firstName && (
+                        <p className="text-[11px] text-red-500 mt-1 ml-2 font-medium">
+                          {errors.firstName}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Last Name */}
+                    <div>
+                      <label className="text-xs font-semibold text-[#0A4B6E] block mb-1.5">
+                        Last Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleInputChange}
+                        placeholder="e.g. Doe"
+                        className={`w-full bg-white rounded-full px-4 py-2.5 text-sm text-[#0A4B6E] font-medium border ${
+                          errors.lastName ? "border-red-500" : "border-[#BCE1F1]"
+                        } focus:border-[#0A4B6E] outline-none transition shadow-2xs`}
+                      />
+                      {errors.lastName && (
+                        <p className="text-[11px] text-red-500 mt-1 ml-2 font-medium">
+                          {errors.lastName}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Contact Number */}
+                    <div>
+                      <label className="text-xs font-semibold text-[#0A4B6E] block mb-1.5">
+                        Contact Number
+                      </label>
+                      <input
+                        type="text"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        placeholder="e.g. 09171234567"
+                        className="w-full bg-white rounded-full px-4 py-2.5 text-sm text-[#0A4B6E] font-medium border border-[#BCE1F1] focus:border-[#0A4B6E] outline-none transition shadow-2xs"
+                      />
+                    </div>
+
+                    {/* Birthday */}
+                    <div>
+                      <label className="text-xs font-semibold text-[#0A4B6E] block mb-1.5">
+                        Birthdate
+                      </label>
+                      <input
+                        type="date"
+                        name="birthdate"
+                        value={formData.birthdate}
+                        onChange={handleInputChange}
+                        className="w-full bg-white rounded-full px-4 py-2.5 text-sm text-[#0A4B6E] font-medium border border-[#BCE1F1] focus:border-[#0A4B6E] outline-none transition shadow-2xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ================= SECTION 2: SECURITY & CREDENTIALS ================= */}
+            <div>
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-8 h-8 rounded-full bg-[#E8F3F8] flex items-center justify-center text-[#0A4B6E] shrink-0">
+                  <ShieldCheck size={18} />
+                </div>
+                <h3 className="text-base md:text-lg font-bold text-[#1B4B75]">
+                  Security & Credentials
+                </h3>
+              </div>
+
+              <div className="bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-2xl p-5 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Username / Login ID */}
+                  <div>
+                    <span className="text-[11px] font-semibold text-[#6D8AA2] uppercase tracking-wider block mb-1">
+                      Username / Login ID
+                    </span>
+                    <p className="text-sm md:text-base font-bold text-[#0A4B6E]">
+                      @{displayUsername}
+                    </p>
+                  </div>
+
+                  {/* Role */}
+                  <div>
+                    <span className="text-[11px] font-semibold text-[#6D8AA2] uppercase tracking-wider block mb-1">
+                      Assigned Role
+                    </span>
+                    <div className="pt-0.5">
+                      <Badge variant="roles">{roleName}</Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-[#BCE1F1]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-[11px] font-semibold text-[#6D8AA2] uppercase tracking-wider block mb-1">
+                      Account Password
+                    </span>
+                    <p className="text-sm font-bold text-[#0A4B6E] tracking-widest">
+                      ••••••••••••••••
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPasswordError("");
+                      setPasswordModalStep(1);
+                      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                      setShowPasswordModal(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs text-[#0A4B6E] hover:underline font-bold cursor-pointer"
+                  >
+                    <KeyRound size={14} />
+                    <span>Change Password</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ================= EDIT MODE BOTTOM ACTIONS ================= */}
             {isEditing && (
-              <div className="flex items-center justify-end gap-4 mt-8 pt-4 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={handleSaveChanges}
-                  className="bg-[#FFDF2C] hover:bg-[#F5D020] text-[#0A4B6E] text-sm font-bold px-8 py-3 rounded-full uppercase tracking-wider transition shadow-sm cursor-pointer"
-                >
-                  Save Changes
-                </button>
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={handleCancelEdit}
-                  className="text-[#0A4B6E] text-sm font-semibold hover:underline cursor-pointer px-3 py-2"
+                  className="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold text-xs md:text-sm px-6 py-2.5 rounded-full uppercase tracking-wider transition cursor-pointer shadow-2xs"
                 >
                   Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveChanges}
+                  className="bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs md:text-sm px-7 py-2.5 rounded-full uppercase tracking-wider shadow-xs transition-all active:scale-95 cursor-pointer"
+                >
+                  Save Changes
                 </button>
               </div>
             )}
@@ -428,170 +562,181 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* ==================================================== */}
-      {/* CHANGE PASSWORD MODAL                                */}
-      {/* ==================================================== */}
+      {/* ================= CHANGE PASSWORD MODAL ================= */}
       {showPasswordModal && (
         <Modal
           isOpen={true}
           onClose={passwordModalStep === 2 ? null : () => setShowPasswordModal(false)}
           closeOnBackdrop={passwordModalStep !== 2}
-          title={passwordModalStep === 1 ? "Change Password" : null}
+          title={passwordModalStep === 1 ? "Change Account Password" : null}
+          subtitle={passwordModalStep === 1 ? "Update your personal security credentials" : null}
+          icon={KeyRound}
           maxWidth="max-w-md"
         >
           {passwordModalStep === 1 ? (
-            <form onSubmit={handleChangePasswordSubmit} className="space-y-4 text-left py-2">
-              <p className="text-gray-600 text-xs leading-relaxed">
-                Enter your current password and choose a secure new password of at least 8 characters.
-              </p>
+            <form onSubmit={handleChangePasswordSubmit} className="space-y-4 text-left py-1">
+              <div className="bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-2xl p-4 space-y-3.5">
+                {/* Current Password */}
+                <div>
+                  <label className="block text-xs font-bold text-[#0A4B6E] mb-1">
+                    Current Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showCurrentPassword ? "text" : "password"}
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => {
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          currentPassword: e.target.value,
+                        }));
+                        if (passwordError) setPasswordError("");
+                      }}
+                      placeholder="Enter current password"
+                      required
+                      className="w-full bg-white rounded-full px-4 py-2.5 text-sm text-[#0A4B6E] font-medium border border-[#BCE1F1] pr-11 focus:border-[#0A4B6E] outline-none shadow-2xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                    >
+                      {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
 
-              {/* Current Password */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Current Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showCurrentPassword ? "text" : "password"}
-                    value={passwordForm.currentPassword}
-                    onChange={(e) => {
-                      setPasswordForm((prev) => ({
-                        ...prev,
-                        currentPassword: e.target.value,
-                      }));
-                      if (passwordError) setPasswordError("");
-                    }}
-                    placeholder="Enter current password"
-                    required
-                    className="w-full bg-[#F3F5F5] rounded-full px-5 py-2.5 text-sm text-gray-800 pr-12 focus:ring-2 focus:ring-[#0B4A6E]/20 outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
-                  >
-                    {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+                {/* New Password */}
+                <div>
+                  <label className="block text-xs font-bold text-[#0A4B6E] mb-1">
+                    New Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      value={passwordForm.newPassword}
+                      onChange={(e) => {
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          newPassword: e.target.value,
+                        }));
+                        if (passwordError) setPasswordError("");
+                      }}
+                      placeholder="Enter at least 8 characters"
+                      required
+                      minLength={8}
+                      className="w-full bg-white rounded-full px-4 py-2.5 text-sm text-[#0A4B6E] font-medium border border-[#BCE1F1] pr-11 focus:border-[#0A4B6E] outline-none shadow-2xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                    >
+                      {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Confirm New Password */}
+                <div>
+                  <label className="block text-xs font-bold text-[#0A4B6E] mb-1">
+                    Confirm New Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => {
+                        setPasswordForm((prev) => ({
+                          ...prev,
+                          confirmPassword: e.target.value,
+                        }));
+                        if (passwordError) setPasswordError("");
+                      }}
+                      placeholder="Re-enter new password"
+                      required
+                      className="w-full bg-white rounded-full px-4 py-2.5 text-sm text-[#0A4B6E] font-medium border border-[#BCE1F1] pr-11 focus:border-[#0A4B6E] outline-none shadow-2xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* New Password */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  New Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showNewPassword ? "text" : "password"}
-                    value={passwordForm.newPassword}
-                    onChange={(e) => {
-                      setPasswordForm((prev) => ({
-                        ...prev,
-                        newPassword: e.target.value,
-                      }));
-                      if (passwordError) setPasswordError("");
-                    }}
-                    placeholder="Enter new password"
-                    required
-                    minLength={8}
-                    className="w-full bg-[#F3F5F5] rounded-full px-5 py-2.5 text-sm text-gray-800 pr-12 focus:ring-2 focus:ring-[#0B4A6E]/20 outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
-                  >
-                    {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Confirm New Password */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Confirm New Password
-                </label>
-                <input
-                  type="password"
-                  value={passwordForm.confirmPassword}
-                  onChange={(e) => {
-                    setPasswordForm((prev) => ({
-                      ...prev,
-                      confirmPassword: e.target.value,
-                    }));
-                    if (passwordError) setPasswordError("");
-                  }}
-                  placeholder="Confirm new password"
-                  required
-                  className="w-full bg-[#F3F5F5] rounded-full px-5 py-2.5 text-sm text-gray-800 focus:ring-2 focus:ring-[#0B4A6E]/20 outline-none"
-                />
-              </div>
-
-              {/* Error Message */}
+              {/* Error Alert */}
               {passwordError && (
-                <div className="flex items-center gap-1.5 text-red-600 text-xs font-medium bg-red-50 p-2.5 rounded-xl">
-                  <AlertTriangle size={16} className="shrink-0" />
+                <div className="flex items-center gap-2 text-red-600 text-xs font-semibold bg-red-50 p-3 rounded-2xl border border-red-200">
+                  <AlertTriangle size={16} className="shrink-0 text-red-500" />
                   <span>{passwordError}</span>
                 </div>
               )}
 
               {/* Actions */}
-              <div className="pt-3 flex flex-col gap-2">
-                <Button
+              <div className="pt-2 flex flex-col gap-2">
+                <button
                   type="submit"
                   disabled={isChangingPassword}
-                  className="w-full py-3 bg-[#FFDF2C] hover:bg-[#F5D020] border-none !text-[#0A4B6E] font-bold rounded-full text-xs uppercase tracking-wider shadow-sm transition disabled:opacity-50"
+                  className="w-full py-3.5 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold rounded-full text-xs uppercase tracking-wider shadow-xs transition active:scale-98 cursor-pointer disabled:opacity-50"
                 >
-                  {isChangingPassword ? "UPDATING..." : "CHANGE PASSWORD"}
-                </Button>
+                  {isChangingPassword ? "UPDATING PASSWORD..." : "CONFIRM & CHANGE PASSWORD"}
+                </button>
                 <button
                   type="button"
                   disabled={isChangingPassword}
                   onClick={() => setShowPasswordModal(false)}
-                  className="text-xs text-gray-500 hover:underline py-1 text-center font-medium cursor-pointer disabled:opacity-50"
+                  className="text-xs text-slate-500 hover:underline py-1 text-center font-medium cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
               </div>
             </form>
           ) : (
-            <div className="text-center py-4 space-y-4">
-              <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto text-green-600 animate-scale-in">
-                <CheckCircle2 size={36} />
+            /* STEP 2: SUCCESS VIEW */
+            <div className="text-center py-3 space-y-4">
+              <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-600 border border-emerald-200 animate-scale-in">
+                <CheckCircle2 size={32} />
               </div>
+
               <div>
-                <h3 className="font-bold text-lg text-[#0B4A6E]">Password Changed Successfully</h3>
-                <p className="text-xs text-gray-600 mt-2 leading-relaxed px-2">
-                  Your password has been changed successfully. For security purposes, all active sessions have been invalidated. Please log in again to continue.
+                <h3 className="font-bold text-lg text-[#0A4B6E]">
+                  Password Changed Successfully
+                </h3>
+                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed px-2">
+                  Your password has been updated. For security compliance, your active session has been reset. Please log in again to continue.
                 </p>
               </div>
-              <div className="bg-[#F3F5F5] rounded-2xl p-4 text-left space-y-2.5 text-xs border border-gray-100">
+
+              <div className="bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-2xl p-4 text-left space-y-2 text-xs">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-500 font-medium">Account:</span>
-                  <span className="font-bold text-[#0B4A6E]">{displayName}</span>
+                  <span className="text-[#6D8AA2] font-medium">Account:</span>
+                  <span className="font-bold text-[#0A4B6E]">{displayName}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-500 font-medium">Status:</span>
-                  <span className="font-semibold text-green-600 flex items-center gap-1">
+                  <span className="text-[#6D8AA2] font-medium">Security Status:</span>
+                  <span className="font-semibold text-emerald-600 flex items-center gap-1">
                     <Check size={13} /> Updated
                   </span>
                 </div>
               </div>
-              <Button
+
+              <button
                 type="button"
                 onClick={handleLogInAgain}
-                className="w-full py-3.5 bg-[#FFDF2C] hover:bg-[#F5D020] border-none !text-[#0A4B6E] font-bold rounded-full text-xs uppercase tracking-wider shadow-sm transition cursor-pointer"
+                className="w-full py-3.5 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold rounded-full text-xs uppercase tracking-wider shadow-xs transition active:scale-98 cursor-pointer"
               >
                 LOG IN AGAIN
-              </Button>
+              </button>
             </div>
           )}
         </Modal>
       )}
 
-      {/* ==================================================== */}
-      {/* TOAST NOTIFICATION                                  */}
-      {/* ==================================================== */}
+      {/* ================= TOAST NOTIFICATION ================= */}
       {toast.show && (
         <ToastNotification
           type={toast.type}

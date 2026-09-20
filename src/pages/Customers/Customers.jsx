@@ -339,7 +339,7 @@ export default function Customers() {
   };
 
   return (
-    <div className="h-[calc(100vh-112px)] md:h-[calc(100vh-128px)] flex flex-col overflow-hidden">
+    <div className="p-6 md:p-8 h-[calc(100vh-112px)] md:h-[calc(100vh-128px)] flex flex-col overflow-hidden">
       {/* Header (Pinned at Top) */}
       <div className="shrink-0">
         <CustomerHeader
