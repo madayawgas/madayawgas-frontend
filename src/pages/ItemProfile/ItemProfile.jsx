@@ -1,5 +1,6 @@
 // src/pages/ItemProfile/ItemProfile.jsx
 import { useState, useEffect, useMemo } from "react";
+import { Package } from "lucide-react";
 import { inventoryApi } from "../../api/inventory.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
@@ -48,13 +49,11 @@ export default function ItemProfile() {
   const [pendingReactivation, setPendingReactivation] = useState(null);
   const [showReactivatePasswordModal, setShowReactivatePasswordModal] = useState(false);
 
-  // Search & Filter States
+  // Search & Filter States (Status & Category only, no Date filter)
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     status: "",
     category: "All Categories",
-    dateFrom: "",
-    dateTo: "",
   });
 
   // Modal & Toast States
@@ -223,7 +222,17 @@ export default function ItemProfile() {
     });
   };
 
-  // Processed search & multi-field filter rules
+  // Summary metrics for ItemHeader
+  const itemSummary = useMemo(() => {
+    const total = items.length;
+    const active = items.filter(
+      (i) => (i.isActive !== undefined ? i.isActive : i.status === "ACTIVE")
+    ).length;
+    const inactive = total - active;
+    return { total, active, inactive };
+  }, [items]);
+
+  // Processed search & multi-field filter rules (Category & Status)
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       // 1. Search filter (name, category, containerType)
@@ -239,133 +248,167 @@ export default function ItemProfile() {
 
       // 2. Status filter
       const isItemActive =
-        item.isActive !== undefined ? item.isActive : item.status === "ACTIVE";
+        item.isActive !== undefined
+          ? Boolean(item.isActive)
+          : (item.status || "").toUpperCase() === "ACTIVE";
       let matchesStatus = true;
       if (filters.status && filters.status !== "All") {
-        if (filters.status === "Active") matchesStatus = isItemActive === true;
-        if (filters.status === "Inactive") matchesStatus = isItemActive === false;
+        if (filters.status.toUpperCase() === "ACTIVE") matchesStatus = isItemActive === true;
+        if (filters.status.toUpperCase() === "INACTIVE") matchesStatus = isItemActive === false;
       }
 
       // 3. Category filter
       let matchesCategory = true;
       if (filters.category && filters.category !== "All Categories") {
+        const catQuery = filters.category.toLowerCase().trim();
         matchesCategory =
-          itemCategory === filters.category.toLowerCase() ||
-          itemContainer === filters.category.toLowerCase();
+          itemCategory === catQuery ||
+          itemContainer === catQuery ||
+          (catQuery.includes("cylinder") &&
+            (itemCategory.includes("cylinder") || itemContainer.includes("cylinder"))) ||
+          (catQuery.includes("canister") &&
+            (itemCategory.includes("canister") || itemContainer.includes("canister")));
       }
 
       return matchesSearch && matchesStatus && matchesCategory;
     });
   }, [items, searchTerm, filters]);
 
+  const hasActiveFilters = Boolean(
+    searchTerm ||
+    (filters.status && filters.status !== "All") ||
+    (filters.category && filters.category !== "All Categories")
+  );
+
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setFilters({
+      status: "",
+      category: "All Categories",
+    });
+  };
+
   return (
-    <div className="p-6 md:p-8">
-      <div className="w-full max-w-[1400px] mx-auto">
-        {/* Header with Title & Add Item button */}
-        <ItemHeader
-          canCreate={canManage}
-          onAddItem={handleAddNewItem}
-        />
+    <div className="p-8">
+      {/* Header with Title & Add Item button */}
+      <ItemHeader
+        canCreate={canManage}
+        onAddItem={handleAddNewItem}
+        itemSummary={itemSummary}
+      />
 
-        {/* Controls: Search Bar, Active Filter Chips, Filter Dropdown */}
-        <ItemControls
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          activeFilters={filters}
-          onApplyFilters={setFilters}
-          onClearCategory={() =>
-            setFilters((prev) => ({ ...prev, category: "All Categories" }))
-          }
-          onClearStatus={() => setFilters((prev) => ({ ...prev, status: "" }))}
-        />
+      {/* Controls: Search Bar, Active Filter Chips, Filter Dropdown */}
+      <ItemControls
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        activeFilters={filters}
+        onApplyFilters={setFilters}
+        onClearCategory={() =>
+          setFilters((prev) => ({ ...prev, category: "All Categories" }))
+        }
+        onClearStatus={() => setFilters((prev) => ({ ...prev, status: "" }))}
+      />
 
-        {/* Items Cards Grid */}
-        {isLoading && items.length === 0 ? (
-          <div className="flex items-center justify-center py-20 text-gray-500 font-medium">
-            Loading products...
+      {/* Items Cards Grid */}
+      {isLoading && items.length === 0 ? (
+        <div className="flex items-center justify-center py-20 text-gray-500 font-medium">
+          Loading products...
+        </div>
+      ) : filteredItems.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+          {filteredItems.map((item) => (
+            <ItemCard
+              key={item.id}
+              item={item}
+              onClick={() => setSelectedItem(item)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-20 text-center bg-[#E8F3F8]/40 border border-dashed border-[#BCE1F1] rounded-2xl p-8">
+          <div className="w-12 h-12 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center mb-3">
+            <Package size={24} />
           </div>
-        ) : filteredItems.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-            {filteredItems.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                onClick={() => setSelectedItem(item)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-gray-400 font-medium text-lg mb-2">
-              No products found matching your criteria
-            </p>
-            <p className="text-gray-400 text-sm">
-              Try adjusting your search query or active filters.
-            </p>
-          </div>
-        )}
+          <p className="text-[#0A4B6E] font-bold text-base mb-1">
+            No products found
+          </p>
+          <p className="text-[#6D8AA2] text-xs max-w-sm mb-4">
+            {hasActiveFilters
+              ? "No products match your current search query or active filter criteria."
+              : "There are no catalog products registered in the system yet."}
+          </p>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="bg-[#0A4B6E] text-white hover:bg-[#083b57] text-xs font-bold px-4 py-2 rounded-full transition-all cursor-pointer"
+            >
+              Reset Filters
+            </button>
+          )}
+        </div>
+      )}
 
-        {/* View / Edit Item Modal */}
-        {selectedItem && (
-          <ItemModal
-            item={selectedItem}
-            items={items}
-            canManage={canManage}
-            onClose={() => setSelectedItem(null)}
-            onUpdate={handleUpdateItem}
-            onDeleteClick={handleInitiateDeactivate}
-          />
-        )}
-
-        {/* Add New Item Multi-step Wizard Modal */}
-        {isAddingItem && (
-          <ItemModal
-            isAdding={true}
-            items={items}
-            canManage={canManage}
-            onClose={() => setIsAddingItem(false)}
-            onAdd={handleAddItem}
-          />
-        )}
-
-        {/* Deactivate Confirmation Step 1 */}
-        {itemToDeactivate && !showDeletePasswordModal && (
-          <DeactivateItemModal
-            item={itemToDeactivate}
-            onConfirm={handleConfirmDeactivatePrompt}
-            onClose={() => setItemToDeactivate(null)}
-          />
-        )}
-
-        {/* Deactivate Password Verification Step 2 */}
-        <AdminPasswordModal
-          isOpen={showDeletePasswordModal}
-          onClose={() => {
-            setShowDeletePasswordModal(false);
-            setItemToDeactivate(null);
-          }}
-          onSubmit={handleExecuteDeactivate}
+      {/* View / Edit Item Modal */}
+      {selectedItem && (
+        <ItemModal
+          item={selectedItem}
+          items={items}
+          canManage={canManage}
+          onClose={() => setSelectedItem(null)}
+          onUpdate={handleUpdateItem}
+          onDeleteClick={handleInitiateDeactivate}
         />
+      )}
 
-        {/* Reactivate Password Verification Modal */}
-        <AdminPasswordModal
-          isOpen={showReactivatePasswordModal}
-          onClose={() => {
-            setShowReactivatePasswordModal(false);
-            setPendingReactivation(null);
-          }}
-          onSubmit={handleExecuteReactivate}
+      {/* Add New Item Multi-step Wizard Modal */}
+      {isAddingItem && (
+        <ItemModal
+          isAdding={true}
+          items={items}
+          canManage={canManage}
+          onClose={() => setIsAddingItem(false)}
+          onAdd={handleAddItem}
         />
+      )}
 
-        {/* Dynamic Toast Notifications */}
-        {toast && (
-          <ToastNotification
-            type={toast.type}
-            message={toast.message}
-            onClose={() => setToast(null)}
-          />
-        )}
-      </div>
+      {/* Deactivate Confirmation Step 1 */}
+      {itemToDeactivate && !showDeletePasswordModal && (
+        <DeactivateItemModal
+          item={itemToDeactivate}
+          onConfirm={handleConfirmDeactivatePrompt}
+          onClose={() => setItemToDeactivate(null)}
+        />
+      )}
+
+      {/* Deactivate Password Verification Step 2 */}
+      <AdminPasswordModal
+        isOpen={showDeletePasswordModal}
+        onClose={() => {
+          setShowDeletePasswordModal(false);
+          setItemToDeactivate(null);
+        }}
+        onSubmit={handleExecuteDeactivate}
+      />
+
+      {/* Reactivate Password Verification Modal */}
+      <AdminPasswordModal
+        isOpen={showReactivatePasswordModal}
+        onClose={() => {
+          setShowReactivatePasswordModal(false);
+          setPendingReactivation(null);
+        }}
+        onSubmit={handleExecuteReactivate}
+      />
+
+      {/* Dynamic Toast Notifications */}
+      {toast && (
+        <ToastNotification
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

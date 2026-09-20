@@ -33,7 +33,7 @@ export default function CustomerControls({
           onClearDate={onClearDate}
         />
 
-        <FilterCustomer onApply={onApplyFilters} label="Filter Roles" />
+        <FilterCustomer onApply={onApplyFilters} label="Filter Customers" />
       </div>
     </div>
   );

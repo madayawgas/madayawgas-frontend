@@ -6,7 +6,7 @@ import CustomerTypeFilterGroup from "./CustomerTypeFilterGroup";
 import DateFilterGroup from "../users/DateFilterGroup";
 
 export default function FilterCustomer({
-  label = "Filter Roles",
+  label = "Filter Customers",
   onApply,
   className = "",
 }) {

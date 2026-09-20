@@ -22,7 +22,7 @@ export default function HistoryTable({ logs }) {
               logs.map((log, index) => (
                 <tr 
                   key={log.id || index} 
-                  className="bg-white hover:bg-[#FEF6D1] transition-colors duration-150 cursor-pointer"
+                  className="bg-white hover:bg-[#F4F9FC] transition-colors duration-150 cursor-pointer"
                 >
                   <td className="py-3.5 px-6 whitespace-nowrap">
                     <div className="text-gray-900 font-bold text-xs md:text-sm">{log.date}</div>

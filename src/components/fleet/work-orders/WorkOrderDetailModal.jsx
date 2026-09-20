@@ -224,14 +224,14 @@ export default function WorkOrderDetailModal({
       <div className="space-y-4">
         {/* 1. BRANDED LIFECYCLE PIPELINE TRACKER */}
         {workOrder.status !== "CANCELLED" ? (
-          <div className="bg-[#E8F3F8] rounded-2xl p-4.5 border border-[#BCE1F1]/70 shadow-2xs space-y-3.5">
+          <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3.5">
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-[#0A4B6E] uppercase tracking-wider text-[11px]">
                   Lifecycle Progress
                 </span>
               </div>
-              <span className="font-bold text-[#0A4B6E] bg-white px-2.5 py-0.5 rounded-full border border-[#BCE1F1] text-[10.5px]">
+              <span className="font-bold text-[#0A4B6E] bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200 text-[10.5px]">
                 {progressPercent}% Complete
               </span>
             </div>
@@ -327,7 +327,7 @@ export default function WorkOrderDetailModal({
           </div>
         )}
 
-        {/* 2. ASSIGNED VEHICLE CARD */}
+        {/* 2. ASSIGNED VEHICLE CARD (Highlighted Key Asset) */}
         <div className="bg-[#E8F3F8] rounded-2xl p-4.5 border border-[#BCE1F1]/70 shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0">
@@ -358,7 +358,7 @@ export default function WorkOrderDetailModal({
           </div>
 
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#BCE1F1]/50 text-xs">
-            <div className="bg-white/80 p-2.5 rounded-xl border border-[#BCE1F1]/40 flex items-center gap-2">
+            <div className="bg-white/90 p-2.5 rounded-xl border border-[#BCE1F1]/40 flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
                 <UserRound size={14} />
               </div>
@@ -368,7 +368,7 @@ export default function WorkOrderDetailModal({
               </div>
             </div>
 
-            <div className="bg-white/80 p-2.5 rounded-xl border border-[#BCE1F1]/40 flex items-center gap-2">
+            <div className="bg-white/90 p-2.5 rounded-xl border border-[#BCE1F1]/40 flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
                 <Gauge size={14} />
               </div>
@@ -385,19 +385,19 @@ export default function WorkOrderDetailModal({
         </div>
 
         {/* 3. SERVICE SPECIFICATION CARD */}
-        <div className="bg-[#E8F3F8] rounded-2xl p-4.5 border border-[#BCE1F1]/70 shadow-2xs space-y-3 text-xs">
+        <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3 text-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-[#0A4B6E] font-bold uppercase tracking-wider text-[11px]">
               <Wrench size={15} />
               <span>Service Specification</span>
             </div>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white text-[#0A4B6E] border border-[#BCE1F1]">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-[#0A4B6E] border border-slate-200">
               {typeName}
             </span>
           </div>
 
           <div className="space-y-2 text-slate-700 pt-1">
-            <div className="flex items-center justify-between py-1 border-b border-[#BCE1F1]/30">
+            <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
               <span className="text-[#6D8AA2] font-medium flex items-center gap-1.5">
                 <Building2 size={14} /> Repair Facility:
               </span>
@@ -406,7 +406,7 @@ export default function WorkOrderDetailModal({
               </span>
             </div>
 
-            <div className="flex items-center justify-between py-1 border-b border-[#BCE1F1]/30">
+            <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
               <span className="text-[#6D8AA2] font-medium flex items-center gap-1.5">
                 <Calendar size={14} /> Scheduled Date:
               </span>
@@ -428,19 +428,19 @@ export default function WorkOrderDetailModal({
 
         {/* 4. SCOPE OF WORK & DESCRIPTION */}
         {workOrder.description && (
-          <div className="bg-[#E8F3F8] rounded-2xl p-4.5 border border-[#BCE1F1]/70 shadow-2xs space-y-2">
+          <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-2">
             <div className="text-[11px] font-bold uppercase tracking-wider text-[#0A4B6E] flex items-center gap-1.5">
               <FileText size={14} />
               <span>Scope of Work & Repair Details</span>
             </div>
-            <div className="bg-white rounded-xl p-3.5 border border-[#BCE1F1]/40 text-xs md:text-sm text-slate-800 leading-relaxed font-normal shadow-2xs">
+            <div className="bg-slate-50/90 rounded-xl p-3.5 border border-slate-200/70 text-xs md:text-sm text-slate-800 leading-relaxed font-normal">
               {workOrder.description}
             </div>
           </div>
         )}
 
         {/* 5. FINANCIAL & EXECUTIVE APPROVAL SUMMARY */}
-        <div className="bg-[#E8F3F8] rounded-2xl p-4.5 border border-[#BCE1F1]/70 shadow-2xs space-y-3 text-xs">
+        <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3 text-xs">
           <div className="flex items-center justify-between">
             <div className="text-[11px] font-bold uppercase tracking-wider text-[#0A4B6E] flex items-center gap-1.5">
               <DollarSign size={15} className="text-emerald-700" />
@@ -451,7 +451,7 @@ export default function WorkOrderDetailModal({
             </div>
           </div>
 
-          <div className="space-y-2.5 pt-2 border-t border-[#BCE1F1]/50">
+          <div className="space-y-2.5 pt-2 border-t border-slate-100">
             {/* Gatekeeper Policy Badge */}
             <div className="flex items-center justify-between gap-2">
               <span className="text-[#6D8AA2] font-medium">Policy Threshold:</span>
@@ -491,7 +491,7 @@ export default function WorkOrderDetailModal({
             )}
 
             {workOrder.decisionRemarks && (
-              <div className="bg-white p-3 rounded-xl border border-[#BCE1F1]/40 text-slate-700 italic text-[11px] mt-1 flex items-start gap-2">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-slate-700 italic text-[11px] mt-1 flex items-start gap-2">
                 <Info size={14} className="text-[#0F7AB2] shrink-0 mt-0.5" />
                 <span>"{workOrder.decisionRemarks}"</span>
               </div>
@@ -545,6 +545,7 @@ export default function WorkOrderDetailModal({
           </div>
         )}
       </div>
+
     </SideDrawer>
   );
 }

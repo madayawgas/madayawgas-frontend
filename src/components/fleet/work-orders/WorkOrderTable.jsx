@@ -76,28 +76,28 @@ export default function WorkOrderTable({
   return (
     <div className="w-full h-full flex flex-col overflow-hidden border border-[#0A4B6E]/30 rounded-2xl bg-white shadow-sm">
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar overflow-x-auto">
-        <table className="w-full text-left border-collapse table-fixed">
+        <table className="w-full text-left border-collapse table-fixed min-w-[980px]">
           <thead className="bg-[#0D4B6E] text-white text-xs md:text-sm sticky top-0 z-10 shadow-xs">
             <tr>
-              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[17%]">
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[15%]">
                 WO Number
               </th>
-              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[20%]">
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[18%]">
                 Vehicle Asset
               </th>
-              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[15%]">
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[13%]">
                 Service Type
               </th>
-              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[18%]">
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[16%]">
                 Service Facility
               </th>
               <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[11%]">
                 Est. Cost
               </th>
-              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-center whitespace-nowrap w-[10%]">
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-center whitespace-nowrap w-[13%]">
                 Status
               </th>
-              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[9%]">
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[14%]">
                 Action
               </th>
             </tr>
@@ -144,7 +144,7 @@ export default function WorkOrderTable({
                   <tr
                     key={wo.id}
                     onClick={() => onOpenDetail && onOpenDetail(wo)}
-                    className="hover:bg-[#FEF6D1] transition-colors duration-150 cursor-pointer bg-white group"
+                    className="bg-white hover:bg-[#F4F9FC] transition-colors duration-150 cursor-pointer group"
                   >
                     {/* WO Number & Scheduled Date */}
                     <td className="py-3.5 px-4 md:px-5">
@@ -246,7 +246,7 @@ export default function WorkOrderTable({
                           type="button"
                           onClick={() => onOpenDetail && onOpenDetail(wo)}
                           title="View Details"
-                          className="p-1.5 text-gray-400 hover:text-[#0A4B6E] hover:bg-white/80 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 text-gray-400 hover:text-[#0A4B6E] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
                         >
                           <Eye size={15} />
                         </button>

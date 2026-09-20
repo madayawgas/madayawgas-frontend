@@ -6,6 +6,8 @@ import Input from "../ui/Input";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
 
+const MAX_ODOMETER = 999999;
+
 export default function OdometerCheckInModal({
   isOpen,
   truck,
@@ -28,14 +30,22 @@ export default function OdometerCheckInModal({
     ? truck.driverName
     : "No Assigned";
 
-  // Real-time calculation of trip delta and PM threshold
-  const { newOdoNum, diffTrip, newDistanceSincePm, isMonotonicValid, willBePmDue } = useMemo(() => {
+  // Real-time calculation of trip delta, PM threshold, and ceiling limit (max 999,999 km)
+  const {
+    newOdoNum,
+    diffTrip,
+    newDistanceSincePm,
+    isMonotonicValid,
+    isCeilingValid,
+    willBePmDue,
+  } = useMemo(() => {
     if (odometerReading === "" || odometerReading === undefined) {
       return {
         newOdoNum: null,
         diffTrip: 0,
         newDistanceSincePm: currentDistanceSincePm,
         isMonotonicValid: false,
+        isCeilingValid: true,
         willBePmDue: currentDistanceSincePm >= 5000,
       };
     }
@@ -47,12 +57,14 @@ export default function OdometerCheckInModal({
         diffTrip: 0,
         newDistanceSincePm: currentDistanceSincePm,
         isMonotonicValid: false,
+        isCeilingValid: true,
         willBePmDue: currentDistanceSincePm >= 5000,
       };
     }
 
-    const valid = val >= currentOdo;
-    const diff = valid ? val - currentOdo : 0;
+    const monotonic = val >= currentOdo;
+    const ceiling = val <= MAX_ODOMETER;
+    const diff = monotonic ? val - currentOdo : 0;
     const sincePm = val - lastPmOdo;
     const pmDue = sincePm >= 5000;
 
@@ -60,7 +72,8 @@ export default function OdometerCheckInModal({
       newOdoNum: val,
       diffTrip: diff,
       newDistanceSincePm: sincePm,
-      isMonotonicValid: valid,
+      isMonotonicValid: monotonic,
+      isCeilingValid: ceiling,
       willBePmDue: pmDue,
     };
   }, [odometerReading, currentOdo, lastPmOdo, currentDistanceSincePm]);
@@ -69,7 +82,7 @@ export default function OdometerCheckInModal({
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
-    if (!isMonotonicValid || newOdoNum === null) return;
+    if (!isMonotonicValid || !isCeilingValid || newOdoNum === null) return;
 
     try {
       setIsSubmitting(true);
@@ -99,7 +112,12 @@ export default function OdometerCheckInModal({
       <Button
         type="button"
         variant="yellow"
-        disabled={isSubmitting || !isMonotonicValid || odometerReading === ""}
+        disabled={
+          isSubmitting ||
+          !isMonotonicValid ||
+          !isCeilingValid ||
+          odometerReading === ""
+        }
         onClick={handleSubmit}
         className="w-full font-bold text-sm uppercase tracking-wider mb-2"
       >
@@ -170,22 +188,37 @@ export default function OdometerCheckInModal({
             type="number"
             name="odometerReading"
             value={odometerReading}
+            min={currentOdo}
+            max={MAX_ODOMETER}
             onChange={(e) => {
               const val = e.target.value;
               setOdometerReading(val === "" ? "" : val);
               setErrorMsg("");
             }}
-            placeholder={`Enter reading (>= ${currentOdo.toLocaleString()} KM)`}
+            placeholder={`Enter reading (${currentOdo.toLocaleString()} - ${MAX_ODOMETER.toLocaleString()} KM)`}
             required
             autoFocus
           />
           <span className="text-[11px] text-[#588094] mt-1 block">
-            Logged upon plant check-in by Logistics Supervisor.
+            Logged upon plant check-in by Logistics Supervisor. (Max limit: 999,999 KM)
           </span>
         </div>
 
+        {/* MAXIMUM CEILING LIMIT VIOLATION ALERT */}
+        {odometerReading !== "" && newOdoNum !== null && !isCeilingValid && (
+          <div className="bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 text-xs flex items-start gap-2.5">
+            <AlertTriangle size={18} className="shrink-0 text-red-600 mt-0.5" />
+            <div>
+              <p className="font-bold">Maximum Odometer Limit Exceeded</p>
+              <p className="mt-0.5 text-[11.5px] leading-relaxed">
+                New odometer reading ({newOdoNum.toLocaleString()} KM) cannot exceed the system limit of {MAX_ODOMETER.toLocaleString()} KM.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* MONOTONIC VALIDATION VIOLATION ALERT */}
-        {odometerReading !== "" && newOdoNum !== null && !isMonotonicValid && (
+        {odometerReading !== "" && newOdoNum !== null && !isMonotonicValid && isCeilingValid && (
           <div className="bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 text-xs flex items-start gap-2.5">
             <AlertTriangle size={18} className="shrink-0 text-red-600 mt-0.5" />
             <div>
@@ -198,7 +231,7 @@ export default function OdometerCheckInModal({
         )}
 
         {/* VALID CALCULATION & PM PREVIEW */}
-        {isMonotonicValid && (
+        {isMonotonicValid && isCeilingValid && (
           <div className="bg-[#E8F5E9] border border-[#A5D6A7] rounded-xl p-3.5 space-y-2 text-xs">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[#2E7D32] font-bold">

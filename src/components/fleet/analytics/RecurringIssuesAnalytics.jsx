@@ -278,25 +278,25 @@ export default function RecurringIssuesAnalytics({
       {/* 3. MASTER TABLE: Recurring Defects & Detailed Breakdown History */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden border border-[#0A4B6E]/30 rounded-2xl bg-white shadow-sm">
         <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar overflow-x-auto">
-          <table className="w-full text-left border-collapse table-fixed">
+          <table className="w-full text-left border-collapse table-fixed min-w-[950px]">
             <thead className="bg-[#0D4B6E] text-white text-xs md:text-sm sticky top-0 z-10 shadow-xs">
               <tr>
-                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[20%]">
+                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[18%]">
                   Vehicle Asset
                 </th>
-                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[24%]">
+                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[22%]">
                   Defect Classification
                 </th>
-                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[15%]">
+                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[16%]">
                   Recurrences
                 </th>
                 <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[13%]">
                   Latest Severity
                 </th>
-                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[13%]">
+                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[14%]">
                   Last Reported
                 </th>
-                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[15%]">
+                <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[17%]">
                   Actions
                 </th>
               </tr>
@@ -351,8 +351,8 @@ export default function RecurringIssuesAnalytics({
                         onClick={() => toggleRow(rowKey)}
                         className={`transition-colors duration-150 cursor-pointer ${
                           isExpanded
-                            ? "bg-[#FEF6D1] text-[#0A4B6E]"
-                            : "hover:bg-[#FEF6D1] bg-white"
+                            ? "bg-[#E2EDF3] text-[#0A4B6E] font-semibold"
+                            : "bg-white hover:bg-[#F4F9FC]"
                         }`}
                       >
                         {/* Vehicle Asset */}

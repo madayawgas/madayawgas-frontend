@@ -2,18 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import { Funnel } from "lucide-react";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
-import DateFilterGroup from "../users/DateFilterGroup";
 
 export default function FilterItem({
   label = "Filter Items",
   onApply,
+  activeFilters,
   className = "",
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState("ACTIVE");
-  const [selectedCategory, setSelectedCategory] = useState("All Categories");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState(activeFilters?.status || "");
+  const [selectedCategory, setSelectedCategory] = useState(
+    activeFilters?.category || "All Categories"
+  );
 
   const dropdownRef = useRef(null);
 
@@ -28,6 +28,17 @@ export default function FilterItem({
     { key: "INACTIVE", variant: "deactivated", activeBorder: "border-gray-700" },
   ];
 
+  const handleToggle = () => {
+    setIsOpen((prev) => {
+      const next = !prev;
+      if (next && activeFilters) {
+        setSelectedStatus(activeFilters.status || "");
+        setSelectedCategory(activeFilters.category || "All Categories");
+      }
+      return next;
+    });
+  };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -41,8 +52,13 @@ export default function FilterItem({
   const handleClearAll = () => {
     setSelectedStatus("");
     setSelectedCategory("All Categories");
-    setDateFrom("");
-    setDateTo("");
+    if (onApply) {
+      onApply({
+        status: "",
+        category: "All Categories",
+      });
+    }
+    setIsOpen(false);
   };
 
   const handleApply = () => {
@@ -50,8 +66,6 @@ export default function FilterItem({
       onApply({
         status: selectedStatus,
         category: selectedCategory,
-        dateFrom,
-        dateTo,
       });
     }
     setIsOpen(false);
@@ -62,7 +76,7 @@ export default function FilterItem({
       {/* Trigger Button */}
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={handleToggle}
         className={`bg-[#FCFEFE] text-[#0A4B6E] px-4 py-2 rounded-full text-sm border border-[#0A4B6E] flex items-center gap-2 hover:bg-gray-100 transition-all duration-200 h-[38px] min-w-[140px] justify-between cursor-pointer ${className}`}
       >
         <span>{label}</span>
@@ -71,7 +85,7 @@ export default function FilterItem({
 
       {/* Filter Card Dropdown */}
       <div
-        className={`absolute right-0 mt-2 w-[360px] bg-white border border-[#0A4B6E]/30 rounded-2xl shadow-xl z-30 p-5 origin-top-right transition-all duration-200 ease-out ${
+        className={`absolute right-0 mt-2 w-[340px] bg-white border border-[#0A4B6E]/30 rounded-2xl shadow-xl z-30 p-5 origin-top-right transition-all duration-200 ease-out ${
           isOpen
             ? "opacity-100 scale-100 translate-y-0"
             : "opacity-0 scale-95 -translate-y-1 pointer-events-none"
@@ -111,7 +125,7 @@ export default function FilterItem({
                   variant={variant}
                   className={`border-2 transition-all ${
                     selectedStatus === key
-                      ? `${activeBorder} opacity-100`
+                      ? `${activeBorder} opacity-100 shadow-xs`
                       : "border-transparent opacity-70 hover:opacity-100"
                   }`}
                 >
@@ -123,7 +137,7 @@ export default function FilterItem({
         </div>
 
         {/* Categories Filter Group */}
-        <div className="mb-4 text-left">
+        <div className="mb-5 text-left">
           <label className="block text-xs font-bold text-[#0A4B6E] mb-2">
             Category:
           </label>
@@ -135,7 +149,7 @@ export default function FilterItem({
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3 py-1 text-xs rounded-full border transition-all cursor-pointer ${
                   selectedCategory === cat
-                    ? "bg-[#0A4B6E] text-white border-[#0A4B6E]"
+                    ? "bg-[#0A4B6E] text-white border-[#0A4B6E] shadow-xs"
                     : "bg-[#F3F5F5] text-gray-700 border-transparent hover:bg-gray-200"
                 }`}
               >
@@ -144,14 +158,6 @@ export default function FilterItem({
             ))}
           </div>
         </div>
-
-        {/* Date Range Filter Group */}
-        <DateFilterGroup
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          onFromChange={(e) => setDateFrom(e.target.value)}
-          onToChange={(e) => setDateTo(e.target.value)}
-        />
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between pt-3 border-t border-gray-100">

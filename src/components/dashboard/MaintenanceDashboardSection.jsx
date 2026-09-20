@@ -361,8 +361,8 @@ export default function MaintenanceDashboardSection({
                         onClick={() => toggleRow(logId)}
                         className={`transition-colors duration-150 cursor-pointer ${
                           isExpanded
-                            ? "bg-[#FEF6D1] text-[#0A4B6E]"
-                            : "hover:bg-[#FEF6D1] bg-white"
+                            ? "bg-[#E2EDF3] text-[#0A4B6E] font-semibold"
+                            : "bg-white hover:bg-[#F4F9FC]"
                         }`}
                       >
                         {/* OR# */}

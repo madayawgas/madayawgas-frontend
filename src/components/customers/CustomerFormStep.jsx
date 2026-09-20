@@ -26,7 +26,7 @@ export default function CustomerFormStep({
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       {/* CARD 1: Customer Profile Details */}
-      <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3.5">
+      <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3.5">
         <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
           <Building2 size={14} />
           <span>Customer & Business Information</span>
@@ -72,7 +72,7 @@ export default function CustomerFormStep({
       </div>
 
       {/* CARD 2: Contact & Delivery Location */}
-      <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3.5">
+      <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3.5">
         <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
           <MapPin size={14} />
           <span>Contact & Delivery Address</span>
@@ -122,7 +122,7 @@ export default function CustomerFormStep({
 
         {/* Status (Edit Mode) */}
         {customer && (
-          <div className="pt-2 border-t border-[#BCE1F1]/50">
+          <div className="pt-2 border-t border-slate-100">
             <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1.5">
               Operational Status
             </label>
@@ -161,6 +161,7 @@ export default function CustomerFormStep({
           </div>
         )}
       </div>
+
 
       {/* FOOTER BUTTONS */}
       <div className="pt-2 flex flex-col gap-2">

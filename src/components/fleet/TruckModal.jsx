@@ -258,8 +258,19 @@ export default function TruckModal({
     if (formData.inputOdometer !== "" && formData.inputOdometer !== undefined) {
       const newOdo = Number(formData.inputOdometer);
       const curOdo = Number(formData.currentOdometer) || 0;
-      if (newOdo < curOdo) {
+      if (isNaN(newOdo) || newOdo < 0) {
+        newErrors.inputOdometer = "Odometer reading must be a valid non-negative number";
+      } else if (newOdo > 999999) {
+        newErrors.inputOdometer = "Odometer reading cannot exceed 999,999 km";
+      } else if (newOdo < curOdo) {
         newErrors.inputOdometer = `New odometer (${newOdo.toLocaleString()} km) cannot be less than current odometer (${curOdo.toLocaleString()} km)`;
+      }
+    }
+
+    if (formData.lastPmOdometer !== "" && formData.lastPmOdometer !== undefined) {
+      const lastPm = Number(formData.lastPmOdometer);
+      if (!isNaN(lastPm) && lastPm > 999999) {
+        newErrors.lastPmOdometer = "Last PM odometer cannot exceed 999,999 km";
       }
     }
 
@@ -583,14 +594,14 @@ export default function TruckModal({
                 <span>Vehicle Specifications</span>
               </div>
 
-              <div className="flex justify-between items-center py-1.5 border-b border-[#BCE1F1]/60">
+              <div className="flex justify-between items-center py-1.5 border-b border-[#BCE1F1]/40">
                 <span className="text-[#6D8AA2] font-semibold">Assigned Driver:</span>
-                <span className="font-bold text-[#0A4B6E] truncate max-w-[170px]" title={viewDriverDisplay}>
+                <span className="font-bold text-[#0A4B6E] truncate max-w-[180px]" title={viewDriverDisplay}>
                   {viewDriverDisplay}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center py-1.5 border-b border-[#BCE1F1]/60">
+              <div className="flex justify-between items-center py-1.5 border-b border-[#BCE1F1]/40">
                 <span className="text-[#6D8AA2] font-semibold">Model & Year:</span>
                 <span className="font-bold text-[#0A4B6E]">
                   {displayTruck.model || "Isuzu Elf"}{" "}
@@ -598,14 +609,14 @@ export default function TruckModal({
                 </span>
               </div>
 
-              <div className="flex justify-between items-center py-1.5 border-b border-[#BCE1F1]/60">
+              <div className="flex justify-between items-center py-1.5 border-b border-[#BCE1F1]/40">
                 <span className="text-[#6D8AA2] font-semibold">Current Odometer:</span>
                 <span className="font-mono font-bold text-[#0A4B6E]">
                   {Number(displayTruck.currentOdometer || 0).toLocaleString()} KM
                 </span>
               </div>
 
-              <div className="flex justify-between items-center py-1.5 border-b border-[#BCE1F1]/60">
+              <div className="flex justify-between items-center py-1.5 border-b border-[#BCE1F1]/40">
                 <span className="text-[#6D8AA2] font-semibold">Last PM Odometer:</span>
                 <span className="font-mono font-bold text-[#0A4B6E]">
                   {Number(
@@ -669,67 +680,37 @@ export default function TruckModal({
                   remaining before next PM service.
                 </p>
               )}
-
-              {(activeWorkOrder || displayTruck.activeRepair) && (
-                <div
-                  onClick={() =>
-                    activeWorkOrder &&
-                    onOpenWorkOrderDetail &&
-                    onOpenWorkOrderDetail(activeWorkOrder)
-                  }
-                  className={`bg-rose-50 text-[#C93B32] p-2.5 rounded-xl text-xs font-medium border border-rose-200 mt-1 flex items-center justify-between ${
-                    activeWorkOrder && onOpenWorkOrderDetail
-                      ? "cursor-pointer hover:bg-rose-100/90 transition-colors"
-                      : ""
-                  }`}
-                  title={
-                    activeWorkOrder
-                      ? "Click to view current work order details"
-                      : undefined
-                  }
-                >
-                  <div className="min-w-0 pr-2 truncate">
-                    <span className="font-bold">Active Repair:</span>{" "}
-                    <span>
-                      {activeWorkOrder
-                        ? activeWorkOrder.description ||
-                          `WO #${activeWorkOrder.workOrderNumber || (activeWorkOrder.id?.startsWith("wo-") ? activeWorkOrder.id.toUpperCase() : activeWorkOrder.id?.slice(0, 8))}`
-                        : displayTruck.activeRepair}
-                    </span>
-                  </div>
-                  {activeWorkOrder && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 bg-rose-200/80 text-rose-900 rounded-full uppercase shrink-0">
-                      {activeWorkOrder.status.replace("_", " ")}
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
 
-            {/* Grounding Warning Banner if Under Maintenance */}
+            {/* Single Unified Grounded / Active Repair Callout Banner */}
             {((displayTruck.status || "").toUpperCase() === "UNDER_MAINTENANCE" ||
               (displayTruck.operationalStatus || "").toUpperCase() ===
-                "UNDER_MAINTENANCE") && (
-              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 flex items-center justify-between gap-2 text-xs text-rose-900 shadow-2xs">
-                <div className="flex items-center gap-2 min-w-0">
+                "UNDER_MAINTENANCE" ||
+              activeWorkOrder ||
+              displayTruck.activeRepair) && (
+              <div className="bg-rose-50 border border-rose-200/80 rounded-2xl p-3.5 flex items-center justify-between gap-3 text-xs text-rose-900 shadow-2xs">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <AlertOctagon size={18} className="text-rose-600 shrink-0" />
                   <div className="min-w-0">
-                    <p className="font-bold text-rose-900 leading-tight text-xs">
+                    <p className="font-bold text-rose-900 leading-tight">
                       Vehicle Grounded
                     </p>
-                    <p className="text-[10.5px] text-rose-700 truncate">
+                    <p className="text-[11px] text-rose-700 truncate">
                       {activeWorkOrder
                         ? `Under repair (${activeWorkOrder.status.replace("_", " ")})`
+                        : displayTruck.activeRepair
+                        ? `Active repair: ${displayTruck.activeRepair}`
                         : "Under maintenance. Driver retained."}
                     </p>
                   </div>
                 </div>
+
                 {canManage && (
                   activeWorkOrder && onOpenWorkOrderDetail ? (
                     <button
                       type="button"
                       onClick={() => onOpenWorkOrderDetail(activeWorkOrder)}
-                      className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] px-3 py-1 rounded-full shrink-0 transition flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
+                      className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] px-3.5 py-1.5 rounded-full shrink-0 transition flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95 uppercase tracking-wider"
                       title="View Current Work Order"
                     >
                       <Wrench size={12} />
@@ -739,7 +720,7 @@ export default function TruckModal({
                     <button
                       type="button"
                       onClick={() => onCreateWorkOrder(displayTruck)}
-                      className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] px-3 py-1 rounded-full shrink-0 transition flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95"
+                      className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] px-3.5 py-1.5 rounded-full shrink-0 transition flex items-center gap-1 cursor-pointer shadow-2xs active:scale-95 uppercase tracking-wider"
                       title="Create Work Order"
                     >
                       <Wrench size={12} />
@@ -755,7 +736,7 @@ export default function TruckModal({
           {/* COLUMN 2: FLEET OPERATIONS & ACTIONS                 */}
           {/* ==================================================== */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <p className="text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
                 Fleet Operations & Actions
               </p>
@@ -766,134 +747,134 @@ export default function TruckModal({
 
             <div className="space-y-2.5">
               {/* Category 1: Safety & Inspections */}
-              <div className="p-3 rounded-2xl border border-slate-200/90 hover:border-slate-300 bg-white hover:bg-slate-50/60 shadow-2xs flex items-center justify-between gap-2 transition-all">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] min-w-0 pr-1">
-                  <ShieldCheck size={16} className="text-[#0A4B6E] shrink-0" />
-                  <span className="truncate">Safety & Inspections</span>
+              <div className="bg-white hover:bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between gap-3 transition-colors shadow-2xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
+                    <ShieldCheck size={16} />
+                  </div>
+                  <span className="font-bold text-[#0A4B6E] text-xs truncate">Safety Inspection</span>
                 </div>
-                <div className="grid grid-cols-2 gap-1.5 w-[205px] shrink-0">
+                <div className="grid grid-cols-2 gap-2 w-[192px] shrink-0">
                   {onOpenInspect && canManage && (
                     <button
                       type="button"
                       onClick={() => onOpenInspect(displayTruck)}
-                      className="w-full h-7.5 flex items-center justify-center gap-1 bg-white hover:bg-slate-50 text-[#0A4B6E] border border-[#0A4B6E] rounded-full px-2 text-[11px] font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+                      className="w-full h-8 flex items-center justify-center bg-[#0A4B6E] hover:bg-[#083b57] text-white text-xs font-semibold rounded-full shadow-2xs transition-all active:scale-95 cursor-pointer text-center"
                       title="Inspect Vehicle"
                     >
-                      <ShieldCheck size={12} className="shrink-0" />
-                      <span className="truncate">Inspect</span>
+                      Inspect
                     </button>
                   )}
                   {onOpenInspectionHistory && (
                     <button
                       type="button"
                       onClick={() => onOpenInspectionHistory(displayTruck)}
-                      className={`w-full h-7.5 flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-full px-2 text-[11px] font-bold transition-all cursor-pointer active:scale-95 ${
+                      className={`w-full h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-full transition-all active:scale-95 cursor-pointer text-center ${
                         !onOpenInspect || !canManage ? "col-span-2" : ""
                       }`}
                       title="Inspection History Logs"
                     >
-                      <ClipboardList size={12} className="shrink-0" />
-                      <span className="truncate">History</span>
+                      History
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Category 2: Incidents & Roadside */}
-              <div className="p-3 rounded-2xl border border-slate-200/90 hover:border-slate-300 bg-white hover:bg-slate-50/60 shadow-2xs flex items-center justify-between gap-2 transition-all">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 min-w-0 pr-1">
-                  <AlertTriangle size={16} className="text-amber-600 shrink-0" />
-                  <span className="truncate">Incidents & Breakdowns</span>
+              {/* Category 2: Roadside Incidents */}
+              <div className="bg-white hover:bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between gap-3 transition-colors shadow-2xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+                    <AlertTriangle size={16} />
+                  </div>
+                  <span className="font-bold text-[#0A4B6E] text-xs truncate">Roadside Incident</span>
                 </div>
-                <div className="grid grid-cols-2 gap-1.5 w-[205px] shrink-0">
+                <div className="grid grid-cols-2 gap-2 w-[192px] shrink-0">
                   {onOpenIncident && canManage && (
                     <button
                       type="button"
                       onClick={() => onOpenIncident(displayTruck)}
-                      className="w-full h-7.5 flex items-center justify-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-full px-2 text-[11px] font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+                      className="w-full h-8 flex items-center justify-center bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-semibold rounded-full transition-all active:scale-95 cursor-pointer text-center"
                       title="Report Incident"
                     >
-                      <AlertTriangle size={12} className="shrink-0" />
-                      <span className="truncate">Report</span>
+                      Report
                     </button>
                   )}
                   {onOpenIncidentHistory && (
                     <button
                       type="button"
                       onClick={() => onOpenIncidentHistory(displayTruck)}
-                      className={`w-full h-7.5 flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-full px-2 text-[11px] font-bold transition-all cursor-pointer active:scale-95 ${
+                      className={`w-full h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-full transition-all active:scale-95 cursor-pointer text-center ${
                         !onOpenIncident || !canManage ? "col-span-2" : ""
                       }`}
                       title="Incident Logs"
                     >
-                      <AlertOctagon size={12} className="shrink-0" />
-                      <span className="truncate">Logs</span>
+                      Logs
                     </button>
                   )}
                 </div>
               </div>
 
               {/* Category 3: Mileage & Odometer */}
-              <div className="p-3 rounded-2xl border border-slate-200/90 hover:border-slate-300 bg-white hover:bg-slate-50/60 shadow-2xs flex items-center justify-between gap-2 transition-all">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] min-w-0 pr-1">
-                  <Gauge size={16} className="text-[#0A4B6E] shrink-0" />
-                  <span className="truncate">Mileage & Odometer</span>
+              <div className="bg-white hover:bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between gap-3 transition-colors shadow-2xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
+                    <Gauge size={16} />
+                  </div>
+                  <span className="font-bold text-[#0A4B6E] text-xs truncate">Mileage & Odometer</span>
                 </div>
-                <div className="grid grid-cols-2 gap-1.5 w-[205px] shrink-0">
+                <div className="grid grid-cols-2 gap-2 w-[192px] shrink-0">
                   {onOpenCheckIn && (
                     <button
                       type="button"
                       onClick={() => onOpenCheckIn(displayTruck)}
-                      className="w-full h-7.5 flex items-center justify-center gap-1 bg-white hover:bg-slate-50 text-[#0A4B6E] border border-[#0A4B6E] rounded-full px-2 text-[11px] font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+                      className="w-full h-8 flex items-center justify-center bg-[#0A4B6E] hover:bg-[#083b57] text-white text-xs font-semibold rounded-full shadow-2xs transition-all active:scale-95 cursor-pointer text-center"
                       title="Record Return Odometer"
                     >
-                      <Gauge size={12} className="shrink-0" />
-                      <span className="truncate">Check-In</span>
+                      Check-In
                     </button>
                   )}
                   {onOpenHistory && (
                     <button
                       type="button"
                       onClick={() => onOpenHistory(displayTruck)}
-                      className={`w-full h-7.5 flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-full px-2 text-[11px] font-bold transition-all cursor-pointer active:scale-95 ${
+                      className={`w-full h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-full transition-all active:scale-95 cursor-pointer text-center ${
                         !onOpenCheckIn ? "col-span-2" : ""
                       }`}
                       title="Mileage History"
                     >
-                      <History size={12} className="shrink-0" />
-                      <span className="truncate">History</span>
+                      History
                     </button>
                   )}
                 </div>
               </div>
 
               {/* Category 4: Maintenance & Operational Condition */}
-              <div className="p-3 rounded-2xl border border-slate-200/90 hover:border-slate-300 bg-white hover:bg-slate-50/60 shadow-2xs flex items-center justify-between gap-2 transition-all">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] min-w-0 pr-1">
-                  <Wrench size={16} className="text-[#0A4B6E] shrink-0" />
-                  <span className="truncate">Maintenance & Condition</span>
+              <div className="bg-white hover:bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3 flex items-center justify-between gap-3 transition-colors shadow-2xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
+                    <Wrench size={16} />
+                  </div>
+                  <span className="font-bold text-[#0A4B6E] text-xs truncate">Maintenance & Service</span>
                 </div>
-                <div className="grid grid-cols-2 gap-1.5 w-[205px] shrink-0">
+                <div className="grid grid-cols-2 gap-2 w-[192px] shrink-0">
                   {canManage && (
                     activeWorkOrder && onOpenWorkOrderDetail ? (
                       <button
                         type="button"
                         onClick={() => onOpenWorkOrderDetail(activeWorkOrder)}
-                        className="w-full h-7.5 flex items-center justify-center gap-1 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold rounded-full px-1.5 text-[11px] transition-all shadow-2xs cursor-pointer active:scale-95"
+                        className="w-full h-8 flex items-center justify-center bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] text-xs font-bold rounded-full shadow-2xs transition-all active:scale-95 cursor-pointer text-center"
                         title={`View Active Work Order: ${activeWorkOrder.workOrderNumber || activeWorkOrder.id}`}
                       >
-                        <Wrench size={12} className="shrink-0" />
-                        <span className="truncate">Work Order</span>
+                        Work Order
                       </button>
                     ) : onCreateWorkOrder ? (
                       <button
                         type="button"
                         onClick={() => onCreateWorkOrder(displayTruck)}
-                        className="w-full h-7.5 flex items-center justify-center gap-1 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold rounded-full px-1.5 text-[11px] transition-all shadow-2xs cursor-pointer active:scale-95"
+                        className="w-full h-8 flex items-center justify-center bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] text-xs font-bold rounded-full shadow-2xs transition-all active:scale-95 cursor-pointer text-center"
                         title="Create Work Order"
                       >
-                        <Wrench size={12} className="shrink-0" />
-                        <span className="truncate">Work Order</span>
+                        Work Order
                       </button>
                     ) : null
                   )}
@@ -901,20 +882,21 @@ export default function TruckModal({
                     <button
                       type="button"
                       onClick={() => onOpenAvailability(displayTruck)}
-                      className={`w-full h-7.5 flex items-center justify-center gap-1 bg-white hover:bg-slate-50 text-[#0A4B6E] border border-[#0A4B6E] rounded-full px-1.5 text-[11px] font-bold transition-all shadow-2xs cursor-pointer active:scale-95 ${
+                      className={`w-full h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-full transition-all active:scale-95 cursor-pointer text-center ${
                         !onCreateWorkOrder || !canManage ? "col-span-2" : ""
                       }`}
                       title="Set Vehicle Availability"
                     >
-                      <SlidersHorizontal size={12} className="shrink-0" />
-                      <span className="truncate">Availability</span>
+                      Availability
                     </button>
                   )}
                 </div>
               </div>
             </div>
+
           </div>
         </div>
+
       </Modal>
     );
   }
@@ -1060,7 +1042,7 @@ export default function TruckModal({
         )}
 
         {/* CARD 1: Vehicle Identification */}
-        <div className="bg-[#E8F3F8] rounded-2xl p-4.5 border border-[#BCE1F1]/60 space-y-3.5">
+        <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3.5">
           <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
             <Truck size={14} />
             <span>Vehicle Identification</span>
@@ -1082,7 +1064,7 @@ export default function TruckModal({
                 className={`w-full bg-white text-slate-800 font-mono font-bold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all placeholder:text-slate-400 ${
                   errors.plateNumber
                     ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
-                    : "border-[#BCE1F1]/80 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
+                    : "border-slate-200 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
                 }`}
               />
               {errors.plateNumber && (
@@ -1106,7 +1088,7 @@ export default function TruckModal({
                 className={`w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all placeholder:text-slate-400 ${
                   errors.model
                     ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
-                    : "border-[#BCE1F1]/80 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
+                    : "border-slate-200 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
                 }`}
               />
               {errors.model && (
@@ -1134,7 +1116,7 @@ export default function TruckModal({
                 className={`w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all placeholder:text-slate-400 ${
                   errors.yearModel
                     ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
-                    : "border-[#BCE1F1]/80 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
+                    : "border-slate-200 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
                 }`}
               />
               {errors.yearModel && (
@@ -1152,7 +1134,7 @@ export default function TruckModal({
                 name="assignedDriverId"
                 value={formData.assignedDriverId || ""}
                 onChange={handleInputChange}
-                className="w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-[#BCE1F1]/80 outline-none focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10 transition-all cursor-pointer"
+                className="w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10 transition-all cursor-pointer"
               >
                 {selectDriverOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -1170,7 +1152,7 @@ export default function TruckModal({
         </div>
 
         {/* CARD 2: Odometer & PM Baseline */}
-        <div className="bg-[#E8F3F8] rounded-2xl p-4.5 border border-[#BCE1F1]/60 space-y-3.5">
+        <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3.5">
           <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
             <Gauge size={14} />
             <span>Odometer & Maintenance Baseline</span>
@@ -1207,14 +1189,15 @@ export default function TruckModal({
               <input
                 type="number"
                 min="0"
+                max="999999"
                 name="inputOdometer"
-                placeholder="Enter KM reading"
+                placeholder="Enter KM reading (max 999,999)"
                 value={formData.inputOdometer || ""}
                 onChange={handleInputChange}
                 className={`w-full bg-white text-slate-800 font-mono text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all placeholder:text-slate-400 ${
                   errors.inputOdometer
                     ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
-                    : "border-[#BCE1F1]/80 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
+                    : "border-slate-200 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
                 }`}
               />
               {errors.inputOdometer && (
@@ -1231,21 +1214,31 @@ export default function TruckModal({
               <input
                 type="number"
                 min="0"
+                max="999999"
                 name="lastPmOdometer"
-                placeholder="e.g. 40000"
+                placeholder="e.g. 40000 (max 999,999)"
                 value={
                   formData.lastPmOdometer !== undefined
                     ? formData.lastPmOdometer
                     : ""
                 }
                 onChange={handleInputChange}
-                className="w-full bg-white text-slate-800 font-mono text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-[#BCE1F1]/80 outline-none focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10 transition-all placeholder:text-slate-400"
+                className={`w-full bg-white text-slate-800 font-mono text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all placeholder:text-slate-400 ${
+                  errors.lastPmOdometer
+                    ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
+                    : "border-slate-200 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
+                }`}
               />
+              {errors.lastPmOdometer && (
+                <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium">
+                  {errors.lastPmOdometer}
+                </p>
+              )}
             </div>
           </div>
 
           {/* Status Pills */}
-          <div className="pt-2 border-t border-[#BCE1F1]/60">
+          <div className="pt-2 border-t border-slate-100">
             <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1.5">
               Operational Status
             </label>
@@ -1257,6 +1250,7 @@ export default function TruckModal({
             />
           </div>
         </div>
+
 
         {/* FOOTER ACTIONS */}
         <div className="pt-2 flex flex-col gap-2">

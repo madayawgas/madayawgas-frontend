@@ -75,9 +75,14 @@ export default function ItemModal({
     const { name, value } = e.target;
     let parsedValue = value;
 
+    if (name === "name") {
+      // Disallow special characters (permit only alphanumeric, spaces, dots, and hyphens)
+      parsedValue = value.replace(/[^a-zA-Z0-9\s.-]/g, "");
+    }
+
     if (name === "netWeightKg") {
-      if (value !== "" && Number(value) < 0) return;
-      parsedValue = value === "" ? "" : Number(value);
+      if (value !== "" && (Number(value) < 0 || Number(value) > 9999)) return;
+      parsedValue = value === "" ? "" : value;
     }
 
     if (name === "containerType") {
@@ -104,13 +109,16 @@ export default function ItemModal({
   const validate = () => {
     const newErrors = {};
 
-    if (!formData.name?.toString().trim()) {
+    const trimmedName = formData.name?.toString().trim();
+    if (!trimmedName) {
       newErrors.name = "Product name is required";
+    } else if (!/^[a-zA-Z0-9\s.-]+$/.test(trimmedName)) {
+      newErrors.name = "Special characters are not allowed in product name";
     } else {
       const nameExists = items.find(
         (i) =>
-          (i.name || i.itemName)?.toString().toLowerCase() ===
-            formData.name?.toString().toLowerCase() &&
+          (i.name || i.itemName)?.toString().toLowerCase().trim() ===
+            trimmedName.toLowerCase() &&
           i.id !== item?.id
       );
       if (nameExists) {
@@ -122,12 +130,16 @@ export default function ItemModal({
       newErrors.category = "Category is required";
     }
 
+    const weightNum = Number(formData.netWeightKg);
     if (
       formData.netWeightKg === "" ||
       formData.netWeightKg === undefined ||
-      Number(formData.netWeightKg) <= 0
+      isNaN(weightNum) ||
+      weightNum <= 0
     ) {
       newErrors.netWeightKg = "Net weight (kg) must be a positive number";
+    } else if (weightNum > 9999) {
+      newErrors.netWeightKg = "Net weight (kg) cannot exceed 9,999 kg";
     }
 
     setErrors(newErrors);
@@ -192,6 +204,34 @@ export default function ItemModal({
   // VIEW MODE MODAL
   // ==========================================
   if (!isEditing && !isAdding) {
+    const headerBadge = (
+      <div className="flex items-center gap-2">
+        <Badge variant={isItemActive ? "success" : "deactivated"}>
+          {isItemActive ? "ACTIVE" : "INACTIVE"}
+        </Badge>
+        {canManage && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="p-1.5 text-[#0A4B6E] hover:bg-[#E8F3F8] rounded-full transition cursor-pointer"
+              title="Edit Product"
+            >
+              <Pencil size={17} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onDeleteClick(displayItem)}
+              className="p-1.5 text-[#CD3E3E] hover:bg-red-50 rounded-full transition cursor-pointer"
+              title="Deactivate Product"
+            >
+              <Trash2 size={17} />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+
     return (
       <Modal
         isOpen={true}
@@ -199,11 +239,7 @@ export default function ItemModal({
         title={displayItem.name || displayItem.itemName || "Product Details"}
         subtitle={`${displayItem.category || "LPG Cylinder"} • ${displayItem.containerType || "CYLINDER"}`}
         icon={displayItem.containerType === "CANISTER" ? Package : Flame}
-        badge={
-          <Badge variant={isItemActive ? "success" : "deactivated"}>
-            {isItemActive ? "ACTIVE" : "INACTIVE"}
-          </Badge>
-        }
+        badge={headerBadge}
         maxWidth="max-w-md"
         footer={
           <button
@@ -219,38 +255,13 @@ export default function ItemModal({
           {/* Main Info Card */}
           <div className="bg-[#E8F3F8] rounded-2xl p-5 border border-[#BCE1F1]/60 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#BCE1F1]/60">
-              <div className="flex items-center gap-3 min-w-0 pr-2">
-                <div className="w-12 h-12 rounded-full bg-[#0A4B6E] flex items-center justify-center text-white shrink-0 shadow-xs">
-                  {getItemIcon(displayItem.containerType, displayItem.category)}
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-base sm:text-lg font-bold text-[#0A4B6E] truncate">
-                    {displayItem.name || displayItem.itemName}
-                  </h3>
-                  <p className="text-xs text-[#6D8AA2] font-medium">Catalog Item</p>
-                </div>
+              <div className="flex items-center gap-2 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
+                <Package size={15} />
+                <span>Product Specifications</span>
               </div>
-
-              {canManage && (
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(true)}
-                    className="p-1.5 text-[#0A4B6E] hover:bg-white rounded-full transition cursor-pointer"
-                    title="Edit Product"
-                  >
-                    <Pencil size={17} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDeleteClick(displayItem)}
-                    className="p-1.5 text-[#0A4B6E] hover:text-red-600 hover:bg-white rounded-full transition cursor-pointer"
-                    title="Deactivate Product"
-                  >
-                    <Trash2 size={17} />
-                  </button>
-                </div>
-              )}
+              <Badge variant="roles">
+                {displayItem.category || "LPG Cylinder"}
+              </Badge>
             </div>
 
             <div className="space-y-2.5 text-xs text-slate-700">
@@ -390,7 +401,7 @@ export default function ItemModal({
     >
       <form onSubmit={handleFormSubmit} className="space-y-4 py-1">
         {/* CARD 1: Product Identification */}
-        <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3.5">
+        <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3.5">
           <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
             <Package size={14} />
             <span>Product Identification</span>
@@ -407,6 +418,8 @@ export default function ItemModal({
               placeholder="e.g. 11kg LPG Cylinder"
               value={formData.name || ""}
               onChange={handleInputChange}
+              pattern="[a-zA-Z0-9\s.\-]+"
+              title="Special characters are not allowed. Only letters, numbers, spaces, dots, and hyphens permitted."
               className={`w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all placeholder:text-slate-400 ${
                 errors.name
                   ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
@@ -458,7 +471,7 @@ export default function ItemModal({
         </div>
 
         {/* CARD 2: Weight & Status */}
-        <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3.5">
+        <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3.5">
           <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
             <Weight size={14} />
             <span>Weight & Status Specifications</span>
@@ -471,6 +484,8 @@ export default function ItemModal({
             <input
               type="number"
               step="0.001"
+              min="0.001"
+              max="9999"
               required
               name="netWeightKg"
               placeholder="e.g. 11.000"
@@ -487,7 +502,7 @@ export default function ItemModal({
             )}
           </div>
 
-          <div className="pt-2 border-t border-[#BCE1F1]/50">
+          <div className="pt-2 border-t border-slate-100">
             <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1.5">
               Operational Status
             </label>
@@ -497,6 +512,7 @@ export default function ItemModal({
             />
           </div>
         </div>
+
 
         {/* FOOTER ACTIONS */}
         <div className="pt-2 flex flex-col gap-2">

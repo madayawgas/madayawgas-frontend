@@ -44,7 +44,7 @@ export default function UserFormStep({
       )}
 
       {/* CARD 1: Personal Information */}
-      <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3.5">
+      <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3.5">
         <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
           <User size={14} />
           <span>Personal Information</span>
@@ -183,7 +183,7 @@ export default function UserFormStep({
       </div>
 
       {/* CARD 2: Role & System Privileges */}
-      <div className="bg-[#E8F3F8] rounded-2xl p-4 border border-[#BCE1F1]/60 space-y-3.5">
+      <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3.5">
         <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
           <Shield size={14} />
           <span>Role & Access Privileges</span>
@@ -233,7 +233,7 @@ export default function UserFormStep({
 
         {/* Editing mode specific options */}
         {user && (
-          <div className="space-y-3 pt-2 border-t border-[#BCE1F1]/50">
+          <div className="space-y-3 pt-2 border-t border-slate-100">
             <div>
               <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1">
                 Username
@@ -247,7 +247,8 @@ export default function UserFormStep({
               />
             </div>
 
-            <div className="p-3 bg-white rounded-xl flex items-center justify-between gap-3 border border-[#BCE1F1]/70">
+            <div className="p-3 bg-slate-50/80 rounded-xl flex items-center justify-between gap-3 border border-slate-200/80">
+
               <div>
                 <p className="text-xs font-bold text-[#0A4B6E]">Reset Credentials</p>
                 <p className="text-[11px] text-[#6D8AA2]">Issue temporary credentials to user</p>

@@ -1,5 +1,5 @@
 // src/components/items/ItemCard.jsx
-import { List, Package, Flame } from "lucide-react";
+import { List, Package, Flame, Layers, Weight } from "lucide-react";
 import Badge from "../ui/Badge";
 
 export default function ItemCard({ item, onClick }) {
@@ -12,6 +12,12 @@ export default function ItemCard({ item, onClick }) {
       return <Flame size={16} />;
     }
     return <Package size={16} />;
+  };
+
+  const formattedWeight = () => {
+    if (item.netWeightKg === undefined || item.netWeightKg === null) return "0.250 kg";
+    const val = Number(item.netWeightKg);
+    return `${val % 1 === 0 ? val.toFixed(1) : val.toFixed(3)} kg`;
   };
 
   return (
@@ -29,27 +35,40 @@ export default function ItemCard({ item, onClick }) {
             {item.name || item.itemName || item.itemCode || "Product Item"}
           </h3>
         </div>
-        <Badge variant="roles" className="text-[10px] px-2 py-0.5 shrink-0">
-          {item.category || "LPG"}
+        <Badge variant="roles" className="text-[10px] px-2 py-0.5 shrink-0 font-semibold">
+          {item.category || "LPG Cylinder"}
         </Badge>
       </div>
 
       {/* CARD BODY */}
-      <div className="space-y-2 text-xs md:text-[13px] leading-relaxed mb-4 px-0.5 text-left">
+      <div className="space-y-2.5 text-xs md:text-[13px] leading-relaxed mb-4 px-0.5 text-left">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[#5B8399] group-hover:text-[#A88B3D] transition-colors font-medium">Category:</span>
-          <span className="font-bold text-[#0A4B6E] group-hover:text-[#854D0E] transition-colors">{item.category || "Canister"}</span>
+          <span className="text-[#5B8399] group-hover:text-[#A88B3D] transition-colors font-medium flex items-center gap-1.5">
+            <Layers size={13} className="shrink-0" />
+            <span>Category:</span>
+          </span>
+          <span className="font-bold text-[#0A4B6E] group-hover:text-[#854D0E] transition-colors truncate max-w-[60%] text-right">
+            {item.category || "LPG Cylinder"}
+          </span>
         </div>
 
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[#5B8399] group-hover:text-[#A88B3D] transition-colors font-medium">Container Type:</span>
-          <span className="font-bold text-[#0A4B6E] group-hover:text-[#854D0E] transition-colors">{item.containerType || "CANISTER"}</span>
+          <span className="text-[#5B8399] group-hover:text-[#A88B3D] transition-colors font-medium flex items-center gap-1.5">
+            <Package size={13} className="shrink-0" />
+            <span>Container Type:</span>
+          </span>
+          <span className="font-bold text-[#0A4B6E] group-hover:text-[#854D0E] transition-colors uppercase">
+            {item.containerType || "CYLINDER"}
+          </span>
         </div>
 
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[#5B8399] group-hover:text-[#A88B3D] transition-colors font-medium">Net Weight (kg):</span>
-          <span className="font-bold text-[#0A4B6E] group-hover:text-[#854D0E] transition-colors">
-            {item.netWeightKg !== undefined ? `${Number(item.netWeightKg).toFixed(3)} kg` : "0.250 kg"}
+          <span className="text-[#5B8399] group-hover:text-[#A88B3D] transition-colors font-medium flex items-center gap-1.5">
+            <Weight size={13} className="shrink-0" />
+            <span>Net Weight:</span>
+          </span>
+          <span className="font-bold font-mono text-[#0A4B6E] group-hover:text-[#854D0E] transition-colors">
+            {formattedWeight()}
           </span>
         </div>
       </div>
@@ -70,3 +89,4 @@ export default function ItemCard({ item, onClick }) {
     </div>
   );
 }
+

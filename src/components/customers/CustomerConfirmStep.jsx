@@ -2,6 +2,7 @@
 import { Building2, MapPin, Phone, Tag, CheckCircle2 } from "lucide-react";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
+import { formatPhilippinePhone } from "../../utils/phone.js";
 
 export default function CustomerConfirmStep({ formData, onConfirm, isSubmitting }) {
   return (
@@ -44,7 +45,7 @@ export default function CustomerConfirmStep({ formData, onConfirm, isSubmitting 
                 <Phone size={13} /> Contact Number
               </span>
               <p className="font-bold text-[#0A4B6E] text-sm">
-                {formData.contactNumber || "N/A"}
+                {formData.contactNumber ? formatPhilippinePhone(formData.contactNumber) : "N/A"}
               </p>
             </div>
 

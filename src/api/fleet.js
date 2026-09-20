@@ -1349,6 +1349,12 @@ export const fleetApi = {
       const existing = index !== -1 ? inMemoryTrucks[index] : {};
       const current = existing.currentOdometer || 0;
 
+      if (Number(odometer) > 999999) {
+        const error = new Error("Odometer reading cannot exceed 999,999 km.");
+        error.status = 400;
+        throw error;
+      }
+
       if (Number(odometer) < current) {
         const error = new Error(
           `New odometer reading (${odometer} km) cannot be less than current recorded odometer (${current} km)`
@@ -1420,6 +1426,12 @@ export const fleetApi = {
 
       if (isNaN(newOdo) || newOdo < 0) {
         const err = new Error("A valid non-negative odometer reading is required.");
+        err.status = 400;
+        throw err;
+      }
+
+      if (newOdo > 999999) {
+        const err = new Error("Odometer reading cannot exceed 999,999 km.");
         err.status = 400;
         throw err;
       }

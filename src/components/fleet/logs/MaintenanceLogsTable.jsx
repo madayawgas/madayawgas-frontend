@@ -55,28 +55,28 @@ export default function MaintenanceLogsTable({
   return (
     <div className="w-full h-full flex flex-col overflow-hidden border border-[#0A4B6E]/30 rounded-2xl bg-white shadow-sm">
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar overflow-x-auto">
-        <table className="w-full text-left border-collapse table-fixed">
+        <table className="w-full text-left border-collapse table-fixed min-w-[980px]">
           <thead className="bg-[#0D4B6E] text-white text-xs md:text-sm sticky top-0 z-10 shadow-xs">
             <tr>
-              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[17%]">
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[16%]">
                 Official Receipt
               </th>
-              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[20%]">
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[18%]">
                 Vehicle Asset
               </th>
-              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[15%]">
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[13%]">
                 Service Type
               </th>
               <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[18%]">
                 Service Facility
               </th>
-              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[11%]">
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[12%]">
                 Total Cost
               </th>
-              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-center whitespace-nowrap w-[10%]">
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-center whitespace-nowrap w-[13%]">
                 Status
               </th>
-              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[9%]">
+              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[10%]">
                 Details
               </th>
             </tr>
@@ -119,7 +119,7 @@ export default function MaintenanceLogsTable({
                     <tr
                       onClick={() => toggleRow(logId)}
                       className={`transition-colors duration-150 cursor-pointer group ${
-                        isExpanded ? "bg-[#FEF6D1]" : "hover:bg-[#FEF6D1] bg-white"
+                        isExpanded ? "bg-[#E2EDF3] text-[#0A4B6E] font-semibold" : "bg-white hover:bg-[#F4F9FC]"
                       }`}
                     >
                       {/* Official Receipt & Date */}

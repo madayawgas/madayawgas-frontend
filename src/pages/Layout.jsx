@@ -207,8 +207,8 @@ export default function Layout() {
       )}
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col h-screen">
-        <header className="h-[80px] bg-[#0A4B6E] flex items-center justify-between px-6 text-white">
+      <div className="flex-1 flex flex-col h-screen min-w-0 overflow-hidden">
+        <header className="h-[80px] bg-[#0A4B6E] flex items-center justify-between px-6 text-white shrink-0">
           <div className="flex items-center gap-3">
             <button className="md:hidden" onClick={() => setOpen(true)}>
               <Menu size={28} />
@@ -230,7 +230,7 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 animate-fade-in bg-white">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 animate-fade-in bg-white min-w-0">
           <Outlet />
         </main>
       </div>

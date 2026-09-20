@@ -456,7 +456,7 @@ export default function Users() {
   };
 
   return (
-    <div className="p-6 md:p-8 h-[calc(100vh-112px)] md:h-[calc(100vh-128px)] flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden min-w-0">
       {/* Header (Pinned at Top) */}
       <div className="shrink-0">
         <UsersHeader
@@ -483,7 +483,7 @@ export default function Users() {
           Loading user records...
         </div>
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col lg:flex-row items-stretch gap-6 overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row items-stretch gap-4 lg:gap-6 overflow-hidden min-w-0">
           {/* Users Table Container (Scrolls independently) */}
           <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden transition-all duration-300">
             <UsersTable
@@ -498,7 +498,7 @@ export default function Users() {
           {/* Locked Expanded User Details Panel (Right Side with independent scroll & out-animation) */}
           {activeDetailUser && (
             <div
-              className={`w-full lg:w-[400px] xl:w-[430px] shrink-0 h-full flex flex-col overflow-hidden transition-all duration-300 ${
+              className={`w-full lg:w-[350px] xl:w-[390px] shrink-0 h-full flex flex-col overflow-hidden transition-all duration-300 ${
                 isClosingPanel
                   ? "animate-slide-fade-out pointer-events-none"
                   : "animate-slide-fade-in"

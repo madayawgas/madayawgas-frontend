@@ -101,6 +101,11 @@ export default function FinalizeMaintenanceModal({
       return;
     }
 
+    if (odo > 999999) {
+      setError("Odometer at service cannot exceed 999,999 km.");
+      return;
+    }
+
     if (currentOdometer > 0 && odo < currentOdometer) {
       setError(`Odometer at service (${odo.toLocaleString()} km) cannot be less than current odometer (${currentOdometer.toLocaleString()} km).`);
       return;
@@ -354,15 +359,16 @@ export default function FinalizeMaintenanceModal({
                 type="number"
                 required
                 min={currentOdometer || 0}
+                max={999999}
                 value={odometerAtService}
                 onChange={(e) => setOdometerAtService(e.target.value)}
-                placeholder="e.g. 46500"
+                placeholder="e.g. 46500 (max 999,999)"
                 className="w-full pl-9 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800 font-mono"
               />
               <Gauge className="w-4 h-4 text-[#588094] absolute left-3 top-2.5" />
             </div>
             <span className="text-[11px] text-[#588094] mt-1 block">
-              Current odometer: {currentOdometer.toLocaleString()} km
+              Current odometer: {currentOdometer.toLocaleString()} km (Ceiling: 999,999 km)
             </span>
           </div>
         </div>

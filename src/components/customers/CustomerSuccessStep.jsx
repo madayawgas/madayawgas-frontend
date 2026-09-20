@@ -2,6 +2,7 @@
 import { Building2, MapPin, Phone, Tag, CheckCircle2 } from "lucide-react";
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
+import { formatPhilippinePhone } from "../../utils/phone.js";
 
 export default function CustomerSuccessStep({ formData, onDone }) {
   return (
@@ -44,7 +45,7 @@ export default function CustomerSuccessStep({ formData, onDone }) {
                 <Phone size={13} /> Contact No.
               </span>
               <p className="font-bold text-[#0A4B6E] text-sm">
-                {formData.contactNumber}
+                {formatPhilippinePhone(formData.contactNumber) || "-"}
               </p>
             </div>
 

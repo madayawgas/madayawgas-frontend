@@ -1,3 +1,4 @@
+// src/components/items/ItemControls.jsx
 import SearchBar from "../ui/SearchBar";
 import FilterItem from "./FilterItem";
 import ActiveItemFilters from "./ActiveItemFilters";
@@ -14,24 +15,23 @@ export default function ItemControls({
     <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-6">
       {/* Search Bar */}
       <SearchBar
-        placeholder="Search for items"
+        placeholder="Search products by name, container, or category..."
         value={searchTerm}
         onChange={(e) => onSearchChange(e.target.value)}
         className="w-full max-w-md"
       />
 
-      {/* Filter Controls - Single Row */}
-      <div className="flex items-center gap-2 justify-end flex-nowrap shrink-0">
+      {/* Filter Controls - Responsive Wrap without forced scrollbars */}
+      <div className="flex items-center gap-2 justify-end flex-wrap">
         <ActiveItemFilters
-          selectedCategory={activeFilters.category}
-          selectedStatus={activeFilters.status}
+          selectedCategory={activeFilters?.category}
+          selectedStatus={activeFilters?.status}
           onClearCategory={onClearCategory}
           onClearStatus={onClearStatus}
         />
 
-        <FilterItem onApply={onApplyFilters} />
+        <FilterItem activeFilters={activeFilters} onApply={onApplyFilters} />
       </div>
     </div>
   );
 }
-

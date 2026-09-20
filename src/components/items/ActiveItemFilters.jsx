@@ -23,12 +23,12 @@ export default function ActiveItemFilters({
   };
 
   return (
-    <div className="flex items-center gap-2 shrink-0 flex-nowrap">
+    <div className="flex items-center gap-2 flex-wrap">
       {/* Active Category Filter Chip */}
       {selectedCategory && selectedCategory !== "All Categories" && (
         <Badge
           variant="roles"
-          className="flex items-center gap-2 h-[38px] px-3 py-0 normal-case tracking-normal text-xs font-semibold shrink-0 whitespace-nowrap"
+          className="flex items-center gap-2 h-[38px] px-3 py-0 normal-case tracking-normal text-xs font-semibold"
         >
           <Funnel size={14} className="text-[#0A4B6E]" />
           <span>Category: {selectedCategory}</span>
@@ -46,7 +46,7 @@ export default function ActiveItemFilters({
       {selectedStatus && selectedStatus !== "All" && (
         <Badge
           variant="roles"
-          className="flex items-center gap-2 h-[38px] px-3 py-0 normal-case tracking-normal text-xs font-semibold shrink-0 whitespace-nowrap"
+          className="flex items-center gap-2 h-[38px] px-3 py-0 normal-case tracking-normal text-xs font-semibold"
         >
           <Funnel size={14} className="text-[#0A4B6E]" />
           <span>Status:</span>
@@ -65,4 +65,3 @@ export default function ActiveItemFilters({
     </div>
   );
 }
-

@@ -53,11 +53,11 @@ export default function UsersTable({
   return (
     <div className="w-full h-full flex flex-col overflow-hidden border border-[#0A4B6E]/30 rounded-2xl bg-white shadow-sm">
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar overflow-x-auto">
-        <table className="w-full text-left border-collapse table-fixed">
+        <table className="w-full text-left border-collapse min-w-[580px]">
           <thead className="bg-[#0D4B6E] text-white text-xs md:text-sm sticky top-0 z-10 shadow-xs">
             <tr>
               <th
-                className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[32%]"
+                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[30%] min-w-[150px]"
                 onClick={() => onSort("firstName")}
               >
                 User Account{" "}
@@ -66,7 +66,7 @@ export default function UsersTable({
                 ) : ""}
               </th>
               <th
-                className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[18%]"
+                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[18%] min-w-[115px]"
                 onClick={() => onSort("role")}
               >
                 Role{" "}
@@ -74,14 +74,14 @@ export default function UsersTable({
                   sortConfig.direction === "asc" ? "▲" : "▼"
                 ) : ""}
               </th>
-              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[20%]">
+              <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[20%] min-w-[130px]">
                 Contact No.
               </th>
-              <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-center whitespace-nowrap w-[15%]">
+              <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] text-center whitespace-nowrap w-[16%] min-w-[85px]">
                 Status
               </th>
               <th
-                className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-center cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[15%]"
+                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] text-center cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[16%] min-w-[100px]"
                 onClick={() => onSort("createdAt")}
               >
                 Date Created{" "}
@@ -126,13 +126,13 @@ export default function UsersTable({
                     onClick={() => onSelectUser && onSelectUser(user)}
                     className={`transition-colors duration-150 cursor-pointer ${
                       isSelected
-                        ? "bg-[#FEF6D1] text-[#0A4B6E] font-medium"
-                        : "hover:bg-[#FEF6D1] bg-white"
+                        ? "bg-[#E2EDF3] text-[#0A4B6E] font-semibold"
+                        : "bg-white hover:bg-[#F4F9FC]"
                     }`}
                   >
                     {/* User Account with Avatar, Full Name & Username handle */}
-                    <td className="py-3.5 px-4 md:px-5">
-                      <div className="flex items-center gap-3 min-w-0">
+                    <td className="py-3.5 px-3 md:px-4">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <div className="w-8 h-8 rounded-full bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 font-bold text-xs shadow-xs">
                           {initials || <UserRound size={14} />}
                         </div>
@@ -150,17 +150,17 @@ export default function UsersTable({
                     </td>
 
                     {/* Role Badge */}
-                    <td className="py-3.5 px-4 md:px-5">
+                    <td className="py-3.5 px-3 md:px-4 whitespace-nowrap">
                       <Badge
                         variant="roles"
-                        className="text-[10px] px-2.5 py-0.5 truncate max-w-full inline-block"
+                        className="text-[10px] px-2 py-0.5 whitespace-nowrap inline-flex items-center"
                       >
                         {roleName}
                       </Badge>
                     </td>
 
                     {/* Contact Number */}
-                    <td className="py-3.5 px-4 md:px-5">
+                    <td className="py-3.5 px-3 md:px-4 whitespace-nowrap">
                       <div className="flex items-center gap-1.5 text-gray-700 font-medium text-xs md:text-sm">
                         <Phone size={13} className="text-[#6D8AA2] shrink-0" />
                         <span className="truncate">
@@ -170,17 +170,17 @@ export default function UsersTable({
                     </td>
 
                     {/* Status Badge */}
-                    <td className="py-3.5 px-4 md:px-5 text-center whitespace-nowrap">
+                    <td className="py-3.5 px-3 md:px-4 text-center whitespace-nowrap">
                       <Badge
                         variant={getBadgeVariant(user)}
-                        className="text-[10px] px-2.5 py-0.5"
+                        className="text-[10px] px-2 py-0.5 whitespace-nowrap inline-flex items-center"
                       >
                         {getStatusText(user)}
                       </Badge>
                     </td>
 
                     {/* Date Created */}
-                    <td className="py-3.5 px-4 md:px-5 text-center">
+                    <td className="py-3.5 px-3 md:px-4 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5 text-xs text-[#6D8AA2] italic">
                         <Calendar size={13} className="text-[#6D8AA2] shrink-0" />
                         <span>{formatDate(user.createdAt || user.dateCreated)}</span>

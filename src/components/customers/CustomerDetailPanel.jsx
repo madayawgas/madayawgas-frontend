@@ -1,5 +1,6 @@
 import { Pencil, Trash2, RotateCcw, UserRound } from "lucide-react";
 import Badge from "../ui/Badge";
+import { formatPhilippinePhone } from "../../utils/phone.js";
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -109,7 +110,7 @@ export default function CustomerDetailPanel({
           <div>
             <span className="text-[#6D8AA2] font-medium">Contact No.:</span>
             <span className="text-[#0A4B6E] font-bold ml-2">
-              {customer.contactNumber || "N/A"}
+              {customer.contactNumber ? formatPhilippinePhone(customer.contactNumber) : "N/A"}
             </span>
           </div>
 
