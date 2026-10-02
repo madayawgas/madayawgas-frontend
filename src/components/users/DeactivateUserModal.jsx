@@ -1,12 +1,13 @@
+import { createPortal } from "react-dom";
 import Button from "../ui/Button";
 import { hasUserRole } from "../../utils/userRoles.js";
 
 export default function DeactivateUserModal({ user, onClose, onConfirm }) {
   if (!user || hasUserRole(user, "Super Admin")) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-xl">
+  const modalNode = (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl animate-scale-in">
         <h2 className="text-2xl font-bold text-[#0B4A6E] mb-4">
           Deactivate User?
         </h2>
@@ -36,4 +37,8 @@ export default function DeactivateUserModal({ user, onClose, onConfirm }) {
       </div>
     </div>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(modalNode, document.body)
+    : modalNode;
 }

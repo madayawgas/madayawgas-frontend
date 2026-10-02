@@ -52,8 +52,8 @@ export default function SideDrawer({
             ? "animate-slide-fade-out pointer-events-none"
             : "animate-slide-fade-in"
         }`}
-        onClick={(e) => e.stopPropagation()}
-      >
+        onClick={(e) => e.stopPropagation()}>
+
         {/* Header */}
         <div className="px-6 py-4.5 border-b border-gray-100 flex items-center justify-between shrink-0 bg-[#F8FBFC]">
           <div className="flex items-center gap-3.5 min-w-0 flex-1">

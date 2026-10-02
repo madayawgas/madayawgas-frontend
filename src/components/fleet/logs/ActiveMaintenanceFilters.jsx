@@ -1,30 +1,25 @@
-// src/components/fleet/logs/ActiveMaintenanceFilters.jsx
 import { Funnel, X } from "lucide-react";
-import Badge from "../../ui/Badge";
 
 export default function ActiveMaintenanceFilters({ selectedType, onClearType }) {
   if (!selectedType || selectedType === "ALL") return null;
 
   return (
-    <div className="flex items-center gap-2 shrink-0 flex-nowrap">
-      <Badge
-        variant="roles"
-        className="flex items-center gap-2 h-[38px] px-3 py-0 normal-case tracking-normal text-xs font-semibold shrink-0 whitespace-nowrap"
-      >
-        <Funnel size={14} className="text-[#0A4B6E]" />
+    <div className="flex items-center gap-1.5 shrink-0 flex-nowrap">
+      <span className="inline-flex items-center gap-1.5 h-[26px] px-2.5 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] text-[11px] font-medium transition-all shadow-2xs shrink-0 whitespace-nowrap">
+        <Funnel size={11} className="text-[#0A4B6E]/70 shrink-0" />
         <span>Type:</span>
-        <Badge variant="info">
+        <span className="px-1.5 py-0.2 rounded-md text-[10px] font-bold border bg-blue-50 text-blue-700 border-blue-200">
           {selectedType}
-        </Badge>
+        </span>
         <button
           type="button"
           onClick={onClearType}
-          className="p-0.5 hover:bg-gray-100 rounded-full transition-colors cursor-pointer ml-1"
+          className="p-0.5 hover:bg-black/10 rounded-full transition-colors cursor-pointer text-[#0A4B6E]"
+          title="Remove filter"
         >
-          <X size={14} />
+          <X size={11} />
         </button>
-      </Badge>
+      </span>
     </div>
   );
 }
-

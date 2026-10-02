@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft } from "lucide-react";
 
 export default function Modal({
@@ -42,24 +43,24 @@ export default function Modal({
 
   if (!shouldRender && !isOpen) return null;
 
-  return (
+  const modalNode = (
     <div
       onClick={() => {
         if (closeOnBackdrop && onClose) onClose();
       }}
-      className={`fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 ${
+      className={`fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 ${
         isAnimatingOut ? "animate-fade-out" : "animate-fade-in"
       }`}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white rounded-3xl w-full shadow-2xl relative flex flex-col max-h-[90vh] overflow-hidden ${maxWidth} ${
+        className={`bg-white rounded-3xl w-full shadow-2xl relative flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden ${maxWidth} ${
           isAnimatingOut ? "animate-scale-out" : "animate-scale-in"
         }`}
       >
         {/* Header - Fixed */}
         {title && (
-          <div className="px-6 sm:px-8 pt-6 pb-4 shrink-0 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="px-5 sm:px-8 pt-5 sm:pt-6 pb-3.5 sm:pb-4 shrink-0 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
             <div className="flex items-center gap-3 min-w-0 pr-2">
               {Icon && (
                 <div className="w-10 h-10 rounded-2xl bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 shadow-2xs">
@@ -95,17 +96,21 @@ export default function Modal({
         )}
 
         {/* Content - Scrollable */}
-        <div className="overflow-y-auto px-6 sm:px-8 py-4 custom-scrollbar flex-1">
+        <div className="overflow-y-auto px-5 sm:px-8 py-3.5 sm:py-4 custom-scrollbar flex-1 min-h-0">
           {children}
         </div>
 
         {/* Footer - Fixed */}
         {footer && (
-          <div className="px-6 sm:px-8 py-4 border-t border-slate-100 shrink-0 bg-white">
+          <div className="px-5 sm:px-8 py-3.5 sm:py-4 border-t border-slate-100 shrink-0 bg-white">
             {footer}
           </div>
         )}
       </div>
     </div>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(modalNode, document.body)
+    : modalNode;
 }

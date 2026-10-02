@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import CustomerHeader from "../../components/customers/CustomerHeader";
 import CustomerControls from "../../components/customers/CustomerControls";
 import CustomerTable from "../../components/customers/CustomerTable";
@@ -122,6 +122,18 @@ export default function Customers() {
     loadCustomers();
   }, [loadCustomers]);
 
+  const handleSearchSubmit = (query) => {
+    setCommittedSearch(query);
+    setSearchTerm(query);
+    setPage(1); // Auto reset page = 1
+  };
+
+  const handleSearchClear = () => {
+    setCommittedSearch("");
+    setSearchTerm("");
+    setPage(1); // Auto reset page = 1
+  };
+
   // Clean up timer on unmount
   useEffect(() => {
     return () => {
@@ -167,18 +179,6 @@ export default function Customers() {
       key,
       direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
     }));
-  };
-
-  const handleSearchSubmit = (query) => {
-    setCommittedSearch(query);
-    setSearchTerm(query);
-    setPage(1); // Auto reset page = 1
-  };
-
-  const handleSearchClear = () => {
-    setCommittedSearch("");
-    setSearchTerm("");
-    setPage(1); // Auto reset page = 1
   };
 
   const handlePageChange = (newPage) => {
@@ -321,6 +321,12 @@ export default function Customers() {
     await loadCustomers();
   };
 
+  const customerSummary = useMemo(() => {
+    const total = paginationMeta.totalItems || customers.length;
+    const active = customers.filter((c) => c.isActive !== false).length;
+    return { total, active };
+  }, [customers, paginationMeta.totalItems]);
+
   return (
     <div className="h-full flex flex-col overflow-hidden min-w-0">
       {/* Header (Pinned at Top) */}
@@ -328,6 +334,7 @@ export default function Customers() {
         <CustomerHeader
           canCreate={canCreate}
           onAddCustomer={() => setIsAddingCustomer(true)}
+          customerSummary={customerSummary}
         />
       </div>
 

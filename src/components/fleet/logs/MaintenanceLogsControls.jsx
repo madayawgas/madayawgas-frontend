@@ -1,4 +1,3 @@
-// src/components/fleet/logs/MaintenanceLogsControls.jsx
 import SearchBar from "../../ui/SearchBar";
 import FilterMaintenanceLogs from "./FilterMaintenanceLogs";
 import ActiveMaintenanceFilters from "./ActiveMaintenanceFilters";
@@ -12,24 +11,23 @@ export default function MaintenanceLogsControls({
   onTypeChange,
 }) {
   return (
-    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-6">
-      {/* Search Bar with Search-on-Enter (Strategy B) */}
+    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-3.5">
+      {/* Search Bar */}
       <SearchBar
-        placeholder="Search maintenance logs (Press Enter)..."
+        placeholder="Search logs by plate, OR#, or mechanic..."
         value={searchQuery}
-        onChange={onSearchChange}
+        onChange={(e) => onSearchChange(e.target.value)}
         onSearch={onSearch}
         onClear={onClear}
-        className="w-full max-w-md"
+        className="w-full sm:w-64 md:w-72"
       />
 
-      {/* Filter Controls */}
-      <div className="flex items-center gap-2.5 justify-end flex-wrap shrink-0">
+      {/* Right: Active Type Filters & Filter Dropdown */}
+      <div className="flex items-center gap-2 justify-end flex-wrap">
         <ActiveMaintenanceFilters
           selectedType={selectedType}
           onClearType={() => onTypeChange("ALL")}
         />
-
         <FilterMaintenanceLogs
           label="Filter Types"
           selectedType={selectedType}
@@ -39,3 +37,4 @@ export default function MaintenanceLogsControls({
     </div>
   );
 }
+

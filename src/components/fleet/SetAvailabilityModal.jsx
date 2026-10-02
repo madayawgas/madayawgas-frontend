@@ -77,7 +77,7 @@ export default function SetAvailabilityModal({
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     if (status === "ACTIVE" && hasActiveWorkOrder) {
-      setErrorMsg(ACTIVE_RESTRICTED_ERROR);
+      setErrorMsg("Cannot set to Active while an active work order exists.");
       return;
     }
     try {
@@ -91,7 +91,7 @@ export default function SetAvailabilityModal({
     } catch (err) {
       console.error("Failed to update availability status:", err);
       setErrorMsg(
-        err.message || "Failed to update availability status. Please try again."
+        err.message || "Failed to update availability status."
       );
     } finally {
       setIsSubmitting(false);
@@ -135,7 +135,6 @@ export default function SetAvailabilityModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Set Vehicle Availability"
-      subtitle="Update operational dispatch condition & driver binding"
       icon={SlidersHorizontal}
       badge={
         <Badge
@@ -194,7 +193,7 @@ export default function SetAvailabilityModal({
         {/* TARGET CONDITION SELECTOR (Pill Buttons matching InspectionModal) */}
         <div>
           <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-2">
-            Target Operational Condition <span className="text-red-500">*</span>
+            Target Status <span className="text-red-500">*</span>
           </label>
 
           <div className="grid grid-cols-3 gap-2.5">
@@ -247,7 +246,7 @@ export default function SetAvailabilityModal({
           {hasActiveWorkOrder && (
             <p className="text-[#CD3E3E] text-[11px] mt-2 flex items-center gap-1.5 font-medium">
               <AlertTriangle size={13} className="shrink-0 text-[#CD3E3E]" />
-              <span>{ACTIVE_RESTRICTED_TOOLTIP}</span>
+              <span>Active work order in progress ({activeWorkOrder?.orderNumber || "Work Order"}). Complete it before setting to Active.</span>
             </p>
           )}
         </div>
@@ -257,7 +256,7 @@ export default function SetAvailabilityModal({
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-amber-900">
             <AlertTriangle size={16} className="shrink-0 mt-0.5 text-amber-600" />
             <div className="leading-relaxed">
-              <strong>Ongoing Work Order Active:</strong> Vehicle is currently linked to an active repair ({activeWorkOrder?.orderNumber || "Work Order"}). Vehicles undergoing maintenance can only return to <strong>ACTIVE</strong> condition when the work order is officially finalized in the Maintenance tab.
+              <strong>Active Work Order:</strong> Vehicle is undergoing repairs ({activeWorkOrder?.orderNumber || "Work Order"}). Finalize the work order in the Maintenance tab to restore Active status.
             </div>
           </div>
         ) : (
@@ -266,18 +265,15 @@ export default function SetAvailabilityModal({
             <div className="leading-relaxed">
               {status === "ACTIVE" ? (
                 <span>
-                  <strong>Operational Restoration:</strong> Vehicle will be marked{" "}
-                  <strong>ACTIVE</strong> and cleared for daily route dispatch.
+                  <strong>Active:</strong> Cleared for route dispatch.
                 </span>
               ) : status === "UNDER_MAINTENANCE" ? (
                 <span>
-                  <strong>Maintenance Soft-Binding:</strong> Grounds vehicle for repair while{" "}
-                  <strong>preserving driver ({driverDisplay})</strong> for when maintenance concludes.
+                  <strong>Maintenance:</strong> Grounds vehicle. Driver ({driverDisplay}) remains assigned.
                 </span>
               ) : (
                 <span>
-                  <strong>Deactivation Release:</strong> Setting vehicle to <strong>INACTIVE</strong> will unbind driver{" "}
-                  <strong>({driverDisplay})</strong> back to the unassigned driver pool.
+                  <strong>Inactive:</strong> Deactivates vehicle and unassigns driver ({driverDisplay}).
                 </span>
               )}
             </div>
@@ -293,7 +289,7 @@ export default function SetAvailabilityModal({
             rows={2}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="e.g. Scheduled oil change, brake caliper check, yard inspection"
+            placeholder="e.g., Scheduled oil change, brake check, yard inspection..."
             className="w-full bg-[#E8F3F8]/50 border border-[#BCE1F1]/80 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white transition resize-none"
           />
         </div>

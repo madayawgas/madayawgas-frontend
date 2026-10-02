@@ -101,7 +101,7 @@ export default function InspectionModal({
     >
       <div className="space-y-4 text-left py-2">
         {/* VEHICLE CONTEXT BANNER */}
-        <div className="bg-[#E8F3F8] rounded-xl p-3.5 flex items-center justify-between border border-[#BCE1F1]/60">
+        <div className="bg-[#BAE6FD]/40 rounded-xl p-3.5 flex items-center justify-between border border-[#0A4B6E]/15">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#0A4B6E] text-white flex items-center justify-center shrink-0">
               <ShieldCheck size={20} />
@@ -122,16 +122,16 @@ export default function InspectionModal({
         </div>
 
         {/* CURRENT REGISTERED METRICS */}
-        <div className="grid grid-cols-2 gap-3 bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-2xl p-3.5 text-xs shadow-2xs">
+        <div className="grid grid-cols-2 gap-3 bg-[#F3F5F5] rounded-xl p-3.5 text-xs">
           <div>
-            <span className="text-[#6D8AA2] block text-[11px] font-semibold">Operational Status</span>
+            <span className="text-[#588094] block text-[11px]">Operational Status</span>
             <span className="font-bold text-sm text-[#0A4B6E]">
               {(truck.status || truck.operationalStatus || "ACTIVE").replace("_", " ")}
             </span>
           </div>
           <div>
-            <span className="text-[#6D8AA2] block text-[11px] font-semibold">Current Odometer</span>
-            <span className="font-bold text-sm text-[#0A4B6E] font-mono">
+            <span className="text-[#588094] block text-[11px]">Current Odometer</span>
+            <span className="font-bold text-sm text-[#0A4B6E]">
               {Number(truck.currentOdometer || 0).toLocaleString()} KM
             </span>
           </div>
@@ -139,7 +139,7 @@ export default function InspectionModal({
 
         {/* OUTCOME / RESULT SELECTOR PILLS */}
         <div>
-          <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1.5">
+          <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
             Inspection Result <span className="text-red-500">*</span>
           </label>
           <div className="grid grid-cols-3 gap-2.5">
@@ -150,13 +150,13 @@ export default function InspectionModal({
                 setResult("PASSED");
                 setAllowDispatch(true);
               }}
-              className={`w-full h-9 flex items-center justify-center gap-1.5 rounded-full border text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-full border text-xs font-bold transition-all cursor-pointer ${
                 result === "PASSED"
                   ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                  : "bg-white text-emerald-800 border-[#BCE1F1]/80 hover:bg-emerald-50"
+                  : "bg-[#F3F5F5] text-emerald-800 border-gray-200 hover:bg-emerald-50"
               }`}
             >
-              <CheckCircle2 size={15} className="shrink-0" />
+              <CheckCircle2 size={16} />
               <span>PASSED</span>
             </button>
 
@@ -164,13 +164,13 @@ export default function InspectionModal({
             <button
               type="button"
               onClick={() => setResult("NEEDS_ATTENTION")}
-              className={`w-full h-9 flex items-center justify-center gap-1.5 rounded-full border text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-full border text-xs font-bold transition-all cursor-pointer ${
                 result === "NEEDS_ATTENTION"
                   ? "bg-amber-500 text-white border-amber-500 shadow-xs"
-                  : "bg-white text-amber-800 border-[#BCE1F1]/80 hover:bg-amber-50"
+                  : "bg-[#F3F5F5] text-amber-800 border-gray-200 hover:bg-amber-50"
               }`}
             >
-              <AlertTriangle size={15} className="shrink-0" />
+              <AlertTriangle size={16} />
               <span>NEEDS ATTN</span>
             </button>
 
@@ -181,13 +181,13 @@ export default function InspectionModal({
                 setResult("FAILED");
                 setAllowDispatch(false);
               }}
-              className={`w-full h-9 flex items-center justify-center gap-1.5 rounded-full border text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-full border text-xs font-bold transition-all cursor-pointer ${
                 result === "FAILED"
                   ? "bg-[#D93025] text-white border-[#D93025] shadow-xs"
-                  : "bg-white text-rose-800 border-[#BCE1F1]/80 hover:bg-rose-50"
+                  : "bg-[#F3F5F5] text-rose-800 border-gray-200 hover:bg-rose-50"
               }`}
             >
-              <AlertOctagon size={15} className="shrink-0" />
+              <AlertOctagon size={16} />
               <span>FAILED</span>
             </button>
           </div>

@@ -35,32 +35,35 @@ export default function FilterDropdown({
         onClick={() => setIsOpen((prev) => !prev)}
         className="
           bg-[#FCFEFE]
+          hover:bg-[#F3F8FB]
           text-[#0A4B6E]
-          px-4
-          py-2
+          px-3
+          py-1.5
           rounded-full
-          text-sm
+          text-xs
+          font-semibold
           border
-          border-[#0A4B6E]
+          border-[#0A4B6E]/30
+          hover:border-[#0A4B6E]/60
           flex
           items-center
-          gap-2
-          hover:bg-gray-100
+          gap-1.5
           transition-all
-          duration-200
-          h-[38px]
-          min-w-[140px]
+          duration-150
+          h-[30px]
+          min-w-[110px]
           justify-between
           cursor-pointer
+          shadow-2xs
         "
       >
-        <span>
+        <span className="truncate">
           {value ? value.replace(/_/g, " ") : label}
         </span>
 
         <Funnel
-          size={16}
-          className="text-[#0A4B6E]" 
+          size={12}
+          className="text-[#0A4B6E] shrink-0" 
         />
       </button>
 
@@ -68,19 +71,19 @@ export default function FilterDropdown({
         className={`
           absolute
           right-0
-          mt-2
-          w-48
+          mt-1.5
+          w-44
           bg-white
           border
-          border-[#0A4B6E]
+          border-[#0A4B6E]/20
           rounded-xl
           shadow-lg
           z-20
-          py-2
+          py-1
           overflow-hidden
           origin-top-right
           transition-all
-          duration-200
+          duration-150
           ease-out
           ${
             isOpen
@@ -97,9 +100,9 @@ export default function FilterDropdown({
             className={`
               w-full
               text-left
-              px-4
-              py-2
-              text-sm
+              px-3
+              py-1.5
+              text-xs
               transition-colors
               duration-150
               hover:bg-gray-50

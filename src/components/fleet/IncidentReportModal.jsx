@@ -10,6 +10,25 @@ import Button from "../ui/Button";
  * Captures mid-route breakdowns, roadside accidents, tire punctures, and mechanical failures.
  * Matches the exact look, feel, and layout of Vehicle Return Odometer Check-In.
  */
+const getDriverDisplay = (t) => {
+  if (!t) return "No Assigned";
+  if (t.driver) {
+    const fullName = `${t.driver.firstName || ""} ${t.driver.lastName || ""}`.trim();
+    if (fullName) return fullName;
+    if (t.driver.name) return t.driver.name;
+    if (t.driver.username) return t.driver.username;
+  }
+  if (
+    t.driverName &&
+    t.driverName !== "Unassigned" &&
+    t.driverName !== "No Driver" &&
+    t.driverName !== "No Assigned"
+  ) {
+    return t.driverName;
+  }
+  return "No Assigned";
+};
+
 export default function IncidentReportModal({
   isOpen,
   truck = null,
@@ -60,24 +79,20 @@ export default function IncidentReportModal({
   const currentTruck = truck || trucks.find((t) => t.id === selectedTruckId) || null;
   const isCritical = severity === "CRITICAL";
 
-  const driverDisplay = currentTruck?.driver
-    ? `${currentTruck.driver.firstName || ""} ${currentTruck.driver.lastName || ""}`.trim() || currentTruck.driver.username
-    : currentTruck?.driverName && currentTruck.driverName !== "Unassigned"
-    ? currentTruck.driverName
-    : "No Assigned";
+  const driverDisplay = getDriverDisplay(currentTruck);
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     if (!selectedTruckId) {
-      setErrorMsg("Please select a target vehicle.");
+      setErrorMsg("Select a vehicle.");
       return;
     }
     if (!incidentTypeId) {
-      setErrorMsg("Please select an incident classification.");
+      setErrorMsg("Select an incident type.");
       return;
     }
     if (!description.trim()) {
-      setErrorMsg("Incident description and roadside status is required.");
+      setErrorMsg("Description is required.");
       return;
     }
 
@@ -98,7 +113,7 @@ export default function IncidentReportModal({
       onClose();
     } catch (err) {
       console.error("Failed to report incident:", err);
-      setErrorMsg(err?.message || "Failed to submit incident report. Please try again.");
+      setErrorMsg(err?.message || "Failed to submit report.");
     } finally {
       setIsSubmitting(false);
     }
@@ -136,7 +151,7 @@ export default function IncidentReportModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Report Incident / Breakdown"
+      title="Report Incident"
       maxWidth="max-w-lg"
       footer={footerContent}
     >
@@ -172,11 +187,14 @@ export default function IncidentReportModal({
               onChange={(e) => setSelectedTruckId(e.target.value)}
               className="w-full bg-[#F3F5F5] border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]"
             >
-              {trucks.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.plateNumber || "Truck"} — {t.model || "Fleet Asset"} ({t.driverName || "No Driver"})
-                </option>
-              ))}
+              {trucks.map((t) => {
+                const driver = getDriverDisplay(t);
+                return (
+                  <option key={t.id} value={t.id}>
+                    {t.plateNumber || "Truck"} — {t.model || "Fleet Asset"} ({driver})
+                  </option>
+                );
+              })}
             </select>
           </div>
         )}
@@ -184,7 +202,7 @@ export default function IncidentReportModal({
         {/* INCIDENT CLASSIFICATION TYPE */}
         <div>
           <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
-            Incident Classification Type <span className="text-red-500">*</span>
+            Incident Type <span className="text-red-500">*</span>
           </label>
           <select
             value={incidentTypeId}
@@ -203,17 +221,17 @@ export default function IncidentReportModal({
         {/* SEVERITY LEVEL */}
         <div>
           <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
-            Severity Level <span className="text-red-500">*</span>
+            Severity <span className="text-red-500">*</span>
           </label>
           <select
             value={severity}
             onChange={(e) => setSeverity(e.target.value)}
             className="w-full bg-[#F3F5F5] border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]"
           >
-            <option value="LOW">LOW (Minor cosmetic / non-blocking issue)</option>
-            <option value="MEDIUM">MEDIUM (Attention needed, vehicle operational)</option>
-            <option value="HIGH">HIGH (Urgent repair needed soon)</option>
-            <option value="CRITICAL">CRITICAL (Vehicle disabled / Stalled — Immediate Grounding)</option>
+            <option value="LOW">Low (Minor issue)</option>
+            <option value="MEDIUM">Medium (Needs attention)</option>
+            <option value="HIGH">High (Urgent repair)</option>
+            <option value="CRITICAL">Critical (Vehicle stalled / Grounding)</option>
           </select>
         </div>
 
@@ -222,9 +240,9 @@ export default function IncidentReportModal({
           <div className="bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 text-xs flex items-start gap-2.5">
             <AlertOctagon size={18} className="shrink-0 text-red-600 mt-0.5" />
             <div>
-              <p className="font-bold">Critical Incident Grounding Notice</p>
+              <p className="font-bold">Grounding Notice</p>
               <p className="mt-0.5 text-[11.5px] leading-relaxed">
-                Marking this incident as <strong>CRITICAL</strong> will automatically transition {currentTruck?.plateNumber || "this vehicle"} to <strong>UNDER_MAINTENANCE</strong>. The assigned driver ({driverDisplay}) will remain soft-bound.
+                Vehicle will be set to <strong>UNDER_MAINTENANCE</strong>. Driver ({driverDisplay}) remains assigned.
               </p>
             </div>
           </div>
@@ -233,27 +251,24 @@ export default function IncidentReportModal({
         {/* INCIDENT LOCATION INPUT */}
         <div>
           <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
-            Incident / Breakdown Location
+            Location (Optional)
           </label>
           <div className="relative">
             <input
               type="text"
               value={incidentLocation}
               onChange={(e) => setIncidentLocation(e.target.value)}
-              placeholder="e.g., Km 14 Panacan Highway, Davao City"
+              placeholder="e.g., Panacan Highway, Davao City"
               className="w-full bg-[#F3F5F5] border border-gray-200 rounded-xl py-2 pl-9 pr-3 text-xs font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]"
             />
             <MapPin size={15} className="absolute left-3 top-2.5 text-[#588094]" />
           </div>
-          <span className="text-[11px] text-[#588094] mt-1 block">
-            Provide highway landmark, barangay, or plant location.
-          </span>
         </div>
 
         {/* DESCRIPTION TEXTAREA */}
         <div>
           <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
-            Incident Description & Roadside Status <span className="text-red-500">*</span>
+            Description <span className="text-red-500">*</span>
           </label>
           <textarea
             rows={3}
@@ -262,12 +277,9 @@ export default function IncidentReportModal({
               setDescription(e.target.value);
               setErrorMsg("");
             }}
-            placeholder="Describe what occurred, driver remarks, immediate symptoms (smoke, leak, puncture), and current vehicle towing or repair situation..."
+            placeholder="Describe what occurred and vehicle status..."
             className="w-full bg-[#F3F5F5] border border-gray-200 rounded-xl p-3 text-xs font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] resize-none"
           />
-          <span className="text-[11px] text-[#588094] mt-1 block">
-            Logged upon roadside incident report by Driver or Logistics Dispatcher.
-          </span>
         </div>
       </div>
     </Modal>

@@ -1,4 +1,3 @@
-// src/components/customers/CustomerControls.jsx
 import SearchBar from "../ui/SearchBar";
 import FilterCustomer from "./FilterCustomer";
 import CustomerActiveFilters from "./CustomerActiveFilters";
@@ -15,18 +14,18 @@ export default function CustomerControls({
   onClearDate,
 }) {
   return (
-    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-6">
-      {/* Search Bar with Search-on-Enter (Strategy B) */}
+    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-3.5">
+      {/* Search Bar with Search-on-Enter */}
       <SearchBar
         placeholder="Search for customers (Press Enter)"
         value={searchTerm}
         onChange={onSearchChange}
         onSearch={onSearch}
         onClear={onClearSearch}
-        className="w-full max-w-md"
+        className="w-full sm:w-64 md:w-72"
       />
 
-      {/* Filter Controls */}
+      {/* Right: Active Filters Chips & Filter Button */}
       <div className="flex items-center gap-2 justify-end flex-wrap">
         <CustomerActiveFilters
           selectedType={activeFilters.customerType}
@@ -37,9 +36,9 @@ export default function CustomerControls({
           onClearStatus={onClearStatus}
           onClearDate={onClearDate}
         />
-
         <FilterCustomer onApply={onApplyFilters} label="Filter Customers" />
       </div>
     </div>
   );
 }
+

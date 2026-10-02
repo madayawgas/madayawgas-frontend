@@ -1,4 +1,3 @@
-// src/pages/Profile/Profile.jsx
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
@@ -225,50 +224,45 @@ export default function Profile() {
   const isSuperAdmin = hasUserRole(currentUser, "Super Admin");
 
   return (
-    <div className="p-6 md:p-8">
-      <div className="w-full max-w-[1280px] mx-auto text-left">
-        {/* ================= PAGE HEADER ================= */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-[#6D8AA2] mb-6 gap-4">
-          <h1 className="text-2xl md:text-[32px] font-bold text-[#1B4B75]">
-            Account Profile
-          </h1>
+    <div className="w-full max-w-[1280px] mx-auto text-left">
+      {/* ================= PAGE ACTIONS HEADER ================= */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-end pb-3.5 border-b border-[#6D8AA2]/20 mb-4 gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 ml-auto">
+          <button
+            type="button"
+            onClick={() => {
+              setPasswordError("");
+              setPasswordModalStep(1);
+              setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+              setShowPasswordModal(true);
+            }}
+            className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-[#0A4B6E] font-semibold text-xs px-3 py-1.5 rounded-full transition-colors cursor-pointer shadow-2xs active:scale-95 h-[30px]"
+          >
+            <KeyRound size={13} />
+            <span>Change Password</span>
+          </button>
 
-          <div className="flex flex-wrap items-center gap-3">
+          {!isEditing ? (
             <button
               type="button"
-              onClick={() => {
-                setPasswordError("");
-                setPasswordModalStep(1);
-                setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-                setShowPasswordModal(true);
-              }}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-300 text-[#0A4B6E] font-semibold text-xs md:text-sm px-4 py-2.5 rounded-full transition-colors cursor-pointer shadow-2xs active:scale-95"
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-1.5 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs uppercase tracking-wider px-3.5 py-1.5 rounded-full shadow-2xs transition-all active:scale-95 cursor-pointer h-[30px]"
             >
-              <KeyRound size={16} />
-              <span>Change Password</span>
+              <Pencil size={13} />
+              <span>Edit Profile</span>
             </button>
-
-            {!isEditing ? (
-              <button
-                type="button"
-                onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs md:text-sm px-5 py-2.5 rounded-full shadow-xs transition-all active:scale-95 cursor-pointer"
-              >
-                <Pencil size={16} />
-                <span>Edit Profile</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                className="flex items-center gap-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold text-xs md:text-sm px-4 py-2.5 rounded-full transition-colors cursor-pointer shadow-2xs active:scale-95"
-              >
-                <X size={16} />
-                <span>Cancel</span>
-              </button>
-            )}
-          </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleCancelEdit}
+              className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold text-xs px-3 py-1.5 rounded-full transition-colors cursor-pointer shadow-2xs active:scale-95 h-[30px]"
+            >
+              <X size={13} />
+              <span>Cancel</span>
+            </button>
+          )}
         </div>
+      </div>
 
         {/* ================= MAIN CONTENT GRID ================= */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
@@ -570,7 +564,6 @@ export default function Profile() {
             )}
           </div>
         </div>
-      </div>
 
       {/* ================= CHANGE PASSWORD MODAL ================= */}
       {showPasswordModal && (

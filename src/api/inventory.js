@@ -95,7 +95,10 @@ export const inventoryApi = {
 
     const queryString = query.toString() ? `?${query.toString()}` : "";
     const result = await apiClient(`/inventory/products${queryString}`);
-    return result.data.products;
+    if (Array.isArray(result?.data)) {
+      return result.data;
+    }
+    return result?.data?.products || (Array.isArray(result) ? result : []);
   },
 
   /**
@@ -116,7 +119,7 @@ export const inventoryApi = {
     }
 
     const result = await apiClient(`/inventory/products/${id}`);
-    return result.data.product;
+    return result?.data?.product || result?.data || result;
   },
 
   /**

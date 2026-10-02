@@ -456,6 +456,12 @@ export default function Users() {
     setPendingAction(null);
   };
 
+  const userSummary = useMemo(() => {
+    const total = users.length;
+    const active = users.filter((u) => u.isActive !== false && !u.isBlocked).length;
+    return { total, active };
+  }, [users]);
+
   return (
     <div className="h-full flex flex-col overflow-hidden min-w-0">
       {/* Header (Pinned at Top) */}
@@ -463,6 +469,7 @@ export default function Users() {
         <UsersHeader
           onOpenPermissions={() => setIsPermissionsModalOpen(true)}
           onAddUser={() => setIsAddingUser(true)}
+          userSummary={userSummary}
         />
       </div>
 

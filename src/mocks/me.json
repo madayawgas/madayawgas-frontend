@@ -42,7 +42,8 @@
         "delivery.update",
         "delivery.update_own",
         "users.view",
-        "users.manage"
+        "users.manage",
+        "history.view"
       ]
     }
   }

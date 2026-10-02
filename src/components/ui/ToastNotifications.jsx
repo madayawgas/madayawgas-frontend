@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Info, Check, AlertTriangle, X } from "lucide-react";
 
 export default function ToastNotification({
@@ -44,7 +45,7 @@ export default function ToastNotification({
   const Icon = currentConfig.icon;
   const displayMessage = message || currentConfig.defaultMessage;
 
-  return (
+  const toastNode = (
     <div
       className={`
         fixed bottom-6 right-6 z-50
@@ -72,4 +73,8 @@ export default function ToastNotification({
       )}
     </div>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(toastNode, document.body)
+    : toastNode;
 }

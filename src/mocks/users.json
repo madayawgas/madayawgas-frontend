@@ -91,7 +91,8 @@
           "fleet.view",
           "fleet.manage",
           "route.view",
-          "route.manage"
+          "route.manage",
+          "inventory.view"
         ],
         "createdAt": "2026-08-25T09:00:00.000Z"
       },
@@ -139,7 +140,8 @@
           "sales.create",
           "sales.update",
           "delivery.view_own",
-          "delivery.update_own"
+          "delivery.update_own",
+          "inventory.view"
         ],
         "createdAt": "2026-08-25T09:30:00.000Z"
       },
@@ -246,7 +248,8 @@
           "sales.create",
           "sales.update",
           "delivery.view_own",
-          "delivery.update_own"
+          "delivery.update_own",
+          "inventory.view"
         ],
         "createdAt": "2026-08-25T10:30:00.000Z"
       }

@@ -96,7 +96,7 @@ export default function OdometerCheckInModal({
       onClose();
     } catch (err) {
       console.error("Failed to record odometer check-in:", err);
-      setErrorMsg(err.message || "Failed to record odometer check-in. Please try again.");
+      setErrorMsg(err.message || "Failed to record odometer.");
     } finally {
       setIsSubmitting(false);
     }
@@ -139,7 +139,7 @@ export default function OdometerCheckInModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Vehicle Return Odometer Check-In"
+      title="Record Odometer"
       maxWidth="max-w-lg"
       footer={footerContent}
     >
@@ -168,13 +168,13 @@ export default function OdometerCheckInModal({
         {/* CURRENT REGISTERED METRICS */}
         <div className="grid grid-cols-2 gap-3 bg-[#F3F5F5] rounded-xl p-3.5 text-xs">
           <div>
-            <span className="text-[#588094] block text-[11px]">Current Registered Odometer</span>
+            <span className="text-[#588094] block text-[11px]">Current Odometer</span>
             <span className="font-bold text-sm text-[#0A4B6E]">
               {currentOdo.toLocaleString()} KM
             </span>
           </div>
           <div>
-            <span className="text-[#588094] block text-[11px]">Last PM Service Odometer</span>
+            <span className="text-[#588094] block text-[11px]">Last PM Service</span>
             <span className="font-bold text-sm text-[#0A4B6E]">
               {lastPmOdo.toLocaleString()} KM
             </span>
@@ -184,7 +184,7 @@ export default function OdometerCheckInModal({
         {/* NEW ODOMETER READING INPUT */}
         <div>
           <Input
-            label="Return Odometer Reading (KM)"
+            label="Odometer Reading (KM)"
             type="number"
             name="odometerReading"
             value={odometerReading}
@@ -195,13 +195,10 @@ export default function OdometerCheckInModal({
               setOdometerReading(val === "" ? "" : val);
               setErrorMsg("");
             }}
-            placeholder={`Enter reading (${currentOdo.toLocaleString()} - ${MAX_ODOMETER.toLocaleString()} KM)`}
+            placeholder={`Enter reading (min ${currentOdo.toLocaleString()} KM)`}
             required
             autoFocus
           />
-          <span className="text-[11px] text-[#588094] mt-1 block">
-            Logged upon plant check-in by Logistics Supervisor. (Max limit: 999,999 KM)
-          </span>
         </div>
 
         {/* MAXIMUM CEILING LIMIT VIOLATION ALERT */}
@@ -209,9 +206,9 @@ export default function OdometerCheckInModal({
           <div className="bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 text-xs flex items-start gap-2.5">
             <AlertTriangle size={18} className="shrink-0 text-red-600 mt-0.5" />
             <div>
-              <p className="font-bold">Maximum Odometer Limit Exceeded</p>
+              <p className="font-bold">Limit Exceeded</p>
               <p className="mt-0.5 text-[11.5px] leading-relaxed">
-                New odometer reading ({newOdoNum.toLocaleString()} KM) cannot exceed the system limit of {MAX_ODOMETER.toLocaleString()} KM.
+                Reading cannot exceed {MAX_ODOMETER.toLocaleString()} KM.
               </p>
             </div>
           </div>
@@ -222,9 +219,9 @@ export default function OdometerCheckInModal({
           <div className="bg-red-50 text-red-700 border border-red-200 rounded-xl p-3 text-xs flex items-start gap-2.5">
             <AlertTriangle size={18} className="shrink-0 text-red-600 mt-0.5" />
             <div>
-              <p className="font-bold">Monotonic Integrity Violation</p>
+              <p className="font-bold">Invalid Reading</p>
               <p className="mt-0.5 text-[11.5px] leading-relaxed">
-                New odometer reading ({newOdoNum.toLocaleString()} KM) cannot be lower than the current registered odometer ({currentOdo.toLocaleString()} KM). Odometer readings must strictly increase.
+                Reading cannot be lower than current odometer ({currentOdo.toLocaleString()} KM).
               </p>
             </div>
           </div>
@@ -236,7 +233,7 @@ export default function OdometerCheckInModal({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[#2E7D32] font-bold">
                 <CheckCircle2 size={16} />
-                <span>Trip Usage Calculation</span>
+                <span>Trip Summary</span>
               </div>
               <Badge variant="success" className="px-2.5 py-0.5 text-[10.5px]">
                 +{diffTrip.toLocaleString()} KM This Trip
@@ -244,7 +241,7 @@ export default function OdometerCheckInModal({
             </div>
 
             <div className="flex items-center justify-between text-[#1B5E20] pt-1 text-[11.5px]">
-              <span>Distance toward 5,000-km PM:</span>
+              <span>PM Interval (5,000 KM):</span>
               <span className="font-bold">
                 {newDistanceSincePm.toLocaleString()} / 5,000 KM ({Math.min(100, Math.round((newDistanceSincePm / 5000) * 100))}%)
               </span>
@@ -254,12 +251,12 @@ export default function OdometerCheckInModal({
               <div className="bg-red-100/80 text-red-800 border border-red-300 rounded-lg p-2 text-[11px] flex items-center gap-2 mt-1">
                 <AlertTriangle size={14} className="shrink-0 text-red-700" />
                 <span>
-                  <strong>Preventive Maintenance Due!</strong> This reading reaches or exceeds the 5,000-km threshold.
+                  <strong>PM Due:</strong> Reading reached or exceeded the 5,000 KM threshold.
                 </span>
               </div>
             ) : (
               <div className="text-[11px] text-[#2E7D32]">
-                {Math.max(0, 5000 - newDistanceSincePm).toLocaleString()} KM remaining before next scheduled PM service.
+                {Math.max(0, 5000 - newDistanceSincePm).toLocaleString()} KM until next scheduled PM service.
               </div>
             )}
           </div>
@@ -268,29 +265,29 @@ export default function OdometerCheckInModal({
         {/* SOURCE SELECTION */}
         <div>
           <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
-            Check-In Source
+            Source
           </label>
           <select
             value={source}
             onChange={(e) => setSource(e.target.value)}
             className="w-full bg-[#F3F5F5] border border-gray-200 rounded-xl px-3.5 py-2 text-xs font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]"
           >
-            <option value="POST_DISPATCH_RETURN">Post-Dispatch Yard Return</option>
-            <option value="MAINTENANCE_SERVICE">Maintenance Service Inspection</option>
-            <option value="SUPERVISOR_CALIBRATION">Manual Supervisor Verification</option>
+            <option value="POST_DISPATCH_RETURN">Post-Dispatch Return</option>
+            <option value="MAINTENANCE_SERVICE">Maintenance Service</option>
+            <option value="SUPERVISOR_CALIBRATION">Manual Calibration</option>
           </select>
         </div>
 
         {/* SUPERVISOR NOTES */}
         <div>
           <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
-            Supervisor Notes (Optional)
+            Notes (Optional)
           </label>
           <textarea
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g. End of shift return check-in, smooth run, no issues"
+            placeholder="Optional notes..."
             className="w-full bg-[#F3F5F5] border border-gray-200 rounded-xl p-3 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] resize-none"
           />
         </div>

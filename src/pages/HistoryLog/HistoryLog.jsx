@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { History } from "lucide-react";
 import HistoryTable from "../../components/history log/HistoryTable";
 import FilterDropdown from "../../components/ui/FilterDropdown"; 
-import SearchBar from "../../components/ui/SearchBar"; 
+import SearchBar from "../../components/ui/SearchBar";
 import { historyApi } from "../../api/history";
 
 export default function HistoryLog() {
@@ -72,19 +73,6 @@ export default function HistoryLog() {
     fetchLogs();
   }, [fetchLogs]);
 
-  // Handlers
-  const handleSearchSubmit = (query) => {
-    setCommittedSearch(query);
-    setSearchTerm(query);
-    setPage(1); // Auto reset page = 1
-  };
-
-  const handleSearchClear = () => {
-    setCommittedSearch("");
-    setSearchTerm("");
-    setPage(1); // Auto reset page = 1
-  };
-
   const handleModuleChange = (newModule) => {
     setSelectedModule(newModule);
     setPage(1); // Auto reset page = 1
@@ -94,29 +82,50 @@ export default function HistoryLog() {
     setPage(newPage);
   };
 
+  const handleSearchSubmit = (query) => {
+    setCommittedSearch(query || "");
+    setPage(1);
+  };
+
+  const handleSearchClear = () => {
+    setSearchTerm("");
+    setCommittedSearch("");
+    setPage(1);
+  };
+
   return (
-    <div className="p-8">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center mb-6 gap-6 border-b border-[#6D8AA2] pb-4">
-        <h1 className="text-3xl font-bold text-[#1B4B75]">History</h1>
-        
-        <div className="flex items-center gap-3 flex-1 w-full">
+    <div className="w-full">
+      {/* Header Section: Summary Pill */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3 border-b border-[#6D8AA2]/20 pb-3.5">
+        {/* Left: Summary Pill */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
+            <History size={13} className="text-[#0A4B6E]" />
+            <span>{paginationMeta.totalItems || historyLogs.length} Audit Events</span>
+          </span>
+        </div>
+      </div>
+
+      {/* Controls Section: Search Bar & Module Filter */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-3.5">
+        {/* Search Bar */}
+        <SearchBar
+          placeholder="Search history logs (Press Enter)..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onSearch={handleSearchSubmit}
+          onClear={handleSearchClear}
+          className="w-full sm:w-64 md:w-72"
+        />
+
+        {/* Right: Module Filter Dropdown */}
+        <div className="flex items-center gap-3 justify-end shrink-0">
           <FilterDropdown 
             label="Module" 
             options={filterOptions} 
             value={selectedModule} 
             onChange={handleModuleChange} 
           />
-          
-          <div className="flex-1">
-            <SearchBar 
-              placeholder="Search history logs (Press Enter)..." 
-              value={searchTerm} 
-              onChange={setSearchTerm}
-              onSearch={handleSearchSubmit}
-              onClear={handleSearchClear}
-            />
-          </div>
         </div>
       </div>
 

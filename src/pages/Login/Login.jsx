@@ -1,15 +1,13 @@
+// src/pages/Login/Login.jsx
 import { useState } from "react";
 import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { getDefaultRoute } from "../../utils/permissions.js";
-import { CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 
-import Card from "../../components/ui/Card";
-import Input from "../../components/ui/Input";
-import Button from "../../components/ui/Button";
-
-import logo from "../../assets/logo.svg";
-import bgImage from "../../assets/BG-Madayaw5.png";
+import logo from "../../assets/logov2.svg";
+import bgLeftCard from "../../assets/BG-Madayaw8.png";
+import bgScreen from "../../assets/BG-Madayaw8.png";
 
 export default function Login() {
   const { login, isAuthenticated, currentUser } = useAuth();
@@ -20,7 +18,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState(
-    location.state?.successMessage || "",
+    location.state?.successMessage || ""
   );
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -30,17 +28,28 @@ export default function Login() {
     return <Navigate to={getDefaultRoute(currentUser)} replace />;
   }
 
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
+    if (e) e.preventDefault();
     if (loading) return;
+
+    if (!username.trim()) {
+      setError("Please enter your username.");
+      return;
+    }
+    if (!password) {
+      setError("Please enter your password.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
-      const user = await login(username, password);
+      const user = await login(username.trim(), password);
       const destination = getDefaultRoute(user);
       navigate(destination, { replace: true });
     } catch (err) {
-      setError(err.message || "Invalid username or password");
+      setError(err.message || "Invalid username or password.");
     } finally {
       setLoading(false);
     }
@@ -53,62 +62,52 @@ export default function Login() {
   };
 
   return (
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8 relative font-sans overflow-hidden">
+  <div
+    className="absolute inset-0 bg-cover bg-center bg-no-repeat blur-md scale-105"
+    style={{ backgroundImage: `url(${bgScreen})` }}
+  />
+
+  <div className="relative z-10 w-full max-w-3xl lg:max-w-4xl bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-5 sm:p-7 md:p-9 grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 items-stretch animate-scale-in">
     <div
-      className="min-h-screen flex items-center justify-center p-6 bg-cover bg-center bg-no-repeat relative"
-      style={{ backgroundImage: `url(${bgImage})` }}
+      className="md:col-span-5 rounded-2xl sm:rounded-3xl p-6 sm:p-8 flex flex-col justify-start bg-cover bg-center relative overflow-hidden min-h-[260px] md:min-h-[380px] shadow-2xs"
+      style={{ backgroundImage: `url(${bgLeftCard})` }}
     >
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[3px]"></div>
+      <h2 className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold text-white leading-tight">
+        Lets save lives
+        <br />
+        and
+        <br />
+        properties
+      </h2>
+    </div>
 
-      {/* Main Container Card using your custom Card component */}
-      <Card className="w-full max-w-4xl p-6 md:p-8 relative z-10 bg-white rounded-[3rem] border border-gray-300 shadow-2xl grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch min-h-[520px]">
-        {/* ================= LEFT BRANDING PANEL ================= */}
-        <div className="bg-[#0F7AB2] rounded-2xl p-8 flex flex-col justify-between relative overflow-hidden text-white min-h-[350px]">
-          <div className="z-10">
-            <h1 className="text-3xl md:text-4xl font-bold leading-tight">
-              Lets save lives <br /> and <br /> properties
-            </h1>
-          </div>
+    <div className="md:col-span-7 flex flex-col justify-between py-1 px-1 sm:px-2">
+      <div>
+        <img
+          src={logo}
+          alt="Madayaw Gas Logo"
+          className="w-11 h-11 object-contain mb-2.5"
+        />
 
-          {/* Spiky Yellow Shape */}
-          <div className="absolute bottom-0 left-0 right-0 h-[45%] bg-[#F5C219] z-0">
-            <svg
-              className="absolute -top-12 left-0 w-full h-12"
-              viewBox="0 0 500 100"
-              preserveAspectRatio="none"
-            >
-              <polygon
-                points="0,100 500,100 500,60 450,20 400,80 340,10 280,70 230,30 170,90 120,20 60,60 0,20"
-                fill="#F5C219"
-              />
-            </svg>
-          </div>
-        </div>
+        <h1 className="text-2xl sm:text-[26px] font-bold text-gray-900 leading-tight">
+          System Login
+        </h1>
 
-        {/* ================= RIGHT FORM PANEL ================= */}
-        <div className="flex flex-col justify-center px-2 md:px-4">
-          {/* HEADER */}
-          <div className="flex flex-col items-start mb-6">
-            <div className="w-16 h-16 mb-2">
-              <img
-                src={logo}
-                alt="Logo"
-                className="w-full h-full object-contain"
-              />
-            </div>
+        <p className="text-xs text-gray-400 mt-0.5">
+          Madayaw Petroleum and Gas Corporation
+        </p>
 
-            <h2 className="text-3xl font-bold text-gray-800">System Login</h2>
+        <div className="w-full h-px bg-gray-100 my-4" />
 
-            <p className="text-xs text-gray-400 mt-1">
-              Madayaw Petroleum and Gas Corporation
-            </p>
+        <form onSubmit={handleLogin} className="space-y-3.5">
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+              Username
+            </label>
 
-            <div className="w-full h-[1px] bg-gray-200 mt-4"></div>
-          </div>
-
-          {/* FORM */}
-          <div className="flex flex-col gap-4">
-            <Input
-              label="Username"
+            <input
+              type="text"
               value={username}
               onChange={(e) => {
                 setUsername(e.target.value);
@@ -118,12 +117,19 @@ export default function Login() {
               onKeyDown={handleKeyDown}
               placeholder="Enter username"
               disabled={loading}
-              error={!!error}
+              className="w-full bg-[#F3F4F6] rounded-full px-4 py-2.5 text-xs sm:text-sm text-gray-800 placeholder-gray-400 outline-none border border-transparent focus:border-[#0F7AB2] focus:bg-white transition-all"
+              autoComplete="username"
+              autoFocus
             />
+          </div>
 
-            <div className="relative">
-              <Input
-                label="Password"
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+              Password
+            </label>
+
+            <div className="relative flex items-center">
+              <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => {
@@ -134,58 +140,60 @@ export default function Login() {
                 onKeyDown={handleKeyDown}
                 placeholder="Enter password"
                 disabled={loading}
-                error={!!error}
+                className="w-full bg-[#F3F4F6] rounded-full pl-4 pr-16 py-2.5 text-xs sm:text-sm text-gray-800 placeholder-gray-400 outline-none border border-transparent focus:border-[#0F7AB2] focus:bg-white transition-all"
+                autoComplete="current-password"
               />
 
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-9 text-xs text-gray-500 hover:text-gray-700"
+                onClick={() => setShowPassword((prev) => !prev)}
+                tabIndex={-1}
+                className="absolute right-4 text-xs font-medium text-gray-400 hover:text-gray-600 transition cursor-pointer"
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
+          </div>
 
-            {successMessage && (
-              <div className="bg-green-50 border border-green-200 text-green-700 text-xs font-medium p-3 rounded-lg flex items-center gap-2 animate-fade-in">
-                <CheckCircle2 size={16} className="shrink-0 text-green-600" />
-                <span>{successMessage}</span>
-              </div>
-            )}
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 text-sm p-3 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            <Button
-              variant="primary"
-              className="w-full py-3 text-base mt-2 bg-[#0F7AB2] hover:bg-[#0B6594] text-white rounded-lg transition"
-              onClick={handleLogin}
-              disabled={loading}
-            >
-              {loading ? "Signing in..." : "Login"}
-            </Button>
-
-            <div className="text-center mt-3">
-              <a
-                href="#forgot"
-                className="text-xs text-[#0F7AB2] hover:underline"
-              >
-                Forgot Password?
-              </a>
+          {successMessage && (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium p-2.5 rounded-xl flex items-center gap-2">
+              <CheckCircle2 size={15} className="shrink-0 text-emerald-600" />
+              <span>{successMessage}</span>
             </div>
-          </div>
+          )}
 
-          {/* FOOTER */}
-          <div className="mt-6 text-center">
-            <p className="text-[10px] text-gray-400">
-              Madayaw Gas Fleet System © {new Date().getFullYear()}
-            </p>
-          </div>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-medium p-2.5 rounded-xl flex items-center gap-2">
+              <AlertCircle size={15} className="shrink-0 text-red-600" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full mt-4 bg-[#0E384E] hover:bg-[#0b5f8a] text-white font-semibold py-2.5 px-4 rounded-xl shadow-xs transition active:scale-[0.99] text-xs sm:text-sm flex items-center justify-center cursor-pointer"
+          >
+            {loading ? "Signing in..." : "Login"}
+          </button>
+        </form>
+
+        <div className="text-center mt-3.5">
+          <button
+            type="button"
+            className="text-xs text-[#0F7AB2] hover:underline font-medium cursor-pointer"
+          >
+            Forgot Password?
+          </button>
         </div>
-      </Card>
+      </div>
+
+      <p className="text-[11px] text-gray-400 text-center mt-5">
+        Madayaw Gas Fleet System © 2026
+      </p>
     </div>
+  </div>
+</div>
   );
 }
+

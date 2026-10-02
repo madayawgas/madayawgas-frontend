@@ -1,23 +1,21 @@
 // src/pages/Fleet/Fleet.jsx
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { fleetApi } from "../../api/fleet.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
-import {
-  checkActiveWorkOrder,
-  ACTIVE_RESTRICTED_ERROR,
-  canApproveWorkOrderCost,
-} from "../../utils/fleetGuards.js";
+import { checkActiveWorkOrder } from "../../utils/fleetGuards.js";
 import initialMockFleet from "../../mocks/fleet.json";
 
 import FleetHeader from "../../components/fleet/FleetHeader";
 import FleetControls from "../../components/fleet/FleetControls";
 import TruckCard from "../../components/fleet/TruckCard";
+import FleetTable from "../../components/fleet/FleetTable";
+import TruckDetailPanel from "../../components/fleet/TruckDetailPanel";
 import TruckModal from "../../components/fleet/TruckModal";
 import OdometerCheckInModal from "../../components/fleet/OdometerCheckInModal";
 import OdometerHistoryModal from "../../components/fleet/OdometerHistoryModal";
 import SetAvailabilityModal from "../../components/fleet/SetAvailabilityModal";
+import AssignDriverModal from "../../components/fleet/AssignDriverModal";
 import InspectionModal from "../../components/fleet/InspectionModal";
 import InspectionHistoryModal from "../../components/fleet/InspectionHistoryModal";
 import IncidentReportModal from "../../components/fleet/IncidentReportModal";
@@ -35,18 +33,16 @@ import WorkOrderTable from "../../components/fleet/work-orders/WorkOrderTable";
 import MaintenanceLogsControls from "../../components/fleet/logs/MaintenanceLogsControls";
 import MaintenanceLogsTable from "../../components/fleet/logs/MaintenanceLogsTable";
 import RecurringIssuesAnalytics from "../../components/fleet/analytics/RecurringIssuesAnalytics";
-import { Truck as TruckIcon, Wrench, FileText, AlertOctagon } from "lucide-react";
 
 const LOCAL_STORAGE_KEY = "app_fleet_cache";
 
 export default function Fleet() {
-  const { currentUser, can } = useAuth();
+  const { can } = useAuth();
 
   // RBAC Permission Guard
   const canManage = can
     ? can(PERMISSIONS?.FLEET_MANAGE || "fleet.manage")
     : true;
-  const canApproveCost = canApproveWorkOrderCost(currentUser, can);
 
   // Initialize from cache or fallback to initialMockFleet
   const [trucks, setTrucks] = useState(() => {
@@ -67,10 +63,17 @@ export default function Fleet() {
   const [allDrivers, setAllDrivers] = useState([]);
   const [selectedTruck, setSelectedTruck] = useState(null);
 
+  // Slide-in Drawer Detail Panel States
+  const [activeDetailTruck, setActiveDetailTruck] = useState(null);
+  const [isClosingPanel, setIsClosingPanel] = useState(false);
+  const closeTimerRef = useRef(null);
+  const [editingTruck, setEditingTruck] = useState(null);
+
   // Operational Modals States
   const [truckForCheckIn, setTruckForCheckIn] = useState(null);
   const [truckForHistory, setTruckForHistory] = useState(null);
   const [truckForAvailability, setTruckForAvailability] = useState(null);
+  const [truckForDriverAssignment, setTruckForDriverAssignment] = useState(null);
 
   // Part 2 Safety Inspections & Incident Management States
   const [truckForInspection, setTruckForInspection] = useState(null);
@@ -98,51 +101,53 @@ export default function Fleet() {
     dateTo: "",
   });
 
-  // Sub-Navigation Tab State ('vehicles' | 'work-orders' | 'logs' | 'analytics')
-  const [searchParams] = useSearchParams();
-  const urlTab = searchParams.get("tab");
-  const [activeSubTab, setActiveSubTab] = useState(
-    urlTab && ["vehicles", "work-orders", "logs", "analytics"].includes(urlTab)
-      ? urlTab
-      : "vehicles"
-  );
-
-  useEffect(() => {
-    if (urlTab && ["vehicles", "work-orders", "logs", "analytics"].includes(urlTab)) {
-      setActiveSubTab(urlTab);
+  // Vehicles View Mode & Sorting States ('grid' | 'table')
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem("app_fleet_view_mode") || "grid";
+    } catch {
+      return "grid";
     }
-  }, [urlTab]);
+  });
+
+  const handleViewModeChange = (mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem("app_fleet_view_mode", mode);
+    } catch {
+      // ignore
+    }
+  };
+
+  const [sortConfig, setSortConfig] = useState({
+    key: "plateNumber",
+    direction: "asc",
+  });
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  // Sub-Navigation Tab State ('vehicles' | 'work-orders' | 'logs' | 'analytics')
+  const [activeSubTab, setActiveSubTab] = useState("vehicles");
 
   // Part 3 Work Orders & Maintenance Logs States
   const [workOrders, setWorkOrders] = useState([]);
-  const [workOrderPage, setWorkOrderPage] = useState(1);
-  const workOrderLimit = 20;
-  const [workOrdersMeta, setWorkOrdersMeta] = useState({
-    page: 1,
-    limit: 20,
-    totalPages: 1,
-    totalItems: 0,
-  });
   const [maintenanceLogs, setMaintenanceLogs] = useState([]);
-  const [logsPage, setLogsPage] = useState(1);
-  const logsLimit = 20;
-  const [logsMeta, setLogsMeta] = useState({
-    page: 1,
-    limit: 20,
-    totalPages: 1,
-    totalItems: 0,
-  });
   const [isLoadingWorkOrders, setIsLoadingWorkOrders] = useState(false);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
   // Work Orders Search & Status States
   const [workOrderSearch, setWorkOrderSearch] = useState("");
-  const [committedWorkOrderSearch, setCommittedWorkOrderSearch] = useState("");
   const [workOrderStatus, setWorkOrderStatus] = useState("ALL");
 
   // Maintenance Logs Search & Type States
   const [logsSearch, setLogsSearch] = useState("");
-  const [committedLogsSearch, setCommittedLogsSearch] = useState("");
   const [logsType, setLogsType] = useState("ALL");
 
   // Work Order Modals State
@@ -155,6 +160,47 @@ export default function Fleet() {
   // Modal & Toast States
   const [isAddingTruck, setIsAddingTruck] = useState(false);
   const [toast, setToast] = useState(null); // { type: "success" | "error" | "info" | "warning", message: string }
+
+  // Cleanup close timer on unmount
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleSelectTruck = (truck) => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+
+    const isSameTruck =
+      (selectedTruck?.id && (selectedTruck.id === truck.id || selectedTruck.id === truck.truckId)) ||
+      (selectedTruck?.truckId && (selectedTruck.truckId === truck.truckId || selectedTruck.truckId === truck.id)) ||
+      (activeDetailTruck?.id && (activeDetailTruck.id === truck.id || activeDetailTruck.id === truck.truckId)) ||
+      (activeDetailTruck?.truckId && (activeDetailTruck.truckId === truck.truckId || activeDetailTruck.truckId === truck.id));
+
+    if (isSameTruck && !isClosingPanel) {
+      handleCloseDetail();
+    } else {
+      setIsClosingPanel(false);
+      setSelectedTruck(truck);
+      setActiveDetailTruck(truck);
+    }
+  };
+
+  const handleCloseDetail = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    setIsClosingPanel(true);
+    setSelectedTruck(null);
+    closeTimerRef.current = setTimeout(() => {
+      setActiveDetailTruck(null);
+      setIsClosingPanel(false);
+      closeTimerRef.current = null;
+    }, 250);
+  };
 
   // Helper to sync local state changes with localStorage
   const updateFleetState = (updater) => {
@@ -185,87 +231,42 @@ export default function Fleet() {
   const refreshWorkOrders = useCallback(async () => {
     try {
       setIsLoadingWorkOrders(true);
-      const res = await fleetApi.getWorkOrders({
-        page: workOrderPage,
-        limit: workOrderLimit,
-        status: workOrderStatus !== "ALL" ? workOrderStatus : undefined,
-        search: committedWorkOrderSearch || undefined,
-      });
+      const res = await fleetApi.getWorkOrders();
       setWorkOrders(res?.data?.workOrders || []);
-      if (res?.meta) {
-        setWorkOrdersMeta(res.meta);
-      } else {
-        setWorkOrdersMeta({
-          page: workOrderPage,
-          limit: workOrderLimit,
-          totalPages: 1,
-          totalItems: (res?.data?.workOrders || []).length,
-        });
-      }
     } catch (err) {
       console.error("Failed to load work orders:", err);
     } finally {
       setIsLoadingWorkOrders(false);
     }
-  }, [workOrderPage, workOrderLimit, workOrderStatus, committedWorkOrderSearch]);
+  }, []);
 
   const refreshMaintenanceLogs = useCallback(async () => {
     try {
       setIsLoadingLogs(true);
-      const res = await fleetApi.getMaintenanceLogs({
-        page: logsPage,
-        limit: logsLimit,
-        maintenanceTypeId: logsType !== "ALL" ? logsType : undefined,
-        search: committedLogsSearch || undefined,
-      });
+      const res = await fleetApi.getMaintenanceLogs();
       setMaintenanceLogs(res?.data?.logs || []);
-      if (res?.meta) {
-        setLogsMeta(res.meta);
-      } else {
-        setLogsMeta({
-          page: logsPage,
-          limit: logsLimit,
-          totalPages: 1,
-          totalItems: (res?.data?.logs || []).length,
-        });
-      }
     } catch (err) {
       console.error("Failed to load maintenance logs:", err);
     } finally {
       setIsLoadingLogs(false);
     }
-  }, [logsPage, logsLimit, logsType, committedLogsSearch]);
+  }, []);
 
   const refreshTrucks = useCallback(async () => {
     try {
       const trucksData = await fleetApi.getTrucks();
       if (trucksData && Array.isArray(trucksData)) {
         updateFleetState(trucksData);
-        setSelectedTruck((prevSelected) => {
-          if (!prevSelected) return null;
-          const fresh = trucksData.find(
-            (t) =>
-              t.id === prevSelected.id ||
-              t.truckId === prevSelected.id ||
-              (prevSelected.truckId && t.id === prevSelected.truckId) ||
-              (prevSelected.plateNumber && t.plateNumber === prevSelected.plateNumber)
-          );
-          return fresh ? { ...prevSelected, ...fresh } : prevSelected;
+        setActiveDetailTruck((prev) => {
+          if (!prev) return null;
+          const matched = trucksData.find((t) => t.id === prev.id || t.truckId === prev.id);
+          return matched ? { ...prev, ...matched } : prev;
         });
       }
     } catch (err) {
       console.error("Failed to refresh trucks:", err);
     }
   }, []);
-
-  // Dedicated effects for Work Orders & Maintenance Logs
-  useEffect(() => {
-    refreshWorkOrders();
-  }, [refreshWorkOrders]);
-
-  useEffect(() => {
-    refreshMaintenanceLogs();
-  }, [refreshMaintenanceLogs]);
 
   useEffect(() => {
     async function loadFleet() {
@@ -274,6 +275,8 @@ export default function Fleet() {
         const [trucksData] = await Promise.all([
           fleetApi.getTrucks(),
           refreshDrivers(),
+          refreshWorkOrders(),
+          refreshMaintenanceLogs(),
         ]);
 
         if (trucksData && Array.isArray(trucksData) && trucksData.length > 0) {
@@ -290,49 +293,7 @@ export default function Fleet() {
       }
     }
     loadFleet();
-  }, [refreshDrivers]);
-
-  // Handlers for Work Orders Pagination, Search-on-Enter & Filtering
-  const handleWorkOrderSearchSubmit = (val) => {
-    setCommittedWorkOrderSearch(val);
-    setWorkOrderPage(1);
-  };
-
-  const handleWorkOrderSearchClear = () => {
-    setWorkOrderSearch("");
-    setCommittedWorkOrderSearch("");
-    setWorkOrderPage(1);
-  };
-
-  const handleWorkOrderStatusChange = (status) => {
-    setWorkOrderStatus(status);
-    setWorkOrderPage(1);
-  };
-
-  const handleWorkOrderPageChange = (newPage) => {
-    setWorkOrderPage(newPage);
-  };
-
-  // Handlers for Maintenance Logs Pagination, Search-on-Enter & Filtering
-  const handleLogsSearchSubmit = (val) => {
-    setCommittedLogsSearch(val);
-    setLogsPage(1);
-  };
-
-  const handleLogsSearchClear = () => {
-    setLogsSearch("");
-    setCommittedLogsSearch("");
-    setLogsPage(1);
-  };
-
-  const handleLogsTypeChange = (type) => {
-    setLogsType(type);
-    setLogsPage(1);
-  };
-
-  const handleLogsPageChange = (newPage) => {
-    setLogsPage(newPage);
-  };
+  }, [refreshDrivers, refreshWorkOrders, refreshMaintenanceLogs]);
 
   // Pending cost approval counter for tab badge
   const pendingApprovalCount = useMemo(() => {
@@ -414,6 +375,11 @@ export default function Fleet() {
       );
 
       setSelectedTruck(updated);
+      setActiveDetailTruck((prev) =>
+        prev && (prev.id === truckId || prev.truckId === truckId)
+          ? { ...prev, ...updated }
+          : prev
+      );
       await refreshDrivers();
 
       setToast({
@@ -438,20 +404,6 @@ export default function Fleet() {
       (existing.status === "INACTIVE" || existing.status === "RETIRED");
     const isBecomingActive =
       updatedData.status === "ACTIVE" || updatedData.status === "AVAILABLE";
-
-    if (isBecomingActive && existing?.status !== "ACTIVE") {
-      const { hasActiveWorkOrder } = checkActiveWorkOrder(
-        existing || { id: truckId },
-        workOrders
-      );
-      if (hasActiveWorkOrder) {
-        setToast({
-          type: "error",
-          message: ACTIVE_RESTRICTED_ERROR,
-        });
-        throw new Error(ACTIVE_RESTRICTED_ERROR);
-      }
-    }
 
     if (wasInactive && isBecomingActive) {
       setPendingReactivation({ truckId, updatedData });
@@ -486,15 +438,18 @@ export default function Fleet() {
         prev.map((t) => (t.id === truckId ? { ...t, ...updatedTruck } : t))
       );
 
-      // Keep selectedTruck synced if open
+      // Keep selectedTruck and activeDetailTruck synced if open
       if (selectedTruck && selectedTruck.id === truckId) {
         setSelectedTruck(updatedTruck);
+      }
+      if (activeDetailTruck && (activeDetailTruck.id === truckId || activeDetailTruck.truckId === truckId)) {
+        setActiveDetailTruck(updatedTruck);
       }
 
       setToast({
         type: "success",
-        message: `Odometer checked in for ${updatedTruck.plateNumber || "vehicle"} (+${res.data?.distanceDrivenThisTrip || 0} KM).${
-          res.data?.isPmDue ? " Preventive Maintenance is now DUE." : ""
+        message: `Odometer recorded for ${updatedTruck.plateNumber || "vehicle"} (+${res.data?.distanceDrivenThisTrip || 0} KM).${
+          res.data?.isPmDue ? " PM is due." : ""
         }`,
       });
     } catch (err) {
@@ -507,20 +462,6 @@ export default function Fleet() {
   const handleSetAvailability = async ({ status, reason }) => {
     if (!truckForAvailability) return;
     const targetId = truckForAvailability.id;
-
-    if (status === "ACTIVE") {
-      const { hasActiveWorkOrder } = checkActiveWorkOrder(
-        truckForAvailability,
-        workOrders
-      );
-      if (hasActiveWorkOrder) {
-        setToast({
-          type: "error",
-          message: ACTIVE_RESTRICTED_ERROR,
-        });
-        throw new Error(ACTIVE_RESTRICTED_ERROR);
-      }
-    }
 
     try {
       const res = await fleetApi.setVehicleAvailabilityStatus(targetId, { status, reason });
@@ -542,17 +483,73 @@ export default function Fleet() {
       if (selectedTruck && selectedTruck.id === targetId) {
         setSelectedTruck(updatedTruck);
       }
+      if (activeDetailTruck && (activeDetailTruck.id === targetId || activeDetailTruck.truckId === targetId)) {
+        setActiveDetailTruck(updatedTruck);
+      }
 
       await refreshDrivers();
       setToast({
         type: "success",
-        message: `Vehicle ${truckForAvailability.plateNumber || ""} operational status updated to ${status.replace("_", " ")}`,
+        message: `Vehicle ${truckForAvailability.plateNumber || ""} status updated to ${status.replace("_", " ")}`,
       });
     } catch (err) {
       console.error("Failed to update availability status:", err);
+      throw err;
+    }
+  };
+
+  // Assign Driver to Vehicle Handler
+  const handleAssignDriver = async ({ truckId, driverId }) => {
+    try {
+      let result;
+      if (!driverId) {
+        result = await fleetApi.unassignDriver(truckId);
+      } else {
+        result = await fleetApi.assignDriver(truckId, { driverId });
+      }
+
+      const allKnownDrivers = [...availableDrivers, ...allDrivers];
+      const matchedDriver = driverId
+        ? allKnownDrivers.find((d) => (d.id || d.value) === driverId) || null
+        : null;
+
+      const driverDisplay = matchedDriver
+        ? `${matchedDriver.firstName || ""} ${matchedDriver.lastName || ""}`.trim() ||
+          matchedDriver.username ||
+          matchedDriver.label
+        : "No Assigned";
+
+      const updatedTruck = result?.truck || {
+        ...trucks.find((t) => t.id === truckId),
+        driverId: driverId || null,
+        driver: matchedDriver,
+        driverName: driverDisplay,
+        updatedAt: new Date().toISOString(),
+      };
+
+      updateFleetState((prev) =>
+        prev.map((t) => (t.id === truckId ? { ...t, ...updatedTruck } : t))
+      );
+
+      if (selectedTruck && (selectedTruck.id === truckId || selectedTruck.truckId === truckId)) {
+        setSelectedTruck(updatedTruck);
+      }
+      if (activeDetailTruck && (activeDetailTruck.id === truckId || activeDetailTruck.truckId === truckId)) {
+        setActiveDetailTruck(updatedTruck);
+      }
+
+      await refreshDrivers();
+      setToast({
+        type: "success",
+        message: driverId
+          ? `Driver '${driverDisplay}' assigned to ${updatedTruck.plateNumber || "vehicle"}`
+          : `Driver unassigned from ${updatedTruck.plateNumber || "vehicle"}`,
+      });
+    } catch (err) {
+      console.error("Failed to assign driver:", err);
       setToast({
         type: "error",
-        message: err.message || "Failed to update availability status.",
+        message: err.message || "Failed to update driver assignment",
       });
       throw err;
     }
@@ -579,19 +576,13 @@ export default function Fleet() {
                 activeRepair: updatedTruckInfo.isGrounded
                   ? `Safety Inspection: ${inspectionData.findings.slice(0, 45)}...`
                   : t.activeRepair,
-                latestInspection:
-                  inspection || updatedTruckInfo.latestInspection || t.latestInspection,
-                lastInspectionResult:
-                  inspection?.result ||
-                  updatedTruckInfo.lastInspectionResult ||
-                  t.lastInspectionResult,
-                hasPendingIssues:
-                  (inspection?.result || updatedTruckInfo.lastInspectionResult) ===
-                  "NEEDS_ATTENTION",
                 updatedAt: new Date().toISOString(),
               };
               if (selectedTruck && (selectedTruck.id === t.id || selectedTruck.truckId === t.id)) {
                 setSelectedTruck(updated);
+              }
+              if (activeDetailTruck && (activeDetailTruck.id === t.id || activeDetailTruck.truckId === t.id)) {
+                setActiveDetailTruck(updated);
               }
               return updated;
             }
@@ -603,8 +594,8 @@ export default function Fleet() {
       setToast({
         type: updatedTruckInfo?.isGrounded ? "warning" : "success",
         message: updatedTruckInfo?.isGrounded
-          ? `Vehicle ${updatedTruckInfo.plateNumber} grounded under maintenance (driver retained)`
-          : `Safety inspection recorded for ${inspection?.plateNumber || "vehicle"}`,
+          ? `Vehicle ${updatedTruckInfo.plateNumber} set to Under Maintenance.`
+          : `Inspection recorded for ${inspection?.plateNumber || "vehicle"}`,
       });
     } catch (err) {
       console.error("Failed to record safety inspection:", err);
@@ -642,6 +633,9 @@ export default function Fleet() {
               if (selectedTruck && (selectedTruck.id === t.id || selectedTruck.truckId === t.id)) {
                 setSelectedTruck(updated);
               }
+              if (activeDetailTruck && (activeDetailTruck.id === t.id || activeDetailTruck.truckId === t.id)) {
+                setActiveDetailTruck(updated);
+              }
               return updated;
             }
             return t;
@@ -652,8 +646,8 @@ export default function Fleet() {
       setToast({
         type: updatedTruckInfo?.isGrounded ? "warning" : "success",
         message: updatedTruckInfo?.isGrounded
-          ? `Critical incident logged — ${updatedTruckInfo.plateNumber} grounded under maintenance (driver retained)`
-          : `Incident report logged for ${incident?.plateNumber || "vehicle"}`,
+          ? `Incident reported. ${updatedTruckInfo.plateNumber} set to Under Maintenance.`
+          : `Incident reported for ${incident?.plateNumber || "vehicle"}`,
       });
     } catch (err) {
       console.error("Failed to report incident:", err);
@@ -676,54 +670,14 @@ export default function Fleet() {
   const handleCreateWorkOrder = async (payload) => {
     try {
       const res = await fleetApi.createWorkOrder(payload);
-      const targetTruckId = payload.truckId;
-      const createdWo = res?.data?.workOrder;
-
-      // Immediately ground truck in local fleet state
-      updateFleetState((prev) =>
-        prev.map((t) => {
-          if (t.id === targetTruckId || t.truckId === targetTruckId) {
-            return {
-              ...t,
-              status: "UNDER_MAINTENANCE",
-              operationalStatus: "UNDER_MAINTENANCE",
-              isAvailable: false,
-              activeRepair: `Work Order: ${payload.description.trim().slice(0, 45)}...`,
-              hasActiveWorkOrder: true,
-              activeWorkOrder: createdWo || null,
-              updatedAt: new Date().toISOString(),
-            };
-          }
-          return t;
-        })
-      );
-
-      // Immediately update selectedTruck if open
-      setSelectedTruck((prev) => {
-        if (!prev) return null;
-        if (prev.id === targetTruckId || prev.truckId === targetTruckId) {
-          return {
-            ...prev,
-            status: "UNDER_MAINTENANCE",
-            operationalStatus: "UNDER_MAINTENANCE",
-            isAvailable: false,
-            activeRepair: `Work Order: ${payload.description.trim().slice(0, 45)}...`,
-            hasActiveWorkOrder: true,
-            activeWorkOrder: createdWo || null,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return prev;
-      });
-
       await Promise.all([refreshWorkOrders(), refreshTrucks()]);
       setIsCreatingWorkOrder(false);
       setTruckForWorkOrder(null);
       setToast({
         type: res?.data?.requiresApproval ? "warning" : "success",
         message: res?.data?.requiresApproval
-          ? `Work Order created: Requires managerial approval (₱${Number(res.data?.workOrder?.estimatedCost || payload.estimatedCost).toLocaleString()} >= ₱5,000 threshold)`
-          : `Work Order created successfully (${res?.data?.workOrder?.status || "APPROVED"})`,
+          ? `Work order created. Requires admin approval.`
+          : `Work order created (${res?.data?.workOrder?.status || "APPROVED"}).`,
       });
     } catch (err) {
       console.error("Failed to create work order:", err);
@@ -738,53 +692,17 @@ export default function Fleet() {
   const handleAdvanceWorkOrderStatus = async (workOrderId, newStatus) => {
     try {
       const res = await fleetApi.updateWorkOrderStatus(workOrderId, { status: newStatus });
-      const updatedWo = res?.data?.workOrder || { id: workOrderId, status: newStatus };
-
-      // Update workOrderForDetail in place so open drawer immediately reflects new status
-      setWorkOrderForDetail((prev) => {
-        if (!prev) return null;
-        if (prev.id === workOrderId || prev.workOrderId === workOrderId) {
-          return {
-            ...prev,
-            status: newStatus,
-            currentStatus: newStatus,
-            ...updatedWo,
-          };
-        }
-        return prev;
-      });
-
-      // Update selectedTruck in place so TruckModal reflects new activeWorkOrder status
-      setSelectedTruck((prev) => {
-        if (!prev) return null;
-        const targetWo = prev.activeWorkOrder;
-        if (targetWo && (targetWo.id === workOrderId || targetWo.workOrderId === workOrderId)) {
-          return {
-            ...prev,
-            activeWorkOrder: {
-              ...targetWo,
-              status: newStatus,
-              currentStatus: newStatus,
-              ...updatedWo,
-            },
-          };
-        }
-        return prev;
-      });
-
-      await Promise.all([refreshWorkOrders(), refreshTrucks()]);
+      await refreshWorkOrders();
       setToast({
         type: "success",
         message: res?.message || `Work order updated to ${newStatus}`,
       });
-      return updatedWo;
     } catch (err) {
       console.error("Failed to update work order status:", err);
       setToast({
         type: "error",
         message: err?.message || "Failed to advance work order status",
       });
-      throw err;
     }
   };
 
@@ -810,7 +728,7 @@ export default function Fleet() {
       setWorkOrderForFinalize(null);
       setToast({
         type: "success",
-        message: res?.message || "Maintenance log finalized and vehicle operational status restored",
+        message: res?.message || "Maintenance finalized. Vehicle status restored to Active.",
       });
     } catch (err) {
       console.error("Failed to finalize maintenance:", err);
@@ -841,7 +759,6 @@ export default function Fleet() {
   };
 
   const handleInitiateReactivate = (truck) => {
-    setSelectedTruck(null);
     setPendingReactivation({
       truckId: truck.id,
       updatedData: { ...truck, status: "ACTIVE" },
@@ -850,7 +767,6 @@ export default function Fleet() {
   };
 
   const handleInitiateDelete = (truck) => {
-    setSelectedTruck(null);
     setTruckToDelete(truck);
   };
 
@@ -881,6 +797,13 @@ export default function Fleet() {
       prev.map((t) => (t.id === targetId ? { ...t, ...updated } : t))
     );
 
+    if (selectedTruck && (selectedTruck.id === targetId || selectedTruck.truckId === targetId)) {
+      setSelectedTruck(updated);
+    }
+    if (activeDetailTruck && (activeDetailTruck.id === targetId || activeDetailTruck.truckId === targetId)) {
+      setActiveDetailTruck(updated);
+    }
+
     setShowDeletePasswordModal(false);
     setTruckToDelete(null);
     await refreshDrivers();
@@ -892,9 +815,9 @@ export default function Fleet() {
 
   // Processed search & multi-field filter rules
   const filteredTrucks = useMemo(() => {
-    return trucks.filter((truck) => {
+    const list = trucks.filter((truck) => {
       // 1. Search filter (plate, driver, route, status, model)
-      const q = searchTerm.toLowerCase().trim();
+      const q = (typeof searchTerm === "string" ? searchTerm : "").toLowerCase().trim();
       const driverName = truck.driver
         ? `${truck.driver.firstName || ""} ${truck.driver.lastName || ""}`.trim() || truck.driver.username
         : truck.driverName && truck.driverName !== "No Assigned" && truck.driverName !== "Unassigned"
@@ -967,16 +890,125 @@ export default function Fleet() {
 
       return matchesSearch && matchesStatus && matchesDriver && matchesPm && matchesDate;
     });
-  }, [trucks, searchTerm, filters]);
 
+    return [...list].sort((a, b) => {
+      let aVal = "";
+      let bVal = "";
 
+      if (sortConfig.key === "plateNumber") {
+        aVal = a.plateNumber || "";
+        bVal = b.plateNumber || "";
+        return sortConfig.direction === "asc"
+          ? aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: "base" })
+          : bVal.localeCompare(aVal, undefined, { numeric: true, sensitivity: "base" });
+      }
+      if (sortConfig.key === "model") {
+        aVal = a.model || "";
+        bVal = b.model || "";
+        return sortConfig.direction === "asc"
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+      if (sortConfig.key === "driver") {
+        aVal = a.driver
+          ? `${a.driver.firstName || ""} ${a.driver.lastName || ""}`.trim() || a.driver.username || ""
+          : a.driverName || "";
+        bVal = b.driver
+          ? `${b.driver.firstName || ""} ${b.driver.lastName || ""}`.trim() || b.driver.username || ""
+          : b.driverName || "";
+        return sortConfig.direction === "asc"
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+      if (sortConfig.key === "currentOdometer") {
+        aVal = Number(a.currentOdometer) || 0;
+        bVal = Number(b.currentOdometer) || 0;
+        return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      if (sortConfig.key === "pmProgress") {
+        const aCur = Number(a.currentOdometer) || 0;
+        const aLast = Number(a.lastPmOdometer !== undefined ? a.lastPmOdometer : a.lastPMOdometer || 0);
+        const bCur = Number(b.currentOdometer) || 0;
+        const bLast = Number(b.lastPmOdometer !== undefined ? b.lastPmOdometer : b.lastPMOdometer || 0);
+        const aDist = Math.max(0, aCur - aLast);
+        const bDist = Math.max(0, bCur - bLast);
+        return sortConfig.direction === "asc" ? aDist - bDist : bDist - aDist;
+      }
+      if (sortConfig.key === "status") {
+        aVal = (a.status || a.operationalStatus || "").toUpperCase();
+        bVal = (b.status || b.operationalStatus || "").toUpperCase();
+        return sortConfig.direction === "asc"
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+
+      return 0;
+    });
+  }, [trucks, searchTerm, filters, sortConfig]);
+
+  // Filtered Work Orders (Search + Status)
+  const filteredWorkOrders = useMemo(() => {
+    return workOrders.filter((wo) => {
+      if (workOrderStatus !== "ALL" && wo.status !== workOrderStatus) {
+        return false;
+      }
+      if (workOrderSearch.trim()) {
+        const query = workOrderSearch.toLowerCase().trim();
+        const woNumber = (wo.workOrderNumber || "").toLowerCase();
+        const plate = (wo.truck?.plateNumber || "").toLowerCase();
+        const model = (wo.truck?.model || "").toLowerCase();
+        const shop = (wo.shopName || "").toLowerCase();
+        const type = (wo.maintenanceType?.name || wo.maintenanceTypeName || "").toLowerCase();
+        return (
+          woNumber.includes(query) ||
+          plate.includes(query) ||
+          model.includes(query) ||
+          shop.includes(query) ||
+          type.includes(query)
+        );
+      }
+      return true;
+    });
+  }, [workOrders, workOrderStatus, workOrderSearch]);
+
+  // Filtered Maintenance Logs (Search + Type)
+  const filteredMaintenanceLogs = useMemo(() => {
+    return maintenanceLogs.filter((log) => {
+      const type = (log.maintenanceTypeName || "").toUpperCase();
+      if (logsType !== "ALL" && type !== logsType) {
+        return false;
+      }
+      if (logsSearch.trim()) {
+        const q = logsSearch.toLowerCase().trim();
+        const receipt = (log.officialReceiptNumber || "").toLowerCase();
+        const plate = (log.plateNumber || log.truck?.plateNumber || "").toLowerCase();
+        const shop = (log.workOrder?.shopName || log.shopName || "").toLowerCase();
+        const desc = (log.workOrder?.description || log.description || "").toLowerCase();
+        return (
+          receipt.includes(q) ||
+          plate.includes(q) ||
+          shop.includes(q) ||
+          desc.includes(q)
+        );
+      }
+      return true;
+    });
+  }, [maintenanceLogs, logsType, logsSearch]);
 
   return (
-    <div className="p-8">
-        {/* Header with Title, PM Health Overview, Incident Logs & Add New Fleet */}
+    <div className="h-full flex flex-col overflow-hidden min-w-0">
+      {/* Fleet Header with Sticky Segmented Subtab Navigation, PM Health Overview, & Actions */}
+      <div className="shrink-0">
         <FleetHeader
+          activeSubTab={activeSubTab}
+          onTabChange={setActiveSubTab}
+          trucksCount={trucks.length}
+          workOrdersCount={filteredWorkOrders.length}
+          logsCount={filteredMaintenanceLogs.length}
+          pendingApprovalCount={pendingApprovalCount}
           canCreate={canManage}
           onAddTruck={handleAddNewTruck}
+          onCreateWorkOrder={() => handleOpenCreateWorkOrder(null)}
           pmSummary={pmSummary}
           onTogglePmDueFilter={handleTogglePmDueFilter}
           isPmDueFilterActive={filters.pmStatus === "PM_DUE"}
@@ -984,95 +1016,18 @@ export default function Fleet() {
             setTruckForIncident(null);
             setIsReportingIncident(true);
           }}
-          onOpenIncidentsLog={() => {
-            setTruckForIncidentHistory(null);
-            setShowIncidentHistoryModal(true);
-          }}
         />
+      </div>
 
-        {/* Sub-Navigation Tabs: Unified Segmented Control */}
-        <div className="flex items-center mb-6">
-          <div className="inline-flex items-center p-1 bg-slate-100 rounded-full border border-slate-200/80 gap-1 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setActiveSubTab("vehicles")}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                activeSubTab === "vehicles"
-                  ? "bg-[#0B4A6E] text-[#FFDF2C] shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 bg-transparent"
-              }`}
-            >
-              <TruckIcon className="w-4 h-4" />
-              <span>Vehicles & Fleets</span>
-              <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                  activeSubTab === "vehicles" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
-                }`}
-              >
-                {trucks.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveSubTab("work-orders")}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                activeSubTab === "work-orders"
-                  ? "bg-[#0B4A6E] text-[#FFDF2C] shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 bg-transparent"
-              }`}
-            >
-              <Wrench className="w-4 h-4" />
-              <span>Work Orders</span>
-              {pendingApprovalCount > 0 && (
-                <span className="bg-amber-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold animate-pulse">
-                  {pendingApprovalCount} pending
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveSubTab("logs")}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                activeSubTab === "logs"
-                  ? "bg-[#0B4A6E] text-[#FFDF2C] shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 bg-transparent"
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              <span>Maintenance Logs</span>
-              <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                  activeSubTab === "logs" ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
-                }`}
-              >
-                {logsMeta.totalItems ?? maintenanceLogs.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveSubTab("analytics")}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                activeSubTab === "analytics"
-                  ? "bg-[#0B4A6E] text-[#FFDF2C] shadow-xs"
-                  : "text-slate-600 hover:text-slate-900 bg-transparent"
-              }`}
-            >
-              <AlertOctagon className="w-4 h-4" />
-              <span>Recurring Defect Report</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Tab View 1: Vehicles & Fleets */}
-        {activeSubTab === "vehicles" && (
-          <>
-            {/* Controls: Search Bar, Active Filter Chips, Filter Dropdown */}
+      {/* Tab View 1: Vehicles & Fleets */}
+      {activeSubTab === "vehicles" && (
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden min-w-0">
+          {/* Controls: Search Bar, Active Filter Chips, Filter Dropdown */}
+          <div className="shrink-0">
             <FleetControls
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
+              onClearSearch={() => setSearchTerm("")}
               activeFilters={filters}
               onApplyFilters={setFilters}
               onClearDriver={() => setFilters((prev) => ({ ...prev, driver: "All Drivers" }))}
@@ -1080,345 +1035,386 @@ export default function Fleet() {
               onClearPmStatus={() => setFilters((prev) => ({ ...prev, pmStatus: "" }))}
               onClearDates={() => setFilters((prev) => ({ ...prev, dateFrom: "", dateTo: "" }))}
               driversList={allDrivers && allDrivers.length > 0 ? allDrivers : availableDrivers}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
             />
+          </div>
 
-            {/* Fleet Cards Grid */}
-            {isLoading && trucks.length === 0 ? (
-              <div className="flex items-center justify-center py-20 text-gray-500 font-medium">
-                Loading fleet vehicles...
-              </div>
-            ) : filteredTrucks.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-                {filteredTrucks.map((truck) => (
-                  <TruckCard
-                    key={truck.id}
-                    truck={truck}
-                    onClick={() => setSelectedTruck(truck)}
+          {/* Main Content Area (Cards Grid / Table + Right Sliding Detail Panel) */}
+          {isLoading && trucks.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center p-12 text-gray-500 font-medium">
+              Loading fleet vehicles...
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 flex flex-col lg:flex-row items-stretch gap-4 lg:gap-6 overflow-hidden min-w-0 pt-1">
+              {/* Fleet Content: Table View OR Cards Grid Container */}
+              {viewMode === "table" ? (
+                <div className="flex-1 min-w-0 h-full overflow-hidden pb-4">
+                  <FleetTable
+                    trucks={filteredTrucks}
+                    selectedTruck={
+                      !isClosingPanel ? activeDetailTruck || selectedTruck : null
+                    }
+                    onSelectTruck={handleSelectTruck}
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
                   />
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <p className="text-gray-400 font-medium text-lg mb-2">
-                  No fleets found matching your criteria
-                </p>
-                <p className="text-gray-400 text-sm">
-                  Try adjusting your search query or active filters.
-                </p>
-              </div>
-            )}
-          </>
-        )}
+                </div>
+              ) : (
+                <div className="flex-1 min-w-0 h-full overflow-y-auto custom-scrollbar pr-1 pb-4">
+                  {filteredTrucks.length > 0 ? (
+                    <div
+                      className={`grid grid-cols-1 md:grid-cols-2 ${
+                        activeDetailTruck
+                          ? "xl:grid-cols-2 2xl:grid-cols-3"
+                          : "lg:grid-cols-3"
+                      } gap-5 pt-1`}
+                    >
+                      {filteredTrucks.map((truck) => (
+                        <TruckCard
+                          key={truck.id}
+                          truck={truck}
+                          isSelected={
+                            !isClosingPanel &&
+                            (activeDetailTruck?.id === truck.id ||
+                              activeDetailTruck?.truckId === truck.id ||
+                              selectedTruck?.id === truck.id ||
+                              selectedTruck?.truckId === truck.id)
+                          }
+                          onClick={() => handleSelectTruck(truck)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                      <p className="text-gray-400 font-medium text-lg mb-2">
+                        No fleets found matching your criteria
+                      </p>
+                      <p className="text-gray-400 text-sm">
+                        Try adjusting your search query or active filters.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
-        {/* Tab View 2: Work Orders */}
-        {activeSubTab === "work-orders" && (
-          <>
+              {/* Sliding Detail Panel on the right */}
+              {activeDetailTruck && (
+                <div
+                  className={`w-full lg:w-[380px] xl:w-[420px] shrink-0 h-full flex flex-col overflow-hidden transition-all duration-300 ${
+                    isClosingPanel
+                      ? "animate-slide-fade-out pointer-events-none"
+                      : "animate-slide-fade-in"
+                  }`}
+                >
+                  <TruckDetailPanel
+                    truck={activeDetailTruck}
+                    onClose={handleCloseDetail}
+                    onEdit={(t) => setEditingTruck(t)}
+                    onDelete={(t) => handleInitiateDelete(t)}
+                    onReactivate={(t) => handleInitiateReactivate(t)}
+                    onAssignDriver={(t) => setTruckForDriverAssignment(t)}
+                    onInspect={(t) => setTruckForInspection(t)}
+                    onInspectionHistory={(t) => {
+                      setTruckForInspectionHistory(t);
+                    }}
+                    onReportIncident={(t) => {
+                      setTruckForIncident(t);
+                      setIsReportingIncident(true);
+                    }}
+                    onIncidentHistory={(t) => {
+                      setTruckForIncidentHistory(t);
+                      setShowIncidentHistoryModal(true);
+                    }}
+                    onRecordOdometer={(t) => setTruckForCheckIn(t)}
+                    onOdometerHistory={(t) => {
+                      setTruckForHistory(t);
+                    }}
+                    onWorkOrder={(t) => {
+                      const { hasActiveWorkOrder, activeWorkOrder } =
+                        checkActiveWorkOrder(t, workOrders);
+                      if (hasActiveWorkOrder && activeWorkOrder) {
+                        setWorkOrderForDetail(activeWorkOrder);
+                      } else {
+                        handleOpenCreateWorkOrder(t);
+                      }
+                    }}
+                    onAvailability={(t) => {
+                      setTruckForAvailability(t);
+                    }}
+                    workOrders={workOrders}
+                    canManage={canManage}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab View 2: Work Orders */}
+      {activeSubTab === "work-orders" && (
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden min-w-0">
+          <div className="shrink-0">
             <WorkOrderControls
               searchQuery={workOrderSearch}
               onSearchChange={setWorkOrderSearch}
-              onSearch={handleWorkOrderSearchSubmit}
-              onClear={handleWorkOrderSearchClear}
               selectedStatus={workOrderStatus}
-              onStatusChange={handleWorkOrderStatusChange}
+              onStatusChange={setWorkOrderStatus}
               pendingCount={pendingApprovalCount}
               onCreateWorkOrder={() => handleOpenCreateWorkOrder(null)}
               canCreate={canManage}
             />
+          </div>
 
-            <div className="h-[calc(100vh-340px)] min-h-[460px] w-full min-w-0">
-              <WorkOrderTable
-                workOrders={workOrders}
-                isLoading={isLoadingWorkOrders}
-                onOpenApproval={canApproveCost ? (wo) => setWorkOrderForApproval(wo) : null}
-                onOpenFinalize={(wo) => setWorkOrderForFinalize(wo)}
-                onOpenDetail={(wo) => setWorkOrderForDetail(wo)}
-                onAdvanceStatus={handleAdvanceWorkOrderStatus}
-                pagination={{
-                  page: workOrderPage,
-                  limit: workOrderLimit,
-                  totalPages: workOrdersMeta.totalPages,
-                  totalItems: workOrdersMeta.totalItems,
-                  onPageChange: handleWorkOrderPageChange,
-                  isLoading: isLoadingWorkOrders,
-                }}
-              />
-            </div>
-          </>
-        )}
+          <div className="flex-1 min-h-0 w-full overflow-hidden">
+            <WorkOrderTable
+              workOrders={filteredWorkOrders}
+              isLoading={isLoadingWorkOrders}
+              onOpenApproval={(wo) => setWorkOrderForApproval(wo)}
+              onOpenFinalize={(wo) => setWorkOrderForFinalize(wo)}
+              onOpenDetail={(wo) => setWorkOrderForDetail(wo)}
+              onAdvanceStatus={handleAdvanceWorkOrderStatus}
+            />
+          </div>
+        </div>
+      )}
 
-        {/* Tab View 3: Maintenance Logs */}
-        {activeSubTab === "logs" && (
-          <>
+      {/* Tab View 3: Maintenance Logs */}
+      {activeSubTab === "logs" && (
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden min-w-0">
+          <div className="shrink-0">
             <MaintenanceLogsControls
               searchQuery={logsSearch}
               onSearchChange={setLogsSearch}
-              onSearch={handleLogsSearchSubmit}
-              onClear={handleLogsSearchClear}
               selectedType={logsType}
-              onTypeChange={handleLogsTypeChange}
+              onTypeChange={setLogsType}
             />
+          </div>
 
-            <div className="h-[calc(100vh-340px)] min-h-[460px] w-full min-w-0">
-              <MaintenanceLogsTable
-                logs={maintenanceLogs}
-                isLoading={isLoadingLogs}
-                onRefresh={refreshMaintenanceLogs}
-                pagination={{
-                  page: logsPage,
-                  limit: logsLimit,
-                  totalPages: logsMeta.totalPages,
-                  totalItems: logsMeta.totalItems,
-                  onPageChange: handleLogsPageChange,
-                  isLoading: isLoadingLogs,
-                }}
-              />
-            </div>
-          </>
-        )}
+          <div className="flex-1 min-h-0 w-full overflow-hidden">
+            <MaintenanceLogsTable
+              logs={filteredMaintenanceLogs}
+              isLoading={isLoadingLogs}
+              onRefresh={refreshMaintenanceLogs}
+            />
+          </div>
+        </div>
+      )}
 
-        {/* Tab View 4: Recurring Issues Analytics */}
-        {activeSubTab === "analytics" && (
-          <div className="h-[calc(100vh-280px)] min-h-[500px] w-full min-w-0">
+      {/* Tab View 4: Recurring Issues Analytics */}
+      {activeSubTab === "analytics" && (
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden min-w-0">
+          <div className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar">
             <RecurringIssuesAnalytics
               trucks={trucks}
               onCreateWorkOrderForTruck={(truck) => handleOpenCreateWorkOrder(truck)}
             />
           </div>
-        )}
+        </div>
+      )}
 
-        {/* View / Edit Truck Modal (Returns automatically when sub-modals are closed/cancelled) */}
-        {selectedTruck && !(
-          truckForInspection ||
-          truckForInspectionHistory ||
-          isReportingIncident ||
-          showIncidentHistoryModal ||
-          truckForCheckIn ||
-          truckForHistory ||
-          truckForAvailability ||
-          isCreatingWorkOrder ||
-          workOrderForDetail ||
-          workOrderForApproval ||
-          workOrderForFinalize ||
-          truckToDelete ||
-          showDeletePasswordModal ||
-          showReactivatePasswordModal
-        ) && (
-          <TruckModal
-            truck={selectedTruck}
-            trucks={trucks}
-            workOrders={workOrders}
-            availableDrivers={availableDrivers}
-            allDrivers={allDrivers}
-            canManage={canManage}
-            onClose={() => setSelectedTruck(null)}
-            onUpdate={handleUpdateTruck}
-            onDeleteClick={handleInitiateDelete}
-            onReactivateClick={handleInitiateReactivate}
-            onOpenCheckIn={(truck) => setTruckForCheckIn(truck)}
-            onOpenHistory={(truck) => setTruckForHistory(truck)}
-            onOpenAvailability={(truck) => setTruckForAvailability(truck)}
-            onOpenInspect={(truck) => setTruckForInspection(truck)}
-            onOpenIncident={(truck) => {
-              setTruckForIncident(truck);
-              setIsReportingIncident(true);
-            }}
-            onOpenInspectionHistory={(truck) => setTruckForInspectionHistory(truck)}
-            onOpenIncidentHistory={(truck) => {
-              setTruckForIncidentHistory(truck);
-              setShowIncidentHistoryModal(true);
-            }}
-            onCreateWorkOrder={(truck) => handleOpenCreateWorkOrder(truck)}
-            onOpenWorkOrderDetail={(wo) => setWorkOrderForDetail(wo)}
-          />
-        )}
-
-        {/* Daily Safety Inspection Modal (Findings-Only) */}
-        {truckForInspection && (
-          <InspectionModal
-            isOpen={!!truckForInspection}
-            truck={truckForInspection}
-            onClose={() => setTruckForInspection(null)}
-            onSubmit={handleRecordInspection}
-          />
-        )}
-
-        {/* Truck Safety Inspection History Modal */}
-        {truckForInspectionHistory && (
-          <InspectionHistoryModal
-            isOpen={!!truckForInspectionHistory}
-            truck={truckForInspectionHistory}
-            onClose={() => setTruckForInspectionHistory(null)}
-            onOpenInspect={(truck) => setTruckForInspection(truck)}
-          />
-        )}
-
-        {/* Mid-Route Incident / Breakdown Reporting Modal */}
-        {isReportingIncident && (
-          <IncidentReportModal
-            isOpen={isReportingIncident}
-            truck={truckForIncident}
-            trucks={trucks}
-            onClose={() => {
-              setIsReportingIncident(false);
-              setTruckForIncident(null);
-            }}
-            onSubmit={handleReportIncident}
-          />
-        )}
-
-        {/* Fleet & Truck Incident History Logs Modal */}
-        {showIncidentHistoryModal && (
-          <IncidentHistoryModal
-            isOpen={showIncidentHistoryModal}
-            truck={truckForIncidentHistory}
-            onClose={() => {
-              setShowIncidentHistoryModal(false);
-              setTruckForIncidentHistory(null);
-            }}
-            onOpenReport={(truck) => {
-              setShowIncidentHistoryModal(false);
-              setTruckForIncident(truck || null);
-              setIsReportingIncident(true);
-            }}
-          />
-        )}
-
-        {/* Post-Dispatch Odometer Return Check-In Modal */}
-        {truckForCheckIn && (
-          <OdometerCheckInModal
-            isOpen={!!truckForCheckIn}
-            truck={truckForCheckIn}
-            onClose={() => setTruckForCheckIn(null)}
-            onSubmit={handleRecordOdometer}
-          />
-        )}
-
-        {/* Mileage & Odometer Logs History Modal */}
-        {truckForHistory && (
-          <OdometerHistoryModal
-            isOpen={!!truckForHistory}
-            truck={truckForHistory}
-            onClose={() => setTruckForHistory(null)}
-            onOpenCheckIn={(truck) => setTruckForCheckIn(truck)}
-          />
-        )}
-
-        {/* Set Availability / Mark Unavailable Modal */}
-        {truckForAvailability && (
-          <SetAvailabilityModal
-            isOpen={!!truckForAvailability}
-            truck={truckForAvailability}
-            workOrders={workOrders}
-            onClose={() => setTruckForAvailability(null)}
-            onSubmit={handleSetAvailability}
-          />
-        )}
-
-        {/* Add New Fleet Multi-step Wizard Modal */}
-        {isAddingTruck && (
-          <TruckModal
-            isAdding={true}
-            trucks={trucks}
-            availableDrivers={availableDrivers}
-            allDrivers={allDrivers}
-            canManage={canManage}
-            onClose={() => setIsAddingTruck(false)}
-            onAdd={handleAddTruck}
-          />
-        )}
-
-        {/* Delete Confirmation Step 1 */}
-        {truckToDelete && !showDeletePasswordModal && (
-          <DeleteConfirmationModal
-            truck={truckToDelete}
-            onConfirm={handleConfirmDeletePrompt}
-            onClose={() => setTruckToDelete(null)}
-          />
-        )}
-
-        {/* Delete Password Verification Step 2 */}
-        <AdminPasswordModal
-          isOpen={showDeletePasswordModal}
-          onClose={() => {
-            setShowDeletePasswordModal(false);
-            setTruckToDelete(null);
-          }}
-          onSubmit={handleExecuteDelete}
+      {/* Daily Safety Inspection Modal (Findings-Only) */}
+      {truckForInspection && (
+        <InspectionModal
+          isOpen={!!truckForInspection}
+          truck={truckForInspection}
+          onClose={() => setTruckForInspection(null)}
+          onSubmit={handleRecordInspection}
         />
+      )}
 
-        {/* Reactivate Password Verification Modal */}
-        <AdminPasswordModal
-          isOpen={showReactivatePasswordModal}
-          onClose={() => {
-            setShowReactivatePasswordModal(false);
-            setPendingReactivation(null);
-          }}
-          onSubmit={handleExecuteReactivate}
+      {/* Truck Safety Inspection History Modal */}
+      {truckForInspectionHistory && (
+        <InspectionHistoryModal
+          isOpen={!!truckForInspectionHistory}
+          truck={truckForInspectionHistory}
+          onClose={() => setTruckForInspectionHistory(null)}
+          onOpenInspect={(truck) => setTruckForInspection(truck)}
         />
+      )}
 
-        {/* Part 3 Work Order Modals */}
-        {isCreatingWorkOrder && (
-          <CreateWorkOrderModal
-            isOpen={isCreatingWorkOrder}
-            truck={truckForWorkOrder}
-            trucks={trucks}
-            onClose={() => {
-              setIsCreatingWorkOrder(false);
-              setTruckForWorkOrder(null);
-            }}
-            onSubmit={handleCreateWorkOrder}
-          />
-        )}
+      {/* Mid-Route Incident / Breakdown Reporting Modal */}
+      {isReportingIncident && (
+        <IncidentReportModal
+          isOpen={isReportingIncident}
+          truck={truckForIncident}
+          trucks={trucks}
+          onClose={() => {
+            setIsReportingIncident(false);
+            setTruckForIncident(null);
+          }}
+          onSubmit={handleReportIncident}
+        />
+      )}
 
-        {workOrderForApproval && (
-          <CostApprovalModal
-            isOpen={!!workOrderForApproval}
-            workOrder={workOrderForApproval}
-            onClose={() => setWorkOrderForApproval(null)}
-            onDecide={handleApproveCost}
-          />
-        )}
+      {/* Fleet & Truck Incident History Logs Modal */}
+      {showIncidentHistoryModal && (
+        <IncidentHistoryModal
+          isOpen={showIncidentHistoryModal}
+          truck={truckForIncidentHistory}
+          onClose={() => {
+            setShowIncidentHistoryModal(false);
+            setTruckForIncidentHistory(null);
+          }}
+          onOpenReport={(truck) => {
+            setShowIncidentHistoryModal(false);
+            setTruckForIncident(truck || null);
+            setIsReportingIncident(true);
+          }}
+        />
+      )}
 
-        {workOrderForFinalize && (
-          <FinalizeMaintenanceModal
-            isOpen={!!workOrderForFinalize}
-            workOrder={workOrderForFinalize}
-            truck={trucks.find(
-              (t) =>
-                t.id === workOrderForFinalize.truckId ||
-                t.id === workOrderForFinalize.truck?.id
-            )}
-            onClose={() => setWorkOrderForFinalize(null)}
-            onFinalize={handleFinalizeMaintenance}
-          />
-        )}
+      {/* Post-Dispatch Odometer Return Check-In Modal */}
+      {truckForCheckIn && (
+        <OdometerCheckInModal
+          isOpen={!!truckForCheckIn}
+          truck={truckForCheckIn}
+          onClose={() => setTruckForCheckIn(null)}
+          onSubmit={handleRecordOdometer}
+        />
+      )}
 
-        {workOrderForDetail && (
-          <WorkOrderDetailModal
-            isOpen={!!workOrderForDetail}
-            workOrder={workOrderForDetail}
-            truck={trucks.find(
-              (t) =>
-                t.id === workOrderForDetail.truckId ||
-                t.id === workOrderForDetail.truck?.id ||
-                t.plateNumber === (workOrderForDetail.plateNumber || workOrderForDetail.truck?.plateNumber)
-            )}
-            trucks={trucks}
-            onClose={() => setWorkOrderForDetail(null)}
-            onOpenApproval={canApproveCost ? (wo) => setWorkOrderForApproval(wo) : null}
-            onOpenFinalize={(wo) => setWorkOrderForFinalize(wo)}
-            onAdvanceStatus={handleAdvanceWorkOrderStatus}
-          />
-        )}
+      {/* Mileage & Odometer Logs History Modal */}
+      {truckForHistory && (
+        <OdometerHistoryModal
+          isOpen={!!truckForHistory}
+          truck={truckForHistory}
+          onClose={() => setTruckForHistory(null)}
+          onOpenCheckIn={(truck) => setTruckForCheckIn(truck)}
+        />
+      )}
 
-        {/* Dynamic Toast Notifications (Success, Error, Info, Warning) */}
-        {toast && (
-          <ToastNotification
-            type={toast.type}
-            message={toast.message}
-            onClose={() => setToast(null)}
-          />
-        )}
-      </div>
+      {/* Set Availability / Mark Unavailable Modal */}
+      {truckForAvailability && (
+        <SetAvailabilityModal
+          isOpen={!!truckForAvailability}
+          truck={truckForAvailability}
+          onClose={() => setTruckForAvailability(null)}
+          onSubmit={handleSetAvailability}
+        />
+      )}
+
+      {/* Assign Driver Modal */}
+      {truckForDriverAssignment && (
+        <AssignDriverModal
+          isOpen={!!truckForDriverAssignment}
+          truck={truckForDriverAssignment}
+          availableDrivers={availableDrivers}
+          allDrivers={allDrivers}
+          onClose={() => setTruckForDriverAssignment(null)}
+          onAssign={handleAssignDriver}
+        />
+      )}
+
+      {/* Add / Edit Fleet Multi-step Wizard Modal */}
+      {(isAddingTruck || !!editingTruck) && (
+        <TruckModal
+          isOpen={isAddingTruck || !!editingTruck}
+          isAdding={isAddingTruck}
+          isEditing={!!editingTruck}
+          truck={editingTruck}
+          trucks={trucks}
+          availableDrivers={availableDrivers}
+          allDrivers={allDrivers}
+          canManage={canManage}
+          onClose={() => {
+            setIsAddingTruck(false);
+            setEditingTruck(null);
+          }}
+          onAdd={handleAddTruck}
+          onUpdate={async (id, data) => {
+            await handleUpdateTruck(id, data);
+            setEditingTruck(null);
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Step 1 */}
+      {truckToDelete && !showDeletePasswordModal && (
+        <DeleteConfirmationModal
+          truck={truckToDelete}
+          onConfirm={handleConfirmDeletePrompt}
+          onClose={() => setTruckToDelete(null)}
+        />
+      )}
+
+      {/* Delete Password Verification Step 2 */}
+      <AdminPasswordModal
+        isOpen={showDeletePasswordModal}
+        onClose={() => {
+          setShowDeletePasswordModal(false);
+          setTruckToDelete(null);
+        }}
+        onSubmit={handleExecuteDelete}
+      />
+
+      {/* Reactivate Password Verification Modal */}
+      <AdminPasswordModal
+        isOpen={showReactivatePasswordModal}
+        onClose={() => {
+          setShowReactivatePasswordModal(false);
+          setPendingReactivation(null);
+        }}
+        onSubmit={handleExecuteReactivate}
+      />
+
+      {/* Part 3 Work Order Modals */}
+      {isCreatingWorkOrder && (
+        <CreateWorkOrderModal
+          isOpen={isCreatingWorkOrder}
+          truck={truckForWorkOrder}
+          trucks={trucks}
+          onClose={() => {
+            setIsCreatingWorkOrder(false);
+            setTruckForWorkOrder(null);
+          }}
+          onSubmit={handleCreateWorkOrder}
+        />
+      )}
+
+      {workOrderForApproval && (
+        <CostApprovalModal
+          isOpen={!!workOrderForApproval}
+          workOrder={workOrderForApproval}
+          onClose={() => setWorkOrderForApproval(null)}
+          onDecide={handleApproveCost}
+        />
+      )}
+
+      {workOrderForFinalize && (
+        <FinalizeMaintenanceModal
+          isOpen={!!workOrderForFinalize}
+          workOrder={workOrderForFinalize}
+          truck={trucks.find(
+            (t) =>
+              t.id === workOrderForFinalize.truckId ||
+              t.id === workOrderForFinalize.truck?.id
+          )}
+          onClose={() => setWorkOrderForFinalize(null)}
+          onFinalize={handleFinalizeMaintenance}
+        />
+      )}
+
+      {workOrderForDetail && (
+        <WorkOrderDetailModal
+          isOpen={!!workOrderForDetail}
+          workOrder={workOrderForDetail}
+          onClose={() => setWorkOrderForDetail(null)}
+          onOpenApproval={(wo) => setWorkOrderForApproval(wo)}
+          onOpenFinalize={(wo) => setWorkOrderForFinalize(wo)}
+          onAdvanceStatus={handleAdvanceWorkOrderStatus}
+        />
+      )}
+
+      {/* Dynamic Toast Notifications (Success, Error, Info, Warning) */}
+      {toast && (
+        <ToastNotification
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
+    </div>
   );
 }

@@ -182,7 +182,11 @@ The application supports all Philippine contact number formats:
 
 ### 0. Analytics Dashboard (`/dashboard`)
 - **Features**:
-  - Financial metric summary cards overlaying custom background header banner.
+  - Financial & operational metric summary cards overlaying custom background header banner:
+    - **Gross Income**: Monthly gross income benchmark.
+    - **Cost per Can**: Unit filling/production cost benchmark.
+    - **Active Customers**: Real-time count of active client accounts from `customersApi`.
+    - **Fleet Readiness**: Real-time operational vehicle percentage (`availableCount / totalTrucks`).
   - Interactive Sales Overview bar chart powered by Recharts (Weekly, Monthly, Annually filters across Butane Canister, 11kg LPG, 50kg LPG).
   - Truck operational status summary grid:
     - **Available**: Real-time count of active operational vehicles (`status === "ACTIVE"`) from backend `fleetApi`.
@@ -230,9 +234,18 @@ The application supports all Philippine contact number formats:
 - **Caching**: `localStorage` keys `app_fleet_cache`, `app_work_orders_cache`, `app_maintenance_logs_cache`.
 
 ### 4. Item Profile / Inventory (`/item-profile`, `/inventory`)
-- **Contract**: `docs/API Contract/inventory-products.api.md`
+- **Contract**: `docs/api-contracts/inventory/products.api.md`
 - **Fields**: `id` (UUID), `name`, `category`, `containerType` (`CYLINDER` | `CANISTER`), `netWeightKg`, `isActive`, `createdAt`, `updatedAt`.
-- **Features**: Product card grid, register/edit product modal, category & container type filters, password-guarded deactivation (`PATCH /api/inventory/products/:id/deactivate`), `localStorage` caching (`app_items_cache`).
+- **Features**:
+  - Master-detail layout with independent scroll containers.
+  - Sticky top header with operational overview badges (Registered Products, Active, Inactive, LPG Cylinders, Canisters count) and yellow `"ADD NEW ITEM"` button.
+  - Controls bar with live search, active filter chips, multi-criteria filter dropdown (Status, Container Type, Category), and dual view mode switcher (`Cards` vs `Table`).
+  - **Cards Grid View**: Rich product cards with brand avatars, category badges, container types, net gas weight in monospace, operational status, and subtle soft gray borderless selection highlight (`bg-slate-100/90`).
+  - **Master Table View**: Dark navy `#0D4B6E` sticky header with sortable columns, row selection highlight (`#E2EDF3`), and action triggers.
+  - **Slide-in Detail Panel (`ItemDetailPanel`)**: Right-side panel with product specs (container type, net weight, category), system metadata (UUID with 1-click copy, timestamps), edit/deactivate/reactivate actions, and bottom pinned yellow `"CLOSE"` button.
+  - 3-step Create & Edit wizard modal (`ItemModal`: Form &rarr; Confirm &rarr; Success).
+  - Password-guarded deactivation (`PATCH /api/inventory/products/:id/deactivate`) and reactivation with `AdminPasswordModal`.
+  - `localStorage` caching (`app_items_cache`, `app_items_view_mode`).
 
 ### 5. History Log (`/history-log`)
 - **Contract**: `docs/API Contract/history-log.api.md`

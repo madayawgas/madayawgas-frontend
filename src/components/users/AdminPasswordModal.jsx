@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import Button from "../ui/Button";
 
@@ -38,9 +39,9 @@ export default function AdminPasswordModal({ isOpen, onClose, onSubmit }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-xl relative">
+  const modalNode = (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl relative animate-scale-in">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-[#0B4A6E]">Input Password</h2>
           <button
@@ -102,4 +103,8 @@ export default function AdminPasswordModal({ isOpen, onClose, onSubmit }) {
       </div>
     </div>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(modalNode, document.body)
+    : modalNode;
 }

@@ -1,5 +1,4 @@
 import { Funnel, X } from "lucide-react";
-import Badge from "../ui/Badge";
 
 export default function CustomerActiveFilters({
   selectedType,
@@ -10,78 +9,72 @@ export default function CustomerActiveFilters({
   onClearStatus,
   onClearDate,
 }) {
-  const getStatusVariant = (status) => {
+  const getStatusBadgeClass = (status) => {
     switch (status) {
       case "ACTIVE":
-        return "success";
+        return "bg-emerald-50 text-emerald-700 border-emerald-200";
       case "INACTIVE":
-        return "deactivated";
+        return "bg-gray-100 text-gray-600 border-gray-200";
       default:
-        return "neutral";
+        return "bg-slate-50 text-slate-700 border-slate-200";
     }
   };
 
   const hasDateFilter = !!(dateFrom || dateTo);
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex items-center gap-1.5 flex-wrap">
       {/* Active Customer Type Filter Chip */}
       {selectedType && selectedType !== "All Types" && (
-        <Badge
-          variant="roles"
-          className="flex items-center gap-2 h-[38px] px-3 py-0 normal-case tracking-normal text-xs font-semibold"
-        >
-          <Funnel size={14} className="text-[#0A4B6E]" />
-          <span>Type: {selectedType}</span>
+        <span className="inline-flex items-center gap-1.5 h-[26px] px-2.5 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] text-[11px] font-medium transition-all shadow-2xs">
+          <Funnel size={11} className="text-[#0A4B6E]/70 shrink-0" />
+          <span>Type: <strong className="font-semibold">{selectedType}</strong></span>
           <button
             type="button"
             onClick={onClearType}
-            className="p-0.5 hover:bg-gray-100 rounded-full transition-colors cursor-pointer ml-1"
+            className="p-0.5 hover:bg-black/10 rounded-full transition-colors cursor-pointer text-[#0A4B6E]"
+            title="Remove filter"
           >
-            <X size={14} />
+            <X size={11} />
           </button>
-        </Badge>
+        </span>
       )}
 
       {/* Active Status Filter Chip */}
       {selectedStatus && (
-        <Badge
-          variant="roles"
-          className="flex items-center gap-2 h-[38px] px-3 py-0 normal-case tracking-normal text-xs font-semibold"
-        >
-          <Funnel size={14} className="text-[#0A4B6E]" />
+        <span className="inline-flex items-center gap-1.5 h-[26px] px-2.5 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] text-[11px] font-medium transition-all shadow-2xs">
+          <Funnel size={11} className="text-[#0A4B6E]/70 shrink-0" />
           <span>Status:</span>
-          <Badge variant={getStatusVariant(selectedStatus)}>
+          <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-bold border ${getStatusBadgeClass(selectedStatus)}`}>
             {selectedStatus}
-          </Badge>
+          </span>
           <button
             type="button"
             onClick={onClearStatus}
-            className="p-0.5 hover:bg-gray-100 rounded-full transition-colors cursor-pointer ml-1"
+            className="p-0.5 hover:bg-black/10 rounded-full transition-colors cursor-pointer text-[#0A4B6E]"
+            title="Remove filter"
           >
-            <X size={14} />
+            <X size={11} />
           </button>
-        </Badge>
+        </span>
       )}
 
       {/* Active Date Filter Chip */}
       {hasDateFilter && (
-        <Badge
-          variant="roles"
-          className="flex items-center gap-2 h-[38px] px-3 py-0 normal-case tracking-normal text-xs font-semibold"
-        >
-          <Funnel size={14} className="text-[#0A4B6E]" />
+        <span className="inline-flex items-center gap-1.5 h-[26px] px-2.5 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] text-[11px] font-medium transition-all shadow-2xs">
+          <Funnel size={11} className="text-[#0A4B6E]/70 shrink-0" />
           <span>
-            Date: {dateFrom || "Start"} to {dateTo || "End"}
+            Date: <strong className="font-semibold">{dateFrom || "Start"}</strong> to <strong className="font-semibold">{dateTo || "End"}</strong>
           </span>
           <button
             type="button"
             onClick={onClearDate}
-            className="p-0.5 hover:bg-gray-100 rounded-full transition-colors cursor-pointer ml-1"
+            className="p-0.5 hover:bg-black/10 rounded-full transition-colors cursor-pointer text-[#0A4B6E]"
+            title="Remove filter"
           >
-            <X size={14} />
+            <X size={11} />
           </button>
-        </Badge>
+        </span>
       )}
     </div>
   );
