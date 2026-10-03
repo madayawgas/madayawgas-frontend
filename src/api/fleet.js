@@ -13,13 +13,24 @@ function getInMemoryTrucks() {
     if (cached) {
       const parsed = JSON.parse(cached);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        return parsed.map((t) => ({
+          ...t,
+          vehicleType: t.vehicleType || "DELIVERY_TRUCK",
+          pmDueFlag: t.pmDueFlag !== undefined ? t.pmDueFlag : Boolean(t.isPmDue),
+          isPmDue: t.isPmDue !== undefined ? t.isPmDue : Boolean(t.pmDueFlag),
+        }));
       }
     }
   } catch (e) {
     console.error("Error reading cached fleet:", e);
   }
-  return mockFleet?.data?.trucks ? [...mockFleet.data.trucks] : [];
+  const fallback = mockFleet?.data?.vehicles || mockFleet?.data?.trucks || [];
+  return fallback.map((t) => ({
+    ...t,
+    vehicleType: t.vehicleType || "DELIVERY_TRUCK",
+    pmDueFlag: t.pmDueFlag !== undefined ? t.pmDueFlag : Boolean(t.isPmDue),
+    isPmDue: t.isPmDue !== undefined ? t.isPmDue : Boolean(t.pmDueFlag),
+  }));
 }
 
 /**
@@ -576,6 +587,105 @@ function saveInMemoryMaintenanceLogs(logs) {
 }
 
 /**
+ * Initial seed approval requests for mock mode (1:N sequential approvals)
+ */
+const DEFAULT_MOCK_APPROVAL_REQUESTS = [
+  {
+    id: "appr-1001-1",
+    workOrderId: "wo-1001-prev",
+    amountRequested: 6500.0,
+    isApproved: true,
+    status: "APPROVED",
+    remarks: "Authorized by Super Admin for 5,000-km major overhaul.",
+    requestedDate: "2026-09-18T09:00:00.000Z",
+    decidedDate: "2026-09-18T09:30:00.000Z",
+    deciderId: "08df2719-0473-4a31-8b5c-dc977d6006c5",
+    deciderName: "Super Admin (Logistics Supervisor)",
+    createdAt: "2026-09-18T09:00:00.000Z",
+  },
+];
+
+function getInMemoryApprovalRequests() {
+  try {
+    const cached = localStorage.getItem("app_approval_requests_cache");
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error("Error reading cached approval requests:", e);
+  }
+  return [...DEFAULT_MOCK_APPROVAL_REQUESTS];
+}
+
+function saveInMemoryApprovalRequests(requests) {
+  try {
+    localStorage.setItem("app_approval_requests_cache", JSON.stringify(requests));
+  } catch (e) {
+    console.error("Error saving approval requests cache:", e);
+  }
+}
+
+/**
+ * Initial seed receipts for mock mode (Photo-driven decoupled receipts)
+ */
+const DEFAULT_MOCK_RECEIPTS = [
+  {
+    id: "rec-1001-1",
+    workOrderId: "wo-1001-prev",
+    fileUrl: "https://images.unsplash.com/photo-1554415707-9e4966a6e483?auto=format&fit=crop&q=80&w=400",
+    fileName: "OR-2026-88991.jpg",
+    receiptNumber: "OR-2026-88991",
+    vendorName: "Bunawan Parts Depot",
+    amount: 4500.0,
+    receiptType: "PARTS",
+    receiptDate: "2026-09-18",
+    uploadedBy: "08df2719-0473-4a31-8b5c-dc977d6006c5",
+    uploaderName: "Logistics Supervisor",
+    createdAt: "2026-09-18T10:00:00.000Z",
+  },
+  {
+    id: "rec-1001-2",
+    workOrderId: "wo-1001-prev",
+    fileUrl: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=400",
+    fileName: "OR-2026-88992.jpg",
+    receiptNumber: "OR-2026-88992",
+    vendorName: "Bunawan Heavy Repair Center",
+    amount: 2200.5,
+    receiptType: "LABOR",
+    receiptDate: "2026-09-19",
+    uploadedBy: "08df2719-0473-4a31-8b5c-dc977d6006c5",
+    uploaderName: "Logistics Supervisor",
+    createdAt: "2026-09-19T11:00:00.000Z",
+  },
+];
+
+function getInMemoryReceipts() {
+  try {
+    const cached = localStorage.getItem("app_work_order_receipts_cache");
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error("Error reading cached receipts:", e);
+  }
+  return [...DEFAULT_MOCK_RECEIPTS];
+}
+
+function saveInMemoryReceipts(receipts) {
+  try {
+    localStorage.setItem("app_work_order_receipts_cache", JSON.stringify(receipts));
+  } catch (e) {
+    console.error("Error saving receipts cache:", e);
+  }
+}
+
+/**
  * Initial seed recurring issues analytics for mock mode
  */
 const DEFAULT_MOCK_RECURRING_ISSUES = [
@@ -770,6 +880,14 @@ export const fleetApi = {
         );
       }
 
+      // Vehicle Type filter
+      const vType = params.vehicleType || params.type;
+      if (vType && vType !== "All" && vType !== "ALL") {
+        list = list.filter(
+          (t) => (t.vehicleType || "DELIVERY_TRUCK").toUpperCase() === vType.toUpperCase()
+        );
+      }
+
       // Search filter (plateNumber, model, driver)
       if (params.search) {
         const q = params.search.toLowerCase();
@@ -777,6 +895,7 @@ export const fleetApi = {
           (t) =>
             (t.plateNumber || "").toLowerCase().includes(q) ||
             (t.model || "").toLowerCase().includes(q) ||
+            (t.vehicleType || "").toLowerCase().includes(q) ||
             (t.driver?.firstName || "").toLowerCase().includes(q) ||
             (t.driver?.lastName || "").toLowerCase().includes(q) ||
             (t.driver?.username || "").toLowerCase().includes(q)
@@ -798,6 +917,7 @@ export const fleetApi = {
           (wo) =>
             (wo.truckId === t.id ||
               wo.truckId === t.truckId ||
+              wo.vehicleId === t.id ||
               wo.plateNumber === t.plateNumber ||
               wo.truck?.plateNumber === t.plateNumber) &&
             ["PENDING", "APPROVED", "SCHEDULED", "IN_PROGRESS"].includes(wo.status)
@@ -808,6 +928,7 @@ export const fleetApi = {
             (i) =>
               i.truckId === t.id ||
               i.truckId === t.truckId ||
+              i.vehicleId === t.id ||
               (t.plateNumber && i.plateNumber === t.plateNumber)
           )
           .sort(
@@ -816,8 +937,14 @@ export const fleetApi = {
           );
         const latestInspection = matchingInspections[0] || t.latestInspection || null;
 
+        const distanceSinceLastPm = Math.max(0, (Number(t.currentOdometer) || 0) - (Number(t.lastPmOdometer) || 0));
+        const pmDue = t.pmDueFlag !== undefined ? t.pmDueFlag : (t.isPmDue !== undefined ? Boolean(t.isPmDue) : distanceSinceLastPm >= 5000);
+
         return {
           ...t,
+          vehicleType: t.vehicleType || "DELIVERY_TRUCK",
+          pmDueFlag: pmDue,
+          isPmDue: pmDue,
           hasActiveWorkOrder: Boolean(activeOrder),
           activeWorkOrder: activeOrder || null,
           latestInspection,
@@ -832,17 +959,37 @@ export const fleetApi = {
     const query = new URLSearchParams();
     if (params.status && params.status !== "All") query.append("status", params.status);
     if (params.search) query.append("search", params.search);
+    if (params.vehicleType || params.type) query.append("vehicleType", params.vehicleType || params.type);
     if (params.driverAssigned !== undefined) query.append("driverAssigned", params.driverAssigned);
+    if (params.page) query.append("page", params.page);
+    if (params.limit || params.pageSize) query.append("limit", params.limit || params.pageSize);
+    if (params.sortBy) query.append("sortBy", params.sortBy);
+    if (params.sortOrder) query.append("sortOrder", params.sortOrder);
 
     const queryString = query.toString() ? `?${query.toString()}` : "";
-    const result = await apiClient(`/fleet/trucks${queryString}`);
-    return result.data.trucks;
+    const result = await apiClient(`/fleet/vehicles${queryString}`);
+
+    let list = [];
+    if (Array.isArray(result.data)) {
+      list = result.data;
+    } else if (result.data?.vehicles && Array.isArray(result.data.vehicles)) {
+      list = result.data.vehicles;
+    } else if (result.data?.trucks && Array.isArray(result.data.trucks)) {
+      list = result.data.trucks;
+    }
+
+    return list.map((v) => ({
+      ...v,
+      vehicleType: v.vehicleType || "DELIVERY_TRUCK",
+      pmDueFlag: v.pmDueFlag !== undefined ? v.pmDueFlag : Boolean(v.isPmDue),
+      isPmDue: v.isPmDue !== undefined ? v.isPmDue : Boolean(v.pmDueFlag),
+    }));
   },
 
   /**
    * Get Vehicle by ID.
-   * @param {string} id - Truck UUID
-   * @returns {Promise<object>} Truck object
+   * @param {string} id - Vehicle UUID
+   * @returns {Promise<object>} Vehicle object
    */
   async getTruckById(id) {
     if (isMock) {
@@ -850,21 +997,32 @@ export const fleetApi = {
       const inMemoryTrucks = getInMemoryTrucks();
       const truck = inMemoryTrucks.find((t) => t.id === id || t.truckId === id);
       if (!truck) {
-        const error = new Error("Truck not found");
+        const error = new Error("Vehicle not found");
         error.status = 404;
         throw error;
       }
-      return truck;
+      return {
+        ...truck,
+        vehicleType: truck.vehicleType || "DELIVERY_TRUCK",
+        pmDueFlag: truck.pmDueFlag !== undefined ? truck.pmDueFlag : Boolean(truck.isPmDue),
+        isPmDue: truck.isPmDue !== undefined ? truck.isPmDue : Boolean(truck.pmDueFlag),
+      };
     }
 
-    const result = await apiClient(`/fleet/trucks/${id}`);
-    return result.data.truck;
+    const result = await apiClient(`/fleet/vehicles/${id}`);
+    const vehicle = result.data?.vehicle || result.data?.truck || result.data;
+    return {
+      ...vehicle,
+      vehicleType: vehicle.vehicleType || "DELIVERY_TRUCK",
+      pmDueFlag: vehicle.pmDueFlag !== undefined ? vehicle.pmDueFlag : Boolean(vehicle.isPmDue),
+      isPmDue: vehicle.isPmDue !== undefined ? vehicle.isPmDue : Boolean(vehicle.pmDueFlag),
+    };
   },
 
   /**
    * Register Vehicle.
-   * @param {{ plateNumber: string, model: string, yearModel: number, currentOdometer?: number, lastPmOdometer?: number, status?: string, driverId?: string, driver?: object }} truckData
-   * @returns {Promise<{ truck: object }>} Created truck response
+   * @param {{ plateNumber: string, model: string, yearModel: number, vehicleType?: string, currentOdometer?: number, lastPmOdometer?: number, status?: string, driverId?: string, driver?: object }} truckData
+   * @returns {Promise<{ truck: object, vehicle: object }>} Created vehicle response
    */
   async createTruck(truckData) {
     if (isMock) {
@@ -875,14 +1033,20 @@ export const fleetApi = {
       const shouldReleaseDriver = initialStatus === "INACTIVE" || initialStatus === "RETIRED";
       const driverId = shouldReleaseDriver ? null : (truckData.driverId || null);
       const driverObj = (driverId && truckData.driver) ? truckData.driver : resolveDriver(driverId);
+      const curOdo = Number(truckData.currentOdometer) || 0;
+      const lastPm = Number(truckData.lastPmOdometer) || 0;
+      const pmDue = curOdo - lastPm >= 5000;
 
       const newTruck = {
         id: `trk-${Date.now()}`,
         plateNumber: truckData.plateNumber,
         model: truckData.model,
         yearModel: Number(truckData.yearModel) || new Date().getFullYear(),
-        currentOdometer: Number(truckData.currentOdometer) || 0,
-        lastPmOdometer: Number(truckData.lastPmOdometer) || 0,
+        vehicleType: truckData.vehicleType || "DELIVERY_TRUCK",
+        currentOdometer: curOdo,
+        lastPmOdometer: lastPm,
+        pmDueFlag: pmDue,
+        isPmDue: pmDue,
         status: initialStatus,
         operationalStatus: initialStatus,
         isAvailable,
@@ -899,14 +1063,24 @@ export const fleetApi = {
 
       inMemoryTrucks.unshift(newTruck);
       saveInMemoryTrucks(inMemoryTrucks);
-      return { truck: newTruck };
+      return { truck: newTruck, vehicle: newTruck, data: { truck: newTruck, vehicle: newTruck } };
     }
 
-    const result = await apiClient("/fleet/trucks", {
+    const payload = {
+      ...truckData,
+      vehicleType: truckData.vehicleType || "DELIVERY_TRUCK",
+    };
+
+    const result = await apiClient("/fleet/vehicles", {
       method: "POST",
-      body: truckData,
+      body: payload,
     });
-    return result.data;
+    const created = result.data?.vehicle || result.data?.truck || result.data;
+    return {
+      ...result,
+      truck: created,
+      vehicle: created,
+    };
   },
 
   /**
@@ -999,50 +1173,51 @@ export const fleetApi = {
     // LIVE REST BACKEND: Orchestrate across API contract endpoints
     let latestTruck = null;
 
-    // 1. Vehicle specs update (/api/fleet/trucks/:id)
+    // 1. Vehicle specs update (/api/fleet/vehicles/:id)
     const infoPayload = {};
     if (truckData.plateNumber !== undefined) infoPayload.plateNumber = truckData.plateNumber;
     if (truckData.model !== undefined) infoPayload.model = truckData.model;
     if (truckData.yearModel !== undefined) infoPayload.yearModel = Number(truckData.yearModel);
+    if (truckData.vehicleType !== undefined) infoPayload.vehicleType = truckData.vehicleType;
     if (truckData.currentOdometer !== undefined) infoPayload.currentOdometer = Number(truckData.currentOdometer);
     if (truckData.lastPmOdometer !== undefined) infoPayload.lastPmOdometer = Number(truckData.lastPmOdometer);
 
     if (Object.keys(infoPayload).length > 0) {
-      const res = await apiClient(`/fleet/trucks/${id}`, {
+      const res = await apiClient(`/fleet/vehicles/${id}`, {
         method: "PATCH",
         body: infoPayload,
       });
-      latestTruck = res.data?.truck || res.data;
+      latestTruck = res.data?.vehicle || res.data?.truck || res.data;
     }
 
-    // 2. Status update (/api/fleet/trucks/:id/status)
+    // 2. Status update (/api/fleet/vehicles/:id/status)
     if (truckData.status) {
-      const res = await apiClient(`/fleet/trucks/${id}/status`, {
+      const res = await apiClient(`/fleet/vehicles/${id}/status`, {
         method: "PATCH",
         body: { status: truckData.status },
       });
-      latestTruck = res.data?.truck || res.data || latestTruck;
+      latestTruck = res.data?.vehicle || res.data?.truck || res.data || latestTruck;
     }
 
     // 3. Driver assignment / unassignment endpoints (/assign and /unassign)
     if (truckData.driverId === null || truckData.driverId === "") {
       const res = await this.unassignDriver(id);
-      latestTruck = res.data?.truck || res.truck || latestTruck;
+      latestTruck = res.data?.vehicle || res.data?.truck || res.truck || latestTruck;
     } else if (truckData.driverId) {
       const res = await this.assignDriver(id, { driverId: truckData.driverId });
-      latestTruck = res.data?.truck || res.truck || latestTruck;
+      latestTruck = res.data?.vehicle || res.data?.truck || res.truck || latestTruck;
     }
 
     if (!latestTruck) {
       latestTruck = await this.getTruckById(id);
     }
 
-    return { truck: latestTruck };
+    return { truck: latestTruck, vehicle: latestTruck };
   },
 
   /**
    * Assign Driver to Vehicle.
-   * @param {string} id - Truck UUID
+   * @param {string} id - Vehicle UUID
    * @param {{ driverId: string }} payload
    * @returns {Promise<{ truck: object, message: string }>} Updated driver assignment response
    */
@@ -1097,11 +1272,12 @@ export const fleetApi = {
 
       return {
         truck: updated,
+        vehicle: updated,
         message: "Driver successfully assigned",
       };
     }
 
-    const result = await apiClient(`/fleet/trucks/${id}/assign`, {
+    const result = await apiClient(`/fleet/vehicles/${id}/assign`, {
       method: "PATCH",
       body: { driverId },
     });
@@ -1110,7 +1286,7 @@ export const fleetApi = {
 
   /**
    * Unassign Driver from Vehicle.
-   * @param {string} id - Truck UUID
+   * @param {string} id - Vehicle UUID
    * @returns {Promise<{ truck: object, message: string }>} Unassigned driver response
    */
   async unassignDriver(id) {
@@ -1136,11 +1312,12 @@ export const fleetApi = {
 
       return {
         truck: updated,
+        vehicle: updated,
         message: "Driver successfully unassigned",
       };
     }
 
-    const result = await apiClient(`/fleet/trucks/${id}/unassign`, {
+    const result = await apiClient(`/fleet/vehicles/${id}/unassign`, {
       method: "PATCH",
     });
     return result.data;
@@ -1275,13 +1452,13 @@ export const fleetApi = {
       };
     }
 
-    const result = await apiClient(`/fleet/trucks/${id}/status`);
-    return result.data.truck;
+    const result = await apiClient(`/fleet/vehicles/${id}/status`);
+    return result.data?.vehicle || result.data?.truck || result.data;
   },
 
   /**
    * Set Vehicle Availability Status.
-   * @param {string} id - Truck UUID
+   * @param {string} id - Vehicle UUID
    * @param {{ status: string }} payload
    * @returns {Promise<{ truck: object, message: string }>} Updated status response
    */
@@ -1303,7 +1480,7 @@ export const fleetApi = {
         );
         if (hasActiveWorkOrder) {
           const err = new Error(
-            "Cannot activate vehicle: This truck is currently linked to an ongoing work order. Complete or cancel the work order first."
+            "Cannot activate vehicle: This vehicle is currently linked to an ongoing work order. Complete or cancel the work order first."
           );
           err.status = 409;
           err.code = "TRUCK_HAS_ACTIVE_WORK_ORDER";
@@ -1338,11 +1515,12 @@ export const fleetApi = {
 
       return {
         truck: updated,
+        vehicle: updated,
         message: "Vehicle availability status updated",
       };
     }
 
-    const result = await apiClient(`/fleet/trucks/${id}/status`, {
+    const result = await apiClient(`/fleet/vehicles/${id}/status`, {
       method: "PATCH",
       body: { status },
     });
@@ -1351,7 +1529,7 @@ export const fleetApi = {
 
   /**
    * Deactivate Vehicle (Soft decommission with password confirmation).
-   * @param {string} id - Truck UUID
+   * @param {string} id - Vehicle UUID
    * @param {{ confirmPassword?: string }} payload
    * @returns {Promise<{ truck: object, message: string }>} Deactivated vehicle response
    */
@@ -1387,6 +1565,7 @@ export const fleetApi = {
 
       return {
         truck: updated,
+        vehicle: updated,
         message: "Vehicle successfully deactivated",
       };
     }
@@ -1395,7 +1574,7 @@ export const fleetApi = {
       typeof confirmPassword === "object"
         ? confirmPassword?.confirmPassword || confirmPassword?.adminPassword
         : confirmPassword;
-    const result = await apiClient(`/fleet/trucks/${id}/deactivate`, {
+    const result = await apiClient(`/fleet/vehicles/${id}/deactivate`, {
       method: "PATCH",
       body: {
         confirmPassword: password,
@@ -1426,7 +1605,7 @@ export const fleetApi = {
 
   /**
    * Record Vehicle Mileage.
-   * @param {string} id - Truck UUID
+   * @param {string} id - Vehicle UUID
    * @param {{ odometer: number }} payload
    * @returns {Promise<{ truck: object, mileageSummary: object, message: string }>}
    */
@@ -1472,6 +1651,7 @@ export const fleetApi = {
 
       return {
         truck: updated,
+        vehicle: updated,
         mileageSummary: {
           previousOdometer,
           currentOdometer: newOdometer,
@@ -1483,7 +1663,7 @@ export const fleetApi = {
       };
     }
 
-    const result = await apiClient(`/fleet/trucks/${id}/mileage`, {
+    const result = await apiClient(`/fleet/vehicles/${id}/mileage`, {
       method: "PATCH",
       body: { odometer },
     });
@@ -1494,14 +1674,15 @@ export const fleetApi = {
    * Record Post-Dispatch Return Odometer.
    * Enforces monotonic odometer reading and computes 5,000-km PM progress.
    * Endpoint: POST /api/fleet/maintenance/odometer
-   * @param {{ truckId: string, odometerReading: number, source?: string, notes?: string }} payload
+   * @param {{ truckId?: string, vehicleId?: string, odometerReading: number, source?: string, notes?: string }} payload
    * @returns {Promise<{ status: string, message: string, data: object }>}
    */
-  async recordReturnOdometer({ truckId, odometerReading, source = "POST_DISPATCH_RETURN", notes = "" }) {
+  async recordReturnOdometer({ truckId, vehicleId, odometerReading, source = "POST_DISPATCH_RETURN", notes = "" }) {
+    const targetVehicleId = vehicleId || truckId;
     if (isMock) {
       await delay(250);
       const inMemoryTrucks = getInMemoryTrucks();
-      const index = inMemoryTrucks.findIndex((t) => t.id === truckId || t.truckId === truckId);
+      const index = inMemoryTrucks.findIndex((t) => t.id === targetVehicleId || t.truckId === targetVehicleId);
       const truck = index !== -1 ? inMemoryTrucks[index] : null;
 
       if (!truck) {
@@ -1555,7 +1736,8 @@ export const fleetApi = {
       const logs = getInMemoryOdometerLogs();
       const logEntry = {
         id: `odo-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        truckId,
+        truckId: targetVehicleId,
+        vehicleId: targetVehicleId,
         odometerReading: newOdo,
         distanceDelta: distanceDrivenThisTrip,
         loggedBy: "08df2719-0473-4a31-8b5c-dc977d6006c5",
@@ -1572,7 +1754,8 @@ export const fleetApi = {
         message: "Odometer reading recorded successfully.",
         data: {
           logId: logEntry.id,
-          truckId,
+          truckId: targetVehicleId,
+          vehicleId: targetVehicleId,
           plateNumber: truck.plateNumber,
           currentOdometer: newOdo,
           previousOdometer,
@@ -1583,6 +1766,7 @@ export const fleetApi = {
           remainingKmBeforePm,
           loggedAt: logEntry.loggedAt,
           truck: updatedTruck,
+          vehicle: updatedTruck,
         },
       };
     }
@@ -1590,7 +1774,8 @@ export const fleetApi = {
     const result = await apiClient("/fleet/maintenance/odometer", {
       method: "POST",
       body: {
-        truckId,
+        vehicleId: targetVehicleId,
+        truckId: targetVehicleId,
         odometerReading: Number(odometerReading),
         source: source || "POST_DISPATCH_RETURN",
         notes: notes || "",
@@ -1600,19 +1785,20 @@ export const fleetApi = {
   },
 
   /**
-   * View Truck Odometer Log History.
-   * Endpoint: GET /api/fleet/maintenance/odometer/truck/:truckId
-   * @param {string} truckId
+   * View Vehicle Odometer Log History.
+   * Modernized endpoint: GET /api/fleet/maintenance/odometer/vehicle/:vehicleId
+   * @param {string} truckId - Vehicle UUID
    * @param {object} [params] - { page, limit }
    * @returns {Promise<{ status: string, data: object }>}
    */
   async getTruckOdometerLogs(truckId, params = {}) {
+    const vehicleId = truckId;
     if (isMock) {
       await delay(200);
       const inMemoryTrucks = getInMemoryTrucks();
-      const truck = inMemoryTrucks.find((t) => t.id === truckId || t.truckId === truckId);
+      const truck = inMemoryTrucks.find((t) => t.id === vehicleId || t.truckId === vehicleId);
       const allLogs = getInMemoryOdometerLogs();
-      const truckLogs = allLogs.filter((l) => l.truckId === truckId);
+      const truckLogs = allLogs.filter((l) => l.truckId === vehicleId || l.vehicleId === vehicleId);
 
       const page = Math.max(1, Number(params.page) || 1);
       const limit = Math.max(1, Number(params.limit) || 20);
@@ -1624,7 +1810,8 @@ export const fleetApi = {
       return {
         status: "success",
         data: {
-          truckId,
+          truckId: vehicleId,
+          vehicleId,
           plateNumber: truck?.plateNumber || "",
           model: truck?.model || "",
           currentOdometer: truck?.currentOdometer || 0,
@@ -1650,7 +1837,7 @@ export const fleetApi = {
     if (params.page) query.append("page", params.page);
     if (params.limit) query.append("limit", params.limit);
     const queryString = query.toString() ? `?${query.toString()}` : "";
-    const result = await apiClient(`/fleet/maintenance/odometer/truck/${truckId}${queryString}`);
+    const result = await apiClient(`/fleet/maintenance/odometer/vehicle/${vehicleId}${queryString}`);
     return result;
   },
 
@@ -1799,17 +1986,25 @@ export const fleetApi = {
    * @returns {Promise<{ status: string, message: string, data: { inspection: object, truck: object } }>}
    */
   async createInspection(payload) {
-    if (!payload.truckId) throw new Error("Truck ID is required");
+    const targetVehicleId = payload.vehicleId || payload.truckId;
+    if (!targetVehicleId) throw new Error("Vehicle ID is required");
     if (!payload.result) throw new Error("Inspection result is required");
     if (!payload.findings || !payload.findings.trim()) {
       throw new Error("Inspection findings cannot be empty");
     }
 
+    const isFailed = payload.result === "FAILED";
+    const allowDispatch = isFailed ? false : (payload.allowDispatch !== undefined ? payload.allowDispatch : true);
+    const issueDetected =
+      payload.issueDetected !== undefined
+        ? payload.issueDetected
+        : payload.result !== "PASSED";
+
     if (isMock) {
       await delay(250);
       const trucks = getInMemoryTrucks();
       const targetIndex = trucks.findIndex(
-        (t) => t.id === payload.truckId || t.truckId === payload.truckId
+        (t) => t.id === targetVehicleId || t.truckId === targetVehicleId
       );
 
       if (targetIndex === -1) {
@@ -1818,9 +2013,8 @@ export const fleetApi = {
 
       const targetTruck = trucks[targetIndex];
       const prevStatus = targetTruck.status || targetTruck.operationalStatus || "ACTIVE";
-      const isFailed = payload.result === "FAILED";
       const isNeedsAttentionGrounded =
-        payload.result === "NEEDS_ATTENTION" && payload.allowDispatch === false;
+        payload.result === "NEEDS_ATTENTION" && allowDispatch === false;
       const shouldGround = isFailed || isNeedsAttentionGrounded;
 
       let currentStatus = prevStatus;
@@ -1837,6 +2031,7 @@ export const fleetApi = {
 
       const newInspection = {
         id: `insp-${Date.now()}`,
+        vehicleId: targetTruck.id,
         truckId: targetTruck.id,
         plateNumber: targetTruck.plateNumber,
         truckModel: targetTruck.model || "Isuzu Elf",
@@ -1845,14 +2040,8 @@ export const fleetApi = {
         inspectorUsername: "superadmin",
         result: payload.result,
         findings: payload.findings.trim(),
-        issueDetected:
-          payload.issueDetected !== undefined
-            ? payload.issueDetected
-            : payload.result !== "PASSED",
-        allowDispatch:
-          payload.allowDispatch !== undefined
-            ? payload.allowDispatch
-            : payload.result !== "FAILED",
+        issueDetected,
+        allowDispatch,
         inspectionDate: payload.inspectionDate || new Date().toISOString(),
       };
 
@@ -1886,24 +2075,32 @@ export const fleetApi = {
 
     const result = await apiClient("/fleet/maintenance/inspections", {
       method: "POST",
-      body: payload,
+      body: {
+        vehicleId: targetVehicleId,
+        truckId: targetVehicleId,
+        findings: payload.findings.trim(),
+        issueDetected,
+        result: payload.result,
+        allowDispatch,
+      },
     });
     return result;
   },
 
   /**
-   * View Truck Inspections History
-   * Endpoint: GET /api/fleet/maintenance/inspections/truck/:truckId
-   * @param {string} truckId
+   * View Vehicle Inspections History
+   * Modernized endpoint: GET /api/fleet/maintenance/inspections/vehicle/:vehicleId
+   * @param {string} truckId - Vehicle UUID
    * @param {{ page?: number, limit?: number, result?: string }} [params]
-   * @returns {Promise<{ status: string, data: { truckId: string, plateNumber: string, count: number, total: number, page: number, limit: number, inspections: Array } }>}
+   * @returns {Promise<{ status: string, data: { truckId: string, vehicleId: string, plateNumber: string, count: number, total: number, page: number, limit: number, inspections: Array } }>}
    */
   async getTruckInspections(truckId, params = {}) {
+    const vehicleId = truckId;
     if (isMock) {
       await delay(150);
       const allInspections = getInMemoryInspections();
       let list = allInspections.filter(
-        (i) => i.truckId === truckId || i.truckId === `trk-${truckId}`
+        (i) => i.truckId === vehicleId || i.vehicleId === vehicleId || i.truckId === `trk-${vehicleId}`
       );
 
       if (params.result && params.result !== "All") {
@@ -1912,13 +2109,14 @@ export const fleetApi = {
 
       const trucks = getInMemoryTrucks();
       const targetTruck = trucks.find(
-        (t) => t.id === truckId || t.truckId === truckId
+        (t) => t.id === vehicleId || t.truckId === vehicleId
       );
 
       return {
         status: "success",
         data: {
-          truckId,
+          truckId: vehicleId,
+          vehicleId,
           plateNumber: targetTruck?.plateNumber || "ABC-1001",
           count: list.length,
           total: list.length,
@@ -1936,7 +2134,7 @@ export const fleetApi = {
     const queryString = query.toString() ? `?${query.toString()}` : "";
 
     const result = await apiClient(
-      `/fleet/maintenance/inspections/truck/${truckId}${queryString}`
+      `/fleet/maintenance/inspections/vehicle/${vehicleId}${queryString}`
     );
     return result;
   },
@@ -2151,22 +2349,23 @@ export const fleetApi = {
   },
 
   /**
-   * View Truck Incident History
-   * Endpoint: GET /api/fleet/maintenance/incidents/truck/:truckId
-   * @param {string} truckId
+   * View Vehicle Incident History
+   * Modernized endpoint: GET /api/fleet/maintenance/incidents/vehicle/:vehicleId
+   * @param {string} truckId - Vehicle UUID
    * @param {{ page?: number, limit?: number }} [params]
-   * @returns {Promise<{ status: string, data: { truckId: string, plateNumber: string, count: number, total: number, page: number, limit: number, incidents: Array } }>}
+   * @returns {Promise<{ status: string, data: { truckId: string, vehicleId: string, plateNumber: string, count: number, total: number, page: number, limit: number, incidents: Array } }>}
    */
   async getTruckIncidents(truckId, params = {}) {
+    const vehicleId = truckId;
     if (isMock) {
       await delay(150);
       const allIncidents = getInMemoryIncidents();
       const list = allIncidents.filter(
-        (i) => i.truckId === truckId || i.truckId === `trk-${truckId}`
+        (i) => i.truckId === vehicleId || i.vehicleId === vehicleId || i.truckId === `trk-${vehicleId}`
       );
       const trucks = getInMemoryTrucks();
       const targetTruck = trucks.find(
-        (t) => t.id === truckId || t.truckId === truckId
+        (t) => t.id === vehicleId || t.truckId === vehicleId
       );
 
       const page = Math.max(1, Number(params.page) || 1);
@@ -2178,7 +2377,8 @@ export const fleetApi = {
       return {
         status: "success",
         data: {
-          truckId,
+          truckId: vehicleId,
+          vehicleId,
           plateNumber: targetTruck?.plateNumber || "ABC-1001",
           count: paginated.length,
           total: totalItems,
@@ -2203,7 +2403,7 @@ export const fleetApi = {
     const queryString = query.toString() ? `?${query.toString()}` : "";
 
     const result = await apiClient(
-      `/fleet/maintenance/incidents/truck/${truckId}${queryString}`
+      `/fleet/maintenance/incidents/vehicle/${vehicleId}${queryString}`
     );
     return result;
   },
@@ -2607,9 +2807,25 @@ export const fleetApi = {
 
       if (wo.approvalRequest) {
         wo.approvalRequest.status = targetApprovalStatus;
+        wo.approvalRequest.isApproved = isApproved;
         wo.approvalRequest.decidedBy = "08df2719-0473-4a31-8b5c-dc977d6006c5";
+        wo.approvalRequest.deciderName = "Super Admin (Logistics Supervisor)";
         wo.approvalRequest.decisionDate = new Date().toISOString();
         wo.approvalRequest.remarks = remarks?.trim() || null;
+      }
+
+      const allApprovalRequests = getInMemoryApprovalRequests();
+      const req = allApprovalRequests.find(
+        (r) => r.workOrderId === id && (r.status === "PENDING" || r.isApproved === null)
+      );
+      if (req) {
+        req.status = targetApprovalStatus;
+        req.isApproved = isApproved;
+        req.decidedDate = new Date().toISOString();
+        req.deciderId = "08df2719-0473-4a31-8b5c-dc977d6006c5";
+        req.deciderName = "Super Admin (Logistics Supervisor)";
+        req.remarks = remarks?.trim() || req.remarks || null;
+        saveInMemoryApprovalRequests(allApprovalRequests);
       }
 
       saveInMemoryWorkOrders(orders);
@@ -2621,6 +2837,7 @@ export const fleetApi = {
           workOrder: {
             id: wo.id,
             truckId: wo.truckId,
+            vehicleId: wo.truckId,
             plateNumber: wo.plateNumber,
             status: targetStatus,
             approvedAt: wo.approvedAt,
@@ -2630,7 +2847,9 @@ export const fleetApi = {
           approvalRequest: wo.approvalRequest || {
             id: `appr-${Date.now()}`,
             status: targetApprovalStatus,
+            isApproved,
             decidedBy: "08df2719-0473-4a31-8b5c-dc977d6006c5",
+            deciderName: "Super Admin (Logistics Supervisor)",
             decisionDate: new Date().toISOString(),
             remarks: remarks?.trim() || null,
           },
@@ -2646,17 +2865,221 @@ export const fleetApi = {
   },
 
   /**
+   * Submit Cost Approval Request (1:N Multi-Approval)
+   * Submits a cost approval request for a work order (initial or revised quotation).
+   * Transitions the work order status back to 'PENDING'.
+   * Endpoint: POST /api/fleet/maintenance/work-orders/:id/approval-requests
+   * @param {string} id - Work order UUID
+   * @param {{ amountRequested?: number, remarks?: string }} payload
+   * @returns {Promise<{ status: string, message: string, data: { workOrder: object, approvalRequest: object } }>}
+   */
+  async submitWorkOrderApprovalRequest(id, { amountRequested, remarks } = {}) {
+    if (isMock) {
+      await delay(250);
+      const orders = getInMemoryWorkOrders();
+      const woIndex = orders.findIndex((w) => w.id === id);
+      if (woIndex === -1) throw new Error("Work order not found");
+
+      const wo = orders[woIndex];
+      const amount = amountRequested !== undefined ? Number(amountRequested) : Number(wo.estimatedCost);
+
+      const allRequests = getInMemoryApprovalRequests();
+      const hasPending = allRequests.some(
+        (r) => r.workOrderId === id && (r.status === "PENDING" || r.isApproved === null)
+      );
+      if (hasPending) {
+        throw new Error("A cost approval request is already pending review for this work order.");
+      }
+
+      wo.status = "PENDING";
+      wo.approvalStatus = "PENDING";
+      wo.estimatedCost = amount;
+      wo.updatedAt = new Date().toISOString();
+
+      const newRequest = {
+        id: `appr-${Date.now()}`,
+        workOrderId: id,
+        amountRequested: amount,
+        isApproved: null,
+        status: "PENDING",
+        remarks: remarks?.trim() || "Revised quote request",
+        requestedDate: new Date().toISOString(),
+        decidedDate: null,
+        deciderId: null,
+        deciderName: null,
+        createdAt: new Date().toISOString(),
+      };
+
+      wo.approvalRequest = newRequest;
+      saveInMemoryWorkOrders(orders);
+      saveInMemoryApprovalRequests([newRequest, ...allRequests]);
+
+      return {
+        status: "success",
+        message: "Approval request submitted successfully.",
+        data: {
+          workOrder: {
+            id: wo.id,
+            vehicleId: wo.truckId,
+            truckId: wo.truckId,
+            plateNumber: wo.plateNumber,
+            status: "PENDING",
+            estimatedCost: amount,
+            updatedAt: wo.updatedAt,
+          },
+          approvalRequest: newRequest,
+        },
+      };
+    }
+
+    const result = await apiClient(`/fleet/maintenance/work-orders/${id}/approval-requests`, {
+      method: "POST",
+      body: { amountRequested, remarks },
+    });
+    return result;
+  },
+
+  /**
+   * Get Work Order Approval Requests
+   * Retrieves historical approval requests associated with a work order.
+   * Endpoint: GET /api/fleet/maintenance/work-orders/:id/approval-requests
+   * @param {string} id - Work order UUID
+   * @returns {Promise<{ status: string, data: { count: number, approvalRequests: Array } }>}
+   */
+  async getWorkOrderApprovalRequests(id) {
+    if (isMock) {
+      await delay(150);
+      const allRequests = getInMemoryApprovalRequests();
+      const filtered = allRequests
+        .filter((r) => r.workOrderId === id)
+        .sort((a, b) => new Date(b.requestedDate || b.createdAt) - new Date(a.requestedDate || a.createdAt));
+
+      return {
+        status: "success",
+        data: {
+          count: filtered.length,
+          approvalRequests: filtered,
+        },
+      };
+    }
+
+    const result = await apiClient(`/fleet/maintenance/work-orders/${id}/approval-requests`);
+    return result;
+  },
+
+  /**
+   * Attach Receipt to Work Order
+   * Endpoint: POST /api/fleet/maintenance/work-orders/:id/receipts
+   * @param {string} id - Work order UUID
+   * @param {{ fileUrl?: string, fileName?: string, receiptNumber?: string, vendorName?: string, amount?: number, receiptType?: 'PARTS'|'LABOR'|'MISC', receiptDate?: string }} payload
+   * @returns {Promise<{ status: string, message: string, data: { receipt: object } }>}
+   */
+  async attachWorkOrderReceipt(id, payload) {
+    if (isMock) {
+      await delay(200);
+      const orders = getInMemoryWorkOrders();
+      const wo = orders.find((w) => w.id === id);
+      if (!wo) throw new Error("Work order not found");
+
+      const allReceipts = getInMemoryReceipts();
+      const newReceipt = {
+        id: `rec-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        workOrderId: id,
+        fileUrl: payload.fileUrl || null,
+        fileName: payload.fileName || (payload.fileUrl ? "receipt-doc.pdf" : null),
+        receiptNumber: payload.receiptNumber || `REC-${Date.now().toString().slice(-5)}`,
+        vendorName: payload.vendorName || wo.shopName || "Service Provider",
+        amount: Number(payload.amount) || 0,
+        receiptType: payload.receiptType || "PARTS",
+        receiptDate: payload.receiptDate || new Date().toISOString().split("T")[0],
+        uploadedBy: "08df2719-0473-4a31-8b5c-dc977d6006c5",
+        uploaderName: "Logistics Supervisor",
+        createdAt: new Date().toISOString(),
+      };
+
+      saveInMemoryReceipts([newReceipt, ...allReceipts]);
+
+      return {
+        status: "success",
+        message: "Receipt attached successfully",
+        data: {
+          receipt: newReceipt,
+        },
+      };
+    }
+
+    const result = await apiClient(`/fleet/maintenance/work-orders/${id}/receipts`, {
+      method: "POST",
+      body: payload,
+    });
+    return result;
+  },
+
+  /**
+   * List Work Order Receipts
+   * Endpoint: GET /api/fleet/maintenance/work-orders/:id/receipts
+   * @param {string} id - Work order UUID
+   * @returns {Promise<{ status: string, data: { count: number, receipts: Array } }>}
+   */
+  async getWorkOrderReceipts(id) {
+    if (isMock) {
+      await delay(150);
+      const allReceipts = getInMemoryReceipts();
+      const filtered = allReceipts
+        .filter((r) => r.workOrderId === id)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      return {
+        status: "success",
+        data: {
+          count: filtered.length,
+          receipts: filtered,
+        },
+      };
+    }
+
+    const result = await apiClient(`/fleet/maintenance/work-orders/${id}/receipts`);
+    return result;
+  },
+
+  /**
+   * Delete Work Order Receipt Attachment
+   * Endpoint: DELETE /api/fleet/maintenance/receipts/:receiptId
+   * @param {string} receiptId
+   * @returns {Promise<{ status: string, message: string }>}
+   */
+  async deleteWorkOrderReceipt(receiptId) {
+    if (isMock) {
+      await delay(150);
+      const allReceipts = getInMemoryReceipts();
+      const filtered = allReceipts.filter((r) => r.id !== receiptId);
+      saveInMemoryReceipts(filtered);
+
+      return {
+        status: "success",
+        message: "Receipt deleted successfully",
+      };
+    }
+
+    const result = await apiClient(`/fleet/maintenance/receipts/${receiptId}`, {
+      method: "DELETE",
+    });
+    return result;
+  },
+
+  /**
    * Finalize Maintenance Log & Release Vehicle
    * Marks work order COMPLETED, resets 5,000-km PM baseline if PREVENTIVE,
    * restores vehicle availability to ACTIVE, and retains soft-bound driver.
    * Endpoint: POST /api/fleet/maintenance/work-orders/:id/finalize
    * @param {string} id - Work order UUID
-   * @param {{ officialReceiptNumber: string, severity: 'LOW'|'MEDIUM'|'HIGH'|'CRITICAL', dateStarted: string, dateResolved: string, partsCost?: number, laborCost?: number, downtimeDays?: number, odometerAtService: number }} payload
+   * @param {{ officialReceiptNumber?: string, severity: 'LOW'|'MEDIUM'|'HIGH'|'CRITICAL', dateStarted: string, dateResolved: string, partsCost?: number, laborCost?: number, downtimeDays?: number, odometerAtService: number, receipts?: Array }} payload
    * @returns {Promise<{ status: string, message: string, data: { maintenanceLog: object, workOrder: object, truck: object } }>}
    */
   async finalizeWorkOrder(id, payload) {
-    if (!payload.officialReceiptNumber || !payload.officialReceiptNumber.trim()) {
-      throw new Error("Official Receipt (OR) number is required");
+    const orNumber = (payload.officialReceiptNumber || payload.receipts?.[0]?.receiptNumber || "").trim();
+    if (!orNumber && (!payload.receipts || payload.receipts.length === 0)) {
+      throw new Error("Official Receipt (OR) number or attached receipt document is required");
     }
     if (!payload.dateStarted) throw new Error("Repair start date is required");
     if (!payload.dateResolved) throw new Error("Repair completion date is required");
@@ -2671,17 +3094,37 @@ export const fleetApi = {
       if (woIndex === -1) throw new Error("Work order not found");
 
       const wo = orders[woIndex];
-      const orNumber = payload.officialReceiptNumber.trim();
+      const primaryOR = orNumber || `OR-${Date.now().toString().slice(-6)}`;
 
-      // Check unique receipt number constraint
+      // Check unique receipt number constraint against existing logs
       const existingLogs = getInMemoryMaintenanceLogs();
       const duplicateOR = existingLogs.find(
-        (l) => l.officialReceiptNumber.toLowerCase() === orNumber.toLowerCase()
+        (l) => l.officialReceiptNumber.toLowerCase() === primaryOR.toLowerCase()
       );
       if (duplicateOR) {
         throw new Error(
-          `Official receipt number '${orNumber}' has already been registered in maintenance logs`
+          `Official receipt number '${primaryOR}' has already been registered in maintenance logs`
         );
+      }
+
+      // If receipts array provided in payload, attach them to in-memory receipts
+      if (payload.receipts && Array.isArray(payload.receipts) && payload.receipts.length > 0) {
+        const allReceipts = getInMemoryReceipts();
+        const newReceipts = payload.receipts.map((r, idx) => ({
+          id: r.id || `rec-${Date.now()}-${idx}`,
+          workOrderId: id,
+          fileUrl: r.fileUrl || null,
+          fileName: r.fileName || (r.fileUrl ? `Receipt-${idx + 1}` : null),
+          receiptNumber: r.receiptNumber || primaryOR,
+          vendorName: r.vendorName || wo.shopName || "Service Provider",
+          amount: Number(r.amount) || 0,
+          receiptType: r.receiptType || "PARTS",
+          receiptDate: r.receiptDate || new Date().toISOString().split("T")[0],
+          uploadedBy: "08df2719-0473-4a31-8b5c-dc977d6006c5",
+          uploaderName: "Logistics Supervisor",
+          createdAt: new Date().toISOString(),
+        }));
+        saveInMemoryReceipts([...newReceipts, ...allReceipts]);
       }
 
       // 1. Mark Work Order as COMPLETED
@@ -2713,11 +3156,14 @@ export const fleetApi = {
           Number(targetTruck.currentOdometer) || 0,
           Number(payload.odometerAtService)
         );
+        const distSinceLastPm = Math.max(0, targetTruck.currentOdometer - (targetTruck.lastPmOdometer || 0));
+        targetTruck.pmDueFlag = distSinceLastPm >= 5000;
+        targetTruck.isPmDue = targetTruck.pmDueFlag;
         targetTruck.updatedAt = new Date().toISOString();
         saveInMemoryTrucks(trucks);
       }
 
-      // 3. Create historical maintenance log record
+      // 3. Create historical maintenance log record (manual parts + labor = totalCost)
       const partsCost = Number(payload.partsCost) || 0;
       const laborCost = Number(payload.laborCost) || 0;
       const totalCost = partsCost + laborCost;
@@ -2726,6 +3172,7 @@ export const fleetApi = {
         id: `mlog-${Date.now()}`,
         workOrderId: wo.id,
         truckId: wo.truckId,
+        vehicleId: wo.truckId,
         plateNumber: wo.plateNumber,
         truckModel: wo.truckModel,
         maintenanceTypeId: wo.maintenanceTypeId,
@@ -2738,7 +3185,7 @@ export const fleetApi = {
         totalCost,
         downtimeDays: Number(payload.downtimeDays) || 1,
         odometerAtService: Number(payload.odometerAtService),
-        officialReceiptNumber: orNumber,
+        officialReceiptNumber: primaryOR,
         createdAt: new Date().toISOString(),
         shopName: wo.shopName,
         description: wo.description,
@@ -2764,16 +3211,22 @@ export const fleetApi = {
                 status: "ACTIVE",
                 currentOdometer: targetTruck.currentOdometer,
                 lastPmOdometer: targetTruck.lastPmOdometer,
+                pmDueFlag: targetTruck.pmDueFlag,
+                isPmDue: targetTruck.isPmDue,
                 isPmReset: wo.maintenanceTypeName === "PREVENTIVE",
               }
             : null,
+          vehicle: targetTruck,
         },
       };
     }
 
     const result = await apiClient(`/fleet/maintenance/work-orders/${id}/finalize`, {
       method: "POST",
-      body: payload,
+      body: {
+        ...payload,
+        officialReceiptNumber: orNumber || payload.officialReceiptNumber,
+      },
     });
     return result;
   },

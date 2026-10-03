@@ -1,9 +1,9 @@
-// src/components/fleet/work-orders/CreateWorkOrderModal.jsx
 import { useState, useEffect } from "react";
 import { Truck, AlertTriangle, AlertOctagon, Calendar, MapPin } from "lucide-react";
 import { fleetApi } from "../../../api/fleet.js";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
+import Badge from "../../ui/Badge";
 
 /**
  * Helper to get today's calendar date in YYYY-MM-DD format based on local time.
@@ -133,6 +133,7 @@ export default function CreateWorkOrderModal({
 
       const payload = {
         truckId: selectedTruckId,
+        vehicleId: selectedTruckId,
         maintenanceTypeId: Number(maintenanceTypeId),
         shopName: shopName.trim() || "Bunawan Heavy Repair Center",
         estimatedCost: numCost,
@@ -204,9 +205,16 @@ export default function CreateWorkOrderModal({
                 <Truck size={20} />
               </div>
               <div>
-                <h3 className="font-bold text-[#0A4B6E] text-base leading-tight">
-                  {truck.plateNumber || "Truck"}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-[#0A4B6E] text-base leading-tight">
+                    {truck.plateNumber || "Truck"}
+                  </h3>
+                  {truck.vehicleType && (
+                    <Badge variant="info" className="text-[9.5px] px-2 py-0">
+                      {truck.vehicleType.replace("_", " ")}
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-xs text-[#588094]">
                   {truck.model || "Isuzu Elf"} {truck.yearModel ? `(${truck.yearModel})` : ""}
                 </p>
@@ -229,9 +237,10 @@ export default function CreateWorkOrderModal({
             >
               {trucks.map((t) => {
                 const driver = getDriverDisplay(t);
+                const typeStr = t.vehicleType ? ` • ${t.vehicleType.replace("_", " ")}` : "";
                 return (
                   <option key={t.id} value={t.id}>
-                    {t.plateNumber || "Truck"} — {t.model || "Fleet Asset"} ({driver})
+                    {t.plateNumber || "Truck"} — {t.model || "Fleet Asset"}{typeStr} ({driver})
                   </option>
                 );
               })}

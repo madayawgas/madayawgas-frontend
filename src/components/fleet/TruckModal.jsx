@@ -50,6 +50,7 @@ const getInitialFormData = (t) => {
     : t?.driverName || "";
 
   return {
+    vehicleType: t?.vehicleType || "DELIVERY_TRUCK",
     status: t?.status || t?.operationalStatus || "ACTIVE",
     plateNumber: t?.plateNumber || "",
     model: t?.model || "Isuzu Elf",
@@ -393,6 +394,7 @@ export default function TruckModal({
 
     const finalData = {
       ...(truck || {}),
+      vehicleType: formData.vehicleType || "DELIVERY_TRUCK",
       plateNumber: formData.plateNumber.trim(),
       model: formData.model.trim(),
       yearModel: Number(formData.yearModel) || new Date().getFullYear(),
@@ -469,6 +471,7 @@ export default function TruckModal({
         : "No Assigned";
 
     const finalData = {
+      vehicleType: formData.vehicleType || "DELIVERY_TRUCK",
       plateNumber: formData.plateNumber.trim(),
       model: formData.model.trim(),
       yearModel: Number(formData.yearModel) || new Date().getFullYear(),
@@ -581,6 +584,12 @@ export default function TruckModal({
         >
           {displayTruck.status?.replace("_", " ") || "ACTIVE"}
         </Badge>
+
+        {displayTruck.vehicleType && (
+          <Badge variant="info" className="px-2.5 py-0.5 text-xs font-bold">
+            {displayTruck.vehicleType.replace("_", " ")}
+          </Badge>
+        )}
 
         {hasNeedsAttention && (
           <Badge
@@ -1028,9 +1037,16 @@ export default function TruckModal({
                   <Truck size={24} className="text-[#FFDF2C]" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-base sm:text-lg font-bold text-[#0A4B6E] truncate">
-                    {formData.plateNumber || "-"}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-bold text-[#0A4B6E] truncate">
+                      {formData.plateNumber || "-"}
+                    </h3>
+                    {formData.vehicleType && (
+                      <Badge variant="info" className="text-[9.5px] px-2 py-0">
+                        {formData.vehicleType.replace("_", " ")}
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-xs text-[#6D8AA2] font-medium">
                     {formData.model || "Isuzu Elf"}{" "}
                     {formData.yearModel ? `(${formData.yearModel})` : ""}
@@ -1247,6 +1263,23 @@ export default function TruckModal({
                 </span>
               )}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1">
+              Vehicle Classification <span className="text-[#CD3E3E]">*</span>
+            </label>
+            <select
+              name="vehicleType"
+              value={formData.vehicleType || "DELIVERY_TRUCK"}
+              onChange={handleInputChange}
+              className="w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 outline-none focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10 transition-all cursor-pointer"
+            >
+              <option value="DELIVERY_TRUCK">Delivery Truck</option>
+              <option value="SERVICE_PICKUP">Service Pickup</option>
+              <option value="MOTORCYCLE">Motorcycle</option>
+              <option value="UTILITY_VAN">Utility Van</option>
+            </select>
           </div>
         </div>
 

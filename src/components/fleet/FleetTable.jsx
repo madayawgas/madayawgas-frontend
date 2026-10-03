@@ -115,7 +115,9 @@ export default function FleetTable({
                 );
                 const distanceSinceLastPm = Math.max(0, currentOdo - lastPmOdo);
                 const isPmDue =
-                  truck.isPmDue !== undefined
+                  truck.pmDueFlag !== undefined
+                    ? Boolean(truck.pmDueFlag)
+                    : truck.isPmDue !== undefined
                     ? Boolean(truck.isPmDue)
                     : distanceSinceLastPm >= 5000;
                 const pmPercent = Math.min(
@@ -157,8 +159,15 @@ export default function FleetTable({
                           <Truck size={15} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="font-bold text-[#0A4B6E] truncate text-xs md:text-sm">
-                            {truck.plateNumber || `Truck #${truck.truckId || truck.id}`}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-[#0A4B6E] truncate text-xs md:text-sm">
+                              {truck.plateNumber || `Truck #${truck.truckId || truck.id}`}
+                            </span>
+                            {truck.vehicleType && (
+                              <Badge variant="info" className="px-1.5 py-0 text-[9px] font-bold">
+                                {truck.vehicleType.replace("_", " ")}
+                              </Badge>
+                            )}
                           </div>
                           <div className="text-[11px] text-[#6D8AA2] truncate">
                             {truck.model || "Isuzu Elf"}

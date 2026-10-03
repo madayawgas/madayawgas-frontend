@@ -37,8 +37,14 @@ export default function TruckCard({
       : truck.lastPMOdometer || 0
   );
   const distanceSinceLastPm = Math.max(0, currentOdo - lastPmOdo);
-  const isPmDue = truck.isPmDue !== undefined ? Boolean(truck.isPmDue) : distanceSinceLastPm >= 5000;
+  const isPmDue =
+    truck.pmDueFlag !== undefined
+      ? Boolean(truck.pmDueFlag)
+      : truck.isPmDue !== undefined
+      ? Boolean(truck.isPmDue)
+      : distanceSinceLastPm >= 5000;
   const pmPercent = Math.min(100, Math.round((distanceSinceLastPm / 5000) * 100));
+  const vehicleType = truck.vehicleType || "DELIVERY_TRUCK";
 
   const odometerDisplay = `${currentOdo.toLocaleString()} KM`;
 
@@ -87,21 +93,31 @@ export default function TruckCard({
             <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 font-bold shadow-xs bg-[#0A4B6E] text-[#FFDF2C]">
               <Truck size={16} />
             </div>
-            <h3 className="font-bold text-base sm:text-lg tracking-wide truncate">
-              {truck.plateNumber || `Truck #${truck.truckId || truck.id}`}
-            </h3>
+            <div className="min-w-0">
+              <h3 className="font-bold text-base sm:text-lg tracking-wide truncate">
+                {truck.plateNumber || `Truck #${truck.truckId || truck.id}`}
+              </h3>
+            </div>
           </div>
 
-          {/* PM DUE / NEAR BADGE */}
-          {isPmDue ? (
-            <Badge variant="danger" className="px-2.5 py-0.5 text-[10px] font-extrabold shrink-0">
-              PM DUE
-            </Badge>
-          ) : distanceSinceLastPm >= 4000 ? (
-            <Badge variant="warning" className="px-2 py-0.5 text-[10px] font-bold shrink-0">
-              PM NEAR
-            </Badge>
-          ) : null}
+          <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+            {vehicleType && (
+              <Badge variant="info" className="px-2 py-0.5 text-[9.5px] font-bold">
+                {vehicleType.replace("_", " ")}
+              </Badge>
+            )}
+
+            {/* PM DUE / NEAR BADGE */}
+            {isPmDue ? (
+              <Badge variant="danger" className="px-2.5 py-0.5 text-[10px] font-extrabold shrink-0">
+                PM DUE
+              </Badge>
+            ) : distanceSinceLastPm >= 4000 ? (
+              <Badge variant="warning" className="px-2 py-0.5 text-[10px] font-bold shrink-0">
+                PM NEAR
+              </Badge>
+            ) : null}
+          </div>
         </div>
 
         {/* CARD BODY */}

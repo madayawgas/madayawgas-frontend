@@ -155,7 +155,7 @@ All entity creation and modification flows follow the standard multi-step modal 
 - **API Design Rule**: There is **NO standalone `/api/users/verify-password` endpoint**. The backend validates `confirmPassword` directly within the respective dangerous operation endpoints:
   - Deactivate Customer: `PATCH /api/sales/customers/:id/deactivate` with body `{ confirmPassword }`
   - Deactivate Item/Product: `PATCH /api/inventory/products/:id/deactivate` with body `{ confirmPassword }`
-  - Deactivate Vehicle Asset: `PATCH /api/fleet/trucks/:id/deactivate` with body `{ confirmPassword }`
+  - Deactivate Vehicle Asset: `PATCH /api/fleet/vehicles/:id/deactivate` with body `{ confirmPassword }`
   - Update User Status (Deactivate/Activate/Block): `PATCH /api/users/:id/status` with body `{ confirmPassword, isActive, isBlocked }`
   - Reset User Credentials: `PATCH /api/users/:id/credentials` with body `{ confirmPassword, resetPassword, username }`
   - Change User Role: `PATCH /api/users/:id/role` with body `{ confirmPassword, roleId }`
@@ -219,18 +219,18 @@ The application supports all Philippine contact number formats:
 - **Features**: Multi-step user wizard, password reset, temporary credentials generator, deactivation, reactivation, and RBAC permissions modal matrix.
 
 ### 3. Fleet & Maintenance (`/fleet`)
-- **Contracts**: `docs/api-contracts/fleet/` (`availability.api.md`, `drivers.api.md`, `maintenance.api.md`, `trucks.api.md`)
-- **Fields**: `id` (UUID), `plateNumber`, `model`, `yearModel`, `currentOdometer`, `lastPmOdometer`, `status` (`ACTIVE`, `UNDER_MAINTENANCE`, `INACTIVE`, `RETIRED`), `driverId`, `driver`, `createdAt`, `updatedAt`.
+- **Contracts**: `docs/api-contracts/fleet/` (`availability.api.md`, `drivers.api.md`, `maintenance.api.md`, `vehicles.api.md`)
+- **Fields**: `id` (UUID), `plateNumber`, `model`, `yearModel`, `vehicleType` (`DELIVERY_TRUCK`, `SERVICE_PICKUP`, `MOTORCYCLE`, `UTILITY_VAN`), `currentOdometer`, `lastPmOdometer`, `status` (`ACTIVE`, `UNDER_MAINTENANCE`, `INACTIVE`, `RETIRED`), `driverId`, `driver`, `pmDueFlag`, `createdAt`, `updatedAt`.
 - **Sub-Navigation Tabs**:
-  - `Vehicles & Fleets`: Grid of fleet assets, PM progress gauges, operational status, and 1:1 soft-bound driver management.
-  - `Work Orders`: Lifecycle tracking (`PENDING` -> `APPROVED` -> `SCHEDULED` -> `IN_PROGRESS` -> `COMPLETED`), with ₱5,000.00 cost approval gatekeeping and status filters.
-  - `Maintenance Logs`: Historical record archive of completed repairs with official receipt numbers, parts/labor breakdown, and fleet downtime metrics.
+  - `Vehicles & Fleets`: Grid of fleet assets, PM progress gauges, operational status, vehicle type badges, and 1:1 soft-bound driver management.
+  - `Work Orders`: Lifecycle tracking (`PENDING` -> `APPROVED` -> `SCHEDULED` -> `IN_PROGRESS` -> `COMPLETED`), sequential multi-approval requests (`POST /approval-requests`), ₱5,000.00 cost gatekeeping, and status filters.
+  - `Maintenance Logs`: Historical record archive of completed repairs with official receipt numbers, decoupled supporting audit receipts (photo upload & manual fallback), parts/labor breakdown, and fleet downtime metrics.
   - `Recurring Defect Intelligence`: Cross-fleet analytics highlighting chronic mechanical defects and repeated incident clusters over configurable time horizons.
 - **Key Invariants**:
-  - **Findings-Only Inspections**: Safety inspections record free-text findings and dispatch gating without checklists. FAILED outcomes automatically ground the vehicle (`UNDER_MAINTENANCE`).
-  - **Driver Soft-Binding Retention**: Grounding a vehicle (`UNDER_MAINTENANCE`) retains the driver relationship.
-  - **₱5,000 Gatekeeping**: Repairs >= ₱5,000 require executive managerial authorization (`users.manage`).
-  - **Finalization & PM Baseline Reset**: Work orders can only be marked `COMPLETED` via `/finalize` with a unique official receipt. For `PREVENTIVE` orders, `lastPmOdometer` resets to serviced odometer.
+  - **Findings-Only Inspections**: Safety inspections record free-text findings and dispatch gating without checklists (`{ vehicleId, findings, issueDetected, result, allowDispatch }`). FAILED outcomes automatically ground the vehicle (`UNDER_MAINTENANCE`), while `NEEDS_ATTENTION` allows supervisor discretion dispatch gating.
+  - **Driver Soft-Binding Retention**: Grounding a vehicle (`UNDER_MAINTENANCE`) retains the soft-bound driver relationship.
+  - **₱5,000 Gatekeeping & Sequential Re-Approvals**: Repairs >= ₱5,000 require executive managerial authorization (`users.manage`). Revised estimates are submitted via sequential approval requests; re-approval requests are inhibited while a request is pending review.
+  - **Decoupled Financials & Finalization**: Work orders can only be marked `COMPLETED` via `/finalize` with manual `partsCost` + `laborCost` (sole truth for math) and supporting audit receipts. For `PREVENTIVE` orders, `lastPmOdometer` resets to serviced odometer.
 - **Caching**: `localStorage` keys `app_fleet_cache`, `app_work_orders_cache`, `app_maintenance_logs_cache`.
 
 ### 4. Item Profile / Inventory (`/item-profile`, `/inventory`)

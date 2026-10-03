@@ -59,7 +59,9 @@ export default function TruckDetailPanel({
   );
   const distanceSinceLastPm = Math.max(0, currentOdo - lastPmOdo);
   const isPmDue =
-    truck.isPmDue !== undefined
+    truck.pmDueFlag !== undefined
+      ? Boolean(truck.pmDueFlag)
+      : truck.isPmDue !== undefined
       ? Boolean(truck.isPmDue)
       : distanceSinceLastPm >= 5000;
   const pmPercent = Math.min(
@@ -168,6 +170,15 @@ export default function TruckDetailPanel({
             {truck.status?.replace("_", " ") || "ACTIVE"}
           </Badge>
 
+          {truck.vehicleType && (
+            <Badge
+              variant="info"
+              className="px-2.5 py-0.5 text-xs font-bold"
+            >
+              {truck.vehicleType.replace("_", " ")}
+            </Badge>
+          )}
+
           {isPmDue ? (
             <Badge variant="danger" className="px-2.5 py-0.5 text-[10px] font-extrabold">
               PM DUE
@@ -257,6 +268,13 @@ export default function TruckDetailPanel({
           </h3>
 
           <div className="space-y-2 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-slate-500">Vehicle Classification</span>
+              <span className="font-bold text-[#0A4B6E]">
+                {(truck.vehicleType || "DELIVERY_TRUCK").replace("_", " ")}
+              </span>
+            </div>
+
             <div className="flex items-center justify-between gap-2">
               <span className="text-slate-500 flex items-center gap-1.5">
                 <Route size={13} className="text-slate-400" />

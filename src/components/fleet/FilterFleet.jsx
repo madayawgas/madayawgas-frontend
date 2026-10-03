@@ -14,6 +14,7 @@ export default function FilterFleet({
   const [isOpen, setIsOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(activeFilters.status || "");
   const [selectedDriver, setSelectedDriver] = useState(activeFilters.driver || "All Drivers");
+  const [selectedVehicleType, setSelectedVehicleType] = useState(activeFilters.vehicleType || "");
   const [selectedPmStatus, setSelectedPmStatus] = useState(activeFilters.pmStatus || "");
   const [dateFrom, setDateFrom] = useState(activeFilters.dateFrom || "");
   const [dateTo, setDateTo] = useState(activeFilters.dateTo || "");
@@ -27,12 +28,20 @@ export default function FilterFleet({
     { key: "RETIRED", label: "RETIRED", activeBg: "bg-amber-600 text-white border-amber-600", inactiveBg: "bg-amber-50 text-amber-700 border-amber-200" },
   ];
 
+  const vehicleTypes = [
+    { key: "DELIVERY_TRUCK", label: "DELIVERY TRUCK" },
+    { key: "SERVICE_PICKUP", label: "SERVICE PICKUP" },
+    { key: "MOTORCYCLE", label: "MOTORCYCLE" },
+    { key: "UTILITY_VAN", label: "UTILITY VAN" },
+  ];
+
   const handleToggle = () => {
     setIsOpen((prev) => {
       const next = !prev;
       if (next) {
         setSelectedStatus(activeFilters.status || "");
         setSelectedDriver(activeFilters.driver || "All Drivers");
+        setSelectedVehicleType(activeFilters.vehicleType || "");
         setSelectedPmStatus(activeFilters.pmStatus || "");
         setDateFrom(activeFilters.dateFrom || "");
         setDateTo(activeFilters.dateTo || "");
@@ -54,6 +63,7 @@ export default function FilterFleet({
   const handleClearAll = () => {
     setSelectedStatus("");
     setSelectedDriver("All Drivers");
+    setSelectedVehicleType("");
     setSelectedPmStatus("");
     setDateFrom("");
     setDateTo("");
@@ -61,6 +71,7 @@ export default function FilterFleet({
       onApply({
         status: "",
         driver: "All Drivers",
+        vehicleType: "",
         pmStatus: "",
         dateFrom: "",
         dateTo: "",
@@ -74,6 +85,7 @@ export default function FilterFleet({
       onApply({
         status: selectedStatus,
         driver: selectedDriver,
+        vehicleType: selectedVehicleType,
         pmStatus: selectedPmStatus,
         dateFrom,
         dateTo,
@@ -132,6 +144,31 @@ export default function FilterFleet({
                 }
                 className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition-all cursor-pointer active:scale-95 ${
                   selectedStatus === key ? activeBg : `${inactiveBg} opacity-80 hover:opacity-100`
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Vehicle Classification Filter Group */}
+        <div className="mb-3 text-left">
+          <label className="block text-[11px] font-bold text-[#0A4B6E] mb-1.5 uppercase tracking-wide">
+            Vehicle Classification:
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {vehicleTypes.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() =>
+                  setSelectedVehicleType((prev) => (prev === key ? "" : key))
+                }
+                className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border transition-all cursor-pointer active:scale-95 ${
+                  selectedVehicleType === key
+                    ? "bg-[#0A4B6E] text-white border-[#0A4B6E]"
+                    : "bg-[#F3F5F5] text-slate-700 border-gray-200 hover:bg-gray-100"
                 }`}
               >
                 {label}

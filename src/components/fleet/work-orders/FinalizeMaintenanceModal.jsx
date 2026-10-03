@@ -1,8 +1,10 @@
 // src/components/fleet/work-orders/FinalizeMaintenanceModal.jsx
 import { useState, useEffect, useMemo } from "react";
-import { CheckCircle2, AlertTriangle, FileText, Wrench, Calendar, Gauge, ShieldCheck, Clock } from "lucide-react";
+import { CheckCircle2, AlertTriangle, FileText, Wrench, Calendar, Gauge, ShieldCheck, Clock, Truck } from "lucide-react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
+import Badge from "../../ui/Badge";
+import ReceiptAttachmentManager from "./ReceiptAttachmentManager";
 
 const SEVERITY_OPTIONS = [
   { value: "LOW", label: "Low", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -41,6 +43,7 @@ export default function FinalizeMaintenanceModal({
   onFinalize,
 }) {
   const [officialReceiptNumber, setOfficialReceiptNumber] = useState("");
+  const [stagedReceipts, setStagedReceipts] = useState([]);
   const [severity, setSeverity] = useState("MEDIUM");
   const [dateStarted, setDateStarted] = useState("");
   const [dateResolved, setDateResolved] = useState("");
@@ -65,12 +68,16 @@ export default function FinalizeMaintenanceModal({
       const scheduled = toLocalDateString(workOrder.scheduledDate) || localToday;
       const initialResolved = scheduled > localToday ? scheduled : localToday;
 
-      setOfficialReceiptNumber("");
+      const initialReceipts = workOrder.receipts || [];
+      const primaryOr = workOrder.officialReceiptNumber || (initialReceipts[0]?.receiptNumber || "");
+
+      setOfficialReceiptNumber(primaryOr);
+      setStagedReceipts(initialReceipts);
       setSeverity("MEDIUM");
       setDateStarted(scheduled);
       setDateResolved(initialResolved);
-      setPartsCost("");
-      setLaborCost("");
+      setPartsCost(workOrder.partsCost ? String(workOrder.partsCost) : "");
+      setLaborCost(workOrder.laborCost ? String(workOrder.laborCost) : "");
       setDowntimeDays(1);
       setOdometerAtService(currentOdometer ? String(currentOdometer) : "");
       setError("");
@@ -87,7 +94,7 @@ export default function FinalizeMaintenanceModal({
     return diffDays >= 0 ? Math.max(1, diffDays) : 0;
   }, [dateStarted, dateResolved]);
 
-  // Total cost live computation
+  // Total cost live computation (Decoupled manual accounting principle)
   const numericParts = parseFloat(partsCost) || 0;
   const numericLabor = parseFloat(laborCost) || 0;
   const totalCost = numericParts + numericLabor;
@@ -111,12 +118,21 @@ export default function FinalizeMaintenanceModal({
     }
   };
 
+  const handleReceiptsChange = (updatedReceipts) => {
+    setStagedReceipts(updatedReceipts);
+    if (!officialReceiptNumber.trim() && updatedReceipts.length > 0) {
+      setOfficialReceiptNumber(updatedReceipts[0].receiptNumber);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (!officialReceiptNumber.trim()) {
-      setError("Official Receipt Number (OR#) is required.");
+    const resolvedOr = officialReceiptNumber.trim() || stagedReceipts[0]?.receiptNumber || "";
+
+    if (!resolvedOr) {
+      setError("Official Receipt Number (OR#) or an attached receipt is required.");
       return;
     }
 
@@ -147,7 +163,8 @@ export default function FinalizeMaintenanceModal({
     }
 
     const payload = {
-      officialReceiptNumber: officialReceiptNumber.trim(),
+      officialReceiptNumber: resolvedOr,
+      receipts: stagedReceipts,
       severity,
       dateStarted: new Date(dateStarted).toISOString(),
       dateResolved: new Date(dateResolved).toISOString(),
@@ -173,6 +190,7 @@ export default function FinalizeMaintenanceModal({
 
   const truckPlate = truck?.plateNumber || workOrder.truck?.plateNumber || "N/A";
   const truckModel = truck?.model || workOrder.truck?.model || "";
+  const vehicleType = truck?.vehicleType || workOrder.truck?.vehicleType || workOrder.vehicleType || "DELIVERY_TRUCK";
 
   return (
     <Modal
@@ -189,9 +207,16 @@ export default function FinalizeMaintenanceModal({
               <Wrench size={20} />
             </div>
             <div>
-              <h3 className="font-bold text-[#0A4B6E] text-base leading-tight">
-                {truckPlate}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-[#0A4B6E] text-base leading-tight">
+                  {truckPlate}
+                </h3>
+                {vehicleType && (
+                  <Badge variant="info" className="text-[9.5px] px-2 py-0">
+                    {vehicleType.replace("_", " ")}
+                  </Badge>
+                )}
+              </div>
               <p className="text-xs text-[#588094]">
                 {truckModel ? `${truckModel} • ` : ""}WO #{workOrder.workOrderNumber || workOrder.id?.slice(0, 8)}
               </p>
@@ -230,6 +255,14 @@ export default function FinalizeMaintenanceModal({
             <span>{error}</span>
           </div>
         )}
+
+        {/* PHOTO-DRIVEN RECEIPT ATTACHMENTS & AUDIT EVIDENCE */}
+        <div className="bg-[#F8FAFC] border border-slate-200/90 rounded-2xl p-3.5 space-y-2">
+          <ReceiptAttachmentManager
+            receipts={stagedReceipts}
+            onChange={handleReceiptsChange}
+          />
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {/* Official Receipt Number */}

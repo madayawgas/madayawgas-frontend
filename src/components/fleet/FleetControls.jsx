@@ -12,6 +12,7 @@ export default function FleetControls({
   onApplyFilters,
   onClearDriver,
   onClearStatus,
+  onClearVehicleType,
   onClearPmStatus,
   onClearDates,
   driversList = [],
@@ -50,11 +51,13 @@ export default function FleetControls({
         <ActiveFleetFilters
           selectedDriver={activeFilters.driver}
           selectedStatus={activeFilters.status}
+          selectedVehicleType={activeFilters.vehicleType}
           selectedPmStatus={activeFilters.pmStatus}
           dateFrom={activeFilters.dateFrom}
           dateTo={activeFilters.dateTo}
           onClearDriver={onClearDriver}
           onClearStatus={onClearStatus}
+          onClearVehicleType={onClearVehicleType}
           onClearPmStatus={onClearPmStatus}
           onClearDates={onClearDates}
         />

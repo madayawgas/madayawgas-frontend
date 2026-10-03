@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ShieldCheck, AlertTriangle, AlertOctagon, CheckCircle2 } from "lucide-react";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
+import Badge from "../ui/Badge";
 
 /**
  * InspectionModal
@@ -46,6 +47,7 @@ export default function InspectionModal({
 
       const payload = {
         truckId: truck.id,
+        vehicleId: truck.id,
         result,
         findings: findings.trim(),
         allowDispatch: result === "FAILED" ? false : allowDispatch,
@@ -107,9 +109,16 @@ export default function InspectionModal({
               <ShieldCheck size={20} />
             </div>
             <div>
-              <h3 className="font-bold text-[#0A4B6E] text-base leading-tight">
-                {truck.plateNumber || "Truck"}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-[#0A4B6E] text-base leading-tight">
+                  {truck.plateNumber || "Truck"}
+                </h3>
+                {truck.vehicleType && (
+                  <Badge variant="info" className="text-[9.5px] px-2 py-0">
+                    {truck.vehicleType.replace("_", " ")}
+                  </Badge>
+                )}
+              </div>
               <p className="text-xs text-[#588094]">
                 {truck.model || "Isuzu Elf"} {truck.yearModel ? `(${truck.yearModel})` : ""}
               </p>

@@ -96,6 +96,7 @@ export default function Fleet() {
   const [filters, setFilters] = useState({
     status: "",
     driver: "All Drivers",
+    vehicleType: "",
     pmStatus: "",
     dateFrom: "",
     dateTo: "",
@@ -307,7 +308,11 @@ export default function Fleet() {
     const pmDueTotal = trucks.filter((t) => {
       const cur = Number(t.currentOdometer) || 0;
       const last = Number(t.lastPmOdometer !== undefined ? t.lastPmOdometer : t.lastPMOdometer || 0);
-      return t.isPmDue !== undefined ? Boolean(t.isPmDue) : cur - last >= 5000;
+      return t.pmDueFlag !== undefined
+        ? Boolean(t.pmDueFlag)
+        : t.isPmDue !== undefined
+        ? Boolean(t.isPmDue)
+        : cur - last >= 5000;
     }).length;
     const underMaintenanceVehicles = trucks.filter(
       (t) => t.status === "UNDER_MAINTENANCE"
@@ -840,6 +845,14 @@ export default function Fleet() {
         filters.status === "All" ||
         normTruckStatus === normFilterStatus;
 
+      // 2.1 Vehicle Type filter
+      let matchesVehicleType = true;
+      if (filters.vehicleType) {
+        matchesVehicleType =
+          (truck.vehicleType || "DELIVERY_TRUCK").toUpperCase() ===
+          filters.vehicleType.toUpperCase();
+      }
+
       // 3. Driver Assignment filter
       let matchesDriver = true;
       if (filters.driver && filters.driver !== "All Drivers") {
@@ -863,7 +876,12 @@ export default function Fleet() {
       if (filters.pmStatus) {
         const cur = Number(truck.currentOdometer) || 0;
         const last = Number(truck.lastPmOdometer !== undefined ? truck.lastPmOdometer : truck.lastPMOdometer || 0);
-        const isDue = truck.isPmDue !== undefined ? Boolean(truck.isPmDue) : cur - last >= 5000;
+        const isDue =
+          truck.pmDueFlag !== undefined
+            ? Boolean(truck.pmDueFlag)
+            : truck.isPmDue !== undefined
+            ? Boolean(truck.isPmDue)
+            : cur - last >= 5000;
 
         if (filters.pmStatus === "PM_DUE") {
           matchesPm = isDue;
@@ -888,7 +906,7 @@ export default function Fleet() {
         }
       }
 
-      return matchesSearch && matchesStatus && matchesDriver && matchesPm && matchesDate;
+      return matchesSearch && matchesStatus && matchesVehicleType && matchesDriver && matchesPm && matchesDate;
     });
 
     return [...list].sort((a, b) => {
@@ -1032,6 +1050,7 @@ export default function Fleet() {
               onApplyFilters={setFilters}
               onClearDriver={() => setFilters((prev) => ({ ...prev, driver: "All Drivers" }))}
               onClearStatus={() => setFilters((prev) => ({ ...prev, status: "" }))}
+              onClearVehicleType={() => setFilters((prev) => ({ ...prev, vehicleType: "" }))}
               onClearPmStatus={() => setFilters((prev) => ({ ...prev, pmStatus: "" }))}
               onClearDates={() => setFilters((prev) => ({ ...prev, dateFrom: "", dateTo: "" }))}
               driversList={allDrivers && allDrivers.length > 0 ? allDrivers : availableDrivers}

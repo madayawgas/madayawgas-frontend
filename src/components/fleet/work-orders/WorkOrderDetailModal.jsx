@@ -1,5 +1,5 @@
 // src/components/fleet/work-orders/WorkOrderDetailModal.jsx
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Wrench,
   Truck,
@@ -18,12 +18,17 @@ import {
   CheckCheck,
   DollarSign,
   Info,
+  RotateCcw,
 } from "lucide-react";
 import SideDrawer from "../../ui/SideDrawer";
 import Badge from "../../ui/Badge";
+import Modal from "../../ui/Modal";
+import Button from "../../ui/Button";
+import ReceiptAttachmentManager from "./ReceiptAttachmentManager.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../../utils/permissions.js";
 import { canApproveWorkOrderCost } from "../../../utils/fleetGuards.js";
+import { fleetApi } from "../../../api/fleet.js";
 
 const STATUS_CONFIG = {
   PENDING: {
@@ -102,6 +107,90 @@ export default function WorkOrderDetailModal({
   const { currentUser, can } = useAuth();
   const [isAdvancing, setIsAdvancing] = useState(false);
 
+  // Sequential multi-approvals states
+  const [approvalRequests, setApprovalRequests] = useState([]);
+  const [showReapprovalModal, setShowReapprovalModal] = useState(false);
+  const [reapprovalAmount, setReapprovalAmount] = useState("");
+  const [reapprovalRemarks, setReapprovalRemarks] = useState("");
+  const [isSubmittingReapproval, setIsSubmittingReapproval] = useState(false);
+  const [reapprovalError, setReapprovalError] = useState("");
+
+  // Attached receipts states
+  const [attachedReceipts, setAttachedReceipts] = useState([]);
+
+  const loadApprovalRequests = useCallback(async () => {
+    if (!workOrder?.id) return;
+    try {
+      const res = await fleetApi.getWorkOrderApprovalRequests(workOrder.id);
+      setApprovalRequests(res?.data?.requests || res?.requests || []);
+    } catch (err) {
+      console.error("Failed to load approval requests:", err);
+    }
+  }, [workOrder?.id]);
+
+  const loadReceipts = useCallback(async () => {
+    if (!workOrder?.id) return;
+    try {
+      const res = await fleetApi.getWorkOrderReceipts(workOrder.id);
+      setAttachedReceipts(res?.data?.receipts || res?.receipts || workOrder?.receipts || []);
+    } catch (err) {
+      console.error("Failed to load receipts:", err);
+      setAttachedReceipts(workOrder?.receipts || []);
+    }
+  }, [workOrder?.id, workOrder?.receipts]);
+
+  useEffect(() => {
+    if (isOpen && workOrder?.id) {
+      loadApprovalRequests();
+      loadReceipts();
+    }
+  }, [isOpen, workOrder?.id, loadApprovalRequests, loadReceipts]);
+
+  const hasPendingApprovalRequest = approvalRequests.some(
+    (req) => req.isApproved === null || req.status === "PENDING"
+  );
+
+  const handleRequestReapproval = async (e) => {
+    if (e) e.preventDefault();
+    const amount = parseFloat(reapprovalAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setReapprovalError("Enter a valid amount requested.");
+      return;
+    }
+    if (!reapprovalRemarks.trim()) {
+      setReapprovalError("Please provide justification remarks for re-approval.");
+      return;
+    }
+
+    try {
+      setIsSubmittingReapproval(true);
+      setReapprovalError("");
+      await fleetApi.submitWorkOrderApprovalRequest(workOrder.id, {
+        amountRequested: amount,
+        remarks: reapprovalRemarks.trim(),
+      });
+      setShowReapprovalModal(false);
+      setReapprovalAmount("");
+      setReapprovalRemarks("");
+      await loadApprovalRequests();
+    } catch (err) {
+      console.error("Failed to submit re-approval request:", err);
+      setReapprovalError(err?.message || "Failed to submit request.");
+    } finally {
+      setIsSubmittingReapproval(false);
+    }
+  };
+
+  const handleAttachReceipt = async (receiptPayload) => {
+    await fleetApi.attachWorkOrderReceipt(workOrder.id, receiptPayload);
+    await loadReceipts();
+  };
+
+  const handleDeleteReceipt = async (receiptId) => {
+    await fleetApi.deleteWorkOrderReceipt(receiptId);
+    await loadReceipts();
+  };
+
   if (!isOpen || !workOrder) return null;
 
   const canManageFleet = can && can(PERMISSIONS?.FLEET_MANAGE || "fleet.manage");
@@ -131,6 +220,12 @@ export default function WorkOrderDetailModal({
     workOrder.truckStatus ||
     workOrder.truck?.status ||
     (isWorkOrderActive ? "UNDER_MAINTENANCE" : "ACTIVE");
+
+  const vehicleType =
+    matchedTruck?.vehicleType ||
+    workOrder.truck?.vehicleType ||
+    workOrder.vehicleType ||
+    "DELIVERY_TRUCK";
 
   const getTruckBadgeVariant = (status) => {
     const normalized = (status || "").toUpperCase().replace("_", " ");
@@ -391,9 +486,16 @@ export default function WorkOrderDetailModal({
                 <Truck size={22} />
               </div>
               <div className="min-w-0">
-                <h3 className="text-base md:text-lg font-bold text-[#0A4B6E] leading-tight truncate">
-                  {truckPlate}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base md:text-lg font-bold text-[#0A4B6E] leading-tight truncate">
+                    {truckPlate}
+                  </h3>
+                  {vehicleType && (
+                    <Badge variant="info" className="text-[9.5px] px-2 py-0">
+                      {vehicleType.replace("_", " ")}
+                    </Badge>
+                  )}
+                </div>
                 {truckModel && (
                   <p className="text-xs text-[#6D8AA2] font-medium truncate">{truckModel}</p>
                 )}
@@ -544,10 +646,101 @@ export default function WorkOrderDetailModal({
                 <span>"{workOrder.decisionRemarks}"</span>
               </div>
             )}
+
+            {/* Sequential Re-approval Action */}
+            {isWorkOrderActive && canManageFleet && (
+              <div className="pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  disabled={hasPendingApprovalRequest}
+                  onClick={() => {
+                    setReapprovalAmount(String(workOrder.estimatedCost || ""));
+                    setReapprovalRemarks("");
+                    setReapprovalError("");
+                    setShowReapprovalModal(true);
+                  }}
+                  title={
+                    hasPendingApprovalRequest
+                      ? "A re-approval request is already pending reviewer sign-off"
+                      : "Request managerial approval for revised quotation"
+                  }
+                  className={`w-full py-2.5 px-3.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs ${
+                    hasPendingApprovalRequest
+                      ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                      : "bg-[#E8F3F8] hover:bg-[#d6ebf5] text-[#0A4B6E] border-[#BCE1F1]"
+                  }`}
+                >
+                  <RotateCcw size={14} />
+                  <span>
+                    {hasPendingApprovalRequest
+                      ? "Re-approval Request Pending Review"
+                      : "Request Re-approval (Revised Quote)"}
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* Approval Request Sequential History */}
+            {approvalRequests.length > 0 && (
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#0A4B6E] block">
+                  Approval History ({approvalRequests.length})
+                </span>
+                <div className="space-y-1.5 max-h-44 overflow-y-auto custom-scrollbar">
+                  {approvalRequests.map((req, idx) => (
+                    <div
+                      key={req.id || idx}
+                      className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1 text-left"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-[#0A4B6E]">
+                          {formatCurrency(req.amountRequested)}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            req.isApproved === true || req.status === "APPROVED"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : req.isApproved === false || req.status === "REJECTED"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : "bg-amber-50 text-amber-700 border-amber-200"
+                          }`}
+                        >
+                          {req.isApproved === true || req.status === "APPROVED"
+                            ? "APPROVED"
+                            : req.isApproved === false || req.status === "REJECTED"
+                            ? "REJECTED"
+                            : "PENDING"}
+                        </span>
+                      </div>
+                      {req.remarks && (
+                        <p className="text-slate-600 text-[11px] italic">"{req.remarks}"</p>
+                      )}
+                      {req.decisionRemarks && (
+                        <p className="text-[#0A4B6E] text-[10.5px]">Decision: "{req.decisionRemarks}"</p>
+                      )}
+                      <div className="text-[10px] text-slate-400 flex items-center justify-between pt-0.5">
+                        <span>Requested: {formatDate(req.createdAt)}</span>
+                        {req.decidedAt && <span>Decided: {formatDate(req.decidedAt)}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* 6. FINALIZED MAINTENANCE RECEIPT (if available) */}
+        {/* 6. SUPPORTING AUDIT RECEIPTS & ATTACHMENTS (Decoupled Financials) */}
+        <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3">
+          <ReceiptAttachmentManager
+            receipts={attachedReceipts}
+            onUpload={handleAttachReceipt}
+            onDelete={handleDeleteReceipt}
+            readOnly={workOrder.status === "COMPLETED" || workOrder.status === "CANCELLED"}
+          />
+        </div>
+
+        {/* 7. FINALIZED MAINTENANCE RECEIPT (if available) */}
         {workOrder.maintenanceLog && (
           <div className="bg-emerald-50/90 rounded-2xl p-4.5 border border-emerald-200/80 shadow-2xs space-y-3 text-xs">
             <div className="flex items-center justify-between">
@@ -594,6 +787,79 @@ export default function WorkOrderDetailModal({
         )}
       </div>
 
+      {/* RE-APPROVAL REQUEST MODAL */}
+      <Modal
+        isOpen={showReapprovalModal}
+        onClose={() => setShowReapprovalModal(false)}
+        title="Submit Re-approval Request"
+        maxWidth="max-w-md"
+      >
+        <form onSubmit={handleRequestReapproval} className="space-y-3.5 text-left py-1">
+          <p className="text-xs text-slate-600">
+            Submit a revised quotation request for WO #{workOrder.workOrderNumber || workOrder.id?.slice(0, 8)}.
+            Once submitted, managerial review will be required before work continues.
+          </p>
+
+          {reapprovalError && (
+            <div className="bg-red-50 text-red-700 border border-red-200 p-2.5 rounded-xl text-xs">
+              {reapprovalError}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1">
+              Revised Amount (PHP) <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-2 text-xs font-bold text-gray-500">₱</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                required
+                value={reapprovalAmount}
+                onChange={(e) => setReapprovalAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-[#F3F5F5] border border-gray-200 rounded-xl pl-7 pr-3 py-2 text-xs font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E]"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1">
+              Justification & Scope Change Remarks <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              rows={3}
+              required
+              value={reapprovalRemarks}
+              onChange={(e) => setReapprovalRemarks(e.target.value)}
+              placeholder="Explain why cost estimate changed (e.g. additional damaged parts discovered during tear-down)..."
+              className="w-full bg-[#F3F5F5] border border-gray-200 rounded-xl p-2.5 text-xs font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] resize-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2 pt-2">
+            <Button
+              type="submit"
+              variant="yellow"
+              disabled={isSubmittingReapproval}
+              className="w-full text-xs font-bold uppercase tracking-wider"
+            >
+              {isSubmittingReapproval ? "SUBMITTING..." : "CONFIRM RE-APPROVAL REQUEST"}
+            </Button>
+            <Button
+              type="button"
+              variant="cancel"
+              disabled={isSubmittingReapproval}
+              onClick={() => setShowReapprovalModal(false)}
+              className="w-full text-xs"
+            >
+              CANCEL
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </SideDrawer>
   );
 }
