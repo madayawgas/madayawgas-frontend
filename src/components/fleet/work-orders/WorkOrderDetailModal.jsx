@@ -191,29 +191,42 @@ export default function WorkOrderDetailModal({
     await loadReceipts();
   };
 
+  const [localStatus, setLocalStatus] = useState(null);
+
+  useEffect(() => {
+    setLocalStatus(null);
+  }, [workOrder?.id, workOrder?.status]);
+
   if (!isOpen || !workOrder) return null;
 
+  const effectiveStatus = localStatus || workOrder.status || "PENDING";
   const canManageFleet = can && can(PERMISSIONS?.FLEET_MANAGE || "fleet.manage");
   const canApprove = canApproveWorkOrderCost(currentUser, can);
 
-  const statusStyle = STATUS_CONFIG[workOrder.status] || {
-    label: workOrder.status,
+  const statusStyle = STATUS_CONFIG[effectiveStatus] || {
+    label: effectiveStatus,
     badgeClass: "bg-slate-100 text-slate-700 border-slate-300",
   };
 
   const matchedTruck =
     truck ||
     (trucks &&
-      trucks.find(
-        (t) =>
-          t.id === workOrder.truckId ||
-          t.id === workOrder.truck?.id ||
-          t.plateNumber === (workOrder.plateNumber || workOrder.truck?.plateNumber)
-      )) ||
+      trucks.find((t) => {
+        if (workOrder.plateNumber && t.plateNumber && t.plateNumber.toUpperCase() === workOrder.plateNumber.toUpperCase()) {
+          return true;
+        }
+        if (workOrder.truckId && (t.id === workOrder.truckId || t.truckId === workOrder.truckId)) {
+          return true;
+        }
+        if (workOrder.vehicleId && (t.id === workOrder.vehicleId || t.vehicleId === workOrder.vehicleId)) {
+          return true;
+        }
+        return false;
+      })) ||
     workOrder.truck;
 
   const isWorkOrderActive =
-    workOrder.status !== "COMPLETED" && workOrder.status !== "CANCELLED";
+    effectiveStatus !== "COMPLETED" && effectiveStatus !== "CANCELLED";
 
   const resolvedTruckStatus =
     matchedTruck?.status ||
@@ -222,9 +235,9 @@ export default function WorkOrderDetailModal({
     (isWorkOrderActive ? "UNDER_MAINTENANCE" : "ACTIVE");
 
   const vehicleType =
-    matchedTruck?.vehicleType ||
-    workOrder.truck?.vehicleType ||
     workOrder.vehicleType ||
+    workOrder.truck?.vehicleType ||
+    matchedTruck?.vehicleType ||
     "DELIVERY_TRUCK";
 
   const getTruckBadgeVariant = (status) => {
@@ -245,8 +258,8 @@ export default function WorkOrderDetailModal({
 
   const estimatedCost = Number(workOrder.estimatedCost) || 0;
   const requiresApproval = estimatedCost >= 5000.0;
-  const truckPlate = matchedTruck?.plateNumber || workOrder.truck?.plateNumber || workOrder.plateNumber || "N/A";
-  const truckModel = matchedTruck?.model || workOrder.truck?.model || workOrder.truckModel || "";
+  const truckPlate = workOrder.plateNumber || workOrder.truck?.plateNumber || matchedTruck?.plateNumber || "N/A";
+  const truckModel = workOrder.truckModel || workOrder.model || matchedTruck?.model || workOrder.truck?.model || "";
   const driverName =
     matchedTruck?.driverName ||
     (matchedTruck?.driver
@@ -277,11 +290,11 @@ export default function WorkOrderDetailModal({
 
   // Determine current lifecycle step index
   const stepKeys = LIFECYCLE_STEPS.map((s) => s.key);
-  const currentStepIdx = stepKeys.indexOf(workOrder.status);
+  const currentStepIdx = stepKeys.indexOf(effectiveStatus);
   const progressPercent =
     currentStepIdx >= 0
       ? Math.round(((currentStepIdx + 1) / LIFECYCLE_STEPS.length) * 100)
-      : workOrder.status === "CANCELLED"
+      : effectiveStatus === "CANCELLED"
       ? 100
       : 0;
 
@@ -309,7 +322,7 @@ export default function WorkOrderDetailModal({
       footer={({ onClose: closeDrawer }) => (
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
           {/* Action trigger based on current lifecycle status */}
-          {workOrder.status === "PENDING" && canApprove && onOpenApproval && (
+          {effectiveStatus === "PENDING" && canApprove && onOpenApproval && (
             <button
               type="button"
               onClick={() => {
@@ -323,7 +336,7 @@ export default function WorkOrderDetailModal({
             </button>
           )}
 
-          {workOrder.status === "SCHEDULED" && canManageFleet && onAdvanceStatus && (
+          {effectiveStatus === "SCHEDULED" && canManageFleet && onAdvanceStatus && (
             <button
               type="button"
               disabled={isAdvancing}
@@ -331,6 +344,7 @@ export default function WorkOrderDetailModal({
                 try {
                   setIsAdvancing(true);
                   await onAdvanceStatus(workOrder.id, "IN_PROGRESS");
+                  setLocalStatus("IN_PROGRESS");
                 } catch (err) {
                   console.error("Failed to advance work order:", err);
                 } finally {
@@ -344,12 +358,15 @@ export default function WorkOrderDetailModal({
             </button>
           )}
 
-          {workOrder.status === "IN_PROGRESS" && canManageFleet && onOpenFinalize && (
+          {effectiveStatus === "IN_PROGRESS" && canManageFleet && onOpenFinalize && (
             <button
               type="button"
               onClick={() => {
                 closeDrawer();
-                onOpenFinalize(workOrder);
+                onOpenFinalize({
+                  ...workOrder,
+                  status: effectiveStatus,
+                });
               }}
               className="flex-1 py-3 px-5 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95"
             >
@@ -362,9 +379,9 @@ export default function WorkOrderDetailModal({
             type="button"
             onClick={closeDrawer}
             className={`py-3 px-6 rounded-full font-bold text-xs md:text-sm uppercase tracking-wider bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all shadow-xs cursor-pointer active:scale-95 text-center ${
-              (workOrder.status === "PENDING" && canApprove && onOpenApproval) ||
-              (workOrder.status === "SCHEDULED" && canManageFleet && onAdvanceStatus) ||
-              (workOrder.status === "IN_PROGRESS" && canManageFleet && onOpenFinalize)
+              (effectiveStatus === "PENDING" && canApprove && onOpenApproval) ||
+              (effectiveStatus === "SCHEDULED" && canManageFleet && onAdvanceStatus) ||
+              (effectiveStatus === "IN_PROGRESS" && canManageFleet && onOpenFinalize)
                 ? "flex-1"
                 : "w-full"
             }`}
@@ -394,7 +411,7 @@ export default function WorkOrderDetailModal({
               {/* Circles & Connecting Line Segments */}
               <div className="flex items-center justify-between w-full">
                 {LIFECYCLE_STEPS.map((step, idx) => {
-                  const isCompletedOrder = workOrder.status === "COMPLETED";
+                  const isCompletedOrder = effectiveStatus === "COMPLETED";
                   const isPassed = isCompletedOrder || currentStepIdx > idx;
                   const isCurrent = !isCompletedOrder && currentStepIdx === idx;
                   const isLast = idx === LIFECYCLE_STEPS.length - 1;
@@ -441,7 +458,7 @@ export default function WorkOrderDetailModal({
               {/* Step Labels Row */}
               <div className="flex items-center justify-between w-full mt-2">
                 {LIFECYCLE_STEPS.map((step, idx) => {
-                  const isCompletedOrder = workOrder.status === "COMPLETED";
+                  const isCompletedOrder = effectiveStatus === "COMPLETED";
                   const isPassed = isCompletedOrder || currentStepIdx > idx;
                   const isCurrent = !isCompletedOrder && currentStepIdx === idx;
 

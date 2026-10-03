@@ -238,25 +238,25 @@ export default function FinalizeMaintenanceModal({
 
   if (!isOpen || !workOrder) return null;
 
-  // Robust plate number & model resolution (fixes N/A plate number bug)
+  // Robust plate number & model resolution (prioritize workOrder properties)
   const truckPlate =
-    truck?.plateNumber ||
     workOrder?.plateNumber ||
     workOrder?.truck?.plateNumber ||
+    truck?.plateNumber ||
     "N/A";
 
   const truckModel =
-    truck?.model ||
-    truck?.truckModel ||
     workOrder?.truckModel ||
     workOrder?.model ||
     workOrder?.truck?.model ||
+    truck?.model ||
+    truck?.truckModel ||
     "";
 
   const vehicleType =
-    truck?.vehicleType ||
     workOrder?.vehicleType ||
     workOrder?.truck?.vehicleType ||
+    truck?.vehicleType ||
     "DELIVERY_TRUCK";
 
   return (

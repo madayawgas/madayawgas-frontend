@@ -694,10 +694,39 @@ export default function Fleet() {
     }
   };
 
+  const findMatchingTruck = (wo) => {
+    if (!wo || !Array.isArray(trucks) || trucks.length === 0) return null;
+    return (
+      trucks.find((t) => {
+        if (wo.plateNumber && t.plateNumber && t.plateNumber.toUpperCase() === wo.plateNumber.toUpperCase()) {
+          return true;
+        }
+        if (wo.truckId && (t.id === wo.truckId || t.truckId === wo.truckId)) {
+          return true;
+        }
+        if (wo.vehicleId && (t.id === wo.vehicleId || t.vehicleId === wo.vehicleId)) {
+          return true;
+        }
+        if (wo.truck?.id && (t.id === wo.truck.id || t.truckId === wo.truck.id)) {
+          return true;
+        }
+        return false;
+      }) || null
+    );
+  };
+
   const handleAdvanceWorkOrderStatus = async (workOrderId, newStatus) => {
     try {
       const res = await fleetApi.updateWorkOrderStatus(workOrderId, { status: newStatus });
       await refreshWorkOrders();
+      setWorkOrderForDetail((prev) => {
+        if (!prev || prev.id !== workOrderId) return prev;
+        return {
+          ...prev,
+          status: newStatus,
+          currentStatus: newStatus,
+        };
+      });
       setToast({
         type: "success",
         message: res?.message || `Work order updated to ${newStatus}`,
@@ -708,6 +737,7 @@ export default function Fleet() {
         type: "error",
         message: err?.message || "Failed to advance work order status",
       });
+      throw err;
     }
   };
 
@@ -1405,15 +1435,7 @@ export default function Fleet() {
         <FinalizeMaintenanceModal
           isOpen={!!workOrderForFinalize}
           workOrder={workOrderForFinalize}
-          truck={trucks.find(
-            (t) =>
-              t.id === workOrderForFinalize.truckId ||
-              t.id === workOrderForFinalize.vehicleId ||
-              t.id === workOrderForFinalize.truck?.id ||
-              t.vehicleId === workOrderForFinalize.truckId ||
-              t.vehicleId === workOrderForFinalize.vehicleId ||
-              (workOrderForFinalize.plateNumber && t.plateNumber === workOrderForFinalize.plateNumber)
-          )}
+          truck={findMatchingTruck(workOrderForFinalize)}
           onClose={() => setWorkOrderForFinalize(null)}
           onFinalize={handleFinalizeMaintenance}
         />
@@ -1423,15 +1445,7 @@ export default function Fleet() {
         <WorkOrderDetailModal
           isOpen={!!workOrderForDetail}
           workOrder={workOrderForDetail}
-          truck={trucks.find(
-            (t) =>
-              t.id === workOrderForDetail.truckId ||
-              t.id === workOrderForDetail.vehicleId ||
-              t.id === workOrderForDetail.truck?.id ||
-              t.vehicleId === workOrderForDetail.truckId ||
-              t.vehicleId === workOrderForDetail.vehicleId ||
-              (workOrderForDetail.plateNumber && t.plateNumber === workOrderForDetail.plateNumber)
-          )}
+          truck={findMatchingTruck(workOrderForDetail)}
           trucks={trucks}
           onClose={() => setWorkOrderForDetail(null)}
           onOpenApproval={(wo) => setWorkOrderForApproval(wo)}
