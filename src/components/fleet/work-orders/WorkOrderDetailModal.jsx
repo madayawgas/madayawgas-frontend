@@ -260,9 +260,11 @@ export default function WorkOrderDetailModal({
     "No Assigned";
 
   const odometerDisplay =
-    matchedTruck?.currentOdometer !== undefined
+    matchedTruck?.currentOdometer !== undefined && matchedTruck?.currentOdometer !== null
       ? `${Number(matchedTruck.currentOdometer).toLocaleString()} KM`
-      : workOrder.truck?.currentOdometer !== undefined
+      : workOrder.currentOdometer !== undefined && workOrder.currentOdometer !== null
+      ? `${Number(workOrder.currentOdometer).toLocaleString()} KM`
+      : workOrder.truck?.currentOdometer !== undefined && workOrder.truck?.currentOdometer !== null
       ? `${Number(workOrder.truck.currentOdometer).toLocaleString()} KM`
       : "N/A";
 

@@ -3078,9 +3078,6 @@ export const fleetApi = {
    */
   async finalizeWorkOrder(id, payload) {
     const orNumber = (payload.officialReceiptNumber || payload.receipts?.[0]?.receiptNumber || "").trim();
-    if (!orNumber && (!payload.receipts || payload.receipts.length === 0)) {
-      throw new Error("Official Receipt (OR) number or attached receipt document is required");
-    }
     if (!payload.dateStarted) throw new Error("Repair start date is required");
     if (!payload.dateResolved) throw new Error("Repair completion date is required");
     if (payload.odometerAtService === undefined || payload.odometerAtService === null) {
@@ -3094,17 +3091,20 @@ export const fleetApi = {
       if (woIndex === -1) throw new Error("Work order not found");
 
       const wo = orders[woIndex];
-      const primaryOR = orNumber || `OR-${Date.now().toString().slice(-6)}`;
+      const primaryOR = orNumber || (payload.receipts?.[0]?.receiptNumber) || "N/A";
 
-      // Check unique receipt number constraint against existing logs
       const existingLogs = getInMemoryMaintenanceLogs();
-      const duplicateOR = existingLogs.find(
-        (l) => l.officialReceiptNumber.toLowerCase() === primaryOR.toLowerCase()
-      );
-      if (duplicateOR) {
-        throw new Error(
-          `Official receipt number '${primaryOR}' has already been registered in maintenance logs`
+
+      // Check unique receipt number constraint against existing logs if a real OR number is provided
+      if (primaryOR !== "N/A") {
+        const duplicateOR = existingLogs.find(
+          (l) => l.officialReceiptNumber && l.officialReceiptNumber.toLowerCase() === primaryOR.toLowerCase()
         );
+        if (duplicateOR) {
+          throw new Error(
+            `Official receipt number '${primaryOR}' has already been registered in maintenance logs`
+          );
+        }
       }
 
       // If receipts array provided in payload, attach them to in-memory receipts

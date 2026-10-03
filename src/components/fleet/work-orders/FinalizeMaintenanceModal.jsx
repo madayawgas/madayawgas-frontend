@@ -1,10 +1,22 @@
 // src/components/fleet/work-orders/FinalizeMaintenanceModal.jsx
-import { useState, useEffect, useMemo } from "react";
-import { CheckCircle2, AlertTriangle, FileText, Wrench, Calendar, Gauge, ShieldCheck, Clock, Truck } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import {
+  Wrench,
+  Calendar,
+  Gauge,
+  Clock,
+  Upload,
+  Camera,
+  FileText,
+  Trash2,
+  AlertTriangle,
+  Image as ImageIcon,
+  Plus,
+  X,
+} from "lucide-react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import Badge from "../../ui/Badge";
-import ReceiptAttachmentManager from "./ReceiptAttachmentManager";
 
 const SEVERITY_OPTIONS = [
   { value: "LOW", label: "Low", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -32,8 +44,8 @@ function toLocalDateString(dateInput) {
 
 /**
  * FinalizeMaintenanceModal
- * Captures official receipt, final parts & labor costs, downtime, and serviced odometer.
- * Completes the work order, resets PM baseline if PREVENTIVE, and releases vehicle to ACTIVE status.
+ * Streamlined 2-column modal to capture parts & labor costs, serviced odometer, downtime,
+ * and optional photo-first receipt documentation for audit logging.
  */
 export default function FinalizeMaintenanceModal({
   isOpen,
@@ -42,8 +54,9 @@ export default function FinalizeMaintenanceModal({
   onClose,
   onFinalize,
 }) {
-  const [officialReceiptNumber, setOfficialReceiptNumber] = useState("");
   const [stagedReceipts, setStagedReceipts] = useState([]);
+  const [showTextFallback, setShowTextFallback] = useState(false);
+  const [textRefInput, setTextRefInput] = useState("");
   const [severity, setSeverity] = useState("MEDIUM");
   const [dateStarted, setDateStarted] = useState("");
   const [dateResolved, setDateResolved] = useState("");
@@ -54,12 +67,15 @@ export default function FinalizeMaintenanceModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const currentOdometer = Number(truck?.currentOdometer || workOrder?.truck?.currentOdometer || 0);
-  const isPreventive = 
-    workOrder?.maintenanceType?.name === "PREVENTIVE" || 
-    workOrder?.maintenanceTypeName === "PREVENTIVE" ||
-    workOrder?.maintenanceTypeId === 1 || 
-    workOrder?.maintenanceTypeId === "1";
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+
+  const currentOdometer = Number(
+    truck?.currentOdometer ||
+    workOrder?.currentOdometer ||
+    workOrder?.truck?.currentOdometer ||
+    0
+  );
 
   // Initialize modal state on open
   useEffect(() => {
@@ -68,11 +84,9 @@ export default function FinalizeMaintenanceModal({
       const scheduled = toLocalDateString(workOrder.scheduledDate) || localToday;
       const initialResolved = scheduled > localToday ? scheduled : localToday;
 
-      const initialReceipts = workOrder.receipts || [];
-      const primaryOr = workOrder.officialReceiptNumber || (initialReceipts[0]?.receiptNumber || "");
-
-      setOfficialReceiptNumber(primaryOr);
-      setStagedReceipts(initialReceipts);
+      setStagedReceipts(workOrder.receipts || []);
+      setShowTextFallback(false);
+      setTextRefInput("");
       setSeverity("MEDIUM");
       setDateStarted(scheduled);
       setDateResolved(initialResolved);
@@ -84,7 +98,7 @@ export default function FinalizeMaintenanceModal({
     }
   }, [isOpen, workOrder, currentOdometer]);
 
-  // Auto-compute downtime days when dates change if not manually edited
+  // Auto-compute downtime days when dates change
   const calculatedDowntime = useMemo(() => {
     if (!dateStarted || !dateResolved) return 1;
     const start = new Date(dateStarted);
@@ -94,7 +108,7 @@ export default function FinalizeMaintenanceModal({
     return diffDays >= 0 ? Math.max(1, diffDays) : 0;
   }, [dateStarted, dateResolved]);
 
-  // Total cost live computation (Decoupled manual accounting principle)
+  // Total cost live computation (manual accounting principle)
   const numericParts = parseFloat(partsCost) || 0;
   const numericLabor = parseFloat(laborCost) || 0;
   const totalCost = numericParts + numericLabor;
@@ -118,23 +132,55 @@ export default function FinalizeMaintenanceModal({
     }
   };
 
-  const handleReceiptsChange = (updatedReceipts) => {
-    setStagedReceipts(updatedReceipts);
-    if (!officialReceiptNumber.trim() && updatedReceipts.length > 0) {
-      setOfficialReceiptNumber(updatedReceipts[0].receiptNumber);
+  const handleFileSelected = (file) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Receipt file cannot exceed 10MB.");
+      return;
     }
+    const isImage = file.type.startsWith("image/");
+    const isPdf = file.type === "application/pdf";
+    if (!isImage && !isPdf) {
+      setError("Only images (PNG, JPG) and PDF documents are supported.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const newRcpt = {
+        id: `rcpt-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        fileName: file.name,
+        fileUrl: e.target.result,
+        fileType: file.type,
+        receiptNumber: file.name.replace(/\.[^/.]+$/, "").slice(0, 24) || "Receipt",
+        isManual: false,
+      };
+      setStagedReceipts((prev) => [...prev, newRcpt]);
+      setError("");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAddTextReference = (e) => {
+    e.preventDefault();
+    if (!textRefInput.trim()) return;
+    const newRcpt = {
+      id: `rcpt-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      receiptNumber: textRefInput.trim(),
+      isManual: true,
+    };
+    setStagedReceipts((prev) => [...prev, newRcpt]);
+    setTextRefInput("");
+    setShowTextFallback(false);
+  };
+
+  const handleRemoveReceipt = (id) => {
+    setStagedReceipts((prev) => prev.filter((r) => r.id !== id));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
-    const resolvedOr = officialReceiptNumber.trim() || stagedReceipts[0]?.receiptNumber || "";
-
-    if (!resolvedOr) {
-      setError("Official Receipt Number (OR#) or an attached receipt is required.");
-      return;
-    }
 
     if (!dateStarted || !dateResolved) {
       setError("Both repair start date and resolution date are required.");
@@ -158,12 +204,16 @@ export default function FinalizeMaintenanceModal({
     }
 
     if (currentOdometer > 0 && odo < currentOdometer) {
-      setError(`Odometer at service (${odo.toLocaleString()} km) cannot be less than current odometer (${currentOdometer.toLocaleString()} km).`);
+      setError(
+        `Odometer at service (${odo.toLocaleString()} km) cannot be less than current odometer (${currentOdometer.toLocaleString()} km).`
+      );
       return;
     }
 
+    const primaryOr = stagedReceipts[0]?.receiptNumber || "N/A";
+
     const payload = {
-      officialReceiptNumber: resolvedOr,
+      officialReceiptNumber: primaryOr,
       receipts: stagedReceipts,
       severity,
       dateStarted: new Date(dateStarted).toISOString(),
@@ -180,7 +230,7 @@ export default function FinalizeMaintenanceModal({
       onClose();
     } catch (err) {
       console.error("Failed to finalize maintenance log:", err);
-      setError(err?.message || "Failed to finalize maintenance. Please verify the receipt number and try again.");
+      setError(err?.message || "Failed to finalize maintenance. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -188,22 +238,39 @@ export default function FinalizeMaintenanceModal({
 
   if (!isOpen || !workOrder) return null;
 
-  const truckPlate = truck?.plateNumber || workOrder.truck?.plateNumber || "N/A";
-  const truckModel = truck?.model || workOrder.truck?.model || "";
-  const vehicleType = truck?.vehicleType || workOrder.truck?.vehicleType || workOrder.vehicleType || "DELIVERY_TRUCK";
+  // Robust plate number & model resolution (fixes N/A plate number bug)
+  const truckPlate =
+    truck?.plateNumber ||
+    workOrder?.plateNumber ||
+    workOrder?.truck?.plateNumber ||
+    "N/A";
+
+  const truckModel =
+    truck?.model ||
+    truck?.truckModel ||
+    workOrder?.truckModel ||
+    workOrder?.model ||
+    workOrder?.truck?.model ||
+    "";
+
+  const vehicleType =
+    truck?.vehicleType ||
+    workOrder?.vehicleType ||
+    workOrder?.truck?.vehicleType ||
+    "DELIVERY_TRUCK";
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Finalize Maintenance & Release Truck"
+      title="Finalize Maintenance"
       maxWidth="max-w-xl"
     >
-      <form onSubmit={handleSubmit} className="space-y-4 text-left py-2">
-        {/* Work Order & Truck Banner */}
-        <div className="bg-[#E8F3F8] rounded-xl p-3.5 flex items-center justify-between border border-[#BCE1F1]/60">
+      <form onSubmit={handleSubmit} className="space-y-4 text-left py-1">
+        {/* Work Order & Vehicle Context Banner */}
+        <div className="bg-[#E8F3F8] rounded-2xl p-3.5 flex items-center justify-between border border-[#BCE1F1]/70">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#0A4B6E] text-white flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#0A4B6E] text-white flex items-center justify-center shrink-0 shadow-2xs">
               <Wrench size={20} />
             </div>
             <div>
@@ -223,32 +290,14 @@ export default function FinalizeMaintenanceModal({
             </div>
           </div>
           <div className="text-right">
-            <span className="text-[11px] text-[#588094] block">Service Provider</span>
+            <span className="text-[11px] text-[#588094] block">Provider</span>
             <span className="font-semibold text-xs text-[#0A4B6E]">
               {workOrder.shopName || "External Facility"}
             </span>
           </div>
         </div>
 
-        {/* Informational Alert Box */}
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex gap-2.5 text-xs text-emerald-900">
-          <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="font-bold text-emerald-950">
-              Finalizing will mark this Work Order as COMPLETED and restore the vehicle to ACTIVE status.
-            </p>
-            <p className="text-emerald-800 leading-relaxed text-[11px]">
-              • Operational status will transition to <strong>ACTIVE</strong> with driver relationship preserved.<br />
-              {isPreventive && (
-                <span className="font-semibold text-emerald-950 block mt-0.5">
-                  • Preventive Baseline Reset: The vehicle's PM baseline odometer will update to the serviced odometer.
-                </span>
-              )}
-            </p>
-          </div>
-        </div>
-
-        {/* Error Banner */}
+        {/* Error Alert */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-xl text-xs flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0 text-red-500 mt-0.5" />
@@ -256,65 +305,155 @@ export default function FinalizeMaintenanceModal({
           </div>
         )}
 
-        {/* PHOTO-DRIVEN RECEIPT ATTACHMENTS & AUDIT EVIDENCE */}
-        <div className="bg-[#F8FAFC] border border-slate-200/90 rounded-2xl p-3.5 space-y-2">
-          <ReceiptAttachmentManager
-            receipts={stagedReceipts}
-            onChange={handleReceiptsChange}
-          />
-        </div>
+        {/* PHOTO-FIRST RECEIPT DOCUMENTATION (OPTIONAL) */}
+        <div className="bg-[#F8FAFC] border border-slate-200/90 rounded-2xl p-3.5 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText size={14} className="text-[#0A4B6E]" />
+              <span className="text-xs font-bold uppercase tracking-wider text-[#0A4B6E]">
+                Receipt Documentation (Optional)
+              </span>
+            </div>
+            {!showTextFallback && (
+              <button
+                type="button"
+                onClick={() => setShowTextFallback(true)}
+                className="text-[11px] font-bold text-[#0A4B6E] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Plus size={12} />
+                <span>Add Text Note</span>
+              </button>
+            )}
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {/* Official Receipt Number */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
-              Official Receipt Number (OR#) <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
+          {/* Hidden File Inputs */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,application/pdf"
+            onChange={(e) => {
+              handleFileSelected(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+            className="hidden"
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={(e) => {
+              handleFileSelected(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+            className="hidden"
+          />
+
+          {/* Compact Dropzone */}
+          <div
+            onDrop={(e) => {
+              e.preventDefault();
+              handleFileSelected(e.dataTransfer.files?.[0]);
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            className="border border-dashed border-[#BCE1F1] hover:border-[#0A4B6E]/50 bg-white rounded-xl p-3 text-center transition-all"
+          >
+            <p className="text-xs text-[#588094]">
+              Upload receipt photo or PDF for audit documentation
+            </p>
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="py-1 px-3 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#083b57] flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Upload size={12} />
+                <span>Browse File</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="py-1 px-3 rounded-full text-xs font-bold bg-white text-[#0A4B6E] border border-gray-300 hover:bg-slate-50 flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Camera size={12} />
+                <span>Take Photo</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Inline Text Fallback Form */}
+          {showTextFallback && (
+            <div className="flex items-center gap-2 pt-1">
               <input
                 type="text"
-                required
-                value={officialReceiptNumber}
-                onChange={(e) => setOfficialReceiptNumber(e.target.value)}
-                placeholder="e.g. OR-2026-88991"
-                className="w-full pl-9 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800 font-mono"
+                value={textRefInput}
+                onChange={(e) => setTextRefInput(e.target.value)}
+                placeholder="Enter OR# or text note (e.g. OR-88991)"
+                className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-xs text-gray-800 font-mono focus:outline-none focus:ring-1 focus:ring-[#0A4B6E]"
               />
-              <FileText className="w-4 h-4 text-[#588094] absolute left-3 top-2.5" />
+              <button
+                type="button"
+                onClick={handleAddTextReference}
+                className="py-1.5 px-3 rounded-xl text-xs font-bold bg-[#0A4B6E] text-white hover:bg-[#083b57] cursor-pointer"
+              >
+                Add
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTextRefInput("");
+                  setShowTextFallback(false);
+                }}
+                className="p-1.5 text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X size={15} />
+              </button>
             </div>
-            <span className="text-[11px] text-[#588094] mt-1 block">
-              Unique receipt issued by {workOrder.shopName || "the repair facility"}.
-            </span>
-          </div>
+          )}
 
-          {/* Severity */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
-              Service Severity <span className="text-red-500">*</span>
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {SEVERITY_OPTIONS.map((opt) => {
-                const isSelected = severity === opt.value;
-                return (
+          {/* Attached Receipts Chips */}
+          {stagedReceipts.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {stagedReceipts.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs shadow-2xs"
+                >
+                  {r.fileUrl && r.fileType?.startsWith("image/") ? (
+                    <img
+                      src={r.fileUrl}
+                      alt="Receipt"
+                      className="w-5 h-5 rounded object-cover border border-slate-200"
+                    />
+                  ) : r.fileType === "application/pdf" ? (
+                    <span className="w-5 h-5 rounded bg-red-100 text-red-700 flex items-center justify-center font-bold text-[9px]">
+                      PDF
+                    </span>
+                  ) : (
+                    <FileText size={13} className="text-[#0A4B6E]" />
+                  )}
+                  <span className="font-mono text-xs text-gray-700 max-w-[140px] truncate">
+                    {r.receiptNumber || r.fileName || "Receipt"}
+                  </span>
                   <button
-                    key={opt.value}
                     type="button"
-                    onClick={() => setSeverity(opt.value)}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all text-center cursor-pointer ${
-                      isSelected
-                        ? `${opt.color} border-current ring-2 ring-[#0A4B6E]/30 font-bold shadow-xs`
-                        : "bg-[#F3F5F5] border-gray-200 text-gray-700 hover:bg-gray-100"
-                    }`}
+                    onClick={() => handleRemoveReceipt(r.id)}
+                    className="text-gray-400 hover:text-red-500 cursor-pointer ml-1"
+                    title="Remove"
                   >
-                    {opt.label}
+                    <Trash2 size={12} />
                   </button>
-                );
-              })}
+                </div>
+              ))}
             </div>
-          </div>
+          )}
+        </div>
 
+        {/* SERVICE DETAILS (2-COLUMN BALANCED GRID) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {/* Date Started */}
           <div>
-            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1">
               Date Started <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -323,15 +462,15 @@ export default function FinalizeMaintenanceModal({
                 required
                 value={dateStarted}
                 onChange={handleDateStartedChange}
-                className="w-full pl-9 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800"
+                className="w-full pl-8 pr-3 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#0A4B6E] text-gray-800"
               />
-              <Calendar className="w-4 h-4 text-[#588094] absolute left-3 top-2.5" />
+              <Calendar className="w-3.5 h-3.5 text-[#588094] absolute left-2.5 top-2.5" />
             </div>
           </div>
 
           {/* Date Resolved */}
           <div>
-            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1">
               Date Resolved <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -341,19 +480,19 @@ export default function FinalizeMaintenanceModal({
                 min={dateStarted}
                 value={dateResolved}
                 onChange={handleDateResolvedChange}
-                className="w-full pl-9 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800"
+                className="w-full pl-8 pr-3 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#0A4B6E] text-gray-800"
               />
-              <Calendar className="w-4 h-4 text-[#588094] absolute left-3 top-2.5" />
+              <Calendar className="w-3.5 h-3.5 text-[#588094] absolute left-2.5 top-2.5" />
             </div>
           </div>
 
           {/* Parts Cost */}
           <div>
-            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1">
               Parts Cost (PHP)
             </label>
             <div className="relative">
-              <span className="text-gray-500 absolute left-3.5 top-2 text-xs font-bold">₱</span>
+              <span className="text-gray-500 absolute left-3 top-2 text-xs font-bold">₱</span>
               <input
                 type="number"
                 min="0"
@@ -361,18 +500,18 @@ export default function FinalizeMaintenanceModal({
                 value={partsCost}
                 onChange={(e) => setPartsCost(e.target.value)}
                 placeholder="0.00"
-                className="w-full pl-7 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800"
+                className="w-full pl-7 pr-3 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#0A4B6E] text-gray-800"
               />
             </div>
           </div>
 
           {/* Labor Cost */}
           <div>
-            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1">
               Labor Cost (PHP)
             </label>
             <div className="relative">
-              <span className="text-gray-500 absolute left-3.5 top-2 text-xs font-bold">₱</span>
+              <span className="text-gray-500 absolute left-3 top-2 text-xs font-bold">₱</span>
               <input
                 type="number"
                 min="0"
@@ -380,47 +519,24 @@ export default function FinalizeMaintenanceModal({
                 value={laborCost}
                 onChange={(e) => setLaborCost(e.target.value)}
                 placeholder="0.00"
-                className="w-full pl-7 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800"
+                className="w-full pl-7 pr-3 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#0A4B6E] text-gray-800"
               />
             </div>
           </div>
 
-          {/* Total Cost Display */}
-          <div className="md:col-span-2 bg-[#F3F5F5] border border-gray-200 rounded-xl p-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-[10px] leading-none shrink-0">
-                ₱
-              </span>
-              <span className="text-xs font-semibold text-[#0A4B6E]">Total Settled Maintenance Cost</span>
-            </div>
-            <span className="text-base font-bold text-[#0A4B6E]">
-              ₱{totalCost.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          {/* Live Total Cost Banner */}
+          <div className="md:col-span-2 bg-[#F3F5F5] border border-gray-200 rounded-xl px-3.5 py-2.5 flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#0A4B6E]">
+              Total Settled Maintenance Cost
             </span>
-          </div>
-
-          {/* Downtime Days */}
-          <div>
-            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
-              Downtime (Days)
-            </label>
-            <div className="relative">
-              <input
-                type="number"
-                min="0"
-                value={downtimeDays}
-                onChange={(e) => setDowntimeDays(e.target.value)}
-                className="w-full pl-9 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800"
-              />
-              <Clock className="w-4 h-4 text-[#588094] absolute left-3 top-2.5" />
-            </div>
-            <span className="text-[11px] text-[#588094] mt-1 block">
-              Computed: {calculatedDowntime} day(s) based on dates.
+            <span className="text-sm font-bold text-[#0A4B6E]">
+              ₱{totalCost.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
 
           {/* Odometer at Service */}
           <div>
-            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1.5">
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1">
               Odometer at Service (km) <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -431,14 +547,54 @@ export default function FinalizeMaintenanceModal({
                 max={999999}
                 value={odometerAtService}
                 onChange={(e) => setOdometerAtService(e.target.value)}
-                placeholder="e.g. 46500 (max 999,999)"
-                className="w-full pl-9 pr-3.5 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A4B6E] text-gray-800 font-mono"
+                placeholder="e.g. 46500"
+                className="w-full pl-8 pr-3 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#0A4B6E] text-gray-800 font-mono"
               />
-              <Gauge className="w-4 h-4 text-[#588094] absolute left-3 top-2.5" />
+              <Gauge className="w-3.5 h-3.5 text-[#588094] absolute left-2.5 top-2.5" />
             </div>
-            <span className="text-[11px] text-[#588094] mt-1 block">
-              Current odometer: {currentOdometer.toLocaleString()} km (Ceiling: 999,999 km)
-            </span>
+          </div>
+
+          {/* Downtime Days */}
+          <div>
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1">
+              Downtime (Days)
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                min="0"
+                value={downtimeDays}
+                onChange={(e) => setDowntimeDays(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 text-xs font-medium bg-[#F3F5F5] rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#0A4B6E] text-gray-800"
+              />
+              <Clock className="w-3.5 h-3.5 text-[#588094] absolute left-2.5 top-2.5" />
+            </div>
+          </div>
+
+          {/* Service Severity */}
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-[#0A4B6E] mb-1">
+              Severity
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {SEVERITY_OPTIONS.map((opt) => {
+                const isSelected = severity === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setSeverity(opt.value)}
+                    className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all text-center cursor-pointer ${
+                      isSelected
+                        ? `${opt.color} border-current ring-1 ring-[#0A4B6E]/30 font-bold shadow-2xs`
+                        : "bg-[#F3F5F5] border-gray-200 text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -448,9 +604,9 @@ export default function FinalizeMaintenanceModal({
             type="submit"
             variant="yellow"
             disabled={isSubmitting}
-            className="w-full font-bold text-sm uppercase tracking-wider mb-2"
+            className="w-full font-bold text-xs uppercase tracking-wider mb-2"
           >
-            {isSubmitting ? "FINALIZING..." : "FINALIZE & RELEASE TRUCK"}
+            {isSubmitting ? "FINALIZING..." : "FINALIZE & RELEASE VEHICLE"}
           </Button>
           <Button
             type="button"

@@ -1,11 +1,12 @@
-// src/components/ui/SideDrawer.jsx
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 /**
  * SideDrawer Component
  * Slides in from the right edge with smooth animations (animate-slide-fade-in / animate-slide-fade-out),
  * backdrop blur, sticky header, scrollable body, and pinned footer.
+ * Portaled to document.body to ensure it renders above the main layout and top header.
  */
 export default function SideDrawer({
   isOpen,
@@ -35,7 +36,7 @@ export default function SideDrawer({
 
   if (!isOpen) return null;
 
-  return (
+  const drawerNode = (
     <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
       {/* Backdrop */}
       <div
@@ -95,4 +96,8 @@ export default function SideDrawer({
       </div>
     </div>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(drawerNode, document.body)
+    : drawerNode;
 }

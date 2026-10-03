@@ -1408,7 +1408,11 @@ export default function Fleet() {
           truck={trucks.find(
             (t) =>
               t.id === workOrderForFinalize.truckId ||
-              t.id === workOrderForFinalize.truck?.id
+              t.id === workOrderForFinalize.vehicleId ||
+              t.id === workOrderForFinalize.truck?.id ||
+              t.vehicleId === workOrderForFinalize.truckId ||
+              t.vehicleId === workOrderForFinalize.vehicleId ||
+              (workOrderForFinalize.plateNumber && t.plateNumber === workOrderForFinalize.plateNumber)
           )}
           onClose={() => setWorkOrderForFinalize(null)}
           onFinalize={handleFinalizeMaintenance}
@@ -1419,6 +1423,16 @@ export default function Fleet() {
         <WorkOrderDetailModal
           isOpen={!!workOrderForDetail}
           workOrder={workOrderForDetail}
+          truck={trucks.find(
+            (t) =>
+              t.id === workOrderForDetail.truckId ||
+              t.id === workOrderForDetail.vehicleId ||
+              t.id === workOrderForDetail.truck?.id ||
+              t.vehicleId === workOrderForDetail.truckId ||
+              t.vehicleId === workOrderForDetail.vehicleId ||
+              (workOrderForDetail.plateNumber && t.plateNumber === workOrderForDetail.plateNumber)
+          )}
+          trucks={trucks}
           onClose={() => setWorkOrderForDetail(null)}
           onOpenApproval={(wo) => setWorkOrderForApproval(wo)}
           onOpenFinalize={(wo) => setWorkOrderForFinalize(wo)}
