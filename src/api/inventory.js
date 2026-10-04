@@ -95,7 +95,10 @@ export const inventoryApi = {
 
     const queryString = query.toString() ? `?${query.toString()}` : "";
     const result = await apiClient(`/inventory/products${queryString}`);
-    return result.data.products;
+    if (Array.isArray(result?.data)) {
+      return result.data;
+    }
+    return result?.data?.products || (Array.isArray(result) ? result : []);
   },
 
   /**
@@ -116,7 +119,7 @@ export const inventoryApi = {
     }
 
     const result = await apiClient(`/inventory/products/${id}`);
-    return result.data.product;
+    return result?.data?.product || result?.data || result;
   },
 
   /**
@@ -125,11 +128,17 @@ export const inventoryApi = {
    * @returns {Promise<{ product: object }>} Created product response
    */
   async createProduct(productData) {
+    if (productData.name && !/^[a-zA-Z0-9\s.-]+$/.test(productData.name.trim())) {
+      const err = new Error("Product name cannot contain special characters.");
+      err.status = 400;
+      throw err;
+    }
+
     if (isMock) {
       await delay(300);
       const newProduct = {
         id: `itm-${Date.now()}`,
-        name: productData.name,
+        name: productData.name.trim(),
         category: productData.category,
         containerType: productData.containerType || "CYLINDER",
         netWeightKg: Number(productData.netWeightKg) || 0,
@@ -157,6 +166,12 @@ export const inventoryApi = {
    * @returns {Promise<{ product: object }>} Updated product response
    */
   async updateProduct(id, productData) {
+    if (productData.name && !/^[a-zA-Z0-9\s.-]+$/.test(productData.name.trim())) {
+      const err = new Error("Product name cannot contain special characters.");
+      err.status = 400;
+      throw err;
+    }
+
     if (isMock) {
       await delay(250);
       const index = inMemoryItems.findIndex((i) => i.id === id);
@@ -164,6 +179,7 @@ export const inventoryApi = {
       const updated = {
         ...existing,
         ...productData,
+        name: productData.name !== undefined ? productData.name.trim() : existing.name,
         netWeightKg:
           productData.netWeightKg !== undefined
             ? Number(productData.netWeightKg)

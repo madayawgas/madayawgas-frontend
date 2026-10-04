@@ -11,7 +11,7 @@ export default function ProtectedRoute({ permission, children }) {
 
   if (loading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#F2F2F2]">
+      <div className="flex h-screen w-full items-center justify-center bg-white">
         <p className="text-sm font-semibold text-[#0F7AB2]">
           Verifying access...
         </p>

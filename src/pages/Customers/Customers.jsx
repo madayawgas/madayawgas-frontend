@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import CustomerHeader from "../../components/customers/CustomerHeader";
 import CustomerControls from "../../components/customers/CustomerControls";
 import CustomerTable from "../../components/customers/CustomerTable";
@@ -45,8 +45,17 @@ export default function Customers() {
   // Toast Notification State
   const [toast, setToast] = useState(null); // { message: string, type: string }
 
-  // Search, Filter and Sort
+  // Search, Filter, Sort and Server Pagination (Strategy B)
+  const [page, setPage] = useState(1);
+  const limit = 20;
   const [searchTerm, setSearchTerm] = useState("");
+  const [committedSearch, setCommittedSearch] = useState("");
+  const [paginationMeta, setPaginationMeta] = useState({
+    page: 1,
+    limit: 20,
+    totalItems: 0,
+    totalPages: 1,
+  });
   const [filters, setFilters] = useState({
     customerType: "All Types",
     status: "",
@@ -67,25 +76,63 @@ export default function Customers() {
     ? can(PERMISSIONS?.SALES_CREATE || "sales.create")
     : true;
 
-  // Initial Load
-  useEffect(() => {
-    async function loadCustomers() {
-      try {
-        setIsLoading(true);
-        const data = await customersApi.getCustomers();
-        if (data) {
-          setCustomers(data);
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
-        }
-      } catch (err) {
-        console.error("Failed to load customer list", err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+  // Load Customers (Server Pagination & Filters)
+  const loadCustomers = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await customersApi.getCustomers({
+        page,
+        limit,
+        search: committedSearch.trim() || undefined,
+        customerType: filters.customerType === "All Types" ? undefined : filters.customerType,
+        status: filters.status || undefined,
+        sortBy: sortConfig.key,
+        sortOrder: sortConfig.direction,
+      });
 
+      if (res?.data && Array.isArray(res.data)) {
+        setCustomers(res.data);
+        if (res.meta) {
+          setPaginationMeta(res.meta);
+        } else {
+          setPaginationMeta({
+            page,
+            limit,
+            totalItems: res.data.length,
+            totalPages: Math.max(1, Math.ceil(res.data.length / limit)),
+          });
+        }
+      } else if (Array.isArray(res)) {
+        setCustomers(res);
+        setPaginationMeta({
+          page,
+          limit,
+          totalItems: res.length,
+          totalPages: Math.max(1, Math.ceil(res.length / limit)),
+        });
+      }
+    } catch (err) {
+      console.error("Failed to load customer list", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [page, limit, committedSearch, filters, sortConfig]);
+
+  useEffect(() => {
     loadCustomers();
-  }, []);
+  }, [loadCustomers]);
+
+  const handleSearchSubmit = (query) => {
+    setCommittedSearch(query);
+    setSearchTerm(query);
+    setPage(1); // Auto reset page = 1
+  };
+
+  const handleSearchClear = () => {
+    setCommittedSearch("");
+    setSearchTerm("");
+    setPage(1); // Auto reset page = 1
+  };
 
   // Clean up timer on unmount
   useEffect(() => {
@@ -103,80 +150,6 @@ export default function Customers() {
     });
   };
 
-  // Filter & Sort Logic
-  const processedCustomers = useMemo(() => {
-    let result = [...customers];
-
-    // 1. Customer Type filter
-    if (filters.customerType && filters.customerType !== "All Types") {
-      result = result.filter(
-        (c) =>
-          (c.customerType || "").toUpperCase() ===
-          filters.customerType.toUpperCase()
-      );
-    }
-
-    // 2. Status filter
-    if (filters.status) {
-      if (filters.status.toUpperCase() === "ACTIVE") {
-        result = result.filter((c) => c.isActive === true);
-      } else if (filters.status.toUpperCase() === "INACTIVE") {
-        result = result.filter((c) => c.isActive === false);
-      }
-    }
-
-    // 3. Date range filter
-    if (filters.dateFrom) {
-      const fromDate = new Date(filters.dateFrom).getTime();
-      result = result.filter((c) => {
-        if (!c.createdAt) return false;
-        return new Date(c.createdAt).getTime() >= fromDate;
-      });
-    }
-
-    if (filters.dateTo) {
-      const toDate = new Date(filters.dateTo);
-      toDate.setHours(23, 59, 59, 999);
-      const toDateTime = toDate.getTime();
-      result = result.filter((c) => {
-        if (!c.createdAt) return false;
-        return new Date(c.createdAt).getTime() <= toDateTime;
-      });
-    }
-
-    // 4. Search filter (name, address, contactNumber, customerType)
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
-      result = result.filter(
-        (c) =>
-          (c.name || "").toLowerCase().includes(q) ||
-          (c.address || "").toLowerCase().includes(q) ||
-          (c.contactNumber || "").toLowerCase().includes(q) ||
-          (c.customerType || "").toLowerCase().includes(q)
-      );
-    }
-
-    // 5. Sorting
-    result.sort((a, b) => {
-      let aVal = a[sortConfig.key];
-      let bVal = b[sortConfig.key];
-
-      if (sortConfig.key === "createdAt") {
-        aVal = aVal ? new Date(aVal).getTime() : 0;
-        bVal = bVal ? new Date(bVal).getTime() : 0;
-      } else {
-        aVal = aVal ? aVal.toString().toLowerCase() : "";
-        bVal = bVal ? bVal.toString().toLowerCase() : "";
-      }
-
-      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return result;
-  }, [customers, searchTerm, filters, sortConfig]);
-
   // Close panel with smooth exit animation (left-to-right off screen)
   const handleCloseDetail = () => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
@@ -188,12 +161,11 @@ export default function Customers() {
     }, 250);
   };
 
-  // Handlers
+  // Handlers for Selection, Sorting & Server Pagination
   const handleSelectCustomer = (customer) => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
 
     if (selectedCustomer?.id === customer.id) {
-      // Toggle off if already selected
       handleCloseDetail();
     } else {
       setIsClosingPanel(false);
@@ -209,20 +181,28 @@ export default function Customers() {
     }));
   };
 
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+  };
+
   const handleApplyFilters = (newFilters) => {
-    setFilters((prev) => ({ ...prev, ...newFilters }));
+    setFilters(newFilters);
+    setPage(1); // Auto reset page = 1
   };
 
   const handleClearType = () => {
     setFilters((prev) => ({ ...prev, customerType: "All Types" }));
+    setPage(1);
   };
 
   const handleClearStatus = () => {
     setFilters((prev) => ({ ...prev, status: "" }));
+    setPage(1);
   };
 
   const handleClearDate = () => {
     setFilters((prev) => ({ ...prev, dateFrom: "", dateTo: "" }));
+    setPage(1);
   };
 
   // Create / Update Customer Handler (POST /api/sales/customers or PATCH /api/sales/customers/:id)
@@ -257,6 +237,7 @@ export default function Customers() {
       updateCustomersState((prev) => [newCustomer, ...prev]);
       setToast({ type: "success", message: "Customer Created Successfully" });
     }
+    await loadCustomers();
   };
 
   // Reactivate Inactive Customer Handler (PATCH /api/sales/customers/:id with isActive: true)
@@ -286,6 +267,7 @@ export default function Customers() {
         type: "success",
         message: "Customer Successfully Reactivated",
       });
+      await loadCustomers();
     } catch (err) {
       console.error("Failed to reactivate customer:", err);
       setToast({
@@ -336,15 +318,23 @@ export default function Customers() {
 
     setShowPasswordModal(false);
     setCustomerToDeactivate(null);
+    await loadCustomers();
   };
 
+  const customerSummary = useMemo(() => {
+    const total = paginationMeta.totalItems || customers.length;
+    const active = customers.filter((c) => c.isActive !== false).length;
+    return { total, active };
+  }, [customers, paginationMeta.totalItems]);
+
   return (
-    <div className="h-[calc(100vh-112px)] md:h-[calc(100vh-128px)] flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden min-w-0">
       {/* Header (Pinned at Top) */}
       <div className="shrink-0">
         <CustomerHeader
           canCreate={canCreate}
           onAddCustomer={() => setIsAddingCustomer(true)}
+          customerSummary={customerSummary}
         />
       </div>
 
@@ -353,6 +343,8 @@ export default function Customers() {
         <CustomerControls
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
+          onSearch={handleSearchSubmit}
+          onClearSearch={handleSearchClear}
           activeFilters={filters}
           onApplyFilters={handleApplyFilters}
           onClearType={handleClearType}
@@ -367,22 +359,30 @@ export default function Customers() {
           Loading customer records...
         </div>
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col lg:flex-row items-stretch gap-6 overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row items-stretch gap-4 lg:gap-6 overflow-hidden min-w-0">
           {/* Customer Table Container (Scrolls independently) */}
           <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden transition-all duration-300">
             <CustomerTable
-              customers={processedCustomers}
+              customers={customers}
               selectedCustomer={selectedCustomer}
               onSelectCustomer={handleSelectCustomer}
               sortConfig={sortConfig}
               onSort={handleSort}
+              pagination={{
+                page,
+                limit,
+                totalItems: paginationMeta.totalItems,
+                totalPages: paginationMeta.totalPages,
+                onPageChange: handlePageChange,
+                isLoading,
+              }}
             />
           </div>
 
           {/* Locked Expanded Customer Details Panel (Right Side with independent scroll & out-animation) */}
           {activeDetailCustomer && (
             <div
-              className={`w-full lg:w-[400px] xl:w-[430px] shrink-0 h-full flex flex-col overflow-hidden transition-all duration-300 ${
+              className={`w-full lg:w-[350px] xl:w-[390px] shrink-0 h-full flex flex-col overflow-hidden transition-all duration-300 ${
                 isClosingPanel
                   ? "animate-slide-fade-out pointer-events-none"
                   : "animate-slide-fade-in"

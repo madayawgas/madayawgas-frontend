@@ -31,6 +31,16 @@
         "id": "q1w2e3r4-t5y6-u7i8-o9p0-a1s2d3f4g5h6",
         "name": "Sales Manager",
         "description": "Oversees sales team performance, targets, and customer relationship management."
+      },
+      {
+        "id": "5752c002-125c-42ae-9bc6-e78fffeaa583",
+        "name": "Sales Supervisor",
+        "description": "Supervises sales pipelines, customer relations, and retail/commercial quotas."
+      },
+      {
+        "id": "f2fef090-ffb9-47ff-b52e-6d9b4c4897f2",
+        "name": "Logistics Supervisor",
+        "description": "Coordinates distribution logistics, dispatch assignments, and fleet dispatching."
       }
     ]
   }

@@ -1,4 +1,7 @@
+import { UserRound, Phone, Calendar, MapPin } from "lucide-react";
+import { formatPhilippinePhone } from "../../utils/phone.js";
 import Badge from "../ui/Badge";
+import Pagination from "../ui/Pagination";
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -15,29 +18,30 @@ function formatDate(dateStr) {
 }
 
 export default function CustomerTable({
-  customers,
+  customers = [],
   selectedCustomer,
   onSelectCustomer,
-  sortConfig,
+  sortConfig = { key: "name", direction: "asc" },
   onSort,
+  pagination,
 }) {
   return (
     <div className="w-full h-full flex flex-col overflow-hidden border border-[#0A4B6E]/30 rounded-2xl bg-white shadow-sm">
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead className="bg-[#0D4B6E] text-white text-sm sticky top-0 z-10 shadow-xs">
+        <table className="w-full text-left border-collapse min-w-[580px]">
+          <thead className="bg-[#0D4B6E] text-white text-xs md:text-sm sticky top-0 z-10 shadow-xs">
             <tr>
               <th
-                className="py-3.5 px-6 font-medium cursor-pointer hover:bg-[#0b3e5b] transition-colors"
+                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[30%] min-w-[150px]"
                 onClick={() => onSort("name")}
               >
-                Name{" "}
+                Customer Profile{" "}
                 {sortConfig.key === "name" ? (
                   sortConfig.direction === "asc" ? "▲" : "▼"
                 ) : ""}
               </th>
               <th
-                className="py-3.5 px-6 font-medium cursor-pointer hover:bg-[#0b3e5b] transition-colors"
+                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[18%] min-w-[115px]"
                 onClick={() => onSort("customerType")}
               >
                 Customer Type{" "}
@@ -45,49 +49,99 @@ export default function CustomerTable({
                   sortConfig.direction === "asc" ? "▲" : "▼"
                 ) : ""}
               </th>
-              <th className="py-3.5 px-6 font-medium">Contact No.</th>
+              <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[20%] min-w-[130px]">
+                Contact No.
+              </th>
               <th
-                className="py-3.5 px-6 font-medium text-center cursor-pointer hover:bg-[#0b3e5b] transition-colors"
+                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] text-center cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[16%] min-w-[100px]"
                 onClick={() => onSort("createdAt")}
               >
-                Date Created{" "}
+                Date Registered{" "}
                 {sortConfig.key === "createdAt" ? (
                   sortConfig.direction === "asc" ? "▲" : "▼"
                 ) : ""}
               </th>
-              <th className="py-3.5 px-6 font-medium text-center">Status</th>
+              <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] text-center whitespace-nowrap w-[16%] min-w-[85px]">
+                Status
+              </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 text-sm">
+          <tbody className="divide-y divide-gray-100 text-xs md:text-sm">
             {customers.length > 0 ? (
               customers.map((customer) => {
                 const isSelected = selectedCustomer?.id === customer.id;
+                const initial = customer.name
+                  ? customer.name.trim().charAt(0).toUpperCase()
+                  : "";
 
                 return (
                   <tr
                     key={customer.id}
                     onClick={() => onSelectCustomer(customer)}
-                    className={`transition-colors cursor-pointer ${
+                    className={`transition-colors duration-150 cursor-pointer ${
                       isSelected
-                        ? "bg-[#E2EDF3] text-[#0A4B6E] font-medium"
-                        : "hover:bg-gray-50/80 bg-white"
+                        ? "bg-[#E2EDF3] text-[#0A4B6E] font-semibold"
+                        : "bg-white hover:bg-[#F4F9FC]"
                     }`}
                   >
-                    <td className="py-4 px-6 text-gray-800 font-medium">
-                      {customer.name}
+                    {/* Customer Profile & Address */}
+                    <td className="py-3.5 px-3 md:px-4">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 font-bold text-xs shadow-xs">
+                          {initial || <UserRound size={14} />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-[#0A4B6E] truncate text-xs md:text-sm">
+                            {customer.name}
+                          </div>
+                          {customer.address && (
+                            <div
+                              className="text-[11px] text-[#6D8AA2] flex items-center gap-1 font-normal truncate"
+                              title={customer.address}
+                            >
+                              <MapPin size={11} className="shrink-0 text-[#6D8AA2]" />
+                              <span className="truncate">{customer.address}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </td>
-                    <td className="py-4 px-6">
-                      <Badge variant="roles">{customer.customerType}</Badge>
+
+                    {/* Customer Type Badge */}
+                    <td className="py-3.5 px-3 md:px-4 whitespace-nowrap">
+                      <Badge
+                        variant="roles"
+                        className="text-[10px] px-2 py-0.5 whitespace-nowrap inline-flex items-center"
+                      >
+                        {customer.customerType}
+                      </Badge>
                     </td>
-                    <td className="py-4 px-6 italic text-[#6D8AA2]">
-                      {customer.contactNumber}
+
+                    {/* Contact Number */}
+                    <td className="py-3.5 px-3 md:px-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5 text-gray-700 font-medium text-xs md:text-sm">
+                        <Phone size={13} className="text-[#6D8AA2] shrink-0" />
+                        <span className="truncate">
+                          {customer.contactNumber
+                            ? formatPhilippinePhone(customer.contactNumber)
+                            : "-"}
+                        </span>
+                      </div>
                     </td>
-                    <td className="py-4 px-6 text-center italic text-[#6D8AA2] text-xs">
-                      {formatDate(customer.createdAt)}
+
+                    {/* Date Registered */}
+                    <td className="py-3.5 px-3 md:px-4 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5 text-xs text-[#6D8AA2] italic">
+                        <Calendar size={13} className="text-[#6D8AA2] shrink-0" />
+                        <span>{formatDate(customer.createdAt)}</span>
+                      </div>
                     </td>
-                    <td className="py-4 px-6 text-center">
+
+                    {/* Status Badge */}
+                    <td className="py-3.5 px-3 md:px-4 text-center whitespace-nowrap">
                       <Badge
                         variant={customer.isActive ? "success" : "deactivated"}
+                        className="text-[10px] px-2 py-0.5 whitespace-nowrap inline-flex items-center"
                       >
                         {customer.isActive ? "ACTIVE" : "INACTIVE"}
                       </Badge>
@@ -108,6 +162,17 @@ export default function CustomerTable({
           </tbody>
         </table>
       </div>
+
+      {pagination && (
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          limit={pagination.limit}
+          onPageChange={pagination.onPageChange}
+          isLoading={pagination.isLoading}
+        />
+      )}
     </div>
   );
 }

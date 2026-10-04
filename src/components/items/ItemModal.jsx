@@ -1,22 +1,28 @@
+// src/components/items/ItemModal.jsx
 import { useState } from "react";
-import { Package, Flame, Pencil, Trash2, ArrowLeft } from "lucide-react";
+import {
+  Package,
+  Flame,
+  Pencil,
+  PackagePlus,
+  ShieldCheck,
+  CheckCircle2,
+  Weight,
+  Layers,
+} from "lucide-react";
 import Input from "../ui/Input";
 import Select from "../ui/Select";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
-
-// Status Badge Style Helper
-const getBadgeStyle = (active) => {
-  return active ? "bg-[#10B981] text-white" : "bg-[#64748B] text-white";
-};
+import Badge from "../ui/Badge";
 
 /**
  * Interactive Status Pills selector for Edit / Add forms
  */
 const StatusPills = ({ isActive, onSelect }) => {
   const statuses = [
-    { label: "ACTIVE", value: true, bg: "bg-[#10B981] text-white" },
-    { label: "INACTIVE", value: false, bg: "bg-[#64748B] text-white" },
+    { label: "ACTIVE", value: true, variant: "success" },
+    { label: "INACTIVE", value: false, variant: "deactivated" },
   ];
 
   return (
@@ -24,18 +30,26 @@ const StatusPills = ({ isActive, onSelect }) => {
       {statuses.map((s) => {
         const isSelected = isActive === s.value;
         return (
-          <button
-            key={s.label}
-            type="button"
-            onClick={() => onSelect(s.value)}
-            className={`px-4 py-1.5 text-xs font-bold rounded-full uppercase tracking-wider transition-all cursor-pointer shadow-xs ${s.bg} ${
-              isSelected
-                ? "ring-2 ring-offset-2 ring-[#0A4B6E] scale-105"
-                : "opacity-40 hover:opacity-80"
-            }`}
-          >
-            {s.label}
-          </button>
+          <label key={s.label} className="cursor-pointer relative flex items-center">
+            <input
+              type="radio"
+              name="itemStatus"
+              value={String(s.value)}
+              checked={isSelected}
+              onChange={() => onSelect(s.value)}
+              className="sr-only"
+            />
+            <Badge
+              variant={s.variant}
+              className={`px-4 py-1.5 text-xs transition-all duration-150 cursor-pointer ${
+                isSelected
+                  ? "ring-2 ring-offset-1 ring-[#0A4B6E] font-bold shadow-xs scale-102"
+                  : "opacity-50 hover:opacity-80"
+              }`}
+            >
+              {s.label}
+            </Badge>
+          </label>
         );
       })}
     </div>
@@ -44,36 +58,40 @@ const StatusPills = ({ isActive, onSelect }) => {
 
 export default function ItemModal({
   item,
+  isOpen = true,
   onClose,
   onUpdate,
-  onDeleteClick,
   onAdd,
   isAdding = false,
   items = [],
-  canManage = true,
 }) {
-  const [isEditing, setIsEditing] = useState(isAdding);
-  const [step, setStep] = useState(1); // 1: Form, 2: Confirm
+  const [step, setStep] = useState(1); // 1: Form, 2: Confirm, 3: Success
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const [formData, setFormData] = useState({
     name: item?.name || item?.itemName || "",
-    category: item?.category || "LPG Cylinder",
+    category: item?.category || (item?.containerType === "CANISTER" ? "Canister" : "LPG Cylinder"),
     containerType: item?.containerType || "CYLINDER",
     netWeightKg: item?.netWeightKg !== undefined ? item.netWeightKg : 11.0,
-    isActive: item?.isActive !== undefined ? item.isActive : true,
-    ...(item || {}),
+    isActive: item?.isActive !== undefined ? Boolean(item.isActive) : true,
   });
 
-  if (!item && !isAdding) return null;
+  if (!isOpen) return null;
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     let parsedValue = value;
 
+    if (name === "name") {
+      // Disallow special characters
+      parsedValue = value.replace(/[^a-zA-Z0-9\s.-]/g, "");
+    }
+
     if (name === "netWeightKg") {
-      if (value !== "" && Number(value) < 0) return;
-      parsedValue = value === "" ? "" : Number(value);
+      if (value !== "" && (Number(value) < 0 || Number(value) > 9999)) return;
+      parsedValue = value === "" ? "" : value;
     }
 
     if (name === "containerType") {
@@ -81,7 +99,7 @@ export default function ItemModal({
       setFormData((prev) => ({
         ...prev,
         containerType: value,
-        category: prev.category || suggestedCategory,
+        category: prev.category === "Canister" || prev.category === "LPG Cylinder" ? suggestedCategory : prev.category,
       }));
       return;
     }
@@ -100,17 +118,20 @@ export default function ItemModal({
   const validate = () => {
     const newErrors = {};
 
-    if (!formData.name?.toString().trim()) {
+    const trimmedName = formData.name?.toString().trim();
+    if (!trimmedName) {
       newErrors.name = "Product name is required";
+    } else if (!/^[a-zA-Z0-9\s.-]+$/.test(trimmedName)) {
+      newErrors.name = "Special characters are not allowed in product name";
     } else {
       const nameExists = items.find(
         (i) =>
-          (i.name || i.itemName)?.toString().toLowerCase() ===
-            formData.name?.toString().toLowerCase() &&
-          i.id !== item?.id
+          (i.name || i.itemName)?.toString().toLowerCase().trim() ===
+            trimmedName.toLowerCase() &&
+          (!item || i.id !== item.id)
       );
       if (nameExists) {
-        newErrors.name = "Product with this name already exists";
+        newErrors.name = "A product with this name already exists";
       }
     }
 
@@ -118,348 +139,329 @@ export default function ItemModal({
       newErrors.category = "Category is required";
     }
 
+    if (!formData.containerType) {
+      newErrors.containerType = "Container type is required";
+    }
+
     if (
       formData.netWeightKg === "" ||
-      formData.netWeightKg === undefined ||
+      formData.netWeightKg === null ||
+      isNaN(Number(formData.netWeightKg)) ||
       Number(formData.netWeightKg) <= 0
     ) {
-      newErrors.netWeightKg = "Net weight (kg) must be a positive number";
+      newErrors.netWeightKg = "Net weight must be greater than 0 kg";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleFormSubmit = () => {
+  const handleProceedToConfirm = (e) => {
+    e?.preventDefault();
     if (!validate()) return;
-    if (isAdding) {
-      setStep(2);
-    } else {
-      submitUpdate();
+    setSubmitError("");
+    setStep(2);
+  };
+
+  const handleConfirmSave = async () => {
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const payload = {
+        name: formData.name.trim(),
+        category: formData.category.trim(),
+        containerType: formData.containerType,
+        netWeightKg: Number(formData.netWeightKg),
+        isActive: formData.isActive,
+      };
+
+      if (isAdding) {
+        await onAdd(payload);
+      } else {
+        await onUpdate(item.id, payload);
+      }
+
+      setIsSubmitting(false);
+      setStep(3);
+    } catch (err) {
+      setIsSubmitting(false);
+      setSubmitError(err.message || "Failed to save product. Please try again.");
     }
   };
 
-  const submitUpdate = () => {
-    const finalData = {
-      ...formData,
-      netWeightKg: Number(formData.netWeightKg) || 0,
-      updatedAt: new Date().toISOString(),
-    };
+  const isCylinder = formData.containerType === "CYLINDER";
 
-    onUpdate(item.id, finalData);
-    setIsEditing(false);
-  };
+  const modalTitle = isAdding
+    ? step === 3
+      ? "Product Added"
+      : step === 2
+      ? "Confirm Product"
+      : "Add New Product"
+    : step === 3
+    ? "Product Updated"
+    : step === 2
+    ? "Confirm Changes"
+    : "Edit Product";
 
-  const handleConfirmAdd = () => {
-    const finalData = {
-      name: formData.name,
-      category: formData.category,
-      containerType: formData.containerType,
-      netWeightKg: Number(formData.netWeightKg) || 0,
-      isActive: formData.isActive,
-    };
+  const modalSubtitle = isAdding
+    ? step === 3
+      ? "Product has been successfully registered."
+      : step === 2
+      ? "Review the product specifications below."
+      : "Enter the product specifications and details."
+    : step === 3
+    ? "Product details have been successfully updated."
+    : step === 2
+    ? "Review the updated product specifications."
+    : "Modify product specifications and details.";
 
-    onAdd(finalData);
-  };
-
-
-  const containerOptions = [
-    { value: "CYLINDER", label: "CYLINDER (LPG Tank)" },
-    { value: "CANISTER", label: "CANISTER (Butane / Portable)" },
-  ];
-
-  const categoryOptions = [
-    { value: "LPG Cylinder", label: "LPG Cylinder" },
-    { value: "Canister", label: "Canister" },
-  ];
-
-  const displayItem = item || {};
-  const isItemActive = displayItem.isActive !== undefined ? displayItem.isActive : true;
-
-  const getItemIcon = (containerType, category) => {
-    const type = (containerType || category || "").toUpperCase();
-    if (type.includes("CYLINDER") || type.includes("TANK")) {
-      return <Flame size={26} className="stroke-[2.2]" />;
-    }
-    return <Package size={26} className="stroke-[2.2]" />;
-  };
-
-
-  // ==========================================
-  // VIEW MODE MODAL (Screen 2: Item View)
-  // ==========================================
-  if (!isEditing && !isAdding) {
-    return (
-      <Modal
-        isOpen={true}
-        onClose={onClose}
-        maxWidth="max-w-md"
-        footer={
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full bg-[#FFDF2C] hover:bg-[#F5D020] text-[#0A4B6E] font-bold text-sm py-3 rounded-full uppercase tracking-wider transition shadow-xs cursor-pointer"
-          >
-            CLOSE
-          </button>
-        }
-      >
-        <div className="pt-2 pb-2">
-          {/* Header Row: Item Icon + Name & Status + Pencil + Trash */}
-          <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
-            <div className="flex items-center gap-2.5 text-[#0A4B6E]">
-              {getItemIcon(displayItem.containerType, displayItem.category)}
-              <h2 className="text-xl md:text-2xl font-bold truncate max-w-[220px]">
-                {displayItem.name || displayItem.itemName || "Product"}
-              </h2>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span
-                className={`px-3.5 py-1 text-[11px] font-bold rounded-full uppercase tracking-wider shadow-xs ${getBadgeStyle(
-                  isItemActive
-                )}`}
-              >
-                {isItemActive ? "ACTIVE" : "INACTIVE"}
-              </span>
-
-              {/* Edit Icon Button */}
-              {canManage && (
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="p-1.5 text-[#0A4B6E] hover:bg-gray-100 rounded-lg transition cursor-pointer"
-                  title="Edit Item"
-                >
-                  <Pencil size={18} />
-                </button>
-              )}
-
-              {/* Deactivate Icon Button */}
-              {canManage && (
-                <button
-                  type="button"
-                  onClick={() => onDeleteClick(displayItem)}
-                  className="p-1.5 text-[#0A4B6E] hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
-                  title="Deactivate Item"
-                >
-                  <Trash2 size={18} />
-                </button>
-              )}
-            </div>
-          </div>
-
-
-          {/* Details Body */}
-          <div className="bg-[#E1F3FE] rounded-2xl p-5 space-y-2.5 text-sm text-left">
-            <p className="text-[#588094]">
-              Product Name:{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {displayItem.name || displayItem.itemName || "-"}
-              </span>
-            </p>
-
-            <p className="text-[#588094]">
-              Category:{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {displayItem.category || "LPG Cylinder"}
-              </span>
-            </p>
-
-            <p className="text-[#588094]">
-              Container Type:{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {displayItem.containerType || "CYLINDER"}
-              </span>
-            </p>
-
-            <p className="text-[#588094]">
-              Net Weight:{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {displayItem.netWeightKg !== undefined
-                  ? `${Number(displayItem.netWeightKg).toFixed(3)} kg`
-                  : "11.000 kg"}
-              </span>
-            </p>
-
-            <p className="text-[#588094]">
-              Status:{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {isItemActive ? "Operational / Active" : "Deactivated"}
-              </span>
-            </p>
-          </div>
-        </div>
-      </Modal>
-    );
-  }
-
-  // ==========================================
-  // STEP 2: CONFIRM INFORMATION (Add Flow)
-  // ==========================================
-  if (isAdding && step === 2) {
-    return (
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-[2rem] max-w-lg w-full p-8 shadow-xl">
-          <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-6">
-            <h2 className="text-2xl font-bold text-[#0B4A6E]">
-              Confirm Product Information
-            </h2>
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="text-[#0B4A6E] hover:opacity-75 transition-opacity cursor-pointer p-1"
-            >
-              <ArrowLeft size={22} />
-            </button>
-          </div>
-
-          <div className="bg-[#F3F5F5] rounded-2xl p-6 space-y-3 text-sm text-left mb-6">
-            <p className="text-[#588094]">
-              Product Name:{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {formData.name || "-"}
-              </span>
-            </p>
-            <p className="text-[#588094]">
-              Category:{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {formData.category || "LPG Cylinder"}
-              </span>
-            </p>
-            <p className="text-[#588094]">
-              Container Type:{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {formData.containerType || "CYLINDER"}
-              </span>
-            </p>
-            <p className="text-[#588094]">
-              Net Weight (kg):{" "}
-              <span className="font-bold text-[#0A4B6E]">
-                {Number(formData.netWeightKg || 0).toFixed(3)} kg
-              </span>
-            </p>
-            <div className="flex items-center gap-2">
-              <span className="text-[#588094]">Operational Status:</span>
-              <span
-                className={`px-3 py-0.5 text-xs font-bold rounded-full uppercase tracking-wider text-white ${getBadgeStyle(
-                  formData.isActive
-                )}`}
-              >
-                {formData.isActive ? "ACTIVE" : "INACTIVE"}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <Button
-              type="button"
-              onClick={handleConfirmAdd}
-              className="w-full py-3.5 bg-[#F6C445] hover:bg-[#e2b23b] border-none !text-[#0B4A6E] rounded-full font-bold uppercase tracking-widest text-xs transition-colors cursor-pointer"
-            >
-              CONFIRM
-            </Button>
-            <Button
-              type="button"
-              onClick={() => setStep(1)}
-              className="w-full py-2 bg-transparent border-none !text-[#0B4A6E] font-semibold text-xs hover:underline cursor-pointer"
-            >
-              CANCEL
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-
-  // ==========================================
-  // STEP 1: FORM VIEW (Edit or Add Flow)
-  // ==========================================
-  const formFooter = (
-    <div className="w-full flex flex-col items-center">
-      <button
-        type="button"
-        onClick={handleFormSubmit}
-        className="w-full bg-[#FFDF2C] hover:bg-[#F5D020] text-[#0A4B6E] font-bold text-sm py-3 rounded-full uppercase tracking-wider transition shadow-sm cursor-pointer mb-2"
-      >
-        {isAdding ? "REGISTER PRODUCT" : "SAVE CHANGES"}
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          if (isAdding) onClose();
-          else setIsEditing(false);
-        }}
-        className="text-xs text-[#0A4B6E] font-semibold hover:underline cursor-pointer"
-      >
-        CANCEL
-      </button>
-    </div>
-  );
+  const modalIcon = isAdding
+    ? step === 3
+      ? CheckCircle2
+      : step === 2
+      ? ShieldCheck
+      : PackagePlus
+    : step === 3
+    ? CheckCircle2
+    : step === 2
+    ? ShieldCheck
+    : Pencil;
 
   return (
     <Modal
-      isOpen={true}
+      isOpen={isOpen}
       onClose={onClose}
-      title={isAdding ? "Register Item" : "Edit Item Profile"}
-      maxWidth="max-w-xl"
-      footer={formFooter}
+      title={modalTitle}
+      subtitle={modalSubtitle}
+      icon={modalIcon}
+      maxWidth="max-w-md"
     >
-      <div className="space-y-4 text-left py-2">
-        {/* ROW 1: Product Name */}
-        <div>
-          <Input
-            label="Product Name"
-            name="name"
-            value={formData.name || ""}
-            onChange={handleInputChange}
-            placeholder="e.g. 11kg LPG Cylinder"
-            error={errors.name}
-          />
-        </div>
+      <div className="text-left font-sans">
+        {/* ================= STEP 1: FORM ================= */}
+        {step === 1 && (
+          <form onSubmit={handleProceedToConfirm} className="space-y-4">
+            {submitError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">
+                {submitError}
+              </div>
+            )}
 
-        {/* ROW 2: Container Type & Category */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select
-            label="Container Type"
-            name="containerType"
-            value={formData.containerType || "CYLINDER"}
-            onChange={handleInputChange}
-            options={containerOptions}
-          />
-          <Select
-            label="Category"
-            name="category"
-            value={formData.category || "LPG Cylinder"}
-            onChange={handleInputChange}
-            options={categoryOptions}
-            error={errors.category}
-          />
-        </div>
+            {/* Product Name */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Product Name <span className="text-rose-500">*</span>
+              </label>
+              <Input
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                placeholder="e.g. 11kg Standard LPG Cylinder"
+                error={errors.name}
+                className="w-full text-xs"
+              />
+            </div>
 
-        {/* ROW 3: Net Weight (kg) */}
-        <div>
-          <Input
-            label="Net Weight (kg)"
-            type="number"
-            step="0.001"
-            name="netWeightKg"
-            value={formData.netWeightKg !== undefined ? formData.netWeightKg : ""}
-            onChange={handleInputChange}
-            placeholder="e.g. 11.000"
-            error={errors.netWeightKg}
-          />
-        </div>
+            {/* Container Type & Net Weight */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Container Type <span className="text-rose-500">*</span>
+                </label>
+                <Select
+                  name="containerType"
+                  value={formData.containerType}
+                  onChange={handleInputChange}
+                  options={[
+                    { value: "CYLINDER", label: "CYLINDER" },
+                    { value: "CANISTER", label: "CANISTER" },
+                  ]}
+                  error={errors.containerType}
+                  className="w-full text-xs"
+                />
+              </div>
 
-        {/* ROW 4: Status Pills Selector */}
-        <div className="w-full flex flex-col gap-2 pt-1">
-          <label className="text-black font-medium text-sm">Operational Status</label>
-          <StatusPills
-            isActive={formData.isActive}
-            onSelect={(active) => setFormData((prev) => ({ ...prev, isActive: active }))}
-          />
-        </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Net Weight (kg) <span className="text-rose-500">*</span>
+                </label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  min="0.001"
+                  name="netWeightKg"
+                  value={formData.netWeightKg}
+                  onChange={handleInputChange}
+                  placeholder="e.g. 11.0"
+                  error={errors.netWeightKg}
+                  className="w-full text-xs font-mono"
+                />
+              </div>
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Category <span className="text-rose-500">*</span>
+              </label>
+              <Input
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+                placeholder="e.g. LPG Cylinder, Canister, Industrial"
+                error={errors.category}
+                className="w-full text-xs"
+              />
+            </div>
+
+            {/* Status Selector */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Operational Status
+              </label>
+              <StatusPills
+                isActive={formData.isActive}
+                onSelect={(val) => setFormData((prev) => ({ ...prev, isActive: val }))}
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 mt-5">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onClose}
+                className="!px-4 !py-2 !text-xs font-bold uppercase tracking-wider !rounded-full"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                className="!px-6 !py-2 !text-xs font-bold uppercase tracking-wider !rounded-full !bg-[#FFDF2C] !text-[#0A4B6E] hover:!bg-[#ebd024]"
+              >
+                Continue
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {/* ================= STEP 2: CONFIRMATION ================= */}
+        {step === 2 && (
+          <div className="space-y-4">
+            {submitError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">
+                {submitError}
+              </div>
+            )}
+
+            <div className="bg-[#F8FAFC] border border-slate-200 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
+                <div className="w-10 h-10 rounded-full bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0">
+                  {isCylinder ? <Flame size={18} /> : <Package size={18} />}
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-bold text-[#0A4B6E] text-sm truncate">
+                    {formData.name}
+                  </h4>
+                  <p className="text-xs text-slate-500">{formData.category}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Container Type:</span>
+                  <span className="font-bold text-[#0A4B6E] uppercase">
+                    {formData.containerType}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Net Weight:</span>
+                  <span className="font-bold font-mono text-[#0A4B6E]">
+                    {Number(formData.netWeightKg).toFixed(3)} kg
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Status:</span>
+                  <Badge
+                    variant={formData.isActive ? "success" : "deactivated"}
+                    className="px-2.5 py-0.5 text-[10px] font-bold"
+                  >
+                    {formData.isActive ? "ACTIVE" : "INACTIVE"}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-between gap-2.5 pt-4 border-t border-slate-100 mt-5">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setStep(1)}
+                disabled={isSubmitting}
+                className="!px-4 !py-2 !text-xs font-bold uppercase tracking-wider !rounded-full"
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleConfirmSave}
+                disabled={isSubmitting}
+                className="!px-6 !py-2 !text-xs font-bold uppercase tracking-wider !rounded-full !bg-[#FFDF2C] !text-[#0A4B6E] hover:!bg-[#ebd024]"
+              >
+                {isSubmitting ? "Saving..." : "Confirm"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ================= STEP 3: SUCCESS ================= */}
+        {step === 3 && (
+          <div className="space-y-4 text-center">
+            <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto my-2">
+              <CheckCircle2 size={32} />
+            </div>
+
+            <div className="bg-[#F8FAFC] border border-slate-200 rounded-2xl p-4 text-left space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">Product Name:</span>
+                <span className="text-xs font-bold text-[#0A4B6E] truncate max-w-[180px]">
+                  {formData.name}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">Container / Weight:</span>
+                <span className="text-xs font-semibold text-slate-700">
+                  {formData.containerType} ({Number(formData.netWeightKg).toFixed(3)} kg)
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">Status:</span>
+                <Badge
+                  variant={formData.isActive ? "success" : "deactivated"}
+                  className="px-2.5 py-0.5 text-[10px] font-bold"
+                >
+                  {formData.isActive ? "ACTIVE" : "INACTIVE"}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <Button
+                type="button"
+                variant="primary"
+                onClick={onClose}
+                className="w-full !py-2.5 !text-xs font-bold uppercase tracking-wider !rounded-full !bg-[#FFDF2C] !text-[#0A4B6E] hover:!bg-[#ebd024]"
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );

@@ -78,6 +78,7 @@ export default function ForceChangePasswordModal() {
   return (
     <div
       className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="force-change-password-title"

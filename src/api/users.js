@@ -105,6 +105,14 @@ export const usersApi = {
         birthdate: userData.birthdate || null,
         role: roleName,
         roleId: userData.roleId,
+        roles: [
+          {
+            id: userData.roleId,
+            name: roleName,
+            isPrimary: true,
+          },
+        ],
+        roleNames: [roleName],
         isActive: true,
         isBlocked: false,
         mustChangePassword: true,

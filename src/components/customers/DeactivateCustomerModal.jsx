@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import Button from "../ui/Button";
 
 export default function DeactivateCustomerModal({
@@ -7,9 +8,9 @@ export default function DeactivateCustomerModal({
 }) {
   if (!customer) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-xl">
+  return createPortal(
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl animate-scale-in text-left">
         <h2 className="text-2xl font-bold text-[#0B4A6E] mb-4">
           Deactivate Customer?
         </h2>
@@ -37,6 +38,7 @@ export default function DeactivateCustomerModal({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

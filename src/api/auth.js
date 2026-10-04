@@ -95,13 +95,33 @@ export const authApi = {
         const saved = sessionStorage.getItem(MOCK_SESSION_KEY);
         if (saved) {
           try {
-            return JSON.parse(saved);
+            const parsed = JSON.parse(saved);
+            const matchedUser = mockUsers.data.users.find(
+              (u) => u.username === parsed.username
+            );
+            if (matchedUser) {
+              const updated = {
+                ...matchedUser,
+                ...parsed,
+                permissions: matchedUser.permissions || parsed.permissions,
+                role: matchedUser.role || parsed.role,
+                roles: matchedUser.roles || parsed.roles,
+              };
+              sessionStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(updated));
+              return updated;
+            }
+            return parsed;
           } catch {
             // Ignore JSON parse error
           }
+        } else {
+          // Default to superadmin if no session stored in mock mode
+          const defaultUser = mockMe.data.user || mockUsers.data.users[0];
+          sessionStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(defaultUser));
+          return defaultUser;
         }
       }
-      return null;
+      return mockMe.data.user;
     }
 
     const result = await apiClient("/users/me");
