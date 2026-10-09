@@ -7,12 +7,13 @@ export const isMock =
       : import.meta.env.VITE_USE_MOCK === "true"
     : true;
 
-export const API_BASE_URL =
+export const API_BASE_URL = (
   typeof import.meta !== "undefined" &&
   import.meta.env &&
   import.meta.env.VITE_API_URL
     ? import.meta.env.VITE_API_URL
-    : "http://localhost:5000/api";
+    : "http://localhost:5000/api"
+).replace(/\/+$/, "");
 
 /**
  * Simulated network delay for mock operations.
@@ -24,7 +25,7 @@ export const delay = (ms = 300) =>
 
 /**
  * Lightweight native fetch wrapper.
- * Automatically adds credentials: 'include' (critical for HTTP-only mg_sid cookie)
+ * Automatically adds credentials: 'include' (critical for cross-origin HTTP-only mg_sid cookie)
  * and guarantees Content-Type: 'application/json' while merging headers and body serialization.
  *
  * @param {string} endpoint - API path (e.g. '/users/me')
@@ -32,13 +33,14 @@ export const delay = (ms = 300) =>
  * @returns {Promise<any>}
  */
 export async function apiClient(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const url = `${API_BASE_URL}${cleanEndpoint}`;
   const { headers, ...restOptions } = options;
 
   const config = {
     method: "GET",
-    credentials: "include", // Sends and receives the mg_sid session cookie
     ...restOptions,
+    credentials: "include", // Guarantees cross-origin mg_sid cookie transmission
     headers: {
       "Content-Type": "application/json",
       ...(headers || {}),
