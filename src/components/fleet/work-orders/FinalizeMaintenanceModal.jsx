@@ -10,9 +10,6 @@ import {
   FileText,
   Trash2,
   AlertTriangle,
-  Image as ImageIcon,
-  Plus,
-  X,
   Loader2,
 } from "lucide-react";
 import Modal from "../../ui/Modal";
@@ -58,8 +55,6 @@ export default function FinalizeMaintenanceModal({
   onFinalize,
 }) {
   const [stagedReceipts, setStagedReceipts] = useState([]);
-  const [showTextFallback, setShowTextFallback] = useState(false);
-  const [textRefInput, setTextRefInput] = useState("");
   const [severity, setSeverity] = useState("MEDIUM");
   const [dateStarted, setDateStarted] = useState("");
   const [dateResolved, setDateResolved] = useState("");
@@ -103,8 +98,6 @@ export default function FinalizeMaintenanceModal({
       const initialResolved = scheduled > localToday ? scheduled : localToday;
 
       setStagedReceipts(workOrder.receipts || []);
-      setShowTextFallback(false);
-      setTextRefInput("");
       setSeverity("MEDIUM");
       setDateStarted(scheduled);
       setDateResolved(initialResolved);
@@ -190,20 +183,6 @@ export default function FinalizeMaintenanceModal({
     }
   };
 
-  const handleAddTextReference = (e) => {
-    e.preventDefault();
-    if (!textRefInput.trim()) return;
-    const newRcpt = {
-      id: `rcpt-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      receiptNumber: textRefInput.trim(),
-      isManual: true,
-      isNewlySelected: false,
-    };
-    setStagedReceipts((prev) => [...prev, newRcpt]);
-    setTextRefInput("");
-    setShowTextFallback(false);
-  };
-
   const handleRemoveReceipt = (id) => {
     setStagedReceipts((prev) => {
       const target = prev.find((r) => r.id === id);
@@ -274,7 +253,12 @@ export default function FinalizeMaintenanceModal({
         })
       );
 
-      const primaryOr = finalizedReceipts[0]?.receiptNumber || "N/A";
+      const primaryOr =
+        finalizedReceipts[0]?.receiptNumber ||
+        workOrder.officialReceiptNumber ||
+        (workOrder.workOrderNumber
+          ? `OR-${workOrder.workOrderNumber}`
+          : `OR-${workOrder.id?.slice(0, 8).toUpperCase()}`);
 
       const payload = {
         officialReceiptNumber: primaryOr,
@@ -328,6 +312,7 @@ export default function FinalizeMaintenanceModal({
       onClose={handleClose}
       title="Finalize Maintenance"
       maxWidth="max-w-xl"
+      closeOnBackdrop={false}
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-left py-1">
         {/* Work Order & Vehicle Context Banner */}
@@ -377,16 +362,6 @@ export default function FinalizeMaintenanceModal({
                 Receipt Documentation (Optional)
               </span>
             </div>
-            {!showTextFallback && (
-              <button
-                type="button"
-                onClick={() => setShowTextFallback(true)}
-                className="text-[11px] font-bold text-[#0A4B6E] hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Plus size={12} />
-                <span>Add Text Note</span>
-              </button>
-            )}
           </div>
 
           {/* Hidden File Inputs */}
@@ -443,36 +418,6 @@ export default function FinalizeMaintenanceModal({
               </button>
             </div>
           </div>
-
-          {/* Inline Text Fallback Form */}
-          {showTextFallback && (
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="text"
-                value={textRefInput}
-                onChange={(e) => setTextRefInput(e.target.value)}
-                placeholder="Enter OR# or text note (e.g. OR-88991)"
-                className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-xs text-gray-800 font-mono focus:outline-none focus:ring-1 focus:ring-[#0A4B6E]"
-              />
-              <button
-                type="button"
-                onClick={handleAddTextReference}
-                className="py-1.5 px-3 rounded-xl text-xs font-bold bg-[#0A4B6E] text-white hover:bg-[#083b57] cursor-pointer"
-              >
-                Add
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTextRefInput("");
-                  setShowTextFallback(false);
-                }}
-                className="p-1.5 text-gray-400 hover:text-gray-600 cursor-pointer"
-              >
-                <X size={15} />
-              </button>
-            </div>
-          )}
 
           {/* Attached Receipts Chips */}
           {stagedReceipts.length > 0 && (

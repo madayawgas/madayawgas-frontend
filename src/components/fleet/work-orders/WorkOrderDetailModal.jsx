@@ -206,16 +206,6 @@ export default function WorkOrderDetailModal({
     }
   };
 
-  const handleAttachReceipt = async (receiptPayload) => {
-    await fleetApi.attachWorkOrderReceipt(workOrder.id, receiptPayload);
-    await loadReceipts();
-  };
-
-  const handleDeleteReceipt = async (receiptId) => {
-    await fleetApi.deleteWorkOrderReceipt(receiptId);
-    await loadReceipts();
-  };
-
   const [localStatus, setLocalStatus] = useState(null);
 
   useEffect(() => {
@@ -877,13 +867,10 @@ export default function WorkOrderDetailModal({
           </div>
         </div>
 
-        {/* 6. SUPPORTING AUDIT RECEIPTS & ATTACHMENTS (Decoupled Financials) */}
+        {/* 6. SUPPORTING AUDIT RECEIPTS & DOCUMENTATION */}
         <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3">
           <ReceiptAttachmentManager
-            receipts={attachedReceipts}
-            onUpload={handleAttachReceipt}
-            onDelete={handleDeleteReceipt}
-            readOnly={workOrder.status === "COMPLETED" || workOrder.status === "CANCELLED"}
+            receipts={attachedReceipts?.length > 0 ? attachedReceipts : (matchedLog?.receipts || workOrder.receipts || [])}
           />
         </div>
       </div>
