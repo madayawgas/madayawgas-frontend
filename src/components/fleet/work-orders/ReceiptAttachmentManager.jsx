@@ -1,5 +1,6 @@
 // src/components/fleet/work-orders/ReceiptAttachmentManager.jsx
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Upload,
   Camera,
@@ -15,11 +16,14 @@ import {
   Tag,
   AlertTriangle,
   Loader2,
+  Maximize2,
+  Minimize2,
+  ExternalLink,
 } from "lucide-react";
 import Badge from "../../ui/Badge";
 import Button from "../../ui/Button";
 import { uploadMediaFile } from "../../../api/media.js";
-import { resolveMediaUrl } from "../../../utils/media.js";
+import { resolveMediaUrl, isImageFile, isPdfFile } from "../../../utils/media.js";
 
 const RECEIPT_TYPES = [
   { value: "PARTS", label: "Parts & Materials", color: "bg-blue-50 text-blue-700 border-blue-200" },
@@ -42,8 +46,28 @@ export default function ReceiptAttachmentManager({
 }) {
   const [showManualForm, setShowManualForm] = useState(false);
   const [previewItem, setPreviewItem] = useState(null);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [error, setError] = useState("");
+
+  // Dismiss full-screen expand or modal on Escape key
+  useEffect(() => {
+    if (!previewItem) {
+      setIsExpanded(false);
+      return;
+    }
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        if (isExpanded) {
+          setIsExpanded(false);
+        } else {
+          setPreviewItem(null);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [previewItem, isExpanded]);
 
   // Staged text/photo input state for adding a receipt
   const [stagedFile, setStagedFile] = useState(null); // { file, previewUrl, fileName, fileType }
@@ -301,15 +325,19 @@ export default function ReceiptAttachmentManager({
           {/* Staged file banner (if photo attached) */}
           {stagedFile && (
             <div className="flex items-center gap-3 bg-[#F4F8FA] p-2.5 rounded-xl border border-slate-200">
-              {stagedFile.fileType.startsWith("image/") ? (
+              {isImageFile(stagedFile) ? (
                 <img
                   src={resolveMediaUrl(stagedFile.previewUrl || stagedFile.storageKey)}
                   alt="Receipt Preview"
                   className="w-12 h-12 rounded-lg object-cover border border-slate-200"
                 />
-              ) : (
+              ) : isPdfFile(stagedFile) ? (
                 <div className="w-12 h-12 rounded-lg bg-red-50 text-red-600 flex items-center justify-center border border-red-200 font-bold text-xs">
                   PDF
+                </div>
+              ) : (
+                <div className="w-12 h-12 rounded-lg bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center border border-[#BCE1F1] font-bold text-xs">
+                  DOC
                 </div>
               )}
               <div className="min-w-0 flex-1 text-left">
@@ -429,7 +457,8 @@ export default function ReceiptAttachmentManager({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
           {receipts.map((rcpt, index) => {
             const hasFile = Boolean(rcpt.fileUrl || rcpt.fileName);
-            const isImage = rcpt.fileType?.startsWith("image/") || rcpt.fileUrl?.startsWith("data:image");
+            const isImage = isImageFile(rcpt);
+            const isPdf = isPdfFile(rcpt);
 
             return (
               <div
@@ -450,13 +479,21 @@ export default function ReceiptAttachmentManager({
                         className="w-full h-full object-cover"
                       />
                     </button>
-                  ) : hasFile ? (
+                  ) : hasFile && isPdf ? (
                     <button
                       type="button"
                       onClick={() => setPreviewItem(rcpt)}
                       className="w-10 h-10 rounded-lg bg-red-50 text-red-600 border border-red-200 flex items-center justify-center shrink-0 cursor-pointer text-xs font-bold"
                     >
                       PDF
+                    </button>
+                  ) : hasFile ? (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewItem(rcpt)}
+                      className="w-10 h-10 rounded-lg bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] flex items-center justify-center shrink-0 cursor-pointer text-xs font-bold"
+                    >
+                      DOC
                     </button>
                   ) : (
                     <div className="w-10 h-10 rounded-lg bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
@@ -515,67 +552,239 @@ export default function ReceiptAttachmentManager({
         </div>
       )}
 
-      {/* FULL PREVIEW MODAL */}
-      {previewItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-4 space-y-3 border border-slate-200 shadow-2xl overflow-hidden text-left">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-[#0A4B6E]">
-                  Receipt Preview — {previewItem.receiptNumber}
+      {/* FULL PREVIEW MODAL — PORTALED TO DOCUMENT.BODY TO BREAK OUT OF SIDEDRAWER TRANSFORM */}
+      {previewItem && typeof document !== "undefined" && createPortal(
+        isExpanded ? (
+          /* EXPANDED FULLSCREEN LIGHTBOX */
+          <div
+            className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md flex flex-col animate-fade-in p-4 md:p-6 text-white select-none"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setIsExpanded(false);
+            }}
+          >
+            {/* Top Toolbar */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="font-bold text-base md:text-lg text-white font-mono truncate">
+                  {previewItem.receiptNumber}
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white/10 text-[#FFDF2C] border border-white/20">
                   {previewItem.receiptType || "PARTS"}
                 </span>
+                {previewItem.vendorName && (
+                  <span className="text-xs text-slate-300 hidden sm:inline truncate">
+                    • {previewItem.vendorName}
+                  </span>
+                )}
+                {previewItem.amount ? (
+                  <span className="text-xs font-bold text-[#FFDF2C] hidden sm:inline">
+                    • ₱{Number(previewItem.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                  </span>
+                ) : null}
               </div>
-              <button
-                type="button"
-                onClick={() => setPreviewItem(null)}
-                className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
-              >
-                <X size={18} />
-              </button>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {previewItem.fileUrl && (
+                  <a
+                    href={resolveMediaUrl(previewItem.fileUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+                    title="Open original file in new tab"
+                  >
+                    <ExternalLink size={16} />
+                    <span className="hidden md:inline">Open New Tab</span>
+                  </a>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsExpanded(false)}
+                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
+                  title="Exit Full View (Esc)"
+                >
+                  <Minimize2 size={16} />
+                  <span className="hidden md:inline">Exit Fullscreen</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewItem(null);
+                    setIsExpanded(false);
+                  }}
+                  className="p-2 rounded-xl bg-white/10 hover:bg-red-500/40 text-slate-200 hover:text-white transition cursor-pointer"
+                  title="Close (Esc)"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
-            <div className="max-h-[60vh] overflow-y-auto flex items-center justify-center bg-slate-50 rounded-xl p-2">
-              {previewItem.fileUrl?.startsWith("data:image") || previewItem.fileType?.startsWith("image/") ? (
+            {/* Immersive View Body */}
+            <div
+              className="flex-1 min-h-0 flex items-center justify-center overflow-auto p-2 md:p-4"
+              onClick={() => setIsExpanded(false)}
+            >
+              {isImageFile(previewItem) ? (
                 <img
                   src={resolveMediaUrl(previewItem.fileUrl)}
                   alt={previewItem.receiptNumber}
-                  className="max-h-[55vh] object-contain rounded-lg shadow-sm"
+                  onClick={(e) => e.stopPropagation()}
+                  className="max-h-[85vh] max-w-[95vw] object-contain rounded-xl shadow-2xl transition-transform"
                 />
               ) : previewItem.fileUrl ? (
                 <iframe
                   src={resolveMediaUrl(previewItem.fileUrl)}
                   title={previewItem.receiptNumber}
-                  className="w-full h-[50vh] rounded-lg"
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full h-[85vh] max-w-5xl rounded-xl bg-white"
                 />
               ) : (
-                <div className="py-12 text-center text-slate-500 text-xs">
+                <div className="py-20 text-center text-slate-400 text-sm">
                   No preview available for manual text-only receipt record.
                 </div>
               )}
             </div>
 
-            <div className="flex items-center justify-between text-xs text-[#6D8AA2] pt-1">
-              <span>Vendor: <strong className="text-[#0A4B6E]">{previewItem.vendorName || "Not specified"}</strong></span>
+            {/* Bottom info strip in expanded view */}
+            <div className="pt-2 text-center text-xs text-slate-400 shrink-0 flex items-center justify-between">
+              <span>Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded font-mono text-[11px] text-white">ESC</kbd> to exit full view</span>
               {previewItem.amount ? (
-                <span>Amount: <strong className="text-[#0A4B6E]">₱{Number(previewItem.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</strong></span>
+                <span className="text-white font-bold sm:hidden">
+                  Amount: ₱{Number(previewItem.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                </span>
               ) : null}
             </div>
+          </div>
+        ) : (
+          /* STANDARD CENTERED MODAL DIALOG */
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in text-left"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setPreviewItem(null);
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl max-w-xl md:max-w-2xl w-full p-5 space-y-3.5 border border-slate-200/90 shadow-2xl overflow-hidden relative animate-scale-in"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="font-bold text-sm md:text-base text-[#0A4B6E] truncate">
+                    Receipt Preview — {previewItem.receiptNumber}
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                    {previewItem.receiptType || "PARTS"}
+                  </span>
+                </div>
 
-            <div className="pt-2 text-center">
-              <Button
-                type="button"
-                variant="cancel"
-                onClick={() => setPreviewItem(null)}
-                className="w-full text-xs"
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Expand to Full View Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsExpanded(true)}
+                    className="p-1.5 rounded-full text-slate-500 hover:text-[#0A4B6E] hover:bg-[#E8F3F8] transition cursor-pointer"
+                    title="Expand to Full View"
+                  >
+                    <Maximize2 size={17} />
+                  </button>
+
+                  {/* Open in New Tab Button */}
+                  {previewItem.fileUrl && (
+                    <a
+                      href={resolveMediaUrl(previewItem.fileUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 rounded-full text-slate-500 hover:text-[#0A4B6E] hover:bg-[#E8F3F8] transition cursor-pointer"
+                      title="Open in new tab"
+                    >
+                      <ExternalLink size={17} />
+                    </a>
+                  )}
+
+                  {/* Close Button */}
+                  <button
+                    type="button"
+                    onClick={() => setPreviewItem(null)}
+                    className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                    title="Close"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Main Image View Box (Clickable to Expand) */}
+              <div
+                onClick={() => {
+                  if (isImageFile(previewItem) || previewItem.fileUrl) {
+                    setIsExpanded(true);
+                  }
+                }}
+                className={`max-h-[58vh] overflow-hidden flex items-center justify-center bg-slate-100/80 rounded-2xl p-2 relative group ${
+                  isImageFile(previewItem) ? "cursor-pointer" : ""
+                }`}
               >
-                CLOSE PREVIEW
-              </Button>
+                {isImageFile(previewItem) ? (
+                  <>
+                    <img
+                      src={resolveMediaUrl(previewItem.fileUrl)}
+                      alt={previewItem.receiptNumber}
+                      className="max-h-[54vh] max-w-full object-contain rounded-xl shadow-xs transition group-hover:opacity-95"
+                    />
+                    {/* Hover hint */}
+                    <div className="absolute bottom-3 right-3 bg-slate-900/75 text-white px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md pointer-events-none">
+                      <Maximize2 size={12} />
+                      <span>Click to expand</span>
+                    </div>
+                  </>
+                ) : previewItem.fileUrl ? (
+                  <iframe
+                    src={resolveMediaUrl(previewItem.fileUrl)}
+                    title={previewItem.receiptNumber}
+                    className="w-full h-[50vh] rounded-xl bg-white"
+                  />
+                ) : (
+                  <div className="py-12 text-center text-slate-500 text-xs">
+                    No preview available for manual text-only receipt record.
+                  </div>
+                )}
+              </div>
+
+              {/* Metadata Details */}
+              <div className="flex items-center justify-between text-xs text-[#6D8AA2] pt-1 border-t border-slate-100">
+                <span>Vendor: <strong className="text-[#0A4B6E]">{previewItem.vendorName || "Not specified"}</strong></span>
+                {previewItem.amount ? (
+                  <span>Amount: <strong className="text-[#0A4B6E]">₱{Number(previewItem.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</strong></span>
+                ) : null}
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex items-center gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="blue"
+                  onClick={() => setIsExpanded(true)}
+                  className="w-1/2 text-xs flex items-center justify-center gap-1.5"
+                >
+                  <Maximize2 size={13} />
+                  <span>FULL VIEW</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="cancel"
+                  onClick={() => setPreviewItem(null)}
+                  className="w-1/2 text-xs"
+                >
+                  CLOSE
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        ),
+        document.body
       )}
     </div>
   );

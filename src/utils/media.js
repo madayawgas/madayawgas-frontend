@@ -79,3 +79,49 @@ export function resolveMediaUrl(storageKey) {
 
   return `${cleanBase}/${cleanKey}`;
 }
+
+/**
+ * Evaluates whether an object, URL, or filename represents an image format.
+ * Inspects MIME types, extensions (.jpg, .jpeg, .png, .webp, .gif, .svg, .bmp, .heic, .heif),
+ * data URIs, and remote photo URLs.
+ *
+ * @param {Object | string | null | undefined} item - Receipt object or path string
+ * @returns {boolean}
+ */
+export function isImageFile(item) {
+  if (!item) return false;
+  if (typeof item === "string") {
+    const lower = item.toLowerCase();
+    return (
+      lower.startsWith("data:image/") ||
+      /\.(jpe?g|png|webp|gif|svg|bmp|heic|heif)(\?.*)?$/i.test(lower) ||
+      lower.includes("photo") ||
+      lower.includes("image")
+    );
+  }
+  if (item.fileType && item.fileType.startsWith("image/")) return true;
+  const target = (item.fileUrl || item.fileName || item.originalName || "").toLowerCase();
+  return (
+    target.startsWith("data:image/") ||
+    /\.(jpe?g|png|webp|gif|svg|bmp|heic|heif)(\?.*)?$/i.test(target) ||
+    target.includes("photo") ||
+    target.includes("image")
+  );
+}
+
+/**
+ * Evaluates whether an object, URL, or filename represents a PDF document.
+ *
+ * @param {Object | string | null | undefined} item - Receipt object or path string
+ * @returns {boolean}
+ */
+export function isPdfFile(item) {
+  if (!item) return false;
+  if (typeof item === "string") {
+    const lower = item.toLowerCase();
+    return lower.startsWith("data:application/pdf") || /\.pdf(\?.*)?$/i.test(lower);
+  }
+  if (item.fileType === "application/pdf") return true;
+  const target = (item.fileUrl || item.fileName || item.originalName || "").toLowerCase();
+  return target.startsWith("data:application/pdf") || /\.pdf(\?.*)?$/i.test(target);
+}

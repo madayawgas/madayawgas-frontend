@@ -19,7 +19,7 @@ import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import Badge from "../../ui/Badge";
 import { uploadMediaFile } from "../../../api/media.js";
-import { resolveMediaUrl } from "../../../utils/media.js";
+import { resolveMediaUrl, isImageFile, isPdfFile } from "../../../utils/media.js";
 
 const SEVERITY_OPTIONS = [
   { value: "LOW", label: "Low", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -436,13 +436,13 @@ export default function FinalizeMaintenanceModal({
                   key={r.id}
                   className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs shadow-2xs"
                 >
-                  {r.fileUrl && r.fileType?.startsWith("image/") ? (
+                  {r.fileUrl && isImageFile(r) ? (
                     <img
                       src={resolveMediaUrl(r.fileUrl || r.previewUrl)}
                       alt="Receipt"
                       className="w-5 h-5 rounded object-cover border border-slate-200"
                     />
-                  ) : r.fileType === "application/pdf" ? (
+                  ) : isPdfFile(r) ? (
                     <span className="w-5 h-5 rounded bg-red-100 text-red-700 flex items-center justify-center font-bold text-[9px]">
                       PDF
                     </span>
