@@ -23,7 +23,7 @@ import {
 import Badge from "../../ui/Badge";
 import Button from "../../ui/Button";
 import { uploadMediaFile } from "../../../api/media.js";
-import { resolveMediaUrl, isImageFile, isPdfFile } from "../../../utils/media.js";
+import { getReceiptFileUrl, isImageFile, isPdfFile } from "../../../utils/media.js";
 
 const RECEIPT_TYPES = [
   { value: "PARTS", label: "Parts & Materials", color: "bg-blue-50 text-blue-700 border-blue-200" },
@@ -79,7 +79,19 @@ export default function ReceiptAttachmentManager({
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
 
+  // Revoke object URL on unmount or stagedFile change to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (stagedFile?.previewUrl && stagedFile.previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(stagedFile.previewUrl);
+      }
+    };
+  }, [stagedFile]);
+
   const resetForm = () => {
+    if (stagedFile?.previewUrl && stagedFile.previewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(stagedFile.previewUrl);
+    }
     setStagedFile(null);
     setFormReceiptNumber("");
     setFormVendorName("");
@@ -87,22 +99,23 @@ export default function ReceiptAttachmentManager({
     setFormType("PARTS");
     setShowManualForm(false);
     setError("");
+    setIsProcessingFile(false);
   };
 
-  const processSelectedFile = async (file) => {
+  // Pattern A: Deferred upload. Create instant local blob preview without uploading to server.
+  const processSelectedFile = (file) => {
     if (!file) return;
 
     setError("");
-    setIsProcessingFile(true);
+    setIsProcessingFile(false);
 
     try {
-      const uploadResult = await uploadMediaFile(file, "maintenance/receipts");
+      const objectUrl = URL.createObjectURL(file);
 
       setStagedFile({
-        fileName: uploadResult.originalName || file.name,
-        fileType: uploadResult.mimeType || file.type,
-        previewUrl: uploadResult.url || resolveMediaUrl(uploadResult.storageKey),
-        storageKey: uploadResult.storageKey,
+        fileName: file.name,
+        fileType: file.type || "image/jpeg",
+        previewUrl: objectUrl,
         file,
       });
 
@@ -114,10 +127,8 @@ export default function ReceiptAttachmentManager({
 
       setShowManualForm(true);
     } catch (err) {
-      console.error("Failed to process and upload receipt:", err);
-      setError(err?.message || "Failed to process receipt file.");
-    } finally {
-      setIsProcessingFile(false);
+      console.error("Failed to process selected file:", err);
+      setError("Failed to process receipt file.");
     }
   };
 
@@ -143,6 +154,7 @@ export default function ReceiptAttachmentManager({
     e.preventDefault();
   };
 
+  // Only upload to the server when the user confirms with "Attach Receipt"
   const handleSaveReceipt = async (e) => {
     e.preventDefault();
     if (!formReceiptNumber.trim()) {
@@ -150,30 +162,44 @@ export default function ReceiptAttachmentManager({
       return;
     }
 
-    const newReceipt = {
-      id: `rcpt-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      receiptNumber: formReceiptNumber.trim(),
-      vendorName: formVendorName.trim() || undefined,
-      amount: parseFloat(formAmount) || 0,
-      receiptType: formType,
-      receiptDate: new Date().toISOString(),
-      fileName: stagedFile?.fileName || undefined,
-      fileUrl: stagedFile?.storageKey || stagedFile?.previewUrl || undefined,
-      storageKey: stagedFile?.storageKey || undefined,
-      fileType: stagedFile?.fileType || undefined,
-      isManual: !stagedFile,
-      createdAt: new Date().toISOString(),
-    };
+    setIsProcessingFile(true);
+    setError("");
 
     try {
+      let uploadedData = null;
+
+      // Deferred Upload: Only execute server upload when user confirms/saves
+      if (stagedFile?.file) {
+        uploadedData = await uploadMediaFile(stagedFile.file, "maintenance/receipts");
+      }
+
+      const newReceipt = {
+        id: `rcpt-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        receiptNumber: formReceiptNumber.trim(),
+        vendorName: formVendorName.trim() || undefined,
+        amount: parseFloat(formAmount) || 0,
+        receiptType: formType,
+        receiptDate: new Date().toISOString(),
+        fileName: uploadedData?.originalName || stagedFile?.fileName || undefined,
+        fileUrl: uploadedData?.url || uploadedData?.storageKey || undefined,
+        storageKey: uploadedData?.storageKey || undefined,
+        fileType: uploadedData?.mimeType || stagedFile?.fileType || undefined,
+        isManual: !stagedFile,
+        createdAt: new Date().toISOString(),
+      };
+
       if (onUpload) {
         await onUpload(newReceipt);
       } else if (onChange) {
         onChange([...receipts, newReceipt]);
       }
+
       resetForm();
     } catch (err) {
+      console.error("Failed to upload and attach receipt:", err);
       setError(err?.message || "Failed to save receipt record.");
+    } finally {
+      setIsProcessingFile(false);
     }
   };
 
@@ -247,54 +273,40 @@ export default function ReceiptAttachmentManager({
             className="hidden"
           />
 
-          {isProcessingFile ? (
-            <div className="flex flex-col items-center justify-center py-2 space-y-2">
-              <Loader2 size={24} className="text-[#0A4B6E] animate-spin" />
+          <div className="flex flex-col items-center justify-center space-y-2">
+            <div className="w-10 h-10 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center">
+              <Upload size={18} />
+            </div>
+
+            <div>
               <p className="text-xs font-semibold text-[#0A4B6E]">
-                Compressing & Uploading Receipt...
+                Upload official receipt photo or document
               </p>
-              <p className="text-[11px] text-[#6D8AA2]">
-                Enforcing 5 MB ceiling & converting image format
+              <p className="text-[11px] text-[#6D8AA2] mt-0.5">
+                Drag and drop receipt image or PDF (JPEG, PNG, WebP, PDF up to 5MB)
               </p>
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center space-y-2">
-              <div className="w-10 h-10 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center">
-                <Upload size={18} />
-              </div>
 
-              <div>
-                <p className="text-xs font-semibold text-[#0A4B6E]">
-                  Upload official receipt photo or document
-                </p>
-                <p className="text-[11px] text-[#6D8AA2] mt-0.5">
-                  Drag and drop receipt image or PDF (JPEG, PNG, WebP, PDF up to 5MB)
-                </p>
-              </div>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="py-1.5 px-3.5 rounded-full text-xs font-bold bg-[#0A4B6E] hover:bg-[#083b57] text-[#FFDF2C] flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+              >
+                <Upload size={13} />
+                <span>Browse File</span>
+              </button>
 
-              <div className="flex items-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isProcessingFile}
-                  className="py-1.5 px-3.5 rounded-full text-xs font-bold bg-[#0A4B6E] hover:bg-[#083b57] text-[#FFDF2C] flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-                >
-                  <Upload size={13} />
-                  <span>Browse File</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => cameraInputRef.current?.click()}
-                  disabled={isProcessingFile}
-                  className="py-1.5 px-3.5 rounded-full text-xs font-bold bg-white hover:bg-slate-50 text-[#0A4B6E] border border-[#0A4B6E]/30 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-                >
-                  <Camera size={13} />
-                  <span>Take Photo</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="py-1.5 px-3.5 rounded-full text-xs font-bold bg-white hover:bg-slate-50 text-[#0A4B6E] border border-[#0A4B6E]/30 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+              >
+                <Camera size={13} />
+                <span>Take Photo</span>
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -316,7 +328,8 @@ export default function ReceiptAttachmentManager({
             <button
               type="button"
               onClick={resetForm}
-              className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              disabled={isProcessingFile}
+              className="p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer disabled:opacity-50"
             >
               <X size={15} />
             </button>
@@ -327,7 +340,7 @@ export default function ReceiptAttachmentManager({
             <div className="flex items-center gap-3 bg-[#F4F8FA] p-2.5 rounded-xl border border-slate-200">
               {isImageFile(stagedFile) ? (
                 <img
-                  src={resolveMediaUrl(stagedFile.previewUrl || stagedFile.storageKey)}
+                  src={getReceiptFileUrl(stagedFile)}
                   alt="Receipt Preview"
                   className="w-12 h-12 rounded-lg object-cover border border-slate-200"
                 />
@@ -346,8 +359,14 @@ export default function ReceiptAttachmentManager({
               </div>
               <button
                 type="button"
-                onClick={() => setStagedFile(null)}
-                className="text-[11px] font-semibold text-rose-600 hover:underline cursor-pointer"
+                onClick={() => {
+                  if (stagedFile?.previewUrl && stagedFile.previewUrl.startsWith("blob:")) {
+                    URL.revokeObjectURL(stagedFile.previewUrl);
+                  }
+                  setStagedFile(null);
+                }}
+                disabled={isProcessingFile}
+                className="text-[11px] font-semibold text-rose-600 hover:underline cursor-pointer disabled:opacity-50"
               >
                 Remove File
               </button>
@@ -437,16 +456,25 @@ export default function ReceiptAttachmentManager({
             <button
               type="button"
               onClick={resetForm}
-              className="py-1.5 px-4 rounded-full text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              disabled={isProcessingFile}
+              className="py-1.5 px-4 rounded-full text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer disabled:opacity-50"
             >
               Cancel
             </button>
             <Button
               type="submit"
               variant="yellow"
-              className="py-1.5 px-5 text-xs font-bold uppercase tracking-wider"
+              disabled={isProcessingFile}
+              className="py-1.5 px-5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 disabled:opacity-60"
             >
-              Attach Receipt
+              {isProcessingFile ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>Attaching...</span>
+                </>
+              ) : (
+                <span>Attach Receipt</span>
+              )}
             </Button>
           </div>
         </form>
@@ -456,7 +484,7 @@ export default function ReceiptAttachmentManager({
       {receipts.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
           {receipts.map((rcpt, index) => {
-            const hasFile = Boolean(rcpt.fileUrl || rcpt.fileName);
+            const hasFile = Boolean(rcpt.fileUrl || rcpt.fileName || rcpt.storageKey);
             const isImage = isImageFile(rcpt);
             const isPdf = isPdfFile(rcpt);
 
@@ -474,7 +502,7 @@ export default function ReceiptAttachmentManager({
                       className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                     >
                       <img
-                        src={resolveMediaUrl(rcpt.fileUrl)}
+                        src={getReceiptFileUrl(rcpt)}
                         alt={rcpt.receiptNumber}
                         className="w-full h-full object-cover"
                       />
@@ -584,9 +612,9 @@ export default function ReceiptAttachmentManager({
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                {previewItem.fileUrl && (
+                {(previewItem.fileUrl || previewItem.storageKey) && (
                   <a
-                    href={resolveMediaUrl(previewItem.fileUrl)}
+                    href={getReceiptFileUrl(previewItem)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
@@ -628,14 +656,14 @@ export default function ReceiptAttachmentManager({
             >
               {isImageFile(previewItem) ? (
                 <img
-                  src={resolveMediaUrl(previewItem.fileUrl)}
+                  src={getReceiptFileUrl(previewItem)}
                   alt={previewItem.receiptNumber}
                   onClick={(e) => e.stopPropagation()}
                   className="max-h-[85vh] max-w-[95vw] object-contain rounded-xl shadow-2xl transition-transform"
                 />
-              ) : previewItem.fileUrl ? (
+              ) : previewItem.fileUrl || previewItem.storageKey ? (
                 <iframe
-                  src={resolveMediaUrl(previewItem.fileUrl)}
+                  src={getReceiptFileUrl(previewItem)}
                   title={previewItem.receiptNumber}
                   onClick={(e) => e.stopPropagation()}
                   className="w-full h-[85vh] max-w-5xl rounded-xl bg-white"
@@ -692,9 +720,9 @@ export default function ReceiptAttachmentManager({
                   </button>
 
                   {/* Open in New Tab Button */}
-                  {previewItem.fileUrl && (
+                  {(previewItem.fileUrl || previewItem.storageKey) && (
                     <a
-                      href={resolveMediaUrl(previewItem.fileUrl)}
+                      href={getReceiptFileUrl(previewItem)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1.5 rounded-full text-slate-500 hover:text-[#0A4B6E] hover:bg-[#E8F3F8] transition cursor-pointer"
@@ -719,7 +747,7 @@ export default function ReceiptAttachmentManager({
               {/* Main Image View Box (Clickable to Expand) */}
               <div
                 onClick={() => {
-                  if (isImageFile(previewItem) || previewItem.fileUrl) {
+                  if (isImageFile(previewItem) || previewItem.fileUrl || previewItem.storageKey) {
                     setIsExpanded(true);
                   }
                 }}
@@ -730,7 +758,7 @@ export default function ReceiptAttachmentManager({
                 {isImageFile(previewItem) ? (
                   <>
                     <img
-                      src={resolveMediaUrl(previewItem.fileUrl)}
+                      src={getReceiptFileUrl(previewItem)}
                       alt={previewItem.receiptNumber}
                       className="max-h-[54vh] max-w-full object-contain rounded-xl shadow-xs transition group-hover:opacity-95"
                     />
@@ -740,9 +768,9 @@ export default function ReceiptAttachmentManager({
                       <span>Click to expand</span>
                     </div>
                   </>
-                ) : previewItem.fileUrl ? (
+                ) : previewItem.fileUrl || previewItem.storageKey ? (
                   <iframe
-                    src={resolveMediaUrl(previewItem.fileUrl)}
+                    src={getReceiptFileUrl(previewItem)}
                     title={previewItem.receiptNumber}
                     className="w-full h-[50vh] rounded-xl bg-white"
                   />

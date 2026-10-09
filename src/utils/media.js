@@ -81,9 +81,26 @@ export function resolveMediaUrl(storageKey) {
 }
 
 /**
+ * Safely resolves a receipt item or path into a fully accessible public or preview URL.
+ * Prioritizes auto-resolved public `fileUrl`, followed by `previewUrl` (for staged files),
+ * and falls back to resolving relative `storageKey`.
+ *
+ * @param {Object | string | null | undefined} receipt
+ * @returns {string | null}
+ */
+export function getReceiptFileUrl(receipt) {
+  if (!receipt) return null;
+  if (typeof receipt === "string") return resolveMediaUrl(receipt);
+  if (receipt.fileUrl) return resolveMediaUrl(receipt.fileUrl);
+  if (receipt.previewUrl) return resolveMediaUrl(receipt.previewUrl);
+  if (receipt.storageKey) return resolveMediaUrl(receipt.storageKey);
+  return null;
+}
+
+/**
  * Evaluates whether an object, URL, or filename represents an image format.
  * Inspects MIME types, extensions (.jpg, .jpeg, .png, .webp, .gif, .svg, .bmp, .heic, .heif),
- * data URIs, and remote photo URLs.
+ * data URIs, blob URIs, and remote photo URLs.
  *
  * @param {Object | string | null | undefined} item - Receipt object or path string
  * @returns {boolean}
@@ -99,8 +116,10 @@ export function isImageFile(item) {
       lower.includes("image")
     );
   }
+  if (item.file?.type && item.file.type.startsWith("image/")) return true;
   if (item.fileType && item.fileType.startsWith("image/")) return true;
-  const target = (item.fileUrl || item.fileName || item.originalName || "").toLowerCase();
+  const target = (item.fileUrl || item.previewUrl || item.fileName || item.originalName || "").toLowerCase();
+  if (target.startsWith("blob:") && item.fileType && !item.fileType.includes("pdf")) return true;
   return (
     target.startsWith("data:image/") ||
     /\.(jpe?g|png|webp|gif|svg|bmp|heic|heif)(\?.*)?$/i.test(target) ||
@@ -121,7 +140,8 @@ export function isPdfFile(item) {
     const lower = item.toLowerCase();
     return lower.startsWith("data:application/pdf") || /\.pdf(\?.*)?$/i.test(lower);
   }
+  if (item.file?.type === "application/pdf") return true;
   if (item.fileType === "application/pdf") return true;
-  const target = (item.fileUrl || item.fileName || item.originalName || "").toLowerCase();
+  const target = (item.fileUrl || item.previewUrl || item.fileName || item.originalName || "").toLowerCase();
   return target.startsWith("data:application/pdf") || /\.pdf(\?.*)?$/i.test(target);
 }

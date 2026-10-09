@@ -19,7 +19,7 @@ import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import Badge from "../../ui/Badge";
 import { uploadMediaFile } from "../../../api/media.js";
-import { resolveMediaUrl, isImageFile, isPdfFile } from "../../../utils/media.js";
+import { getReceiptFileUrl, isImageFile, isPdfFile } from "../../../utils/media.js";
 
 const SEVERITY_OPTIONS = [
   { value: "LOW", label: "Low", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -58,7 +58,6 @@ export default function FinalizeMaintenanceModal({
   onFinalize,
 }) {
   const [stagedReceipts, setStagedReceipts] = useState([]);
-  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
   const [showTextFallback, setShowTextFallback] = useState(false);
   const [textRefInput, setTextRefInput] = useState("");
   const [severity, setSeverity] = useState("MEDIUM");
@@ -73,6 +72,21 @@ export default function FinalizeMaintenanceModal({
 
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
+
+  const cleanupBlobUrls = (receiptList) => {
+    if (Array.isArray(receiptList)) {
+      receiptList.forEach((r) => {
+        if (r?.previewUrl && r.previewUrl.startsWith("blob:")) {
+          URL.revokeObjectURL(r.previewUrl);
+        }
+      });
+    }
+  };
+
+  const handleClose = () => {
+    cleanupBlobUrls(stagedReceipts);
+    onClose();
+  };
 
   const currentOdometer = Number(
     truck?.currentOdometer ||
@@ -101,6 +115,13 @@ export default function FinalizeMaintenanceModal({
       setError("");
     }
   }, [isOpen, workOrder, currentOdometer]);
+
+  // Clean up object URLs on unmount
+  useEffect(() => {
+    return () => {
+      cleanupBlobUrls(stagedReceipts);
+    };
+  }, [stagedReceipts]);
 
   // Auto-compute downtime days when dates change
   const calculatedDowntime = useMemo(() => {
@@ -136,29 +157,29 @@ export default function FinalizeMaintenanceModal({
     }
   };
 
-  const handleFileSelected = async (file) => {
+  // Pattern A: Deferred Upload. Create instant local blob preview without touching the server yet.
+  const handleFileSelected = (file) => {
     if (!file) return;
     setError("");
-    setIsUploadingReceipt(true);
 
     try {
-      const uploadResult = await uploadMediaFile(file, "maintenance/receipts");
+      const localPreviewUrl = URL.createObjectURL(file);
       const newRcpt = {
-        id: `rcpt-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        fileName: uploadResult.originalName || file.name,
-        fileUrl: uploadResult.storageKey || uploadResult.url,
-        previewUrl: uploadResult.url || resolveMediaUrl(uploadResult.storageKey),
-        storageKey: uploadResult.storageKey,
-        fileType: uploadResult.mimeType || file.type,
+        id: `rcpt-staged-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        file, // Hold raw File object in state for deferred upload upon submission
+        fileName: file.name,
+        fileUrl: localPreviewUrl,
+        previewUrl: localPreviewUrl,
+        storageKey: null,
+        fileType: file.type || "image/jpeg",
         receiptNumber: file.name.replace(/\.[^/.]+$/, "").slice(0, 24) || "Receipt",
         isManual: false,
+        isNewlySelected: true, // Marked for upload upon confirmation
       };
       setStagedReceipts((prev) => [...prev, newRcpt]);
     } catch (err) {
-      console.error("Failed to upload receipt:", err);
-      setError(err?.message || "Failed to process and upload receipt file.");
-    } finally {
-      setIsUploadingReceipt(false);
+      console.error("Failed to stage receipt file:", err);
+      setError("Failed to process receipt file.");
     }
   };
 
@@ -169,6 +190,7 @@ export default function FinalizeMaintenanceModal({
       id: `rcpt-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       receiptNumber: textRefInput.trim(),
       isManual: true,
+      isNewlySelected: false,
     };
     setStagedReceipts((prev) => [...prev, newRcpt]);
     setTextRefInput("");
@@ -176,7 +198,13 @@ export default function FinalizeMaintenanceModal({
   };
 
   const handleRemoveReceipt = (id) => {
-    setStagedReceipts((prev) => prev.filter((r) => r.id !== id));
+    setStagedReceipts((prev) => {
+      const target = prev.find((r) => r.id === id);
+      if (target?.previewUrl && target.previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((r) => r.id !== id);
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -211,23 +239,50 @@ export default function FinalizeMaintenanceModal({
       return;
     }
 
-    const primaryOr = stagedReceipts[0]?.receiptNumber || "N/A";
-
-    const payload = {
-      officialReceiptNumber: primaryOr,
-      receipts: stagedReceipts,
-      severity,
-      dateStarted: new Date(dateStarted).toISOString(),
-      dateResolved: new Date(dateResolved).toISOString(),
-      partsCost: numericParts,
-      laborCost: numericLabor,
-      downtimeDays: parseInt(downtimeDays, 10) || calculatedDowntime || 1,
-      odometerAtService: odo,
-    };
+    setIsSubmitting(true);
 
     try {
-      setIsSubmitting(true);
+      // Pattern A: Deferred upload of all newly staged receipt files only when confirmed
+      const finalizedReceipts = await Promise.all(
+        stagedReceipts.map(async (r) => {
+          if (r.isNewlySelected && r.file) {
+            const uploadRes = await uploadMediaFile(r.file, "maintenance/receipts");
+            return {
+              receiptNumber: r.receiptNumber,
+              fileUrl: uploadRes.url || uploadRes.storageKey,
+              storageKey: uploadRes.storageKey,
+              fileName: uploadRes.originalName || r.fileName,
+              fileType: uploadRes.mimeType || r.fileType,
+              isManual: false,
+            };
+          }
+          return {
+            receiptNumber: r.receiptNumber,
+            fileUrl: r.fileUrl,
+            storageKey: r.storageKey,
+            fileName: r.fileName,
+            fileType: r.fileType,
+            isManual: Boolean(r.isManual),
+          };
+        })
+      );
+
+      const primaryOr = finalizedReceipts[0]?.receiptNumber || "N/A";
+
+      const payload = {
+        officialReceiptNumber: primaryOr,
+        receipts: finalizedReceipts,
+        severity,
+        dateStarted: new Date(dateStarted).toISOString(),
+        dateResolved: new Date(dateResolved).toISOString(),
+        partsCost: numericParts,
+        laborCost: numericLabor,
+        downtimeDays: parseInt(downtimeDays, 10) || calculatedDowntime || 1,
+        odometerAtService: odo,
+      };
+
       await onFinalize(workOrder.id, payload);
+      cleanupBlobUrls(stagedReceipts);
       onClose();
     } catch (err) {
       console.error("Failed to finalize maintenance log:", err);
@@ -263,7 +318,7 @@ export default function FinalizeMaintenanceModal({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title="Finalize Maintenance"
       maxWidth="max-w-xl"
     >
@@ -354,48 +409,32 @@ export default function FinalizeMaintenanceModal({
           <div
             onDrop={(e) => {
               e.preventDefault();
-              if (!isUploadingReceipt) handleFileSelected(e.dataTransfer.files?.[0]);
+              handleFileSelected(e.dataTransfer.files?.[0]);
             }}
             onDragOver={(e) => e.preventDefault()}
             className="border border-dashed border-[#BCE1F1] hover:border-[#0A4B6E]/50 bg-white rounded-xl p-3 text-center transition-all"
           >
-            {isUploadingReceipt ? (
-              <div className="flex flex-col items-center justify-center py-1 space-y-1">
-                <Loader2 size={18} className="text-[#0A4B6E] animate-spin" />
-                <p className="text-xs font-semibold text-[#0A4B6E]">
-                  Compressing & Uploading Receipt...
-                </p>
-                <p className="text-[10px] text-[#6D8AA2]">
-                  Enforcing 5 MB ceiling
-                </p>
-              </div>
-            ) : (
-              <>
-                <p className="text-xs text-[#588094]">
-                  Upload receipt photo or PDF for audit documentation (Max 5 MB)
-                </p>
-                <div className="flex items-center justify-center gap-2 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploadingReceipt}
-                    className="py-1 px-3 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#083b57] flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    <Upload size={12} />
-                    <span>Browse File</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => cameraInputRef.current?.click()}
-                    disabled={isUploadingReceipt}
-                    className="py-1 px-3 rounded-full text-xs font-bold bg-white text-[#0A4B6E] border border-gray-300 hover:bg-slate-50 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    <Camera size={12} />
-                    <span>Take Photo</span>
-                  </button>
-                </div>
-              </>
-            )}
+            <p className="text-xs text-[#588094]">
+              Upload receipt photo or PDF for audit documentation (Max 5 MB)
+            </p>
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="py-1 px-3 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#083b57] flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Upload size={12} />
+                <span>Browse File</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="py-1 px-3 rounded-full text-xs font-bold bg-white text-[#0A4B6E] border border-gray-300 hover:bg-slate-50 flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Camera size={12} />
+                <span>Take Photo</span>
+              </button>
+            </div>
           </div>
 
           {/* Inline Text Fallback Form */}
@@ -436,9 +475,9 @@ export default function FinalizeMaintenanceModal({
                   key={r.id}
                   className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs shadow-2xs"
                 >
-                  {r.fileUrl && isImageFile(r) ? (
+                  {(r.fileUrl || r.previewUrl || r.storageKey) && isImageFile(r) ? (
                     <img
-                      src={resolveMediaUrl(r.fileUrl || r.previewUrl)}
+                      src={getReceiptFileUrl(r)}
                       alt="Receipt"
                       className="w-5 h-5 rounded object-cover border border-slate-200"
                     />
@@ -621,15 +660,22 @@ export default function FinalizeMaintenanceModal({
             type="submit"
             variant="yellow"
             disabled={isSubmitting}
-            className="w-full font-bold text-xs uppercase tracking-wider mb-2"
+            className="w-full font-bold text-xs uppercase tracking-wider mb-2 flex items-center justify-center gap-2"
           >
-            {isSubmitting ? "FINALIZING..." : "FINALIZE & RELEASE VEHICLE"}
+            {isSubmitting ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                <span>FINALIZING & UPLOADING...</span>
+              </>
+            ) : (
+              <span>FINALIZE & RELEASE VEHICLE</span>
+            )}
           </Button>
           <Button
             type="button"
             variant="cancel"
             disabled={isSubmitting}
-            onClick={onClose}
+            onClick={handleClose}
             className="text-xs"
           >
             CANCEL

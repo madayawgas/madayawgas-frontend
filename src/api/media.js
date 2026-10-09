@@ -109,7 +109,34 @@ export async function resolveMediaKey(storageKey) {
   return response.data;
 }
 
+/**
+ * Deletes a media file asset directly from canonical storage.
+ * Endpoint: DELETE /api/media
+ *
+ * @param {string} storageKey - Canonical relative key or full URL
+ * @returns {Promise<{ status: string, message: string }>}
+ */
+export async function deleteMediaFile(storageKey) {
+  if (!storageKey) return null;
+
+  if (isMock) {
+    await delay(150);
+    return {
+      status: "success",
+      message: "Media asset deleted successfully",
+    };
+  }
+
+  const response = await apiClient("/media", {
+    method: "DELETE",
+    body: { storageKey },
+  });
+
+  return response.data || response;
+}
+
 export const mediaApi = {
   upload: uploadMediaFile,
   resolve: resolveMediaKey,
+  delete: deleteMediaFile,
 };
