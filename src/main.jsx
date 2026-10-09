@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext.jsx";
+import { Analytics } from "@vercel/analytics/react";
 import { PERMISSIONS } from "./utils/permissions.js";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import DynamicHomeRedirect from "./components/auth/DynamicHomeRedirect.jsx";
@@ -142,6 +143,7 @@ createRoot(document.getElementById("root")).render(
   <StrictMode>
     <AuthProvider>
       <RouterProvider router={router} />
+      <Analytics />
     </AuthProvider>
   </StrictMode>
 );
