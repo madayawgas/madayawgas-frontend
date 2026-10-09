@@ -434,6 +434,7 @@ const DEFAULT_MOCK_WORK_ORDERS = [
     description: "Exhaust vibration damper replacement and hanger bracket reinforcement",
     status: "SCHEDULED",
     approvalStatus: "APPROVED",
+    approvedAt: "2026-09-18T14:00:00.000Z",
     scheduledDate: "2026-09-22T08:00:00.000Z",
     createdAt: "2026-09-18T13:00:00.000Z",
     updatedAt: "2026-09-18T13:00:00.000Z",
@@ -450,9 +451,14 @@ const DEFAULT_MOCK_WORK_ORDERS = [
     incidentReportId: null,
     shopName: "Bunawan Heavy Repair Center",
     estimatedCost: 4500.0,
+    partsCost: 3200.0,
+    laborCost: 1500.0,
+    totalCost: 4700.0,
+    officialReceiptNumber: "OR-2026-77881",
     description: "Scheduled 45,000-km preventive maintenance service and tire rotation",
     status: "COMPLETED",
     approvalStatus: "APPROVED",
+    approvedAt: "2026-09-09T14:30:00.000Z",
     scheduledDate: "2026-09-10T08:00:00.000Z",
     createdAt: "2026-09-09T10:00:00.000Z",
     updatedAt: "2026-09-11T16:00:00.000Z",
@@ -2582,8 +2588,31 @@ export const fleetApi = {
       await delay(150);
       let list = getInMemoryWorkOrders();
       const inMemoryTrucks = getInMemoryTrucks();
+      const logs = getInMemoryMaintenanceLogs();
 
       list = list.map((w) => {
+        const matchedLog = logs.find((l) => l.workOrderId === w.id);
+        const settledParts =
+          w.partsCost !== undefined && w.partsCost !== null
+            ? Number(w.partsCost)
+            : matchedLog?.partsCost !== undefined && matchedLog?.partsCost !== null
+            ? Number(matchedLog.partsCost)
+            : undefined;
+        const settledLabor =
+          w.laborCost !== undefined && w.laborCost !== null
+            ? Number(w.laborCost)
+            : matchedLog?.laborCost !== undefined && matchedLog?.laborCost !== null
+            ? Number(matchedLog.laborCost)
+            : undefined;
+        const settledTotal =
+          w.totalCost !== undefined && w.totalCost !== null
+            ? Number(w.totalCost)
+            : matchedLog?.totalCost !== undefined && matchedLog?.totalCost !== null
+            ? Number(matchedLog.totalCost)
+            : (settledParts !== undefined || settledLabor !== undefined
+                ? (settledParts || 0) + (settledLabor || 0)
+                : undefined);
+
         const trk = inMemoryTrucks.find(
           (t) =>
             t.id === w.truckId ||
@@ -2600,6 +2629,16 @@ export const fleetApi = {
             : "ACTIVE");
         return {
           ...w,
+          ...(settledParts !== undefined ? { partsCost: settledParts } : {}),
+          ...(settledLabor !== undefined ? { laborCost: settledLabor } : {}),
+          ...(settledTotal !== undefined ? { totalCost: settledTotal } : {}),
+          ...(matchedLog
+            ? {
+                officialReceiptNumber: w.officialReceiptNumber || matchedLog.officialReceiptNumber,
+                downtimeDays: w.downtimeDays || matchedLog.downtimeDays,
+                maintenanceLog: w.maintenanceLog || matchedLog,
+              }
+            : {}),
           truckStatus: resolvedTruckStatus,
           truck: trk
             ? {
@@ -2708,8 +2747,19 @@ export const fleetApi = {
         (found.status !== "COMPLETED" && found.status !== "CANCELLED"
           ? "UNDER_MAINTENANCE"
           : "ACTIVE");
+      const logs = getInMemoryMaintenanceLogs();
+      const matchedLog = found.maintenanceLog || logs.find((l) => l.workOrderId === found.id);
       const enrichedFound = {
         ...found,
+        ...(matchedLog
+          ? {
+              maintenanceLog: matchedLog,
+              partsCost: found.partsCost ?? matchedLog.partsCost,
+              laborCost: found.laborCost ?? matchedLog.laborCost,
+              totalCost: found.totalCost ?? matchedLog.totalCost,
+              officialReceiptNumber: found.officialReceiptNumber ?? matchedLog.officialReceiptNumber,
+            }
+          : {}),
         truckStatus: resolvedTruckStatus,
         truck: trk
           ? {
@@ -3135,12 +3185,7 @@ export const fleetApi = {
         saveInMemoryReceipts([...newReceipts, ...allReceipts]);
       }
 
-      // 1. Mark Work Order as COMPLETED
-      wo.status = "COMPLETED";
-      wo.updatedAt = new Date().toISOString();
-      saveInMemoryWorkOrders(orders);
-
-      // 2. Restore vehicle operational condition to ACTIVE while strictly preserving driver soft-binding
+      // 1. Restore vehicle operational condition to ACTIVE while strictly preserving driver soft-binding
       const trucks = getInMemoryTrucks();
       const truckIndex = trucks.findIndex(
         (t) => t.id === wo.truckId || t.truckId === wo.truckId
@@ -3171,7 +3216,7 @@ export const fleetApi = {
         saveInMemoryTrucks(trucks);
       }
 
-      // 3. Create historical maintenance log record (manual parts + labor = totalCost)
+      // 2. Create historical maintenance log record (manual parts + labor = totalCost)
       const partsCost = Number(payload.partsCost) || 0;
       const laborCost = Number(payload.laborCost) || 0;
       const totalCost = partsCost + laborCost;
@@ -3201,14 +3246,32 @@ export const fleetApi = {
 
       saveInMemoryMaintenanceLogs([newLog, ...existingLogs]);
 
+      // 3. Mark Work Order as COMPLETED with settled financial numbers
+      wo.status = "COMPLETED";
+      wo.partsCost = partsCost;
+      wo.laborCost = laborCost;
+      wo.totalCost = totalCost;
+      wo.officialReceiptNumber = primaryOR;
+      wo.maintenanceLog = newLog;
+      wo.approvalStatus = "APPROVED";
+      wo.approvedAt = wo.approvedAt || new Date().toISOString();
+      wo.updatedAt = new Date().toISOString();
+      saveInMemoryWorkOrders(orders);
+
       return {
         status: "success",
         message: "Maintenance log finalized and vehicle operational status restored.",
         data: {
           maintenanceLog: newLog,
           workOrder: {
+            ...wo,
             id: wo.id,
             status: "COMPLETED",
+            partsCost,
+            laborCost,
+            totalCost,
+            officialReceiptNumber: primaryOR,
+            maintenanceLog: newLog,
             shopName: wo.shopName,
             description: wo.description,
           },

@@ -761,6 +761,20 @@ export default function Fleet() {
       const res = await fleetApi.finalizeWorkOrder(workOrderId, payload);
       await Promise.all([refreshWorkOrders(), refreshMaintenanceLogs(), refreshTrucks()]);
       setWorkOrderForFinalize(null);
+      if (workOrderForDetail && workOrderForDetail.id === workOrderId) {
+        setWorkOrderForDetail((prev) => ({
+          ...prev,
+          status: "COMPLETED",
+          partsCost: Number(payload.partsCost) || 0,
+          laborCost: Number(payload.laborCost) || 0,
+          totalCost: (Number(payload.partsCost) || 0) + (Number(payload.laborCost) || 0),
+          officialReceiptNumber: payload.officialReceiptNumber,
+          downtimeDays: payload.downtimeDays,
+          maintenanceLog: res?.data?.maintenanceLog,
+          approvalStatus: "APPROVED",
+          approvedAt: prev?.approvedAt || new Date().toISOString(),
+        }));
+      }
       setToast({
         type: "success",
         message: res?.message || "Maintenance finalized. Vehicle status restored to Active.",
@@ -994,9 +1008,45 @@ export default function Fleet() {
     });
   }, [trucks, searchTerm, filters, sortConfig]);
 
+  // Enrich work orders with corresponding maintenance log data (partsCost, laborCost, totalCost, OR#)
+  const enrichedWorkOrders = useMemo(() => {
+    if (!Array.isArray(workOrders)) return [];
+    return workOrders.map((wo) => {
+      const log = maintenanceLogs.find(
+        (l) => l.workOrderId === wo.id || l.workOrderId === wo.workOrderId
+      );
+      if (log) {
+        const partsCost =
+          wo.partsCost !== undefined && wo.partsCost !== null
+            ? Number(wo.partsCost)
+            : Number(log.partsCost || 0);
+        const laborCost =
+          wo.laborCost !== undefined && wo.laborCost !== null
+            ? Number(wo.laborCost)
+            : Number(log.laborCost || 0);
+        const totalCost =
+          wo.totalCost !== undefined && wo.totalCost !== null
+            ? Number(wo.totalCost)
+            : log.totalCost !== undefined && log.totalCost !== null
+            ? Number(log.totalCost)
+            : partsCost + laborCost;
+        return {
+          ...wo,
+          partsCost,
+          laborCost,
+          totalCost,
+          officialReceiptNumber: wo.officialReceiptNumber || log.officialReceiptNumber,
+          downtimeDays: wo.downtimeDays || log.downtimeDays,
+          maintenanceLog: wo.maintenanceLog || log,
+        };
+      }
+      return wo;
+    });
+  }, [workOrders, maintenanceLogs]);
+
   // Filtered Work Orders (Search + Status)
   const filteredWorkOrders = useMemo(() => {
-    return workOrders.filter((wo) => {
+    return enrichedWorkOrders.filter((wo) => {
       if (workOrderStatus !== "ALL" && wo.status !== workOrderStatus) {
         return false;
       }
@@ -1017,7 +1067,7 @@ export default function Fleet() {
       }
       return true;
     });
-  }, [workOrders, workOrderStatus, workOrderSearch]);
+  }, [enrichedWorkOrders, workOrderStatus, workOrderSearch]);
 
   // Filtered Maintenance Logs (Search + Type)
   const filteredMaintenanceLogs = useMemo(() => {
@@ -1444,7 +1494,11 @@ export default function Fleet() {
       {workOrderForDetail && (
         <WorkOrderDetailModal
           isOpen={!!workOrderForDetail}
-          workOrder={workOrderForDetail}
+          workOrder={
+            enrichedWorkOrders.find((w) => w.id === workOrderForDetail.id) ||
+            workOrderForDetail
+          }
+          maintenanceLogs={maintenanceLogs}
           truck={findMatchingTruck(workOrderForDetail)}
           trucks={trucks}
           onClose={() => setWorkOrderForDetail(null)}

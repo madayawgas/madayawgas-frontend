@@ -92,7 +92,7 @@ export default function WorkOrderTable({
                 Service Facility
               </th>
               <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[11%]">
-                Est. Cost
+                Cost
               </th>
               <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] text-center whitespace-nowrap w-[13%]">
                 Status
@@ -128,7 +128,14 @@ export default function WorkOrderTable({
                   label: wo.status,
                   variant: "neutral",
                 };
-                const estimatedCost = Number(wo.estimatedCost) || 0;
+                const isCompleted = wo.status === "COMPLETED";
+                const displayCost = isCompleted
+                  ? (wo.totalCost !== undefined && wo.totalCost !== null
+                      ? Number(wo.totalCost)
+                      : wo.maintenanceLog?.totalCost !== undefined && wo.maintenanceLog?.totalCost !== null
+                      ? Number(wo.maintenanceLog.totalCost)
+                      : ((Number(wo.partsCost || 0) + Number(wo.laborCost || 0)) || Number(wo.estimatedCost || 0)))
+                  : Number(wo.estimatedCost) || 0;
                 const plate = wo.truck?.plateNumber || wo.plateNumber || "N/A";
                 const model = wo.truck?.model || wo.truckModel || "";
                 const typeName =
@@ -194,9 +201,14 @@ export default function WorkOrderTable({
                       </div>
                     </td>
 
-                    {/* Estimated Cost */}
-                    <td className="py-3.5 px-4 md:px-5 text-right font-bold text-gray-900 whitespace-nowrap">
-                      {formatCurrency(estimatedCost)}
+                    {/* Cost (Settled if completed, Estimated if in-progress) */}
+                    <td className="py-3.5 px-4 md:px-5 text-right whitespace-nowrap">
+                      <div className="font-bold text-gray-900">
+                        {formatCurrency(displayCost)}
+                      </div>
+                      <div className="text-[10px] text-[#6D8AA2] font-medium mt-0.5">
+                        {isCompleted ? "Settled" : "Estimated"}
+                      </div>
                     </td>
 
                     {/* Status Badge */}

@@ -108,7 +108,14 @@ export default function FinalizeMaintenanceModal({
       setSeverity("MEDIUM");
       setDateStarted(scheduled);
       setDateResolved(initialResolved);
-      setPartsCost(workOrder.partsCost ? String(workOrder.partsCost) : "");
+      const initialPartsCost =
+        workOrder.partsCost !== undefined && workOrder.partsCost !== null && workOrder.partsCost !== ""
+          ? String(workOrder.partsCost)
+          : workOrder.estimatedCost !== undefined && workOrder.estimatedCost !== null
+          ? String(workOrder.estimatedCost)
+          : "";
+
+      setPartsCost(initialPartsCost);
       setLaborCost(workOrder.laborCost ? String(workOrder.laborCost) : "");
       setDowntimeDays(1);
       setOdometerAtService(currentOdometer ? String(currentOdometer) : "");

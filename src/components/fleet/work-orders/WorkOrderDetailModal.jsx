@@ -99,6 +99,7 @@ export default function WorkOrderDetailModal({
   workOrder,
   truck,
   trucks = [],
+  maintenanceLogs = [],
   onClose,
   onOpenApproval,
   onOpenFinalize,
@@ -117,6 +118,11 @@ export default function WorkOrderDetailModal({
 
   // Attached receipts states
   const [attachedReceipts, setAttachedReceipts] = useState([]);
+  const [localLog, setLocalLog] = useState(null);
+
+  useEffect(() => {
+    setLocalLog(null);
+  }, [workOrder?.id]);
 
   const loadApprovalRequests = useCallback(async () => {
     if (!workOrder?.id) return;
@@ -143,8 +149,27 @@ export default function WorkOrderDetailModal({
     if (isOpen && workOrder?.id) {
       loadApprovalRequests();
       loadReceipts();
+
+      // If work order is completed or finalized, ensure we load its maintenance log
+      if (
+        (workOrder.status === "COMPLETED" || workOrder.approvalStatus === "APPROVED") &&
+        (!workOrder.partsCost || !workOrder.maintenanceLog)
+      ) {
+        fleetApi
+          .getMaintenanceLogs()
+          .then((res) => {
+            const logs = res?.data?.logs || [];
+            const found = logs.find(
+              (l) => l.workOrderId === workOrder.id || l.workOrderId === workOrder.workOrderId
+            );
+            if (found) {
+              setLocalLog(found);
+            }
+          })
+          .catch((err) => console.error("Failed to load maintenance logs:", err));
+      }
     }
-  }, [isOpen, workOrder?.id, loadApprovalRequests, loadReceipts]);
+  }, [isOpen, workOrder?.id, workOrder?.status, workOrder?.approvalStatus, workOrder?.partsCost, workOrder?.maintenanceLog, workOrder?.workOrderId, loadApprovalRequests, loadReceipts]);
 
   const hasPendingApprovalRequest = approvalRequests.some(
     (req) => req.isApproved === null || req.status === "PENDING"
@@ -256,8 +281,61 @@ export default function WorkOrderDetailModal({
     }
   };
 
+  const matchedLog =
+    workOrder.maintenanceLog ||
+    localLog ||
+    (Array.isArray(maintenanceLogs) &&
+      maintenanceLogs.find(
+        (l) => l.workOrderId === workOrder.id || l.workOrderId === workOrder.workOrderId
+      )) ||
+    null;
+
   const estimatedCost = Number(workOrder.estimatedCost) || 0;
+  const isFinalized = effectiveStatus === "COMPLETED";
+
+  const rawParts =
+    workOrder.partsCost !== undefined && workOrder.partsCost !== null
+      ? workOrder.partsCost
+      : matchedLog?.partsCost;
+  const settledPartsCost = rawParts !== undefined && rawParts !== null ? Number(rawParts) : 0;
+
+  const rawLabor =
+    workOrder.laborCost !== undefined && workOrder.laborCost !== null
+      ? workOrder.laborCost
+      : matchedLog?.laborCost;
+  const settledLaborCost = rawLabor !== undefined && rawLabor !== null ? Number(rawLabor) : 0;
+
+  const rawTotal =
+    workOrder.totalCost !== undefined && workOrder.totalCost !== null
+      ? workOrder.totalCost
+      : matchedLog?.totalCost;
+  const settledTotalCost =
+    rawTotal !== undefined && rawTotal !== null
+      ? Number(rawTotal)
+      : (settledPartsCost + settledLaborCost > 0
+          ? settledPartsCost + settledLaborCost
+          : estimatedCost);
+
+  const displayCost = isFinalized ? settledTotalCost : estimatedCost;
   const requiresApproval = estimatedCost >= 5000.0;
+
+  const downtimeDays =
+    workOrder.downtimeDays ||
+    workOrder.maintenanceLog?.downtimeDays ||
+    matchedLog?.downtimeDays ||
+    1;
+
+  const officialReceiptNumber =
+    workOrder.officialReceiptNumber ||
+    workOrder.maintenanceLog?.officialReceiptNumber ||
+    matchedLog?.officialReceiptNumber ||
+    "";
+
+  const isAuthorized =
+    Boolean(workOrder.approvedAt) ||
+    workOrder.approvalStatus === "APPROVED" ||
+    isFinalized ||
+    ["APPROVED", "SCHEDULED", "IN_PROGRESS", "COMPLETED"].includes(effectiveStatus);
   const truckPlate = workOrder.plateNumber || workOrder.truck?.plateNumber || matchedTruck?.plateNumber || "N/A";
   const truckModel = workOrder.truckModel || workOrder.model || matchedTruck?.model || workOrder.truck?.model || "";
   const driverName =
@@ -608,19 +686,64 @@ export default function WorkOrderDetailModal({
           </div>
         )}
 
-        {/* 5. FINANCIAL & EXECUTIVE APPROVAL SUMMARY */}
+        {/* 5. FINANCIAL & SETTLEMENT SUMMARY */}
         <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3 text-xs">
           <div className="flex items-center justify-between">
             <div className="text-[11px] font-bold uppercase tracking-wider text-[#0A4B6E] flex items-center gap-1.5">
-              <DollarSign size={15} className="text-emerald-700" />
-              <span>Cost & Authorization Summary</span>
+              {isFinalized ? (
+                <>
+                  <ShieldCheck size={16} className="text-emerald-600" />
+                  <span>Settled Cost & Receipt</span>
+                </>
+              ) : (
+                <>
+                  <DollarSign size={15} className="text-emerald-700" />
+                  <span>Cost & Authorization Summary</span>
+                </>
+              )}
             </div>
-            <div className="text-xl font-bold text-[#0A4B6E]">
-              {formatCurrency(estimatedCost)}
+
+            <div className="flex items-center gap-2">
+              {isFinalized && officialReceiptNumber && (
+                <div className="flex items-center gap-1 font-mono text-[11px] font-bold text-emerald-900 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  <Receipt size={12} className="text-emerald-700" />
+                  <span>{officialReceiptNumber}</span>
+                </div>
+              )}
+              <div className="text-right">
+                <div className="text-xl font-bold text-[#0A4B6E]">
+                  {formatCurrency(displayCost)}
+                </div>
+                <div className="text-[10px] text-slate-400 font-medium tracking-wide">
+                  {isFinalized ? "Total Settled Cost" : "Estimated Cost"}
+                </div>
+              </div>
             </div>
           </div>
 
           <div className="space-y-2.5 pt-2 border-t border-slate-100">
+            {/* If finalized, show itemized breakdown tiles */}
+            {isFinalized && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 py-1">
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/70 text-center">
+                  <p className="text-[10px] text-slate-500 uppercase font-semibold">Initial Estimate</p>
+                  <p className="font-bold text-slate-700 mt-0.5">{formatCurrency(estimatedCost)}</p>
+                </div>
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/70 text-center">
+                  <p className="text-[10px] text-slate-500 uppercase font-semibold">Parts Cost</p>
+                  <p className="font-bold text-slate-800 mt-0.5">{formatCurrency(settledPartsCost)}</p>
+                </div>
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/70 text-center">
+                  <p className="text-[10px] text-slate-500 uppercase font-semibold">Labor Cost</p>
+                  <p className="font-bold text-slate-800 mt-0.5">{formatCurrency(settledLaborCost)}</p>
+                </div>
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/70 text-center">
+                  <p className="text-[10px] text-slate-500 uppercase font-semibold">Downtime</p>
+                  <p className="font-bold text-amber-700 mt-0.5">{downtimeDays} Day(s)</p>
+                </div>
+              </div>
+            )}
+
             {/* Gatekeeper Policy Badge */}
             <div className="flex items-center justify-between gap-2">
               <span className="text-[#6D8AA2] font-medium">Policy Threshold:</span>
@@ -638,15 +761,20 @@ export default function WorkOrderDetailModal({
             </div>
 
             {/* Managerial Decision */}
-            {requiresApproval && (
+            {(requiresApproval || isFinalized) && (
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[#6D8AA2] font-medium">Manager Decision:</span>
                 <div>
-                  {workOrder.approvedAt ? (
+                  {isAuthorized ? (
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
-                      <CheckCircle2 size={12} /> Authorized on {formatDate(workOrder.approvedAt)}
+                      <CheckCircle2 size={12} />
+                      <span>
+                        {workOrder.approvedAt
+                          ? `Authorized on ${formatDate(workOrder.approvedAt)}`
+                          : "Authorized by Administrator"}
+                      </span>
                     </span>
-                  ) : workOrder.status === "CANCELLED" ? (
+                  ) : workOrder.status === "CANCELLED" || workOrder.approvalStatus === "REJECTED" ? (
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1">
                       <XCircle size={12} /> Rejected by Manager
                     </span>
@@ -758,52 +886,6 @@ export default function WorkOrderDetailModal({
             readOnly={workOrder.status === "COMPLETED" || workOrder.status === "CANCELLED"}
           />
         </div>
-
-        {/* 7. FINALIZED MAINTENANCE RECEIPT (if available) */}
-        {workOrder.maintenanceLog && (
-          <div className="bg-emerald-50/90 rounded-2xl p-4.5 border border-emerald-200/80 shadow-2xs space-y-3 text-xs">
-            <div className="flex items-center justify-between">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-                <ShieldCheck size={16} className="text-emerald-600" />
-                <span>Finalized Maintenance Receipt</span>
-              </div>
-              <div className="flex items-center gap-1 font-mono text-[11px] font-bold text-emerald-900 bg-white px-2.5 py-0.5 rounded-full border border-emerald-200">
-                <Receipt size={12} />
-                <span>{workOrder.maintenanceLog.officialReceiptNumber}</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-              <div className="bg-white p-2.5 rounded-xl border border-emerald-100 text-center">
-                <p className="text-[10px] text-slate-500 uppercase font-semibold">Parts Cost</p>
-                <p className="font-bold text-slate-800 mt-0.5">
-                  {formatCurrency(workOrder.maintenanceLog.partsCost)}
-                </p>
-              </div>
-
-              <div className="bg-white p-2.5 rounded-xl border border-emerald-100 text-center">
-                <p className="text-[10px] text-slate-500 uppercase font-semibold">Labor Cost</p>
-                <p className="font-bold text-slate-800 mt-0.5">
-                  {formatCurrency(workOrder.maintenanceLog.laborCost)}
-                </p>
-              </div>
-
-              <div className="bg-white p-2.5 rounded-xl border border-emerald-100 text-center">
-                <p className="text-[10px] text-slate-500 uppercase font-semibold">Total Settled</p>
-                <p className="font-bold text-[#0A4B6E] mt-0.5">
-                  {formatCurrency(workOrder.maintenanceLog.totalCost)}
-                </p>
-              </div>
-
-              <div className="bg-white p-2.5 rounded-xl border border-emerald-100 text-center">
-                <p className="text-[10px] text-slate-500 uppercase font-semibold">Downtime</p>
-                <p className="font-bold text-amber-700 mt-0.5">
-                  {workOrder.maintenanceLog.downtimeDays || 1} Day(s)
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* RE-APPROVAL REQUEST MODAL */}
