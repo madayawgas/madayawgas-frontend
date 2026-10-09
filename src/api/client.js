@@ -57,6 +57,9 @@ export async function apiClient(endpoint, options = {}) {
     !(config.body instanceof FormData)
   ) {
     config.body = JSON.stringify(config.body);
+  } else if (config.body instanceof FormData) {
+    // Delete Content-Type header so the browser automatically sets multipart/form-data with boundary
+    delete config.headers["Content-Type"];
   }
 
   const response = await fetch(url, config);

@@ -14,9 +14,12 @@ import {
   DollarSign,
   Tag,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import Badge from "../../ui/Badge";
 import Button from "../../ui/Button";
+import { uploadMediaFile } from "../../../api/media.js";
+import { resolveMediaUrl } from "../../../utils/media.js";
 
 const RECEIPT_TYPES = [
   { value: "PARTS", label: "Parts & Materials", color: "bg-blue-50 text-blue-700 border-blue-200" },
@@ -62,32 +65,20 @@ export default function ReceiptAttachmentManager({
     setError("");
   };
 
-  const processSelectedFile = (file) => {
+  const processSelectedFile = async (file) => {
     if (!file) return;
-
-    if (file.size > 10 * 1024 * 1024) {
-      setError("File size cannot exceed 10MB.");
-      return;
-    }
-
-    const isImage = file.type.startsWith("image/");
-    const isPdf = file.type === "application/pdf";
-
-    if (!isImage && !isPdf) {
-      setError("Only images (PNG, JPG, WEBP) and PDF documents are supported.");
-      return;
-    }
 
     setError("");
     setIsProcessingFile(true);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const previewUrl = e.target.result;
+    try {
+      const uploadResult = await uploadMediaFile(file, "maintenance/receipts");
+
       setStagedFile({
-        fileName: file.name,
-        fileType: file.type,
-        previewUrl,
+        fileName: uploadResult.originalName || file.name,
+        fileType: uploadResult.mimeType || file.type,
+        previewUrl: uploadResult.url || resolveMediaUrl(uploadResult.storageKey),
+        storageKey: uploadResult.storageKey,
         file,
       });
 
@@ -98,15 +89,12 @@ export default function ReceiptAttachmentManager({
       }
 
       setShowManualForm(true);
+    } catch (err) {
+      console.error("Failed to process and upload receipt:", err);
+      setError(err?.message || "Failed to process receipt file.");
+    } finally {
       setIsProcessingFile(false);
-    };
-
-    reader.onerror = () => {
-      setError("Failed to read file.");
-      setIsProcessingFile(false);
-    };
-
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleFileInputChange = (e) => {
@@ -146,7 +134,8 @@ export default function ReceiptAttachmentManager({
       receiptType: formType,
       receiptDate: new Date().toISOString(),
       fileName: stagedFile?.fileName || undefined,
-      fileUrl: stagedFile?.previewUrl || undefined,
+      fileUrl: stagedFile?.storageKey || stagedFile?.previewUrl || undefined,
+      storageKey: stagedFile?.storageKey || undefined,
       fileType: stagedFile?.fileType || undefined,
       isManual: !stagedFile,
       createdAt: new Date().toISOString(),
@@ -234,42 +223,54 @@ export default function ReceiptAttachmentManager({
             className="hidden"
           />
 
-          <div className="flex flex-col items-center justify-center space-y-2">
-            <div className="w-10 h-10 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center">
-              <Upload size={18} />
-            </div>
-
-            <div>
+          {isProcessingFile ? (
+            <div className="flex flex-col items-center justify-center py-2 space-y-2">
+              <Loader2 size={24} className="text-[#0A4B6E] animate-spin" />
               <p className="text-xs font-semibold text-[#0A4B6E]">
-                Upload official receipt photo or document
+                Compressing & Uploading Receipt...
               </p>
-              <p className="text-[11px] text-[#6D8AA2] mt-0.5">
-                Drag and drop receipt image or PDF (PNG, JPG, PDF up to 10MB)
+              <p className="text-[11px] text-[#6D8AA2]">
+                Enforcing 5 MB ceiling & converting image format
               </p>
             </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center space-y-2">
+              <div className="w-10 h-10 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center">
+                <Upload size={18} />
+              </div>
 
-            <div className="flex items-center gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isProcessingFile}
-                className="py-1.5 px-3.5 rounded-full text-xs font-bold bg-[#0A4B6E] hover:bg-[#083b57] text-[#FFDF2C] flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-              >
-                <Upload size={13} />
-                <span>Browse File</span>
-              </button>
+              <div>
+                <p className="text-xs font-semibold text-[#0A4B6E]">
+                  Upload official receipt photo or document
+                </p>
+                <p className="text-[11px] text-[#6D8AA2] mt-0.5">
+                  Drag and drop receipt image or PDF (JPEG, PNG, WebP, PDF up to 5MB)
+                </p>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => cameraInputRef.current?.click()}
-                disabled={isProcessingFile}
-                className="py-1.5 px-3.5 rounded-full text-xs font-bold bg-white hover:bg-slate-50 text-[#0A4B6E] border border-[#0A4B6E]/30 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-              >
-                <Camera size={13} />
-                <span>Take Photo</span>
-              </button>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isProcessingFile}
+                  className="py-1.5 px-3.5 rounded-full text-xs font-bold bg-[#0A4B6E] hover:bg-[#083b57] text-[#FFDF2C] flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                >
+                  <Upload size={13} />
+                  <span>Browse File</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={isProcessingFile}
+                  className="py-1.5 px-3.5 rounded-full text-xs font-bold bg-white hover:bg-slate-50 text-[#0A4B6E] border border-[#0A4B6E]/30 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                >
+                  <Camera size={13} />
+                  <span>Take Photo</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -302,7 +303,7 @@ export default function ReceiptAttachmentManager({
             <div className="flex items-center gap-3 bg-[#F4F8FA] p-2.5 rounded-xl border border-slate-200">
               {stagedFile.fileType.startsWith("image/") ? (
                 <img
-                  src={stagedFile.previewUrl}
+                  src={resolveMediaUrl(stagedFile.previewUrl || stagedFile.storageKey)}
                   alt="Receipt Preview"
                   className="w-12 h-12 rounded-lg object-cover border border-slate-200"
                 />
@@ -444,7 +445,7 @@ export default function ReceiptAttachmentManager({
                       className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                     >
                       <img
-                        src={rcpt.fileUrl}
+                        src={resolveMediaUrl(rcpt.fileUrl)}
                         alt={rcpt.receiptNumber}
                         className="w-full h-full object-cover"
                       />
@@ -539,13 +540,13 @@ export default function ReceiptAttachmentManager({
             <div className="max-h-[60vh] overflow-y-auto flex items-center justify-center bg-slate-50 rounded-xl p-2">
               {previewItem.fileUrl?.startsWith("data:image") || previewItem.fileType?.startsWith("image/") ? (
                 <img
-                  src={previewItem.fileUrl}
+                  src={resolveMediaUrl(previewItem.fileUrl)}
                   alt={previewItem.receiptNumber}
                   className="max-h-[55vh] object-contain rounded-lg shadow-sm"
                 />
               ) : previewItem.fileUrl ? (
                 <iframe
-                  src={previewItem.fileUrl}
+                  src={resolveMediaUrl(previewItem.fileUrl)}
                   title={previewItem.receiptNumber}
                   className="w-full h-[50vh] rounded-lg"
                 />

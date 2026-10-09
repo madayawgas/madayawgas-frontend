@@ -21,8 +21,11 @@ import {
   Phone,
   Calendar,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import Modal from "../../components/ui/Modal";
+import { uploadMediaFile } from "../../api/media.js";
+import { resolveMediaUrl } from "../../utils/media.js";
 import Badge from "../../components/ui/Badge";
 import ToastNotification from "../../components/ui/ToastNotifications";
 import { formatPhilippinePhone } from "../../utils/phone.js";
@@ -75,12 +78,26 @@ export default function Profile() {
     message: "Saved Changes",
   });
 
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
   // Handle Profile Picture selection
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setProfileImage(imageUrl);
+      try {
+        setIsUploadingAvatar(true);
+        const result = await uploadMediaFile(file, "users/avatars");
+        setProfileImage(result.storageKey || result.url);
+      } catch (err) {
+        console.error("Failed to upload avatar photo:", err);
+        setToast({
+          show: true,
+          type: "error",
+          message: err?.message || "Failed to upload avatar photo",
+        });
+      } finally {
+        setIsUploadingAvatar(false);
+      }
     }
   };
 
@@ -277,7 +294,7 @@ export default function Profile() {
               <div className="w-24 h-24 rounded-full bg-[#0A4B6E] flex items-center justify-center text-white border-4 border-white shadow-md overflow-hidden mt-2">
                 {profileImage ? (
                   <img
-                    src={profileImage}
+                    src={resolveMediaUrl(profileImage)}
                     alt="Profile Avatar"
                     className="w-full h-full object-cover"
                   />
@@ -293,15 +310,21 @@ export default function Profile() {
                   ref={fileInputRef}
                   onChange={handleImageChange}
                   accept="image/*"
+                  disabled={isUploadingAvatar}
                   className="hidden"
                 />
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 bg-[#E8F3F8] hover:bg-[#BCE1F1] text-[#0A4B6E] font-bold text-[11px] px-3.5 py-1.5 rounded-full uppercase tracking-wider transition cursor-pointer shadow-2xs"
+                  disabled={isUploadingAvatar}
+                  className="inline-flex items-center gap-1.5 bg-[#E8F3F8] hover:bg-[#BCE1F1] text-[#0A4B6E] font-bold text-[11px] px-3.5 py-1.5 rounded-full uppercase tracking-wider transition cursor-pointer shadow-2xs disabled:opacity-50"
                 >
-                  <Camera size={13} />
-                  <span>Change Photo</span>
+                  {isUploadingAvatar ? (
+                    <Loader2 size={13} className="animate-spin text-[#0A4B6E]" />
+                  ) : (
+                    <Camera size={13} />
+                  )}
+                  <span>{isUploadingAvatar ? "Uploading..." : "Change Photo"}</span>
                 </button>
 
                 {profileImage && (

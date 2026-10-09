@@ -13,10 +13,13 @@ import {
   Image as ImageIcon,
   Plus,
   X,
+  Loader2,
 } from "lucide-react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import Badge from "../../ui/Badge";
+import { uploadMediaFile } from "../../../api/media.js";
+import { resolveMediaUrl } from "../../../utils/media.js";
 
 const SEVERITY_OPTIONS = [
   { value: "LOW", label: "Low", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -55,6 +58,7 @@ export default function FinalizeMaintenanceModal({
   onFinalize,
 }) {
   const [stagedReceipts, setStagedReceipts] = useState([]);
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
   const [showTextFallback, setShowTextFallback] = useState(false);
   const [textRefInput, setTextRefInput] = useState("");
   const [severity, setSeverity] = useState("MEDIUM");
@@ -132,33 +136,30 @@ export default function FinalizeMaintenanceModal({
     }
   };
 
-  const handleFileSelected = (file) => {
+  const handleFileSelected = async (file) => {
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      setError("Receipt file cannot exceed 10MB.");
-      return;
-    }
-    const isImage = file.type.startsWith("image/");
-    const isPdf = file.type === "application/pdf";
-    if (!isImage && !isPdf) {
-      setError("Only images (PNG, JPG) and PDF documents are supported.");
-      return;
-    }
+    setError("");
+    setIsUploadingReceipt(true);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
+    try {
+      const uploadResult = await uploadMediaFile(file, "maintenance/receipts");
       const newRcpt = {
         id: `rcpt-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        fileName: file.name,
-        fileUrl: e.target.result,
-        fileType: file.type,
+        fileName: uploadResult.originalName || file.name,
+        fileUrl: uploadResult.storageKey || uploadResult.url,
+        previewUrl: uploadResult.url || resolveMediaUrl(uploadResult.storageKey),
+        storageKey: uploadResult.storageKey,
+        fileType: uploadResult.mimeType || file.type,
         receiptNumber: file.name.replace(/\.[^/.]+$/, "").slice(0, 24) || "Receipt",
         isManual: false,
       };
       setStagedReceipts((prev) => [...prev, newRcpt]);
-      setError("");
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Failed to upload receipt:", err);
+      setError(err?.message || "Failed to process and upload receipt file.");
+    } finally {
+      setIsUploadingReceipt(false);
+    }
   };
 
   const handleAddTextReference = (e) => {
@@ -353,32 +354,48 @@ export default function FinalizeMaintenanceModal({
           <div
             onDrop={(e) => {
               e.preventDefault();
-              handleFileSelected(e.dataTransfer.files?.[0]);
+              if (!isUploadingReceipt) handleFileSelected(e.dataTransfer.files?.[0]);
             }}
             onDragOver={(e) => e.preventDefault()}
             className="border border-dashed border-[#BCE1F1] hover:border-[#0A4B6E]/50 bg-white rounded-xl p-3 text-center transition-all"
           >
-            <p className="text-xs text-[#588094]">
-              Upload receipt photo or PDF for audit documentation
-            </p>
-            <div className="flex items-center justify-center gap-2 mt-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="py-1 px-3 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#083b57] flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Upload size={12} />
-                <span>Browse File</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => cameraInputRef.current?.click()}
-                className="py-1 px-3 rounded-full text-xs font-bold bg-white text-[#0A4B6E] border border-gray-300 hover:bg-slate-50 flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Camera size={12} />
-                <span>Take Photo</span>
-              </button>
-            </div>
+            {isUploadingReceipt ? (
+              <div className="flex flex-col items-center justify-center py-1 space-y-1">
+                <Loader2 size={18} className="text-[#0A4B6E] animate-spin" />
+                <p className="text-xs font-semibold text-[#0A4B6E]">
+                  Compressing & Uploading Receipt...
+                </p>
+                <p className="text-[10px] text-[#6D8AA2]">
+                  Enforcing 5 MB ceiling
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-[#588094]">
+                  Upload receipt photo or PDF for audit documentation (Max 5 MB)
+                </p>
+                <div className="flex items-center justify-center gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingReceipt}
+                    className="py-1 px-3 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#083b57] flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Upload size={12} />
+                    <span>Browse File</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    disabled={isUploadingReceipt}
+                    className="py-1 px-3 rounded-full text-xs font-bold bg-white text-[#0A4B6E] border border-gray-300 hover:bg-slate-50 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Camera size={12} />
+                    <span>Take Photo</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Inline Text Fallback Form */}
@@ -421,7 +438,7 @@ export default function FinalizeMaintenanceModal({
                 >
                   {r.fileUrl && r.fileType?.startsWith("image/") ? (
                     <img
-                      src={r.fileUrl}
+                      src={resolveMediaUrl(r.fileUrl || r.previewUrl)}
                       alt="Receipt"
                       className="w-5 h-5 rounded object-cover border border-slate-200"
                     />
