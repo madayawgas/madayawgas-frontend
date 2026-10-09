@@ -7,4 +7,7 @@ export default defineConfig({
     react(),
     tailwindcss(), // 2. Add this to the plugins array
   ],
+  server: {
+    host: true, // Listen on all network addresses (0.0.0.0) so mobile devices on the same Wi-Fi can connect
+  },
 });

@@ -36,13 +36,16 @@ export async function apiClient(endpoint, options = {}) {
   const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   const url = `${API_BASE_URL}${cleanEndpoint}`;
   const { headers, ...restOptions } = options;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("mg_token") : null;
 
   const config = {
     method: "GET",
     ...restOptions,
-    credentials: "include", // Guarantees cross-origin mg_sid cookie transmission
+    credentials: "include", // Guarantees cross-origin mg_sid cookie transmission for supported browsers
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}), // Guarantees auth on Safari (iOS) and Samsung Internet
       ...(headers || {}),
     },
   };
@@ -60,6 +63,9 @@ export async function apiClient(endpoint, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== "undefined") {
+      localStorage.removeItem("mg_token");
+    }
     const error = new Error(
       data.message || `Request failed with status ${response.status}`
     );
