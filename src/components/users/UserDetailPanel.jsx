@@ -14,21 +14,7 @@ import {
 import Badge from "../ui/Badge";
 import { formatPhilippinePhone } from "../../utils/phone.js";
 import { getUserRoleNames, hasUserRole } from "../../utils/userRoles.js";
-
-function formatDate(dateStr) {
-  if (!dateStr) return "N/A";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
-}
+import { formatPhilippineDate } from "../../utils/date.js";
 
 export default function UserDetailPanel({
   user,
@@ -224,7 +210,7 @@ export default function UserDetailPanel({
                 <span>Birthdate</span>
               </span>
               <span className="font-medium text-slate-700">
-                {formatDate(user.birthdate || user.birthday)}
+                {formatPhilippineDate(user.birthdate || user.birthday)}
               </span>
             </div>
 
@@ -234,7 +220,7 @@ export default function UserDetailPanel({
                 <span>Date Registered</span>
               </span>
               <span className="font-medium text-slate-700">
-                {formatDate(user.createdAt || user.dateCreated)}
+                {formatPhilippineDate(user.createdAt || user.dateCreated)}
               </span>
             </div>
           </div>

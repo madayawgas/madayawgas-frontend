@@ -6,25 +6,13 @@ import {
   Truck,
   Calendar,
   Building2,
-  Receipt,
   FileText,
 } from "lucide-react";
 import Badge from "../../ui/Badge";
 import Pagination from "../../ui/Pagination";
+import { formatPhilippineDateShort } from "../../../utils/date.js";
 
-function formatDate(dateStr) {
-  if (!dateStr) return "-";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const yy = String(d.getFullYear()).slice(-2);
-    return `${mm}/${dd}/${yy}`;
-  } catch {
-    return dateStr;
-  }
-}
+const formatDate = (dateStr) => formatPhilippineDateShort(dateStr, { fallback: "-" });
 
 function formatCurrency(val) {
   const num = Number(val) || 0;
@@ -61,7 +49,7 @@ export default function MaintenanceLogsTable({
           <thead className="bg-[#0D4B6E] text-white text-xs md:text-sm sticky top-0 z-10 shadow-xs">
             <tr>
               <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[16%]">
-                Official Receipt
+                Work Order / Record
               </th>
               <th className="py-3.5 px-4 md:px-5 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[18%]">
                 Vehicle Asset
@@ -99,7 +87,7 @@ export default function MaintenanceLogsTable({
                   <div className="flex flex-col items-center gap-1">
                     <FileText className="w-8 h-8 text-gray-300 stroke-1 mb-1" />
                     <p className="text-sm font-semibold text-gray-500">No maintenance logs found</p>
-                    <p className="text-xs text-gray-400">Completed work orders and official receipts will appear here.</p>
+                    <p className="text-xs text-gray-400">Completed work orders and maintenance records will appear here.</p>
                   </div>
                 </td>
               </tr>
@@ -114,7 +102,11 @@ export default function MaintenanceLogsTable({
                 const parts = Number(log.partsCost) || 0;
                 const labor = Number(log.laborCost) || 0;
                 const total = Number(log.totalCost) || parts + labor;
-                const orNumber = log.officialReceiptNumber || "Pending OR";
+                const recordLabel = log.workOrder?.workOrderNumber
+                  ? `WO #${log.workOrder.workOrderNumber}`
+                  : log.workOrderId
+                  ? `WO #${log.workOrderId.slice(0, 8)}`
+                  : `REC #${log.id.slice(0, 8)}`;
 
                 return (
                   <Fragment key={logId}>
@@ -124,10 +116,10 @@ export default function MaintenanceLogsTable({
                         isExpanded ? "bg-[#E2EDF3] text-[#0A4B6E] font-semibold" : "bg-white hover:bg-[#F4F9FC]"
                       }`}
                     >
-                      {/* Official Receipt & Date */}
+                      {/* Work Order / Record & Date */}
                       <td className="py-3.5 px-4 md:px-5">
                         <div className="font-mono font-bold text-[#0A4B6E] text-xs md:text-sm truncate">
-                          {orNumber}
+                          {recordLabel}
                         </div>
                         <div className="text-[11px] text-[#6D8AA2] flex items-center gap-1 mt-0.5 truncate">
                           <Calendar size={11} className="shrink-0" />

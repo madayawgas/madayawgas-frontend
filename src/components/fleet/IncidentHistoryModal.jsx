@@ -5,6 +5,7 @@ import SideDrawer from "../ui/SideDrawer";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
 import Pagination from "../ui/Pagination";
+import { formatPhilippineDateTime } from "../../utils/date.js";
 
 /**
  * IncidentHistoryModal
@@ -118,17 +119,7 @@ export default function IncidentHistoryModal({
     }
   };
 
-  const formatDate = (isoString) => {
-    if (!isoString) return "Recent";
-    const date = new Date(isoString);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  const formatDate = (isoString) => formatPhilippineDateTime(isoString, { fallback: "Recent" });
 
   return (
     <SideDrawer

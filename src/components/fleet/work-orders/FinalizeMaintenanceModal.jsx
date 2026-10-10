@@ -18,6 +18,7 @@ import Badge from "../../ui/Badge";
 import CameraCaptureModal from "../../ui/CameraCaptureModal";
 import { uploadMediaFile } from "../../../api/media.js";
 import { getReceiptFileUrl, isImageFile, isPdfFile } from "../../../utils/media.js";
+import { toPhilippineDateInputString, getPhilippineTodayString } from "../../../utils/date.js";
 
 const DRAFT_KEY_PREFIX = "madayaw_finalize_wo_draft_";
 const ACTIVE_WO_KEY = "madayaw_active_finalize_wo_id";
@@ -29,22 +30,7 @@ const SEVERITY_OPTIONS = [
   { value: "CRITICAL", label: "Critical", color: "bg-red-50 text-red-700 border-red-200" },
 ];
 
-/**
- * Timezone-safe date helper to format Date objects or ISO date strings to YYYY-MM-DD in local time.
- */
-function toLocalDateString(dateInput) {
-  if (!dateInput) return "";
-  if (typeof dateInput === "string") {
-    const match = dateInput.match(/^(\d{4}-\d{2}-\d{2})/);
-    if (match && !dateInput.includes("T")) return match[1];
-  }
-  const d = new Date(dateInput);
-  if (isNaN(d.getTime())) return "";
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+
 
 /**
  * FinalizeMaintenanceModal
@@ -147,8 +133,8 @@ export default function FinalizeMaintenanceModal({
   // Initialize modal state on open (recovering session draft if present)
   useEffect(() => {
     if (isOpen && workOrder) {
-      const localToday = toLocalDateString(new Date());
-      const scheduled = toLocalDateString(workOrder.scheduledDate) || localToday;
+      const localToday = getPhilippineTodayString();
+      const scheduled = toPhilippineDateInputString(workOrder.scheduledDate) || localToday;
       const initialResolved = scheduled > localToday ? scheduled : localToday;
 
       // Check for previously persisted session draft (e.g. from mobile camera or browser restart)
@@ -284,8 +270,6 @@ export default function FinalizeMaintenanceModal({
         previewUrl: localPreviewUrl,
         storageKey: null,
         fileType: file.type || (isPdf ? "application/pdf" : "image/jpeg"),
-        receiptNumber: file.name.replace(/\.[^/.]+$/, "").slice(0, 24) || "Receipt",
-        isManual: false,
         isNewlySelected: true, // Marked for upload upon confirmation
       };
       setStagedReceipts((prev) => [...prev, newRcpt]);
@@ -359,40 +343,20 @@ export default function FinalizeMaintenanceModal({
 
     try {
       // Pattern A: Deferred upload of all newly staged receipt files only when confirmed
-      const finalizedReceipts = await Promise.all(
-        stagedReceipts.map(async (r) => {
-          if (r.isNewlySelected && r.file) {
-            const uploadRes = await uploadMediaFile(r.file, "maintenance/receipts");
-            return {
-              receiptNumber: r.receiptNumber,
-              fileUrl: uploadRes.url || uploadRes.storageKey,
-              storageKey: uploadRes.storageKey,
-              fileName: uploadRes.originalName || r.fileName,
-              fileType: uploadRes.mimeType || r.fileType,
-              isManual: false,
-            };
-          }
-          return {
-            receiptNumber: r.receiptNumber,
-            fileUrl: r.fileUrl,
-            storageKey: r.storageKey,
-            fileName: r.fileName,
-            fileType: r.fileType,
-            isManual: Boolean(r.isManual),
-          };
-        })
-      );
-
-      const primaryOr =
-        finalizedReceipts[0]?.receiptNumber ||
-        workOrder.officialReceiptNumber ||
-        (workOrder.workOrderNumber
-          ? `OR-${workOrder.workOrderNumber}`
-          : `OR-${workOrder.id?.slice(0, 8).toUpperCase()}`);
+      // Deferred upload of all newly staged receipt files only when confirmed
+      const receiptUrls = (
+        await Promise.all(
+          stagedReceipts.map(async (r) => {
+            if (r.isNewlySelected && r.file) {
+              const uploadRes = await uploadMediaFile(r.file, "maintenance/receipts");
+              return uploadRes.url || uploadRes.storageKey;
+            }
+            return r.fileUrl || r.storageKey || null;
+          })
+        )
+      ).filter(Boolean);
 
       const payload = {
-        officialReceiptNumber: primaryOr,
-        receipts: finalizedReceipts,
         severity,
         dateStarted: new Date(dateStarted).toISOString(),
         dateResolved: new Date(dateResolved).toISOString(),
@@ -400,6 +364,7 @@ export default function FinalizeMaintenanceModal({
         laborCost: numericLabor,
         downtimeDays: parseInt(downtimeDays, 10) || calculatedDowntime || 1,
         odometerAtService: odo,
+        receiptUrls,
       };
 
       await onFinalize(workOrder.id, payload);
@@ -577,7 +542,7 @@ export default function FinalizeMaintenanceModal({
                       <FileText size={13} className="text-[#0A4B6E]" />
                     )}
                     <span className="font-mono text-xs text-gray-700 max-w-[140px] truncate">
-                      {r.receiptNumber || r.fileName || "Receipt"}
+                      {r.fileName || "Receipt Document"}
                     </span>
                     <button
                       type="button"

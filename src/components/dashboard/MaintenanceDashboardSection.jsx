@@ -9,20 +9,9 @@ import {
   ChevronUp,
 } from "lucide-react";
 import Badge from "../ui/Badge";
+import { formatPhilippineDateShort, formatPhilippineDate } from "../../utils/date.js";
 
-function formatDate(dateStr) {
-  if (!dateStr) return "-";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const yyyy = d.getFullYear();
-    return `${mm}/${dd}/${yyyy}`;
-  } catch {
-    return dateStr;
-  }
-}
+const formatDate = (dateStr) => formatPhilippineDateShort(dateStr, { fallback: "-", yearDigits: 4 });
 
 function formatCurrency(val) {
   const num = Number(val) || 0;
@@ -77,7 +66,12 @@ export default function MaintenanceDashboardSection({
       }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
-        const receipt = (log.officialReceiptNumber || "").toLowerCase();
+        const woNum = (
+          log.workOrder?.workOrderNumber ||
+          log.workOrderId ||
+          log.id ||
+          ""
+        ).toLowerCase();
         const plate = (
           log.plateNumber ||
           log.truck?.plateNumber ||
@@ -100,7 +94,7 @@ export default function MaintenanceDashboardSection({
         ).toLowerCase();
 
         return (
-          receipt.includes(q) ||
+          woNum.includes(q) ||
           plate.includes(q) ||
           model.includes(q) ||
           shop.includes(q) ||
@@ -130,8 +124,8 @@ export default function MaintenanceDashboardSection({
               </span>
             </div>
             <p className="text-xs md:text-sm text-[#6D8AA2] mt-0.5">
-              Settled repairs archive, parts & labor expenditures, and official
-              receipts.
+              Settled repairs archive, parts & labor expenditures, and maintenance
+              records.
             </p>
           </div>
         </div>
@@ -257,7 +251,7 @@ export default function MaintenanceDashboardSection({
           />
           <input
             type="text"
-            placeholder="Search OR#, plate, shop..."
+            placeholder="Search record, plate, shop..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-[#F3F5F5] border border-slate-200 rounded-full text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-[#0B4A6E] focus:bg-white transition"
@@ -272,7 +266,7 @@ export default function MaintenanceDashboardSection({
             <thead className="bg-[#0D4B6E] text-white text-[11px] font-semibold uppercase tracking-wider sticky top-0 z-10 shadow-xs">
               <tr>
                 <th className="py-3.5 px-4 font-semibold whitespace-nowrap">
-                  Official Receipt (OR#)
+                  Work Order / Record
                 </th>
                 <th className="py-3.5 px-4 font-semibold whitespace-nowrap">
                   Vehicle
@@ -365,10 +359,14 @@ export default function MaintenanceDashboardSection({
                             : "bg-white hover:bg-[#F4F9FC]"
                         }`}
                       >
-                        {/* OR# */}
+                        {/* Work Order / Record */}
                         <td className="py-3.5 px-4">
                           <span className="font-mono font-bold text-[#0B4A6E]">
-                            {log.officialReceiptNumber || "Pending OR"}
+                            {log.workOrder?.workOrderNumber
+                              ? `WO #${log.workOrder.workOrderNumber}`
+                              : log.workOrderId
+                              ? `WO #${log.workOrderId.slice(0, 8)}`
+                              : `REC #${log.id.slice(0, 8)}`}
                           </span>
                         </td>
 
@@ -527,10 +525,14 @@ export default function MaintenanceDashboardSection({
                                   Official Documentation
                                 </span>
                                 <p className="text-xs font-mono font-bold text-[#0B4A6E]">
-                                  OR: {log.officialReceiptNumber || "Pending"}
+                                  {log.workOrder?.workOrderNumber
+                                    ? `WO #${log.workOrder.workOrderNumber}`
+                                    : log.workOrderId
+                                    ? `WO #${log.workOrderId.slice(0, 8)}`
+                                    : `REC #${log.id.slice(0, 8)}`}
                                 </p>
                                 <p className="text-[11px] text-slate-500">
-                                  Recorded on {formatDate(log.createdAt)}
+                                  Recorded on {formatPhilippineDate(log.createdAt)}
                                 </p>
                               </div>
                             </div>

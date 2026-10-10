@@ -2,20 +2,7 @@ import { UserRound, Phone, Calendar, MapPin } from "lucide-react";
 import { formatPhilippinePhone } from "../../utils/phone.js";
 import Badge from "../ui/Badge";
 import Pagination from "../ui/Pagination";
-
-function formatDate(dateStr) {
-  if (!dateStr) return "-";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const yy = String(d.getFullYear()).slice(-2);
-    return `${mm}/${dd}/${yy}`;
-  } catch {
-    return dateStr;
-  }
-}
+import { formatPhilippineDateShort } from "../../utils/date.js";
 
 export default function CustomerTable({
   customers = [],
@@ -133,7 +120,7 @@ export default function CustomerTable({
                     <td className="py-3.5 px-3 md:px-4 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5 text-xs text-[#6D8AA2] italic">
                         <Calendar size={13} className="text-[#6D8AA2] shrink-0" />
-                        <span>{formatDate(customer.createdAt)}</span>
+                        <span>{formatPhilippineDateShort(customer.createdAt)}</span>
                       </div>
                     </td>
 

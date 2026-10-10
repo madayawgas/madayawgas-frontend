@@ -13,7 +13,6 @@ import {
   ShieldCheck,
   Building2,
   Gauge,
-  Receipt,
   Play,
   CheckCheck,
   DollarSign,
@@ -29,6 +28,7 @@ import { useAuth } from "../../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../../utils/permissions.js";
 import { canApproveWorkOrderCost } from "../../../utils/fleetGuards.js";
 import { fleetApi } from "../../../api/fleet.js";
+import { formatPhilippineDate } from "../../../utils/date.js";
 
 const STATUS_CONFIG = {
   PENDING: {
@@ -65,20 +65,7 @@ const LIFECYCLE_STEPS = [
   { key: "COMPLETED", label: "Completed", number: "5" },
 ];
 
-function formatDate(dateStr) {
-  if (!dateStr) return "N/A";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString("en-PH", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
-}
+const formatDate = (dateStr) => formatPhilippineDate(dateStr, { fallback: "N/A" });
 
 function formatCurrency(val) {
   const num = Number(val) || 0;
@@ -138,7 +125,10 @@ export default function WorkOrderDetailModal({
     if (!workOrder?.id) return;
     try {
       const res = await fleetApi.getWorkOrderReceipts(workOrder.id);
-      setAttachedReceipts(res?.data?.receipts || res?.receipts || workOrder?.receipts || []);
+      const list = Array.isArray(res?.data)
+        ? res.data
+        : res?.data?.receipts || res?.receipts || workOrder?.receipts || [];
+      setAttachedReceipts(list);
     } catch (err) {
       console.error("Failed to load receipts:", err);
       setAttachedReceipts(workOrder?.receipts || []);
@@ -314,12 +304,6 @@ export default function WorkOrderDetailModal({
     workOrder.maintenanceLog?.downtimeDays ||
     matchedLog?.downtimeDays ||
     1;
-
-  const officialReceiptNumber =
-    workOrder.officialReceiptNumber ||
-    workOrder.maintenanceLog?.officialReceiptNumber ||
-    matchedLog?.officialReceiptNumber ||
-    "";
 
   const isAuthorized =
     Boolean(workOrder.approvedAt) ||
@@ -683,7 +667,7 @@ export default function WorkOrderDetailModal({
               {isFinalized ? (
                 <>
                   <ShieldCheck size={16} className="text-emerald-600" />
-                  <span>Settled Cost & Receipt</span>
+                  <span>Settled Maintenance Cost</span>
                 </>
               ) : (
                 <>
@@ -694,12 +678,6 @@ export default function WorkOrderDetailModal({
             </div>
 
             <div className="flex items-center gap-2">
-              {isFinalized && officialReceiptNumber && (
-                <div className="flex items-center gap-1 font-mono text-[11px] font-bold text-emerald-900 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                  <Receipt size={12} className="text-emerald-700" />
-                  <span>{officialReceiptNumber}</span>
-                </div>
-              )}
               <div className="text-right">
                 <div className="text-xl font-bold text-[#0A4B6E]">
                   {formatCurrency(displayCost)}

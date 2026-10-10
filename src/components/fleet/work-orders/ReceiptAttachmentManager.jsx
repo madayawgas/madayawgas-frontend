@@ -70,7 +70,7 @@ export default function ReceiptAttachmentManager({
             const isPdf = hasFile && isPdfFile(rcpt);
             const displayName =
               rcpt.fileName ||
-              rcpt.receiptNumber ||
+              (rcpt.fileUrl ? rcpt.fileUrl.split("/").pop() : null) ||
               `Receipt Document ${index + 1}`;
 
             return (
@@ -153,7 +153,7 @@ export default function ReceiptAttachmentManager({
               <div className="flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="font-bold text-base md:text-lg text-white font-mono truncate">
-                    {previewItem.fileName || previewItem.receiptNumber || "Receipt Documentation"}
+                    {previewItem.fileName || (previewItem.fileUrl ? previewItem.fileUrl.split("/").pop() : null) || "Receipt Documentation"}
                   </span>
                 </div>
 
@@ -203,14 +203,14 @@ export default function ReceiptAttachmentManager({
                 {isImageFile(previewItem) ? (
                   <img
                     src={getReceiptFileUrl(previewItem)}
-                    alt={previewItem.fileName || previewItem.receiptNumber || "Receipt"}
+                    alt={previewItem.fileName || "Receipt Document"}
                     onClick={(e) => e.stopPropagation()}
                     className="max-h-[85vh] max-w-[95vw] object-contain rounded-xl shadow-2xl transition-transform"
                   />
                 ) : previewItem.fileUrl || previewItem.storageKey ? (
                   <iframe
                     src={getReceiptFileUrl(previewItem)}
-                    title={previewItem.fileName || previewItem.receiptNumber || "Receipt"}
+                    title={previewItem.fileName || "Receipt Document"}
                     onClick={(e) => e.stopPropagation()}
                     className="w-full h-[85vh] max-w-5xl rounded-xl bg-white"
                   />
@@ -243,7 +243,7 @@ export default function ReceiptAttachmentManager({
                 {/* Header */}
                 <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
                   <span className="font-bold text-sm md:text-base text-[#0A4B6E] font-mono truncate">
-                    {previewItem.fileName || previewItem.receiptNumber || "Receipt Documentation"}
+                    {previewItem.fileName || (previewItem.fileUrl ? previewItem.fileUrl.split("/").pop() : null) || "Receipt Documentation"}
                   </span>
 
                   <div className="flex items-center gap-1 shrink-0">
@@ -294,7 +294,7 @@ export default function ReceiptAttachmentManager({
                     <>
                       <img
                         src={getReceiptFileUrl(previewItem)}
-                        alt={previewItem.fileName || previewItem.receiptNumber || "Receipt"}
+                        alt={previewItem.fileName || "Receipt Document"}
                         className="max-h-[54vh] max-w-full object-contain rounded-xl shadow-xs transition group-hover:opacity-95"
                       />
                       <div className="absolute bottom-3 right-3 bg-slate-900/75 text-white px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md pointer-events-none">
@@ -305,7 +305,7 @@ export default function ReceiptAttachmentManager({
                   ) : previewItem.fileUrl || previewItem.storageKey ? (
                     <iframe
                       src={getReceiptFileUrl(previewItem)}
-                      title={previewItem.fileName || previewItem.receiptNumber || "Receipt"}
+                      title={previewItem.fileName || "Receipt Document"}
                       className="w-full h-[50vh] rounded-xl bg-white"
                     />
                   ) : (

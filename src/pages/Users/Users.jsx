@@ -15,6 +15,7 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { usersApi } from "../../api/users.js";
 import { PERMISSIONS } from "../../utils/permissions.js";
 import { getUserRoleNames, formatUserRoles, hasUserRole } from "../../utils/userRoles.js";
+import { isPhilippineDateInRange } from "../../utils/date.js";
 
 const LOCAL_STORAGE_KEY = "app_users_cache";
 
@@ -163,6 +164,12 @@ export default function Users() {
           (u.firstName || "").toLowerCase().includes(q) ||
           (u.lastName || "").toLowerCase().includes(q) ||
           (u.username || "").toLowerCase().includes(q)
+      );
+    }
+
+    if (filters.dateFrom || filters.dateTo) {
+      result = result.filter((u) =>
+        isPhilippineDateInRange(u.createdAt || u.dateCreated, filters.dateFrom, filters.dateTo)
       );
     }
 

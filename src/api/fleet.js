@@ -454,7 +454,6 @@ const DEFAULT_MOCK_WORK_ORDERS = [
     partsCost: 3200.0,
     laborCost: 1500.0,
     totalCost: 4700.0,
-    officialReceiptNumber: "OR-2026-77881",
     description: "Scheduled 45,000-km preventive maintenance service and tire rotation",
     status: "COMPLETED",
     approvalStatus: "APPROVED",
@@ -514,7 +513,6 @@ const DEFAULT_MOCK_MAINTENANCE_LOGS = [
     totalCost: 4700.0,
     downtimeDays: 1,
     odometerAtService: 46000,
-    officialReceiptNumber: "OR-2026-77881",
     createdAt: "2026-09-11T16:15:00.000Z",
     shopName: "Bunawan Heavy Repair Center",
     description: "Scheduled 45,000-km preventive maintenance service and tire rotation",
@@ -535,7 +533,6 @@ const DEFAULT_MOCK_MAINTENANCE_LOGS = [
     totalCost: 4000.0,
     downtimeDays: 1,
     odometerAtService: 25000,
-    officialReceiptNumber: "OR-2026-66552",
     createdAt: "2026-08-26T17:30:00.000Z",
     shopName: "Bajada Brake & Clutch Service",
     description: "Brake pad relining and master cylinder bleeding",
@@ -556,7 +553,6 @@ const DEFAULT_MOCK_MAINTENANCE_LOGS = [
     totalCost: 6700.5,
     downtimeDays: 1,
     odometerAtService: 46200,
-    officialReceiptNumber: "OR-2026-88991",
     createdAt: "2026-09-19T17:05:00.000Z",
     shopName: "Bunawan Heavy Repair Center",
     description: "5,000-km preventive maintenance overhaul and brake pad replacement",
@@ -642,32 +638,14 @@ const DEFAULT_MOCK_RECEIPTS = [
     id: "rec-1001-1",
     workOrderId: "wo-1001-prev",
     fileUrl: "https://images.unsplash.com/photo-1554415707-9e4966a6e483?auto=format&fit=crop&q=80&w=400",
-    storageKey: "maintenance/receipts/OR-2026-88991.jpg",
-    fileName: "OR-2026-88991.jpg",
-    fileType: "image/jpeg",
-    receiptNumber: "OR-2026-88991",
-    vendorName: "Bunawan Parts Depot",
-    amount: 4500.0,
-    receiptType: "PARTS",
-    receiptDate: "2026-09-18",
     uploadedBy: "08df2719-0473-4a31-8b5c-dc977d6006c5",
-    uploaderName: "Logistics Supervisor",
     createdAt: "2026-09-18T10:00:00.000Z",
   },
   {
     id: "rec-1001-2",
     workOrderId: "wo-1001-prev",
     fileUrl: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=400",
-    storageKey: "maintenance/receipts/OR-2026-88992.jpg",
-    fileName: "OR-2026-88992.jpg",
-    fileType: "image/jpeg",
-    receiptNumber: "OR-2026-88992",
-    vendorName: "Bunawan Heavy Repair Center",
-    amount: 2200.5,
-    receiptType: "LABOR",
-    receiptDate: "2026-09-19",
     uploadedBy: "08df2719-0473-4a31-8b5c-dc977d6006c5",
-    uploaderName: "Logistics Supervisor",
     createdAt: "2026-09-19T11:00:00.000Z",
   },
 ];
@@ -2634,7 +2612,6 @@ export const fleetApi = {
           ...(settledTotal !== undefined ? { totalCost: settledTotal } : {}),
           ...(matchedLog
             ? {
-                officialReceiptNumber: w.officialReceiptNumber || matchedLog.officialReceiptNumber,
                 downtimeDays: w.downtimeDays || matchedLog.downtimeDays,
                 maintenanceLog: w.maintenanceLog || matchedLog,
               }
@@ -2757,7 +2734,6 @@ export const fleetApi = {
               partsCost: found.partsCost ?? matchedLog.partsCost,
               laborCost: found.laborCost ?? matchedLog.laborCost,
               totalCost: found.totalCost ?? matchedLog.totalCost,
-              officialReceiptNumber: found.officialReceiptNumber ?? matchedLog.officialReceiptNumber,
             }
           : {}),
         truckStatus: resolvedTruckStatus,
@@ -3025,10 +3001,15 @@ export const fleetApi = {
    * Attach Receipt to Work Order
    * Endpoint: POST /api/fleet/maintenance/work-orders/:id/receipts
    * @param {string} id - Work order UUID
-   * @param {{ fileUrl?: string, fileName?: string, receiptNumber?: string, vendorName?: string, amount?: number, receiptType?: 'PARTS'|'LABOR'|'MISC', receiptDate?: string }} payload
+   * @param {{ fileUrl: string } | string} payload - Object with fileUrl or string URL
    * @returns {Promise<{ status: string, message: string, data: { receipt: object } }>}
    */
   async attachWorkOrderReceipt(id, payload) {
+    const fileUrl = typeof payload === "string" ? payload : (payload?.fileUrl || payload?.storageKey || payload?.url);
+    if (!fileUrl) throw new Error("Receipt fileUrl is required");
+
+    const requestPayload = { fileUrl };
+
     if (isMock) {
       await delay(200);
       const orders = getInMemoryWorkOrders();
@@ -3039,17 +3020,8 @@ export const fleetApi = {
       const newReceipt = {
         id: `rec-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         workOrderId: id,
-        fileUrl: payload.fileUrl || null,
-        storageKey: payload.storageKey || null,
-        fileType: payload.fileType || null,
-        fileName: payload.fileName || (payload.fileUrl ? "receipt-doc.pdf" : null),
-        receiptNumber: payload.receiptNumber || `REC-${Date.now().toString().slice(-5)}`,
-        vendorName: payload.vendorName || wo.shopName || "Service Provider",
-        amount: Number(payload.amount) || 0,
-        receiptType: payload.receiptType || "PARTS",
-        receiptDate: payload.receiptDate || new Date().toISOString().split("T")[0],
+        fileUrl,
         uploadedBy: "08df2719-0473-4a31-8b5c-dc977d6006c5",
-        uploaderName: "Logistics Supervisor",
         createdAt: new Date().toISOString(),
       };
 
@@ -3066,7 +3038,7 @@ export const fleetApi = {
 
     const result = await apiClient(`/fleet/maintenance/work-orders/${id}/receipts`, {
       method: "POST",
-      body: payload,
+      body: requestPayload,
     });
     return result;
   },
@@ -3075,7 +3047,7 @@ export const fleetApi = {
    * List Work Order Receipts
    * Endpoint: GET /api/fleet/maintenance/work-orders/:id/receipts
    * @param {string} id - Work order UUID
-   * @returns {Promise<{ status: string, data: { count: number, receipts: Array } }>}
+   * @returns {Promise<{ status: string, data: Array }>}
    */
   async getWorkOrderReceipts(id) {
     if (isMock) {
@@ -3087,10 +3059,7 @@ export const fleetApi = {
 
       return {
         status: "success",
-        data: {
-          count: filtered.length,
-          receipts: filtered,
-        },
+        data: filtered,
       };
     }
 
@@ -3129,16 +3098,33 @@ export const fleetApi = {
    * restores vehicle availability to ACTIVE, and retains soft-bound driver.
    * Endpoint: POST /api/fleet/maintenance/work-orders/:id/finalize
    * @param {string} id - Work order UUID
-   * @param {{ officialReceiptNumber?: string, severity: 'LOW'|'MEDIUM'|'HIGH'|'CRITICAL', dateStarted: string, dateResolved: string, partsCost?: number, laborCost?: number, downtimeDays?: number, odometerAtService: number, receipts?: Array }} payload
+   * @param {{ severity: 'LOW'|'MEDIUM'|'HIGH'|'CRITICAL', dateStarted: string, dateResolved: string, partsCost?: number, laborCost?: number, downtimeDays?: number, odometerAtService: number, receiptUrls?: string[] }} payload
    * @returns {Promise<{ status: string, message: string, data: { maintenanceLog: object, workOrder: object, truck: object } }>}
    */
   async finalizeWorkOrder(id, payload) {
-    const orNumber = (payload.officialReceiptNumber || payload.receipts?.[0]?.receiptNumber || "").trim();
     if (!payload.dateStarted) throw new Error("Repair start date is required");
     if (!payload.dateResolved) throw new Error("Repair completion date is required");
     if (payload.odometerAtService === undefined || payload.odometerAtService === null) {
       throw new Error("Odometer reading at service is required");
     }
+
+    // Pass receiptUrls as a plain array of strings
+    const receiptUrls = Array.isArray(payload.receiptUrls)
+      ? payload.receiptUrls
+          .map((r) => (typeof r === "string" ? r : r?.fileUrl || r?.storageKey || r?.url))
+          .filter(Boolean)
+      : [];
+
+    const requestPayload = {
+      severity: payload.severity || "MEDIUM",
+      dateStarted: payload.dateStarted,
+      dateResolved: payload.dateResolved,
+      partsCost: Number(payload.partsCost) || 0,
+      laborCost: Number(payload.laborCost) || 0,
+      downtimeDays: Number(payload.downtimeDays) || 1,
+      odometerAtService: Number(payload.odometerAtService),
+      receiptUrls,
+    };
 
     if (isMock) {
       await delay(300);
@@ -3147,39 +3133,16 @@ export const fleetApi = {
       if (woIndex === -1) throw new Error("Work order not found");
 
       const wo = orders[woIndex];
-      const primaryOR = orNumber || (payload.receipts?.[0]?.receiptNumber) || "N/A";
-
       const existingLogs = getInMemoryMaintenanceLogs();
 
-      // Check unique receipt number constraint against existing logs if a real OR number is provided
-      if (primaryOR !== "N/A") {
-        const duplicateOR = existingLogs.find(
-          (l) => l.officialReceiptNumber && l.officialReceiptNumber.toLowerCase() === primaryOR.toLowerCase()
-        );
-        if (duplicateOR) {
-          throw new Error(
-            `Official receipt number '${primaryOR}' has already been registered in maintenance logs`
-          );
-        }
-      }
-
-      // If receipts array provided in payload, attach them to in-memory receipts
-      if (payload.receipts && Array.isArray(payload.receipts) && payload.receipts.length > 0) {
+      // If receiptUrls provided in payload, attach simplified receipts to in-memory receipts
+      if (receiptUrls.length > 0) {
         const allReceipts = getInMemoryReceipts();
-        const newReceipts = payload.receipts.map((r, idx) => ({
-          id: r.id || `rec-${Date.now()}-${idx}`,
+        const newReceipts = receiptUrls.map((url, idx) => ({
+          id: `rec-${Date.now()}-${idx}`,
           workOrderId: id,
-          fileUrl: r.fileUrl || null,
-          storageKey: r.storageKey || null,
-          fileType: r.fileType || null,
-          fileName: r.fileName || (r.fileUrl ? `Receipt-${idx + 1}` : null),
-          receiptNumber: r.receiptNumber || primaryOR,
-          vendorName: r.vendorName || wo.shopName || "Service Provider",
-          amount: Number(r.amount) || 0,
-          receiptType: r.receiptType || "PARTS",
-          receiptDate: r.receiptDate || new Date().toISOString().split("T")[0],
+          fileUrl: url,
           uploadedBy: "08df2719-0473-4a31-8b5c-dc977d6006c5",
-          uploaderName: "Logistics Supervisor",
           createdAt: new Date().toISOString(),
         }));
         saveInMemoryReceipts([...newReceipts, ...allReceipts]);
@@ -3238,7 +3201,6 @@ export const fleetApi = {
         totalCost,
         downtimeDays: Number(payload.downtimeDays) || 1,
         odometerAtService: Number(payload.odometerAtService),
-        officialReceiptNumber: primaryOR,
         createdAt: new Date().toISOString(),
         shopName: wo.shopName,
         description: wo.description,
@@ -3251,7 +3213,6 @@ export const fleetApi = {
       wo.partsCost = partsCost;
       wo.laborCost = laborCost;
       wo.totalCost = totalCost;
-      wo.officialReceiptNumber = primaryOR;
       wo.maintenanceLog = newLog;
       wo.approvalStatus = "APPROVED";
       wo.approvedAt = wo.approvedAt || new Date().toISOString();
@@ -3270,7 +3231,6 @@ export const fleetApi = {
             partsCost,
             laborCost,
             totalCost,
-            officialReceiptNumber: primaryOR,
             maintenanceLog: newLog,
             shopName: wo.shopName,
             description: wo.description,
@@ -3294,10 +3254,7 @@ export const fleetApi = {
 
     const result = await apiClient(`/fleet/maintenance/work-orders/${id}/finalize`, {
       method: "POST",
-      body: {
-        ...payload,
-        officialReceiptNumber: orNumber || payload.officialReceiptNumber,
-      },
+      body: requestPayload,
     });
     return result;
   },
@@ -3325,7 +3282,8 @@ export const fleetApi = {
         const q = params.search.toLowerCase();
         list = list.filter(
           (l) =>
-            l.officialReceiptNumber?.toLowerCase().includes(q) ||
+            l.id?.toLowerCase().includes(q) ||
+            l.workOrderId?.toLowerCase().includes(q) ||
             l.plateNumber?.toLowerCase().includes(q) ||
             l.shopName?.toLowerCase().includes(q) ||
             l.description?.toLowerCase().includes(q)

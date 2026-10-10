@@ -15,6 +15,7 @@ import {
   Copy,
 } from "lucide-react";
 import Badge from "../ui/Badge";
+import { formatPhilippineDate } from "../../utils/date.js";
 
 export default function ItemDetailPanel({
   item,
@@ -48,19 +49,6 @@ export default function ItemDetailPanel({
     if (item.netWeightKg === undefined || item.netWeightKg === null) return "0.250 kg";
     const val = Number(item.netWeightKg);
     return `${val % 1 === 0 ? val.toFixed(1) : val.toFixed(3)} kg`;
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "N/A";
-    try {
-      return new Date(dateStr).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    } catch {
-      return dateStr;
-    }
   };
 
   const handleCopyId = () => {
@@ -216,7 +204,7 @@ export default function ItemDetailPanel({
                 <span>Registered On</span>
               </span>
               <span className="font-medium text-slate-700">
-                {formatDate(item.createdAt)}
+                {formatPhilippineDate(item.createdAt)}
               </span>
             </div>
 
@@ -226,7 +214,7 @@ export default function ItemDetailPanel({
                 <span>Last Updated</span>
               </span>
               <span className="font-medium text-slate-700">
-                {formatDate(item.updatedAt)}
+                {formatPhilippineDate(item.updatedAt)}
               </span>
             </div>
           </div>

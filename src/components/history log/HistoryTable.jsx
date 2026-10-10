@@ -3,6 +3,7 @@ import ActionTypePill from "./ActionTypePill";
 import Badge from "../ui/Badge";
 import Pagination from "../ui/Pagination";
 import { Clock } from "lucide-react";
+import { formatPhilippineDate, formatPhilippineTime } from "../../utils/date.js";
 
 export default function HistoryTable({ logs = [], pagination }) {
   return (
@@ -20,18 +21,23 @@ export default function HistoryTable({ logs = [], pagination }) {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {logs.length > 0 ? (
-              logs.map((log, index) => (
-                <tr 
-                  key={log.id || index} 
-                  className="bg-white hover:bg-[#F4F9FC] transition-colors duration-150 cursor-pointer"
-                >
-                  <td className="py-3.5 px-6 whitespace-nowrap">
-                    <div className="text-gray-900 font-bold text-xs md:text-sm">{log.date}</div>
-                    <div className="text-[#6D8AA2] text-[11px] flex items-center gap-1 mt-0.5">
-                      <Clock size={11} className="shrink-0" />
-                      <span>{log.time}</span>
-                    </div>
-                  </td>
+              logs.map((log, index) => {
+                const timestamp = log.createdAt || log.timestamp;
+                const displayDate = timestamp ? formatPhilippineDate(timestamp) : (log.date || "-");
+                const displayTime = timestamp ? formatPhilippineTime(timestamp) : (log.time || "-");
+
+                return (
+                  <tr 
+                    key={log.id || index} 
+                    className="bg-white hover:bg-[#F4F9FC] transition-colors duration-150 cursor-pointer"
+                  >
+                    <td className="py-3.5 px-6 whitespace-nowrap">
+                      <div className="text-gray-900 font-bold text-xs md:text-sm">{displayDate}</div>
+                      <div className="text-[#6D8AA2] text-[11px] flex items-center gap-1 mt-0.5">
+                        <Clock size={11} className="shrink-0" />
+                        <span>{displayTime}</span>
+                      </div>
+                    </td>
                   
                   <td className="py-3.5 px-6">
                     <div className="font-bold text-[#0A4B6E] text-xs md:text-sm">{log.userName}</div>
@@ -52,7 +58,8 @@ export default function HistoryTable({ logs = [], pagination }) {
                     {log.details}
                   </td>
                 </tr>
-              ))
+              );
+            })
             ) : (
               <tr>
                 <td colSpan="5" className="py-12 text-center text-gray-400 italic">

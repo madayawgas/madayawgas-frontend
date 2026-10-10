@@ -14,20 +14,9 @@ import { PERMISSIONS } from "../../../utils/permissions.js";
 import { canApproveWorkOrderCost } from "../../../utils/fleetGuards.js";
 import Badge from "../../ui/Badge";
 import Pagination from "../../ui/Pagination";
+import { formatPhilippineDateShort } from "../../../utils/date.js";
 
-function formatDate(dateStr) {
-  if (!dateStr) return "-";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const yy = String(d.getFullYear()).slice(-2);
-    return `${mm}/${dd}/${yy}`;
-  } catch {
-    return dateStr;
-  }
-}
+const formatDate = (dateStr) => formatPhilippineDateShort(dateStr, { fallback: "-" });
 
 function formatCurrency(val) {
   const num = Number(val) || 0;

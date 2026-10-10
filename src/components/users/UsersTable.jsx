@@ -2,20 +2,7 @@ import { UserRound, Phone, Calendar } from "lucide-react";
 import { formatPhilippinePhone } from "../../utils/phone.js";
 import { getUserRoleNames } from "../../utils/userRoles.js";
 import Badge from "../ui/Badge";
-
-function formatDate(dateStr) {
-  if (!dateStr) return "-";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const yy = String(d.getFullYear()).slice(-2);
-    return `${mm}/${dd}/${yy}`;
-  } catch {
-    return dateStr;
-  }
-}
+import { formatPhilippineDateShort } from "../../utils/date.js";
 
 export default function UsersTable({
   users = [],
@@ -186,7 +173,7 @@ export default function UsersTable({
                     <td className="py-3.5 px-3 md:px-4 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5 text-xs text-[#6D8AA2] italic">
                         <Calendar size={13} className="text-[#6D8AA2] shrink-0" />
-                        <span>{formatDate(user.createdAt || user.dateCreated)}</span>
+                        <span>{formatPhilippineDateShort(user.createdAt || user.dateCreated)}</span>
                       </div>
                     </td>
                   </tr>

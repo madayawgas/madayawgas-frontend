@@ -196,7 +196,23 @@ The application supports all Philippine contact number formats:
 
 ---
 
-## 7. Modules Overview
+## 7. Philippine Date & Time Standards (`src/utils/date.js`)
+
+The MadayawGas backend API transmits all timestamps and dates in **UTC format** (ISO 8601 strings, e.g. `2026-10-10T07:56:46Z` or TIMESTAMPTZ). The frontend guarantees consistent rendering and filtering in **Philippine Standard Time (PHT / GMT +8, `Asia/Manila`)** via `src/utils/date.js`:
+- **Core Standard**: Zero ad-hoc `toLocaleDateString` or raw `.getDate()`/`.getMonth()` calls in components. All date formatting MUST specify `timeZone: "Asia/Manila"`.
+- **Display Conventions**:
+  - `formatPhilippineDate(dateStr, options)`: Medium date `"MMM DD, YYYY"` (e.g. `"Aug 24, 2026"`) for detail panels and inspection cards.
+  - `formatPhilippineDateShort(dateStr, options)`: Short table date `"MM/DD/YY"` (e.g. `"08/24/26"`) or `"MM/DD/YYYY"` (`{ yearDigits: 4 }`).
+  - `formatPhilippineTime(dateStr, options)`: 12-hour time `"hh:mm A"` (e.g. `"08:30 AM"`) for audit logs and clocks.
+  - `formatPhilippineDateTime(dateStr, options)`: Combined `"MMM DD, YYYY, hh:mm A"` for incident, odometer, and safety inspection logs.
+- **Calendar Inputs & Comparisons**:
+  - `getPhilippineTodayString()`: Returns `"YYYY-MM-DD"` of current Philippine calendar day for `<input type="date">` defaults.
+  - `toPhilippineDateInputString(dateStr)`: Converts any UTC timestamp to `"YYYY-MM-DD"` in Philippine Time.
+  - `isPhilippineDateInRange(dateStr, dateFrom, dateTo)`: Evaluates whether a timestamp falls within a Philippine date range, eliminating midnight/timezone drift.
+
+---
+
+## 8. Modules Overview
 
 ### 0. Analytics Dashboard (`/dashboard`)
 - **Features**:
@@ -242,7 +258,7 @@ The application supports all Philippine contact number formats:
 - **Sub-Navigation Tabs**:
   - `Vehicles & Fleets`: Grid of fleet assets, PM progress gauges, operational status, vehicle type badges, and 1:1 soft-bound driver management.
   - `Work Orders`: Lifecycle tracking (`PENDING` -> `APPROVED` -> `SCHEDULED` -> `IN_PROGRESS` -> `COMPLETED`), sequential multi-approval requests (`POST /approval-requests`), ₱5,000.00 cost gatekeeping, and status filters.
-  - `Maintenance Logs`: Historical record archive of completed repairs with official receipt numbers, decoupled supporting audit receipts (photo upload & manual fallback), parts/labor breakdown, and fleet downtime metrics.
+  - `Maintenance Logs`: Historical record archive of completed repairs with work order references, decoupled supporting audit receipts (photo upload & fallback), parts/labor breakdown, and fleet downtime metrics.
   - `Recurring Defect Intelligence`: Cross-fleet analytics highlighting chronic mechanical defects and repeated incident clusters over configurable time horizons.
 - **Key Invariants**:
   - **Findings-Only Inspections**: Safety inspections record free-text findings and dispatch gating without checklists (`{ vehicleId, findings, issueDetected, result, allowDispatch }`). FAILED outcomes automatically ground the vehicle (`UNDER_MAINTENANCE`), while `NEEDS_ATTENTION` allows supervisor discretion dispatch gating.

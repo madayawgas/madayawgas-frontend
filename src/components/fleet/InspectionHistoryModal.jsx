@@ -10,6 +10,7 @@ import {
 import { fleetApi } from "../../api/fleet.js";
 import SideDrawer from "../ui/SideDrawer";
 import Badge from "../ui/Badge";
+import { formatPhilippineDateTime } from "../../utils/date.js";
 
 /**
  * InspectionHistoryModal
@@ -111,17 +112,7 @@ export default function InspectionHistoryModal({
     }
   };
 
-  const formatDate = (isoString) => {
-    if (!isoString) return "Recent";
-    const date = new Date(isoString);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  const formatDate = (isoString) => formatPhilippineDateTime(isoString, { fallback: "Recent" });
 
   return (
     <SideDrawer

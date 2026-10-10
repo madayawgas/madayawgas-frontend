@@ -4,6 +4,7 @@ import SideDrawer from "../ui/SideDrawer";
 import Badge from "../ui/Badge";
 import Pagination from "../ui/Pagination";
 import { fleetApi } from "../../api/fleet.js";
+import { formatPhilippineDateTime } from "../../utils/date.js";
 
 /**
  * OdometerHistoryModal
@@ -119,21 +120,7 @@ export default function OdometerHistoryModal({
   const distanceSinceLastPm = Math.max(0, currentOdo - lastPmOdo);
   const isPmDue = distanceSinceLastPm >= 5000;
 
-  const formatDateTime = (isoString) => {
-    if (!isoString) return "-";
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return isoString;
-    }
-  };
+  const formatDateTime = (isoString) => formatPhilippineDateTime(isoString, { fallback: "-" });
 
   return (
     <SideDrawer

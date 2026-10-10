@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { usersApi } from "../../api/users.js";
 import { authApi } from "../../api/auth.js";
 import { getUserRoleNames, hasUserRole } from "../../utils/userRoles.js";
+import { formatPhilippineDate } from "../../utils/date.js";
 import {
   UserRound,
   Eye,
@@ -235,7 +236,7 @@ export default function Profile() {
 
   const displayName = formData.fullName || `${formData.firstName} ${formData.lastName}`.trim() || "Alejandro Doe";
   const displayPhone = formatPhilippinePhone(formData.phone) || "N/A";
-  const displayBirthday = formData.birthdate || "N/A";
+  const displayBirthday = formatPhilippineDate(formData.birthdate, { fallback: "N/A" });
   const displayUsername = formData.username || "adoe_admin";
   const userRoles = getUserRoleNames(currentUser, "Super Admin");
   const isSuperAdmin = hasUserRole(currentUser, "Super Admin");

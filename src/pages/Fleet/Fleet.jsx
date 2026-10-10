@@ -4,6 +4,7 @@ import { fleetApi } from "../../api/fleet.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
 import { checkActiveWorkOrder } from "../../utils/fleetGuards.js";
+import { isPhilippineDateInRange } from "../../utils/date.js";
 import initialMockFleet from "../../mocks/fleet.json";
 
 import FleetHeader from "../../components/fleet/FleetHeader";
@@ -786,7 +787,6 @@ export default function Fleet() {
           partsCost: Number(payload.partsCost) || 0,
           laborCost: Number(payload.laborCost) || 0,
           totalCost: (Number(payload.partsCost) || 0) + (Number(payload.laborCost) || 0),
-          officialReceiptNumber: payload.officialReceiptNumber,
           downtimeDays: payload.downtimeDays,
           maintenanceLog: res?.data?.maintenanceLog,
           approvalStatus: "APPROVED",
@@ -955,17 +955,7 @@ export default function Fleet() {
       // 5. Date Range filter
       let matchesDate = true;
       if (filters.dateFrom || filters.dateTo) {
-        const truckDate = truck.createdAt ? new Date(truck.createdAt).setHours(0, 0, 0, 0) : null;
-        if (truckDate) {
-          if (filters.dateFrom) {
-            const from = new Date(filters.dateFrom).setHours(0, 0, 0, 0);
-            if (truckDate < from) matchesDate = false;
-          }
-          if (filters.dateTo) {
-            const to = new Date(filters.dateTo).setHours(23, 59, 59, 999);
-            if (truckDate > to) matchesDate = false;
-          }
-        }
+        matchesDate = isPhilippineDateInRange(truck.createdAt, filters.dateFrom, filters.dateTo);
       }
 
       return matchesSearch && matchesStatus && matchesVehicleType && matchesDriver && matchesPm && matchesDate;
@@ -1053,7 +1043,6 @@ export default function Fleet() {
           partsCost,
           laborCost,
           totalCost,
-          officialReceiptNumber: wo.officialReceiptNumber || log.officialReceiptNumber,
           downtimeDays: wo.downtimeDays || log.downtimeDays,
           maintenanceLog: wo.maintenanceLog || log,
         };
@@ -1096,12 +1085,12 @@ export default function Fleet() {
       }
       if (logsSearch.trim()) {
         const q = logsSearch.toLowerCase().trim();
-        const receipt = (log.officialReceiptNumber || "").toLowerCase();
+        const woNum = (log.workOrder?.workOrderNumber || log.workOrderId || log.id || "").toLowerCase();
         const plate = (log.plateNumber || log.truck?.plateNumber || "").toLowerCase();
         const shop = (log.workOrder?.shopName || log.shopName || "").toLowerCase();
         const desc = (log.workOrder?.description || log.description || "").toLowerCase();
         return (
-          receipt.includes(q) ||
+          woNum.includes(q) ||
           plate.includes(q) ||
           shop.includes(q) ||
           desc.includes(q)
