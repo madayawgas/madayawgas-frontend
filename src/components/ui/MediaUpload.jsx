@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { uploadMediaFile } from "../../api/media.js";
 import { resolveMediaUrl } from "../../utils/media.js";
+import CameraCaptureModal from "./CameraCaptureModal.jsx";
 
 /**
  * Reusable standardized media upload component with in-memory image compression,
@@ -23,7 +24,7 @@ import { resolveMediaUrl } from "../../utils/media.js";
  * @param {Function} [props.onRemove] - Callback () => void
  * @param {string} [props.label] - Optional field label
  * @param {boolean} [props.disabled=false] - Disable user interaction
- * @param {string} [props.accept="image/jpeg,image/png,image/webp,application/pdf"] - Allowed MIME types
+ * @param {string} [props.accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"] - Allowed MIME types
  * @param {string} [props.helperText] - Custom helper text
  * @param {string} [props.className=""] - Extra container styling
  */
@@ -34,13 +35,14 @@ export default function MediaUpload({
   onRemove,
   label,
   disabled = false,
-  accept = "image/jpeg,image/png,image/webp,application/pdf",
+  accept = "image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf",
   helperText,
   className = "",
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
@@ -122,6 +124,8 @@ export default function MediaUpload({
       {/* Hidden native file inputs */}
       <input
         ref={fileInputRef}
+        id="media_upload_file_input"
+        name="media_file"
         type="file"
         accept={accept}
         onChange={handleInputChange}
@@ -130,6 +134,8 @@ export default function MediaUpload({
       />
       <input
         ref={cameraInputRef}
+        id="media_upload_camera_input"
+        name="camera_file"
         type="file"
         accept="image/*"
         capture="environment"
@@ -271,7 +277,18 @@ export default function MediaUpload({
                 </button>
                 <button
                   type="button"
-                  onClick={() => cameraInputRef.current?.click()}
+                  onClick={() => {
+                    if (disabled || isUploading) return;
+                    if (
+                      typeof navigator !== "undefined" &&
+                      navigator?.mediaDevices &&
+                      typeof navigator.mediaDevices.getUserMedia === "function"
+                    ) {
+                      setIsCameraModalOpen(true);
+                    } else {
+                      cameraInputRef.current?.click();
+                    }
+                  }}
                   disabled={disabled || isUploading}
                   className="py-1.5 px-3.5 rounded-full text-xs font-bold bg-white text-[#0A4B6E] border border-gray-300 hover:bg-slate-50 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs disabled:opacity-50"
                 >
@@ -283,6 +300,15 @@ export default function MediaUpload({
           )}
         </div>
       )}
+
+      {/* Production In-Browser WebRTC Camera Viewfinder */}
+      <CameraCaptureModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={(capturedFile) => {
+          handleFileProcess(capturedFile);
+        }}
+      />
     </div>
   );
 }

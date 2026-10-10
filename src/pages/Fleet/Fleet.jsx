@@ -296,6 +296,24 @@ export default function Fleet() {
     loadFleet();
   }, [refreshDrivers, refreshWorkOrders, refreshMaintenanceLogs]);
 
+  // Auto-restore finalizing work order if user was interrupted or browser reloaded on mobile
+  useEffect(() => {
+    if (!workOrderForFinalize && workOrders.length > 0) {
+      try {
+        const activeWoId = sessionStorage.getItem("madayaw_active_finalize_wo_id");
+        if (activeWoId) {
+          const matched = workOrders.find((w) => String(w.id) === String(activeWoId));
+          if (matched) {
+            setWorkOrderForFinalize(matched);
+            setActiveSubTab("work-orders");
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to check active finalize draft:", e);
+      }
+    }
+  }, [workOrders, workOrderForFinalize]);
+
   // Pending cost approval counter for tab badge
   const pendingApprovalCount = useMemo(() => {
     return workOrders.filter((wo) => wo.status === "PENDING").length;
