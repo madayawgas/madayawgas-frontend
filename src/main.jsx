@@ -18,9 +18,13 @@ import Dashboard from "./pages/Dashboard/Dashboard";
 import Login from "./pages/Login/Login";
 import Fleet from "./pages/Fleet/Fleet";
 import Users from "./pages/Users/Users";
+import RoutePlanner from "./pages/RoutePlanner/RoutePlanner";
 import RouteDispatch from "./pages/RouteDispatch/RouteDispatch";
-import Inventory from "./pages/Inventory/Inventory";
-import ItemProfile from "./pages/ItemProfile/ItemProfile";
+import StockReconciliation from "./pages/StockReconciliation/StockReconciliation";
+import PlantWarehouse from "./pages/Inventory/PlantWarehouse";
+import TransferRecords from "./pages/Inventory/TransferRecords";
+import ProductsCatalog from "./pages/Inventory/ProductsCatalog";
+import ServiceZones from "./pages/ServiceZones/ServiceZones";
 import SalesAndDelivery from "./pages/SalesAndDelivery/SalesAndDelivery";
 import HistoryLog from "./pages/HistoryLog/HistoryLog";
 import Profile from "./pages/Profile/Profile";
@@ -58,6 +62,16 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "route-planner",
+        element: (
+          <ProtectedRoute
+            permission={[PERMISSIONS.ROUTE_VIEW, PERMISSIONS.ROUTE_VIEW_OWN]}
+          >
+            <RoutePlanner />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "route-dispatch",
         element: (
           <ProtectedRoute
@@ -68,20 +82,64 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: "item-profile",
+        path: "reconciliation",
         element: (
-          <ProtectedRoute permission={PERMISSIONS.INVENTORY_VIEW}>
-            <ItemProfile />
+          <ProtectedRoute
+            permission={[
+              PERMISSIONS.ROUTE_VIEW,
+              PERMISSIONS.ROUTE_VIEW_OWN,
+              PERMISSIONS.INVENTORY_VIEW,
+            ]}
+          >
+            <StockReconciliation />
           </ProtectedRoute>
         ),
       },
       {
-        path: "inventory",
+        path: "inventory/plant",
         element: (
           <ProtectedRoute permission={PERMISSIONS.INVENTORY_VIEW}>
-            <ItemProfile />
+            <PlantWarehouse />
           </ProtectedRoute>
         ),
+      },
+      {
+        path: "inventory/transfers",
+        element: (
+          <ProtectedRoute permission={PERMISSIONS.INVENTORY_VIEW}>
+            <TransferRecords />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "inventory/products",
+        element: (
+          <ProtectedRoute permission={PERMISSIONS.INVENTORY_VIEW}>
+            <ProductsCatalog />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "settings/zones",
+        element: (
+          <ProtectedRoute
+            permission={[PERMISSIONS.ROUTE_VIEW, PERMISSIONS.ROUTE_MANAGE]}
+          >
+            <ServiceZones />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "item-profile",
+        element: <Navigate to="/inventory/products" replace />,
+      },
+      {
+        path: "inventory",
+        element: <Navigate to="/inventory/plant" replace />,
+      },
+      {
+        path: "service-zones",
+        element: <Navigate to="/settings/zones" replace />,
       },
       {
         path: "sales-delivery",

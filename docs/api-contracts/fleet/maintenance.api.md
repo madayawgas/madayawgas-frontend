@@ -46,7 +46,7 @@ This document specifies the HTTP endpoints, payload structures, headers, authent
   - Invariant: Work orders **cannot** be directly transitioned to `COMPLETED` via `/status` (`400 Bad Request`). They can ONLY be completed by finalizing the maintenance log via `/finalize`.
 
 - **Maintenance Finalization, PM Reset & Operational Release**:
-  - Calling `POST /work-orders/:id/finalize` completes the repair lifecycle, recording manual financial costs (`parts_cost + labor_cost = total_cost`), downtime days, service odometer, and optional supporting audit receipts (`receiptUrls: string[]`).
+  - Calling `POST /work-orders/:id/finalize` completes the repair lifecycle, recording manual financial costs (`parts_cost + labor_cost = total_cost`), downtime days, service odometer, and optional supporting audit receipts (`receipts: [...]` array or legacy `officialReceiptNumber`).
   - Transition: Work order status updates to `'COMPLETED'`.
   - PM Baseline Reset: If maintenance type is `PREVENTIVE`, updates `vehicles.last_pm_odometer = odometerAtService`, resetting the 5,000-km PM interval to 0 km.
   - Operational Release: Automatically restores `vehicles.status = 'ACTIVE'` while preserving driver assignment (`driver_id`).
@@ -915,8 +915,8 @@ Retrieves single work order details including linked approval requests, inspecti
         {
           "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
           "workOrderId": "e4a5d89b-90f1-43cb-b091-66778899aabb",
+          "fileUrl": "https://tgkxhjoymiffpdzschph.supabase.co/storage/v1/object/public/madayawgas-media/maintenance/receipts/1791553792553-b17622b05d82.jpg",
           "uploadedBy": "00000000-0000-0000-0000-000000000001",
-          "fileUrl": "https://storage.madayawgas.com/receipts/rec-505-1.pdf",
           "createdAt": "2026-09-18T10:00:00.000Z"
         }
       ],
@@ -1137,7 +1137,7 @@ Retrieves all historical approval requests associated with a work order in rever
 
 ### 19. Finalize Maintenance Log & Release Vehicle
 
-Completes the repair lifecycle by logging official parts/labor costs, receipt number, downtime, and odometer reading. Updates the work order status to `'COMPLETED'`, resets the 5,000-km PM baseline if the work order was `PREVENTIVE`, and restores the vehicle operational condition to `'ACTIVE'` while preserving driver assignment.
+Completes the repair lifecycle by logging official parts/labor costs, downtime, and odometer reading, with optional batch receipt image proof URLs. Updates the work order status to `'COMPLETED'`, resets the 5,000-km PM baseline if the work order was `PREVENTIVE`, and restores the vehicle operational condition to `'ACTIVE'` while preserving driver assignment.
 
 - **HTTP Method**: `POST`
 - **URL**: `/api/fleet/maintenance/work-orders/:id/finalize`
@@ -1148,16 +1148,15 @@ Completes the repair lifecycle by logging official parts/labor costs, receipt nu
 
 ```json
 {
-  "severity": "LOW",
-  "dateStarted": "2026-10-05T08:00:00.000Z",
-  "dateResolved": "2026-10-05T16:00:00.000Z",
-  "partsCost": 4200.00,
-  "laborCost": 2000.00,
+  "severity": "MEDIUM",
+  "dateStarted": "2026-09-18T08:00:00.000Z",
+  "dateResolved": "2026-09-19T17:00:00.000Z",
+  "partsCost": 4500.00,
+  "laborCost": 2200.50,
   "downtimeDays": 1,
-  "odometerAtService": 45500,
+  "odometerAtService": 46200,
   "receiptUrls": [
-    "https://<ref>.supabase.co/storage/v1/object/public/madayawgas-media/maintenance/receipts/proof-1.jpg",
-    "https://<ref>.supabase.co/storage/v1/object/public/madayawgas-media/maintenance/receipts/proof-2.jpg"
+    "https://tgkxhjoymiffpdzschph.supabase.co/storage/v1/object/public/madayawgas-media/maintenance/receipts/1791553792553-b17622b05d82.jpg"
   ]
 }
 ```
@@ -1171,7 +1170,7 @@ Completes the repair lifecycle by logging official parts/labor costs, receipt nu
 | `partsCost` | Number | No | Non-negative parts expense in PHP (default: 0.00) |
 | `laborCost` | Number | No | Non-negative labor expense in PHP (default: 0.00) |
 | `downtimeDays` | Integer | No | Days out of service (auto-calculated from dates if omitted) |
-| `receiptUrls` | Array<String> | No | Plain array of receipt storage URLs or canonical relative keys |
+| `receiptUrls` | Array<String> | No | Optional array of canonical storage keys or full image URLs for receipt proof attachments |
 
 #### Response: `201 Created` (Success)
 
@@ -1185,15 +1184,15 @@ Completes the repair lifecycle by logging official parts/labor costs, receipt nu
       "workOrderId": "e4a5d89b-90f1-43cb-b091-66778899aabb",
       "maintenanceTypeId": 1,
       "maintenanceTypeName": "PREVENTIVE",
-      "severity": "LOW",
-      "dateStarted": "2026-10-05T08:00:00.000Z",
-      "dateResolved": "2026-10-05T16:00:00.000Z",
-      "partsCost": 4200.00,
-      "laborCost": 2000.00,
-      "totalCost": 6200.00,
+      "severity": "MEDIUM",
+      "dateStarted": "2026-09-18T08:00:00.000Z",
+      "dateResolved": "2026-09-19T17:00:00.000Z",
+      "partsCost": 4500.00,
+      "laborCost": 2200.50,
+      "totalCost": 6700.50,
       "downtimeDays": 1,
-      "odometerAtService": 45500,
-      "createdAt": "2026-10-05T16:05:00.000Z"
+      "odometerAtService": 46200,
+      "createdAt": "2026-09-19T17:05:00.000Z"
     },
     "workOrder": {
       "id": "e4a5d89b-90f1-43cb-b091-66778899aabb",
@@ -1205,8 +1204,8 @@ Completes the repair lifecycle by logging official parts/labor costs, receipt nu
       "id": "3c82ae11-4c79-4a0d-85a2-c1ad6052a748",
       "plateNumber": "ABC-1001",
       "status": "ACTIVE",
-      "currentOdometer": 45500,
-      "lastPmOdometer": 45500,
+      "currentOdometer": 46200,
+      "lastPmOdometer": 46200,
       "isPmReset": true
     }
   }
@@ -1217,7 +1216,7 @@ Completes the repair lifecycle by logging official parts/labor costs, receipt nu
 
 ### 20. Query Historical Maintenance Logs
 
-Retrieves paginated historical maintenance logs with search across receipt numbers, plate numbers, and repair shops.
+Retrieves paginated historical maintenance logs with search across plate numbers and repair shops.
 
 - **HTTP Method**: `GET`
 - **URL**: `/api/fleet/maintenance/logs`
@@ -1234,7 +1233,7 @@ Retrieves paginated historical maintenance logs with search across receipt numbe
 | `maintenanceTypeId` | Integer | No | Filter by maintenance type ID |
 | `startDate` | ISO 8601 | No | Filter logs resolved on or after date |
 | `endDate` | ISO 8601 | No | Filter logs resolved on or before date |
-| `search` | String | No | Search across receipt number, plate number, or shop name |
+| `search` | String | No | Search across plate number or shop name |
 
 #### Response: `200 OK` (Success)
 
@@ -1364,7 +1363,7 @@ Receipt documents serve strictly as supporting audit evidence for completed or o
 
 ### 22. Attach Receipt to Work Order
 
-Uploads and attaches a proof of purchase or service receipt document to a specific work order.
+Uploads and attaches a proof of purchase or service receipt image attachment to a specific work order.
 
 - **HTTP Method**: `POST`
 - **URL**: `/api/fleet/maintenance/work-orders/:id/receipts`
@@ -1381,7 +1380,7 @@ Uploads and attaches a proof of purchase or service receipt document to a specif
 
 | Field | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
-| `fileUrl` | String | Yes | Full URL or canonical relative storage key (`maintenance/receipts/{filename}`) |
+| `fileUrl` | String | Yes | Canonical storage path (e.g. `maintenance/receipts/...`) or full media URL |
 
 #### Response: `201 Created` (Success)
 
@@ -1391,11 +1390,11 @@ Uploads and attaches a proof of purchase or service receipt document to a specif
   "message": "Receipt attached successfully",
   "data": {
     "receipt": {
-      "id": "d5fb0acb-99c0-4ae9-8dce-9c15b611acad",
-      "workOrderId": "776cb72d-f886-4cb9-9e42-0617dd85c703",
-      "fileUrl": "https://<ref>.supabase.co/storage/v1/object/public/madayawgas-media/maintenance/receipts/1791553792553-b17622b05d82.jpg",
-      "uploadedBy": "e5bd53d7-0071-4fa9-93d3-9cf93fec99b3",
-      "createdAt": "2026-10-09T13:49:54.381Z"
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "workOrderId": "e4a5d89b-90f1-43cb-b091-66778899aabb",
+      "fileUrl": "https://tgkxhjoymiffpdzschph.supabase.co/storage/v1/object/public/madayawgas-media/maintenance/receipts/1791553792553-b17622b05d82.jpg",
+      "uploadedBy": "00000000-0000-0000-0000-000000000001",
+      "createdAt": "2026-09-18T10:00:00.000Z"
     }
   }
 }
@@ -1405,7 +1404,7 @@ Uploads and attaches a proof of purchase or service receipt document to a specif
 
 ### 23. List Work Order Receipts
 
-Retrieves all receipts attached to a specific work order.
+Retrieves all receipts attached to a specific work order as a normalized list.
 
 - **HTTP Method**: `GET`
 - **URL**: `/api/fleet/maintenance/work-orders/:id/receipts`
@@ -1419,11 +1418,11 @@ Retrieves all receipts attached to a specific work order.
   "status": "success",
   "data": [
     {
-      "id": "d5fb0acb-99c0-4ae9-8dce-9c15b611acad",
-      "workOrderId": "776cb72d-f886-4cb9-9e42-0617dd85c703",
-      "fileUrl": "https://<ref>.supabase.co/storage/v1/object/public/madayawgas-media/maintenance/receipts/1791553792553-b17622b05d82.jpg",
-      "uploadedBy": "e5bd53d7-0071-4fa9-93d3-9cf93fec99b3",
-      "createdAt": "2026-10-09T13:49:54.381Z"
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "workOrderId": "e4a5d89b-90f1-43cb-b091-66778899aabb",
+      "fileUrl": "https://tgkxhjoymiffpdzschph.supabase.co/storage/v1/object/public/madayawgas-media/maintenance/receipts/1791553792553-b17622b05d82.jpg",
+      "uploadedBy": "00000000-0000-0000-0000-000000000001",
+      "createdAt": "2026-09-18T10:00:00.000Z"
     }
   ]
 }

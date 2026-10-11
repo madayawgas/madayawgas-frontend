@@ -75,9 +75,9 @@ export default function BatchGenerateModal({
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div className="p-3 bg-[#E8F3F8] rounded-xl border border-[#BCE1F1] text-xs text-[#0A4B6E]">
-            <p className="font-semibold mb-1">Weekly Template Propagation Engine</p>
+            <p className="font-semibold mb-1">Create Daily Truck Schedules</p>
             <p className="text-[#486581]">
-              Daily operational schedules will be created matching each active truck's recurring day-of-week route template. Existing schedules on those dates are skipped safely.
+              Daily truck runs will be scheduled matching each active vehicle's weekly route plan. Existing schedules on selected dates are skipped safely.
             </p>
           </div>
 
