@@ -9,3 +9,4 @@ export * from "./customers.js";
 export * from "./dashboard.js";
 export * from "./schedules.js";
 export * from "./trips.js";
+export * from "./media.js";

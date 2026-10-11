@@ -4,17 +4,7 @@ import { fleetApi } from "../../../api/fleet.js";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import Badge from "../../ui/Badge";
-
-/**
- * Helper to get today's calendar date in YYYY-MM-DD format based on local time.
- */
-function getTodayDateString() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+import { getPhilippineTodayString } from "../../../utils/date.js";
 
 const getDriverDisplay = (t) => {
   if (!t) return "No Assigned";
@@ -42,13 +32,13 @@ export default function CreateWorkOrderModal({
   onClose,
   onSubmit,
 }) {
-  const todayStr = getTodayDateString();
+  const todayStr = getPhilippineTodayString();
   const [selectedTruckId, setSelectedTruckId] = useState(truck?.id || "");
   const [maintenanceTypes, setMaintenanceTypes] = useState([]);
   const [maintenanceTypeId, setMaintenanceTypeId] = useState("1");
   const [shopName, setShopName] = useState("Bunawan Heavy Repair Center");
   const [estimatedCost, setEstimatedCost] = useState("");
-  const [scheduledDate, setScheduledDate] = useState(() => getTodayDateString());
+  const [scheduledDate, setScheduledDate] = useState(() => getPhilippineTodayString());
   const [description, setDescription] = useState("");
   const [isLoadingTypes, setIsLoadingTypes] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,7 +75,7 @@ export default function CreateWorkOrderModal({
 
   useEffect(() => {
     if (isOpen) {
-      setScheduledDate(getTodayDateString());
+      setScheduledDate(getPhilippineTodayString());
       setError("");
     }
   }, [isOpen]);

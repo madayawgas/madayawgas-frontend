@@ -13,21 +13,7 @@ import {
 } from "lucide-react";
 import Badge from "../ui/Badge";
 import { formatPhilippinePhone } from "../../utils/phone.js";
-
-function formatDate(dateStr) {
-  if (!dateStr) return "N/A";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
-}
+import { formatPhilippineDate } from "../../utils/date.js";
 
 export default function CustomerDetailPanel({
   customer,
@@ -186,7 +172,7 @@ export default function CustomerDetailPanel({
                 <span>Date Registered</span>
               </span>
               <span className="font-medium text-slate-700">
-                {formatDate(customer.createdAt)}
+                {formatPhilippineDate(customer.createdAt)}
               </span>
             </div>
 
@@ -196,7 +182,7 @@ export default function CustomerDetailPanel({
                 <span>Last Updated</span>
               </span>
               <span className="font-medium text-slate-700">
-                {formatDate(customer.updatedAt)}
+                {formatPhilippineDate(customer.updatedAt)}
               </span>
             </div>
           </div>

@@ -4,6 +4,7 @@ import { fleetApi } from "../../api/fleet.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
 import { checkActiveWorkOrder } from "../../utils/fleetGuards.js";
+import { isPhilippineDateInRange } from "../../utils/date.js";
 import initialMockFleet from "../../mocks/fleet.json";
 
 import FleetHeader from "../../components/fleet/FleetHeader";
@@ -295,6 +296,24 @@ export default function Fleet() {
     }
     loadFleet();
   }, [refreshDrivers, refreshWorkOrders, refreshMaintenanceLogs]);
+
+  // Auto-restore finalizing work order if user was interrupted or browser reloaded on mobile
+  useEffect(() => {
+    if (!workOrderForFinalize && workOrders.length > 0) {
+      try {
+        const activeWoId = sessionStorage.getItem("madayaw_active_finalize_wo_id");
+        if (activeWoId) {
+          const matched = workOrders.find((w) => String(w.id) === String(activeWoId));
+          if (matched) {
+            setWorkOrderForFinalize(matched);
+            setActiveSubTab("work-orders");
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to check active finalize draft:", e);
+      }
+    }
+  }, [workOrders, workOrderForFinalize]);
 
   // Pending cost approval counter for tab badge
   const pendingApprovalCount = useMemo(() => {
@@ -761,6 +780,19 @@ export default function Fleet() {
       const res = await fleetApi.finalizeWorkOrder(workOrderId, payload);
       await Promise.all([refreshWorkOrders(), refreshMaintenanceLogs(), refreshTrucks()]);
       setWorkOrderForFinalize(null);
+      if (workOrderForDetail && workOrderForDetail.id === workOrderId) {
+        setWorkOrderForDetail((prev) => ({
+          ...prev,
+          status: "COMPLETED",
+          partsCost: Number(payload.partsCost) || 0,
+          laborCost: Number(payload.laborCost) || 0,
+          totalCost: (Number(payload.partsCost) || 0) + (Number(payload.laborCost) || 0),
+          downtimeDays: payload.downtimeDays,
+          maintenanceLog: res?.data?.maintenanceLog,
+          approvalStatus: "APPROVED",
+          approvedAt: prev?.approvedAt || new Date().toISOString(),
+        }));
+      }
       setToast({
         type: "success",
         message: res?.message || "Maintenance finalized. Vehicle status restored to Active.",
@@ -923,17 +955,7 @@ export default function Fleet() {
       // 5. Date Range filter
       let matchesDate = true;
       if (filters.dateFrom || filters.dateTo) {
-        const truckDate = truck.createdAt ? new Date(truck.createdAt).setHours(0, 0, 0, 0) : null;
-        if (truckDate) {
-          if (filters.dateFrom) {
-            const from = new Date(filters.dateFrom).setHours(0, 0, 0, 0);
-            if (truckDate < from) matchesDate = false;
-          }
-          if (filters.dateTo) {
-            const to = new Date(filters.dateTo).setHours(23, 59, 59, 999);
-            if (truckDate > to) matchesDate = false;
-          }
-        }
+        matchesDate = isPhilippineDateInRange(truck.createdAt, filters.dateFrom, filters.dateTo);
       }
 
       return matchesSearch && matchesStatus && matchesVehicleType && matchesDriver && matchesPm && matchesDate;
@@ -994,9 +1016,44 @@ export default function Fleet() {
     });
   }, [trucks, searchTerm, filters, sortConfig]);
 
+  // Enrich work orders with corresponding maintenance log data (partsCost, laborCost, totalCost, OR#)
+  const enrichedWorkOrders = useMemo(() => {
+    if (!Array.isArray(workOrders)) return [];
+    return workOrders.map((wo) => {
+      const log = maintenanceLogs.find(
+        (l) => l.workOrderId === wo.id || l.workOrderId === wo.workOrderId
+      );
+      if (log) {
+        const partsCost =
+          wo.partsCost !== undefined && wo.partsCost !== null
+            ? Number(wo.partsCost)
+            : Number(log.partsCost || 0);
+        const laborCost =
+          wo.laborCost !== undefined && wo.laborCost !== null
+            ? Number(wo.laborCost)
+            : Number(log.laborCost || 0);
+        const totalCost =
+          wo.totalCost !== undefined && wo.totalCost !== null
+            ? Number(wo.totalCost)
+            : log.totalCost !== undefined && log.totalCost !== null
+            ? Number(log.totalCost)
+            : partsCost + laborCost;
+        return {
+          ...wo,
+          partsCost,
+          laborCost,
+          totalCost,
+          downtimeDays: wo.downtimeDays || log.downtimeDays,
+          maintenanceLog: wo.maintenanceLog || log,
+        };
+      }
+      return wo;
+    });
+  }, [workOrders, maintenanceLogs]);
+
   // Filtered Work Orders (Search + Status)
   const filteredWorkOrders = useMemo(() => {
-    return workOrders.filter((wo) => {
+    return enrichedWorkOrders.filter((wo) => {
       if (workOrderStatus !== "ALL" && wo.status !== workOrderStatus) {
         return false;
       }
@@ -1017,7 +1074,7 @@ export default function Fleet() {
       }
       return true;
     });
-  }, [workOrders, workOrderStatus, workOrderSearch]);
+  }, [enrichedWorkOrders, workOrderStatus, workOrderSearch]);
 
   // Filtered Maintenance Logs (Search + Type)
   const filteredMaintenanceLogs = useMemo(() => {
@@ -1028,12 +1085,12 @@ export default function Fleet() {
       }
       if (logsSearch.trim()) {
         const q = logsSearch.toLowerCase().trim();
-        const receipt = (log.officialReceiptNumber || "").toLowerCase();
+        const woNum = (log.workOrder?.workOrderNumber || log.workOrderId || log.id || "").toLowerCase();
         const plate = (log.plateNumber || log.truck?.plateNumber || "").toLowerCase();
         const shop = (log.workOrder?.shopName || log.shopName || "").toLowerCase();
         const desc = (log.workOrder?.description || log.description || "").toLowerCase();
         return (
-          receipt.includes(q) ||
+          woNum.includes(q) ||
           plate.includes(q) ||
           shop.includes(q) ||
           desc.includes(q)
@@ -1452,7 +1509,11 @@ export default function Fleet() {
       {workOrderForDetail && (
         <WorkOrderDetailModal
           isOpen={!!workOrderForDetail}
-          workOrder={workOrderForDetail}
+          workOrder={
+            enrichedWorkOrders.find((w) => w.id === workOrderForDetail.id) ||
+            workOrderForDetail
+          }
+          maintenanceLogs={maintenanceLogs}
           truck={findMatchingTruck(workOrderForDetail)}
           trucks={trucks}
           onClose={() => setWorkOrderForDetail(null)}

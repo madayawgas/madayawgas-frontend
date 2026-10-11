@@ -67,6 +67,7 @@ export const authApi = {
         const user = matchedUser || mockMe.data.user;
         if (typeof window !== "undefined") {
           sessionStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(user));
+          localStorage.setItem("mg_token", "mock-token-" + user.id);
         }
         return user;
       }
@@ -80,6 +81,12 @@ export const authApi = {
       method: "POST",
       body: { username, password },
     });
+
+    const token = result.data?.token || result.token;
+    if (token && typeof window !== "undefined") {
+      localStorage.setItem("mg_token", token);
+    }
+
     return result.data.user;
   },
 
@@ -137,11 +144,19 @@ export const authApi = {
       await delay(200);
       if (typeof window !== "undefined") {
         sessionStorage.removeItem(MOCK_SESSION_KEY);
+        localStorage.removeItem("mg_token");
       }
       return { status: "success", message: "Successfully logged out" };
     }
 
-    return apiClient("/users/logout", { method: "POST" });
+    try {
+      return await apiClient("/users/logout", { method: "POST" });
+    } finally {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("mg_token");
+        sessionStorage.removeItem(MOCK_SESSION_KEY);
+      }
+    }
   },
 
   /**
@@ -172,6 +187,7 @@ export const authApi = {
           }
         }
         sessionStorage.removeItem(MOCK_SESSION_KEY);
+        localStorage.removeItem("mg_token");
       }
       return {
         status: "success",
@@ -184,9 +200,15 @@ export const authApi = {
       newPassword,
     };
 
-    return apiClient("/users/change-password", {
-      method: "POST",
-      body,
-    });
+    try {
+      return await apiClient("/users/change-password", {
+        method: "POST",
+        body,
+      });
+    } finally {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("mg_token");
+      }
+    }
   },
 };

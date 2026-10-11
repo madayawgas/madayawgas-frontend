@@ -46,7 +46,8 @@ export default function Login() {
 
     try {
       const user = await login(username.trim(), password);
-      const destination = getDefaultRoute(user);
+      const destination =
+        location.state?.from?.pathname || getDefaultRoute(user);
       navigate(destination, { replace: true });
     } catch (err) {
       setError(err.message || "Invalid username or password.");

@@ -17,6 +17,7 @@ import {
 import { fleetApi } from "../../../api/fleet.js";
 import Badge from "../../ui/Badge";
 import SearchBar from "../../ui/SearchBar";
+import { formatPhilippineDateShort } from "../../../utils/date.js";
 
 const LOOKBACK_OPTIONS = [
   { value: 30, label: "Last 30 Days" },
@@ -25,19 +26,7 @@ const LOOKBACK_OPTIONS = [
   { value: 180, label: "Last 180 Days" },
 ];
 
-function formatDate(dateStr) {
-  if (!dateStr) return "-";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const yyyy = d.getFullYear();
-    return `${mm}/${dd}/${yyyy}`;
-  } catch {
-    return dateStr;
-  }
-}
+const formatDate = (dateStr) => formatPhilippineDateShort(dateStr, { fallback: "-", yearDigits: 4 });
 
 const getSeverityBadgeVariant = (severity) => {
   const normalized = (severity || "").toUpperCase();
