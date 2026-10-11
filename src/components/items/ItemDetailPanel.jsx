@@ -13,16 +13,23 @@ import {
   Fingerprint,
   Check,
   Copy,
+  Download,
+  AlertOctagon,
+  ArrowUpRight,
 } from "lucide-react";
 import Badge from "../ui/Badge";
 import { formatPhilippineDate } from "../../utils/date.js";
 
 export default function ItemDetailPanel({
   item,
+  stock = null,
   onClose,
   onEdit,
   onDelete,
   onReactivate,
+  onRestockItem,
+  onQuarantineItem,
+  onViewPlantYard,
   canManage = true,
 }) {
   const [copiedId, setCopiedId] = useState(false);
@@ -58,8 +65,16 @@ export default function ItemDetailPanel({
     setTimeout(() => setCopiedId(false), 2000);
   };
 
+  const filledUnits = stock?.quantityFilled ?? 0;
+  const cratesFilled = stock?.cratesFilled ?? null;
+  const emptyUnits = stock?.quantityEmptyGood ?? 0;
+  const cratesEmpty = stock?.cratesEmptyGood ?? null;
+  const defUnits = stock?.quantityDefective ?? 0;
+  const cratesDef = stock?.cratesDefective ?? null;
+  const totalYardUnits = filledUnits + emptyUnits + defUnits;
+
   return (
-    <div className="w-full lg:w-[380px] xl:w-[420px] shrink-0 h-full flex flex-col overflow-hidden bg-white rounded-2xl border border-[#0A4B6E]/20 shadow-sm p-4 animate-slide-fade-in text-left">
+    <div className="w-full max-w-[420px] shrink-0 h-full flex flex-col overflow-hidden bg-white rounded-2xl border border-[#0A4B6E]/20 shadow-sm p-4 animate-slide-fade-in text-left">
       {/* 1. TOP HEADER BANNER */}
       <div className="shrink-0 rounded-xl p-3.5 bg-[#F4F8FA] border border-[#BCE1F1]/70 mb-3">
         <div className="flex items-start justify-between gap-2.5">
@@ -126,8 +141,122 @@ export default function ItemDetailPanel({
         </div>
       </div>
 
-      {/* 2. SCROLLABLE SPECIFICATIONS BODY */}
+      {/* 2. SCROLLABLE SPECIFICATIONS & BULK STOCK BODY */}
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-3 pr-0.5">
+        {/* SECTION: BUNAWAN YARD BULK STOCK */}
+        <div className="bg-[#F8FAFC] border border-[#BCE1F1]/80 rounded-xl p-3.5 space-y-2.5">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#0A4B6E] flex items-center gap-1.5">
+              <Package size={14} className="text-[#0A4B6E]" />
+              <span>Bunawan Yard Bulk Stock</span>
+            </h3>
+            {onViewPlantYard && (
+              <button
+                type="button"
+                onClick={onViewPlantYard}
+                className="text-[11px] font-semibold text-[#0A4B6E] hover:underline flex items-center gap-0.5 cursor-pointer"
+              >
+                <span>Yard View</span>
+                <ArrowUpRight size={11} />
+              </button>
+            )}
+          </div>
+
+          {stock ? (
+            <div className="space-y-2 text-xs">
+              {/* 1. Filled Sale-Ready Stock */}
+              <div className="p-2.5 bg-emerald-50/80 border border-emerald-200/90 rounded-lg flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-emerald-800 font-bold uppercase tracking-wider block">
+                    Filled Sale-Ready
+                  </span>
+                  <span className="text-[11px] text-emerald-700">Dispatch-ready yard inventory</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-extrabold text-emerald-900 block font-mono">
+                    {filledUnits.toLocaleString()} units
+                  </span>
+                  {cratesFilled !== null && (
+                    <span className="text-[10px] font-bold text-emerald-700">
+                      {cratesFilled} crates
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* 2. Empty Good Returns & Defective in 2 columns */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2 bg-[#E8F3F8]/70 border border-[#BCE1F1] rounded-lg">
+                  <span className="text-[9.5px] text-[#0A4B6E] font-bold uppercase tracking-wider block">
+                    Empty Returns
+                  </span>
+                  <span className="text-xs font-bold text-[#0A4B6E] block font-mono mt-0.5">
+                    {emptyUnits.toLocaleString()} units
+                  </span>
+                  {cratesEmpty !== null && (
+                    <span className="text-[10px] text-[#6D8AA2] font-medium block">
+                      {cratesEmpty} crates
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg">
+                  <span className="text-[9.5px] text-rose-800 font-bold uppercase tracking-wider block">
+                    Defective
+                  </span>
+                  <span className="text-xs font-bold text-rose-700 block font-mono mt-0.5">
+                    {defUnits.toLocaleString()} units
+                  </span>
+                  {cratesDef !== null && (
+                    <span className="text-[10px] text-rose-600 font-medium block">
+                      {cratesDef} crates
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Total Units Balance & Last Audit */}
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 px-0.5">
+                <span>Total Yard Buffer:</span>
+                <span className="font-bold text-[#0A4B6E] font-mono">
+                  {totalYardUnits.toLocaleString()} total units
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 text-center bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-xs">
+              No physical yard stock tracked for this SKU yet.
+            </div>
+          )}
+
+          {/* Quick Bulk Stock Action Buttons */}
+          {canManage && (
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
+              {onRestockItem && (
+                <button
+                  type="button"
+                  onClick={() => onRestockItem(item.id)}
+                  className="flex-1 flex items-center justify-center gap-1 bg-[#0A4B6E] hover:bg-[#083b57] text-[#FFDF2C] text-[11px] font-bold py-1.5 px-2.5 rounded-full cursor-pointer transition-all shadow-2xs"
+                >
+                  <Download size={12} />
+                  <span>+ Restock</span>
+                </button>
+              )}
+
+              {onQuarantineItem && (
+                <button
+                  type="button"
+                  onClick={() => onQuarantineItem(item.id)}
+                  className="flex-1 flex items-center justify-center gap-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-[11px] font-bold py-1.5 px-2.5 rounded-full cursor-pointer transition-all"
+                >
+                  <AlertOctagon size={12} />
+                  <span>Quarantine</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* SECTION: PRODUCT SPECIFICATIONS */}
         <div className="bg-[#F8FAFC] border border-slate-200 rounded-xl p-3.5 space-y-2.5">
           <h3 className="text-xs font-bold uppercase tracking-wider text-[#0A4B6E] flex items-center gap-1.5 pb-2 border-b border-slate-200">
@@ -234,3 +363,4 @@ export default function ItemDetailPanel({
     </div>
   );
 }
+

@@ -1,8 +1,8 @@
 // src/components/items/ItemCard.jsx
-import { List, Package, Flame } from "lucide-react";
+import { List, Package, Flame, AlertCircle } from "lucide-react";
 import Badge from "../ui/Badge";
 
-export default function ItemCard({ item, isSelected = false, onClick }) {
+export default function ItemCard({ item, stock = null, isSelected = false, onClick }) {
   const isActive =
     item.isActive !== undefined
       ? Boolean(item.isActive)
@@ -25,6 +25,11 @@ export default function ItemCard({ item, isSelected = false, onClick }) {
     const val = Number(item.netWeightKg);
     return `${val % 1 === 0 ? val.toFixed(1) : val.toFixed(3)} kg`;
   };
+
+  const filledUnits = stock?.quantityFilled ?? null;
+  const cratesFilled = stock?.cratesFilled ?? null;
+  const emptyUnits = stock?.quantityEmptyGood ?? 0;
+  const defUnits = stock?.quantityDefective ?? 0;
 
   return (
     <div
@@ -79,6 +84,42 @@ export default function ItemCard({ item, isSelected = false, onClick }) {
               {formattedWeight()}
             </span>
           </div>
+
+          {/* BULK YARD STOCK HIGHLIGHT */}
+          <div className="pt-2 mt-2 border-t border-slate-100 space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[#6D8AA2] font-medium flex items-center gap-1">
+                <Package size={12} className="text-[#0A4B6E]" />
+                <span>Bulk Yard Stock:</span>
+              </span>
+              <div className="text-right">
+                {filledUnits !== null ? (
+                  <span className="font-bold text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-md text-[11px] inline-flex items-center gap-1">
+                    <span>{filledUnits.toLocaleString()} units</span>
+                    {cratesFilled !== null && (
+                      <span className="text-[10px] text-emerald-600 font-semibold">
+                        ({cratesFilled} cr)
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 text-xs italic">No yard stock</span>
+                )}
+              </div>
+            </div>
+
+            {stock && (
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                <span className="text-[10.5px] text-[#6D8AA2]">Yard Conditions:</span>
+                <span className="font-medium text-[10.5px]">
+                  <span className="text-[#0A4B6E] font-semibold">{emptyUnits.toLocaleString()}</span> empty ·{" "}
+                  <span className={defUnits > 0 ? "text-rose-600 font-bold" : "text-slate-500"}>
+                    {defUnits.toLocaleString()} def
+                  </span>
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -109,3 +150,4 @@ export default function ItemCard({ item, isSelected = false, onClick }) {
     </div>
   );
 }
+

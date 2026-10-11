@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Outlet, NavLink, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { PERMISSIONS } from "../utils/permissions.js";
@@ -9,21 +9,55 @@ import {
   Users,
   LogOut,
   UserCircle,
+  Settings,
   Menu,
   Route,
   Layers,
   History,
   UserRound,
+  HelpCircle,
 } from "lucide-react";
 import logo from "../assets/logov2.svg";
 import ForceChangePasswordModal from "../components/auth/ForceChangePasswordModal.jsx";
 
 export default function Layout() {
   const [open, setOpen] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const hoverTimerRef = useRef(null);
+  const settingsMenuRef = useRef(null);
 
   const { isAuthenticated, currentUser, can, logout, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const handleMouseEnter = () => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setShowSettingsMenu(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = setTimeout(() => {
+      setShowSettingsMenu(false);
+    }, 280); // 280ms grace delay to ensure frictionless hover transition
+  };
+
+  // Click-outside listener
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(e.target)) {
+        setShowSettingsMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+    };
+  }, []);
 
   const getPageTitle = (pathname) => {
     if (pathname.startsWith("/dashboard")) return "Dashboard";
@@ -34,7 +68,8 @@ export default function Layout() {
     if (pathname.startsWith("/customers") || pathname.startsWith("/customer")) return "Customer Profile";
     if (pathname.startsWith("/users")) return "User Management";
     if (pathname.startsWith("/history-log")) return "History Log";
-    if (pathname.startsWith("/profile")) return "Account Profile";
+    if (pathname.startsWith("/profile")) return "Account Settings";
+    if (pathname.startsWith("/faqs") || pathname.startsWith("/help")) return "System FAQs & Guide";
     return "Madayaw Gas";
   };
 
@@ -70,7 +105,7 @@ export default function Layout() {
     <div className="flex h-screen w-full bg-white font-sans overflow-hidden">
       {/* SIDEBAR */}
       <aside
-        className={`fixed md:static z-30 top-0 left-0 h-full w-[225px] bg-[#0E384E] flex flex-col justify-between text-white transform transition-transform duration-300 shrink-0
+        className={`fixed md:static z-30 top-0 left-0 h-full w-[225px] max-w-[225px] min-w-[225px] bg-[#0E384E] flex flex-col justify-between text-white transform transition-transform duration-300 shrink-0
         ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
       >
         <div>
@@ -185,28 +220,98 @@ export default function Layout() {
           </nav>
         </div>
 
-        {/* BOTTOM ACTIONS: PROFILE & LOGOUT */}
-        <div className="px-3 py-3.5 flex items-center justify-around border-t border-white/10">
-          <NavLink
-            to="/profile"
-            onClick={() => setOpen(false)}
-            className={({ isActive }) =>
-              `flex items-center gap-1.5 text-xs font-semibold transition ${
-                currentUser?.mustChangePassword
-                  ? "pointer-events-none opacity-40 select-none"
-                  : isActive
+        {/* BOTTOM ACTIONS: SETTINGS (POPOVER FOR PROFILE & FAQS) & LOGOUT */}
+        <div className="px-3 py-3.5 flex items-center justify-around border-t border-white/10 relative">
+          {/* Settings Trigger & Flyout Popover Container */}
+          <div
+            ref={settingsMenuRef}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            className="relative"
+          >
+            {/* Settings Flyout Popover */}
+            {showSettingsMenu && (
+              <div
+                className="absolute bottom-full mb-1 left-0 z-50 w-56 bg-white text-slate-800 rounded-2xl shadow-xl border border-[#BCE1F1] p-1.5 animate-scale-in text-left
+                after:content-[''] after:absolute after:-bottom-3 after:left-0 after:right-0 after:h-4 after:bg-transparent"
+              >
+                <div className="p-2 border-b border-slate-100 mb-1">
+                  <p className="text-[11px] font-bold text-[#0A4B6E] truncate">
+                    {currentUser?.firstName && currentUser?.lastName
+                      ? `${currentUser.firstName} ${currentUser.lastName}`
+                      : "User Account"}
+                  </p>
+                  <p className="text-[10px] text-[#6D8AA2] truncate">
+                    {currentUser?.username || "Signed in"}
+                  </p>
+                </div>
+
+                <NavLink
+                  to="/profile"
+                  onClick={() => {
+                    setShowSettingsMenu(false);
+                    setOpen(false);
+                  }}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                      isActive
+                        ? "bg-[#E8F3F8] text-[#0A4B6E] font-bold"
+                        : "text-slate-700 hover:bg-slate-50 hover:text-[#0A4B6E]"
+                    }`
+                  }
+                >
+                  <div className="w-6 h-6 rounded-lg bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
+                    <UserCircle size={14} />
+                  </div>
+                  <div className="min-w-0 text-left">
+                    <p className="leading-tight">Profile</p>
+                    <p className="text-[10px] text-slate-400 font-normal">Account & password</p>
+                  </div>
+                </NavLink>
+
+                <NavLink
+                  to="/faqs"
+                  onClick={() => {
+                    setShowSettingsMenu(false);
+                    setOpen(false);
+                  }}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all mt-0.5 ${
+                      isActive
+                        ? "bg-[#E8F3F8] text-[#0A4B6E] font-bold"
+                        : "text-slate-700 hover:bg-slate-50 hover:text-[#0A4B6E]"
+                    }`
+                  }
+                >
+                  <div className="w-6 h-6 rounded-lg bg-[#FFDF2C]/30 text-[#0A4B6E] flex items-center justify-center shrink-0">
+                    <HelpCircle size={14} />
+                  </div>
+                  <div className="min-w-0 text-left">
+                    <p className="leading-tight">FAQs & Guide</p>
+                    <p className="text-[10px] text-slate-400 font-normal">System operations</p>
+                  </div>
+                </NavLink>
+              </div>
+            )}
+
+            {/* Settings Button */}
+            <button
+              type="button"
+              onClick={() => setShowSettingsMenu((prev) => !prev)}
+              className={`flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer px-2.5 py-1.5 rounded-lg ${
+                location.pathname.startsWith("/profile") || location.pathname.startsWith("/faqs")
                   ? "text-[#FFDF2C]"
                   : "text-white/85 hover:text-white"
-              }`
-            }
-          >
-            <UserCircle size={17} />
-            <span>Profile</span>
-          </NavLink>
+              }`}
+            >
+              <Settings size={17} />
+              <span>Settings</span>
+            </button>
+          </div>
 
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 text-xs font-semibold text-white/85 hover:text-white transition cursor-pointer"
+            className="flex items-center gap-1.5 text-xs font-semibold text-white/85 hover:text-white transition cursor-pointer px-2.5 py-1.5 rounded-lg"
           >
             <LogOut size={17} />
             <span>Logout</span>

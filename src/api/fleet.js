@@ -854,6 +854,10 @@ export const fleetApi = {
    * @param {object} [params] - { status, search, driverAssigned }
    * @returns {Promise<Array>} Array of truck objects
    */
+  async getVehicles(params = {}) {
+    return this.getTrucks(params);
+  },
+
   async getTrucks(params = {}) {
     if (isMock) {
       await delay(250);

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "7b8f9e6a-5432-41a9-83bc-9d0e12345678",
+    "code": "TORIL",
+    "name": "Toril District",
+    "description": "Toril commercial and residential distribution route",
+    "isActive": true,
+    "createdAt": "2026-09-01T08:00:00.000Z",
+    "updatedAt": "2026-09-01T08:00:00.000Z"
+  },
+  {
+    "id": "8c90af7b-6543-42ba-94cd-0e1f23456789",
+    "code": "MATINA",
+    "name": "Matina Aplaya & Crossing",
+    "description": "Matina urban center and coastal communities",
+    "isActive": true,
+    "createdAt": "2026-09-01T08:00:00.000Z",
+    "updatedAt": "2026-09-01T08:00:00.000Z"
+  },
+  {
+    "id": "9da1b08c-7654-43cb-a5de-1f2a34567890",
+    "code": "CALINAN",
+    "name": "Calinan District",
+    "description": "Calinan agricultural and suburban route",
+    "isActive": true,
+    "createdAt": "2026-09-01T08:00:00.000Z",
+    "updatedAt": "2026-09-01T08:00:00.000Z"
+  },
+  {
+    "id": "0eb2c19d-8765-44dc-b6ef-2a3b45678901",
+    "code": "BUHANGIN",
+    "name": "Buhangin & Cabantian",
+    "description": "High-density residential subdivisions",
+    "isActive": true,
+    "createdAt": "2026-09-01T08:00:00.000Z",
+    "updatedAt": "2026-09-01T08:00:00.000Z"
+  },
+  {
+    "id": "1fc3d20e-9876-45ed-c7f0-3b4c56789012",
+    "code": "TALOMO",
+    "name": "Talomo District",
+    "description": "Industrial and commercial accounts",
+    "isActive": true,
+    "createdAt": "2026-09-01T08:00:00.000Z",
+    "updatedAt": "2026-09-01T08:00:00.000Z"
+  },
+  {
+    "id": "2ad4e31f-0987-46fe-d8a1-4c5d67890123",
+    "code": "AGDAO",
+    "name": "Agdao Commercial Center",
+    "description": "Wet markets, bakeries, and retail partners",
+    "isActive": true,
+    "createdAt": "2026-09-01T08:00:00.000Z",
+    "updatedAt": "2026-09-01T08:00:00.000Z"
+  }
+]
