@@ -1,6 +1,7 @@
 // src/api/inventory.js
 import { apiClient, isMock, delay } from "./client.js";
 import mockItems from "../mocks/items.json" with { type: "json" };
+import mockPlantInventory from "../mocks/plant-inventory.json" with { type: "json" };
 import { authApi } from "./auth.js";
 
 // In-memory collection initialized from mockItems
@@ -8,6 +9,10 @@ let inMemoryItems = Array.isArray(mockItems)
   ? [...mockItems]
   : mockItems?.data?.products
   ? [...mockItems.data.products]
+  : [];
+
+let inMemoryPlantStock = mockPlantInventory?.data?.inventory
+  ? [...mockPlantInventory.data.inventory]
   : [];
 
 /**
@@ -252,5 +257,134 @@ export const inventoryApi = {
   // Backward compatibility alias for stock update
   async updateStock(id, stockData) {
     return this.updateProduct(id, stockData);
+  },
+
+  // ==========================================
+  // Plant Yard Bulk Inventory & Reconciliation
+  // ==========================================
+
+  /**
+   * Master Bunawan Yard bulk inventory overview across all active products.
+   */
+  async getPlantInventory() {
+    if (isMock) {
+      await delay(250);
+      return inMemoryPlantStock;
+    }
+
+    try {
+      const res = await apiClient(`/inventory/plant`);
+      const list = res?.data?.inventory || res?.data || [];
+      if (Array.isArray(list) && list.length > 0) {
+        return list.map((item) => ({
+          ...item,
+          productId: item.productId || item.product_id,
+          productName: item.productName || item.product_name,
+          containerType: item.containerType || item.container_type,
+          netWeightKg: item.netWeightKg !== undefined ? item.netWeightKg : Number(item.net_weight_kg) || 0,
+          quantityFilled: item.quantityFilled !== undefined ? item.quantityFilled : Number(item.quantity_filled) || 0,
+          quantityEmptyGood: item.quantityEmptyGood !== undefined ? item.quantityEmptyGood : Number(item.quantity_empty_good) || 0,
+          quantityDefective: item.quantityDefective !== undefined ? item.quantityDefective : Number(item.quantity_defective) || 0,
+          cratesFilled: item.cratesFilled !== undefined ? item.cratesFilled : (item.container_type === 'CANISTER' ? Math.floor(Number(item.quantity_filled) / 24) : null),
+          cratesEmptyGood: item.cratesEmptyGood !== undefined ? item.cratesEmptyGood : (item.container_type === 'CANISTER' ? Math.floor(Number(item.quantity_empty_good) / 24) : null),
+          cratesDefective: item.cratesDefective !== undefined ? item.cratesDefective : (item.container_type === 'CANISTER' ? Math.floor(Number(item.quantity_defective) / 24) : null),
+        }));
+      }
+      return inMemoryPlantStock;
+    } catch (err) {
+      console.warn("Failed to fetch plant inventory from API, using fallback:", err.message);
+      return inMemoryPlantStock;
+    }
+  },
+
+  /**
+   * Record supplier bulk shipment stock-in.
+   */
+  async restockPlant(payload) {
+    if (isMock) {
+      await delay(300);
+      const idx = inMemoryPlantStock.findIndex((p) => p.productId === payload.productId);
+      if (idx !== -1) {
+        const item = inMemoryPlantStock[idx];
+        const addedUnits = Number(payload.quantityUnits) || 0;
+        item.quantityFilled = (item.quantityFilled || 0) + addedUnits;
+        if (item.cratesFilled !== null) {
+          item.cratesFilled = Math.floor(item.quantityFilled / 24);
+        }
+        item.updatedAt = new Date().toISOString();
+      }
+      return {
+        message: `Supplier restock of ${payload.quantityUnits} units recorded successfully`,
+      };
+    }
+
+    const res = await apiClient(`/inventory/plant/restock`, {
+      method: "POST",
+      body: payload,
+    });
+    return res.data;
+  },
+
+  /**
+   * Quarantines yard leakers or defective stock.
+   */
+  async quarantineDefects(payload) {
+    if (isMock) {
+      await delay(300);
+      const idx = inMemoryPlantStock.findIndex((p) => p.productId === payload.productId);
+      if (idx !== -1) {
+        const item = inMemoryPlantStock[idx];
+        const movedUnits = Number(payload.quantityUnits) || 0;
+        if (payload.sourceCondition === "EMPTY_GOOD") {
+          item.quantityEmptyGood = Math.max(0, (item.quantityEmptyGood || 0) - movedUnits);
+        } else {
+          item.quantityFilled = Math.max(0, (item.quantityFilled || 0) - movedUnits);
+          if (item.cratesFilled !== null) {
+            item.cratesFilled = Math.floor(item.quantityFilled / 24);
+          }
+        }
+        item.quantityDefective = (item.quantityDefective || 0) + movedUnits;
+        if (item.cratesDefective !== null) {
+          item.cratesDefective = Math.floor(item.quantityDefective / 24);
+        }
+        item.updatedAt = new Date().toISOString();
+      }
+      return {
+        message: `Quarantined ${payload.quantityUnits} units to defective inventory`,
+      };
+    }
+
+    const res = await apiClient(`/inventory/plant/quarantine-defects`, {
+      method: "POST",
+      body: payload,
+    });
+    return res.data;
+  },
+
+  /**
+   * Calculate suggested equal truck loading split.
+   */
+  async getSuggestedSplit(productId, activeTripCount = 3) {
+    if (isMock) {
+      await delay(200);
+      const item = inMemoryPlantStock.find((p) => p.productId === productId);
+      const available = item?.quantityFilled || 0;
+      const count = Number(activeTripCount) || 1;
+      const suggestedUnits = Math.floor(available / count);
+      return {
+        productId,
+        productName: item?.productName || "Product",
+        totalAvailableFilledUnits: available,
+        activeTripCount: count,
+        suggestedUnitsPerTruck: suggestedUnits,
+        suggestedCratesPerTruck: Math.floor(suggestedUnits / 24),
+        remainingUnits: available % count,
+      };
+    }
+
+    const res = await apiClient(
+      `/inventory/plant/suggested-split?productId=${productId}&activeTripCount=${activeTripCount}`
+    );
+    return res?.data;
   },
 };

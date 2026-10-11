@@ -1,0 +1,157 @@
+[
+  {
+    "id": "trp-11111111-cccc-dddd-eeee-111111111111",
+    "tripNumber": "TRIP-20261004-001",
+    "scheduleId": "sch-11111111-bbbb-cccc-dddd-111111111111",
+    "truckId": "trk-11111111-2222-3333-4444-555555555555",
+    "truckPlate": "ABC-1001",
+    "truckModel": "Isuzu Elf N-Series",
+    "driverId": "d1111111-aaaa-bbbb-cccc-111111111111",
+    "driverName": "Juan Driver",
+    "salesUserId": "98b3be70-2bd5-4a6d-be32-a9174cb1cb84",
+    "salesName": "Sales Representative",
+    "zoneId": "7b8f9e6a-5432-41a9-83bc-9d0e12345678",
+    "zoneCode": "TORIL",
+    "zoneName": "Toril District",
+    "status": "IN_PROGRESS",
+    "departureTime": "2026-10-04T06:30:00.000Z",
+    "departureOdometer": 45000,
+    "notes": "Morning Toril residential dispatch",
+    "loads": [
+      {
+        "id": "lod-11111111-1111",
+        "transferType": "DISPATCH_LOAD",
+        "slipNumber": "LOAD-20261004-001A",
+        "items": [
+          {
+            "productId": "e9b21f37-142c-4f76-96f3-a3d8b02e7b91",
+            "productName": "Butane Canister 250g",
+            "condition": "FILLED",
+            "quantityUnits": 120
+          },
+          {
+            "productId": "27d6365b-bfb0-4ca7-b286-63d1bcfa2520",
+            "productName": "11kg LPG Cylinder",
+            "condition": "FILLED",
+            "quantityUnits": 20
+          }
+        ]
+      }
+    ],
+    "onBoardSummary": {
+      "totalUnits": 140,
+      "canisterCrates": 5,
+      "cylinders": 20
+    }
+  },
+  {
+    "id": "trp-22222222-cccc-dddd-eeee-222222222222",
+    "tripNumber": "TRIP-20261004-002",
+    "scheduleId": "sch-22222222-bbbb-cccc-dddd-222222222222",
+    "truckId": "trk-22222222-3333-4444-5555-666666666666",
+    "truckPlate": "XYZ-9876",
+    "truckModel": "Mitsubishi Fuso Canter",
+    "driverId": "d2222222-aaaa-bbbb-cccc-222222222222",
+    "driverName": "Pedro Santos",
+    "salesUserId": "98b3be70-2bd5-4a6d-be32-a9174cb1cb84",
+    "salesName": "Sales Representative",
+    "zoneId": "8c90af7b-6543-42ba-94cd-0e1f23456789",
+    "zoneCode": "MATINA",
+    "zoneName": "Matina Aplaya & Crossing",
+    "status": "AWAITING_SYNC",
+    "departureTime": "2026-10-04T07:00:00.000Z",
+    "returnTime": "2026-10-04T16:30:00.000Z",
+    "departureOdometer": 46150,
+    "returnOdometer": 46270,
+    "distanceDrivenKm": 120,
+    "notes": "Sunday Matina route return completed",
+    "loads": [
+      {
+        "id": "lod-22222222-1111",
+        "transferType": "DISPATCH_LOAD",
+        "slipNumber": "LOAD-20261004-002A",
+        "items": [
+          {
+            "productId": "e9b21f37-142c-4f76-96f3-a3d8b02e7b91",
+            "productName": "Butane Canister 250g",
+            "condition": "FILLED",
+            "quantityUnits": 120
+          }
+        ]
+      },
+      {
+        "id": "lod-22222222-2222",
+        "transferType": "RETURN_UNLOAD",
+        "slipNumber": "UNLOAD-20261004-002B",
+        "items": [
+          {
+            "productId": "e9b21f37-142c-4f76-96f3-a3d8b02e7b91",
+            "productName": "Butane Canister 250g",
+            "condition": "FILLED",
+            "quantityUnits": 20
+          },
+          {
+            "productId": "e9b21f37-142c-4f76-96f3-a3d8b02e7b91",
+            "productName": "Butane Canister 250g",
+            "condition": "EMPTY_GOOD",
+            "quantityUnits": 95
+          },
+          {
+            "productId": "e9b21f37-142c-4f76-96f3-a3d8b02e7b91",
+            "productName": "Butane Canister 250g",
+            "condition": "DEFECTIVE",
+            "quantityUnits": 5
+          }
+        ]
+      }
+    ],
+    "reconciliation": {
+      "status": "AWAITING_SYNC",
+      "totalLoadedFull": 120,
+      "totalSoldFull": 95,
+      "totalReturnedFull": 20,
+      "totalReturnedEmptyGood": 95,
+      "totalReturnedDefective": 5,
+      "netCustomerDebtCreated": 0,
+      "fullDiscrepancy": 0,
+      "emptyDiscrepancy": 0,
+      "isSettled": false
+    }
+  },
+  {
+    "id": "trp-33333333-cccc-dddd-eeee-333333333333",
+    "tripNumber": "TRIP-20261003-004",
+    "truckId": "trk-33333333-4444-5555-6666-777777777777",
+    "truckPlate": "DEF-4567",
+    "truckModel": "Hino 500 Series",
+    "driverId": "d1111111-aaaa-bbbb-cccc-111111111111",
+    "driverName": "Juan Driver",
+    "salesUserId": "98b3be70-2bd5-4a6d-be32-a9174cb1cb84",
+    "salesName": "Sales Representative",
+    "zoneId": "0eb2c19d-8765-44dc-b6ef-2a3b45678901",
+    "zoneCode": "BUHANGIN",
+    "zoneName": "Buhangin & Cabantian",
+    "status": "SETTLED",
+    "departureTime": "2026-10-03T07:00:00.000Z",
+    "returnTime": "2026-10-03T17:15:00.000Z",
+    "departureOdometer": 120500,
+    "returnOdometer": 120610,
+    "distanceDrivenKm": 110,
+    "notes": "Regular Buhangin run settled with zero discrepancy",
+    "loads": [],
+    "reconciliation": {
+      "status": "SETTLED",
+      "totalLoadedFull": 100,
+      "totalSoldFull": 80,
+      "totalReturnedFull": 20,
+      "totalReturnedEmptyGood": 80,
+      "totalReturnedDefective": 0,
+      "netCustomerDebtCreated": 0,
+      "fullDiscrepancy": 0,
+      "emptyDiscrepancy": 0,
+      "isSettled": true,
+      "supervisorNotes": "Verified against physical return slip and mobile sales sync. Balanced.",
+      "reconciledAt": "2026-10-03T18:00:00.000Z"
+    }
+  }
+]

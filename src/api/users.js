@@ -9,6 +9,10 @@ export const usersApi = {
    * Get all user accounts (Admin/Manager with users.view permission).
    * @returns {Promise<Array>} List of user objects
    */
+  async getUsers() {
+    return this.getAllUsers();
+  },
+
   async getAllUsers() {
     if (isMock) {
       await delay(300);

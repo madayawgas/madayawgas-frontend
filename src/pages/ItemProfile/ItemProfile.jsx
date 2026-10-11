@@ -5,6 +5,7 @@ import { inventoryApi } from "../../api/inventory.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
 import initialMockItems from "../../mocks/items.json";
+import initialMockPlantInventory from "../../mocks/plant-inventory.json";
 
 import ItemHeader from "../../components/items/ItemHeader";
 import ItemControls from "../../components/items/ItemControls";
@@ -15,6 +16,10 @@ import ItemModal from "../../components/items/ItemModal";
 import DeactivateItemModal from "../../components/items/DeactivateItemModal";
 import AdminPasswordModal from "../../components/users/AdminPasswordModal";
 import ToastNotification from "../../components/ui/ToastNotifications";
+import PlantYardView from "../../components/items/plant/PlantYardView";
+import SupplierRestockModal from "../../components/items/plant/SupplierRestockModal";
+import QuarantineDefectsModal from "../../components/items/plant/QuarantineDefectsModal";
+import SuggestedSplitModal from "../../components/items/plant/SuggestedSplitModal";
 
 const LOCAL_STORAGE_KEY = "app_items_cache";
 const VIEW_MODE_KEY = "app_items_view_mode";
@@ -100,6 +105,49 @@ export default function ItemProfile() {
     containerType: "All",
   });
 
+  // Sub-Tab Switcher ('catalog' | 'plant')
+  const [activeSubTab, setActiveSubTab] = useState("catalog");
+  const [plantStock, setPlantStock] = useState(() => {
+    try {
+      const cached = localStorage.getItem("app_plant_stock_cache");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return initialMockPlantInventory?.data?.inventory || [];
+  });
+  const [showRestockModal, setShowRestockModal] = useState(false);
+  const [activeRestockProductId, setActiveRestockProductId] = useState(null);
+  const [showQuarantineModal, setShowQuarantineModal] = useState(false);
+  const [activeQuarantineProductId, setActiveQuarantineProductId] = useState(null);
+  const [showSplitModal, setShowSplitModal] = useState(false);
+
+  // Quick lookup map for Yard Bulk Stock per product ID (supports UUID & normalized name)
+  const stockMap = useMemo(() => {
+    const map = {};
+    (plantStock || []).forEach((stock) => {
+      const pId = stock.productId || stock.product_id;
+      if (pId) {
+        map[pId] = stock;
+      }
+      const pName = (stock.productName || stock.product_name || "").toLowerCase().trim();
+      if (pName) {
+        map[pName] = stock;
+      }
+    });
+    return map;
+  }, [plantStock]);
+
+  const totalYardFilledUnits = useMemo(() => {
+    return (plantStock || []).reduce(
+      (acc, p) => acc + (p.quantityFilled ?? p.quantity_filled ?? 0),
+      0
+    );
+  }, [plantStock]);
+
   // Toast Notification state
   const [toast, setToast] = useState(null);
 
@@ -119,9 +167,21 @@ export default function ItemProfile() {
   const loadItems = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await inventoryApi.getInventoryItems();
+      const [data, plantData] = await Promise.all([
+        inventoryApi.getInventoryItems().catch(() => initialMockItems?.data?.products || initialMockItems || []),
+        inventoryApi.getPlantInventory().catch(() => initialMockPlantInventory?.data?.inventory || []),
+      ]);
+
       if (data && Array.isArray(data) && data.length > 0) {
         updateItemsState(data);
+      }
+      if (plantData && Array.isArray(plantData) && plantData.length > 0) {
+        setPlantStock(plantData);
+        try {
+          localStorage.setItem("app_plant_stock_cache", JSON.stringify(plantData));
+        } catch {
+          // ignore
+        }
       }
     } catch (err) {
       console.error("Failed to load inventory items:", err);
@@ -133,6 +193,34 @@ export default function ItemProfile() {
       setIsLoading(false);
     }
   }, []);
+
+  const handleRestock = async (payload) => {
+    const res = await inventoryApi.restockPlant(payload);
+    setToast({ type: "success", message: res?.message || "Restock recorded successfully" });
+    const updated = await inventoryApi.getPlantInventory();
+    if (updated && Array.isArray(updated) && updated.length > 0) {
+      setPlantStock(updated);
+      try {
+        localStorage.setItem("app_plant_stock_cache", JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const handleQuarantine = async (payload) => {
+    const res = await inventoryApi.quarantineDefects(payload);
+    setToast({ type: "success", message: res?.message || "Defects quarantined successfully" });
+    const updated = await inventoryApi.getPlantInventory();
+    if (updated && Array.isArray(updated) && updated.length > 0) {
+      setPlantStock(updated);
+      try {
+        localStorage.setItem("app_plant_stock_cache", JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+    }
+  };
 
   useEffect(() => {
     loadItems();
@@ -348,6 +436,9 @@ export default function ItemProfile() {
         } else if (sortConfig.key === "netWeightKg") {
           aVal = Number(a.netWeightKg) || 0;
           bVal = Number(b.netWeightKg) || 0;
+        } else if (sortConfig.key === "bulkStock") {
+          aVal = stockMap[a.id]?.quantityFilled || 0;
+          bVal = stockMap[b.id]?.quantityFilled || 0;
         } else if (sortConfig.key === "isActive") {
           aVal = a.isActive !== undefined ? Boolean(a.isActive) : a.status === "ACTIVE";
           bVal = b.isActive !== undefined ? Boolean(b.isActive) : b.status === "ACTIVE";
@@ -360,7 +451,7 @@ export default function ItemProfile() {
     }
 
     return result;
-  }, [items, searchTerm, filters, sortConfig]);
+  }, [items, searchTerm, filters, sortConfig, stockMap]);
 
   const hasActiveFilters = Boolean(
     searchTerm ||
@@ -383,99 +474,146 @@ export default function ItemProfile() {
       {/* 1. STICKY TOP HEADER WITH SUMMARY BADGES */}
       <div className="shrink-0">
         <ItemHeader
+          activeSubTab={activeSubTab}
+          onTabChange={setActiveSubTab}
           canCreate={canManage}
           onAddItem={() => setIsAddingItem(true)}
           itemSummary={itemSummary}
+          plantStockCount={plantStock.length}
+          totalYardFilledUnits={totalYardFilledUnits}
         />
 
-        {/* 2. CONTROLS (SEARCH, FILTERS, VIEW MODE SWITCHER) */}
-        <ItemControls
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          onClearSearch={() => setSearchTerm("")}
-          activeFilters={filters}
-          onApplyFilters={setFilters}
-          onClearCategory={() =>
-            setFilters((prev) => ({ ...prev, category: "All Categories" }))
-          }
-          onClearContainerType={() =>
-            setFilters((prev) => ({ ...prev, containerType: "All" }))
-          }
-          onClearStatus={() => setFilters((prev) => ({ ...prev, status: "" }))}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-        />
-      </div>
-
-      {/* 3. MAIN WORKSPACE (MASTER LIST/GRID + RIGHT DETAIL PANEL) */}
-      <div className="flex-1 min-h-0 flex gap-4 overflow-hidden relative">
-        {/* Left Side: Master Content (Cards or Table) */}
-        <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col overflow-hidden">
-          {isLoading && items.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-slate-500 font-medium">
-              Loading inventory products...
-            </div>
-          ) : filteredAndSortedItems.length > 0 ? (
-            viewMode === "table" ? (
-              <ItemTable
-                items={filteredAndSortedItems}
-                selectedItem={selectedItem}
-                onSelectItem={setSelectedItem}
-                sortConfig={sortConfig}
-                onSort={handleSort}
-              />
-            ) : (
-              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 pb-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {filteredAndSortedItems.map((item) => (
-                    <ItemCard
-                      key={item.id}
-                      item={item}
-                      isSelected={selectedItem?.id === item.id}
-                      onClick={setSelectedItem}
-                    />
-                  ))}
-                </div>
-              </div>
-            )
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center bg-[#E8F3F8]/40 border border-dashed border-[#BCE1F1] rounded-2xl p-8">
-              <div className="w-12 h-12 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center mb-3">
-                <Package size={24} />
-              </div>
-              <p className="text-[#0A4B6E] font-bold text-base mb-1">
-                No products found
-              </p>
-              <p className="text-[#6D8AA2] text-xs max-w-sm mb-4">
-                {hasActiveFilters
-                  ? "No products match your current search query or active filter criteria."
-                  : "There are no catalog products registered in the system yet."}
-              </p>
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={handleResetFilters}
-                  className="bg-[#0A4B6E] text-white hover:bg-[#083b57] text-xs font-bold px-4 py-2 rounded-full transition-all cursor-pointer shadow-xs"
-                >
-                  Reset Filters
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right Side: Slide-in Detail Panel */}
-        {selectedItem && (
-          <ItemDetailPanel
-            item={selectedItem}
-            onClose={() => setSelectedItem(null)}
-            onEdit={() => setEditingItem(selectedItem)}
-            onDelete={handleInitiateDeactivate}
-            onReactivate={handleInitiateReactivate}
-            canManage={canManage}
+        {/* 2. CONTROLS (SEARCH, FILTERS, VIEW MODE SWITCHER - ONLY IN CATALOG MODE) */}
+        {activeSubTab === "catalog" && (
+          <ItemControls
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onClearSearch={() => setSearchTerm("")}
+            activeFilters={filters}
+            onApplyFilters={setFilters}
+            onClearCategory={() =>
+              setFilters((prev) => ({ ...prev, category: "All Categories" }))
+            }
+            onClearContainerType={() =>
+              setFilters((prev) => ({ ...prev, containerType: "All" }))
+            }
+            onClearStatus={() => setFilters((prev) => ({ ...prev, status: "" }))}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
           />
         )}
       </div>
+
+      {activeSubTab === "catalog" ? (
+        /* 3. MAIN WORKSPACE (MASTER LIST/GRID + RIGHT DETAIL PANEL) */
+        <div className="flex-1 min-h-0 flex gap-4 overflow-hidden relative">
+          {/* Left Side: Master Content (Cards or Table) */}
+          <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col overflow-hidden">
+            {isLoading && items.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-slate-500 font-medium">
+                Loading inventory products...
+              </div>
+            ) : filteredAndSortedItems.length > 0 ? (
+              viewMode === "table" ? (
+                <ItemTable
+                  items={filteredAndSortedItems}
+                  stockMap={stockMap}
+                  selectedItem={selectedItem}
+                  onSelectItem={setSelectedItem}
+                  sortConfig={sortConfig}
+                  onSort={handleSort}
+                />
+              ) : (
+                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 pb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {filteredAndSortedItems.map((item) => (
+                      <ItemCard
+                        key={item.id}
+                        item={item}
+                        stock={stockMap[item.id] || stockMap[(item.name || item.itemName || "").toLowerCase().trim()] || null}
+                        isSelected={selectedItem?.id === item.id}
+                        onClick={setSelectedItem}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center bg-[#E8F3F8]/40 border border-dashed border-[#BCE1F1] rounded-2xl p-8">
+                <div className="w-12 h-12 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center mb-3">
+                  <Package size={24} />
+                </div>
+                <p className="text-[#0A4B6E] font-bold text-base mb-1">
+                  No products found
+                </p>
+                <p className="text-[#6D8AA2] text-xs max-w-sm mb-4">
+                  {hasActiveFilters
+                    ? "No products match your current search query or active filter criteria."
+                    : "There are no catalog products registered in the system yet."}
+                </p>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="bg-[#0A4B6E] text-white hover:bg-[#083b57] text-xs font-bold px-4 py-2 rounded-full transition-all cursor-pointer shadow-xs"
+                  >
+                    Reset Filters
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Mobile/Tablet Backdrop Overlay (closes panel on outside tap) */}
+          {selectedItem && (
+            <div
+              className="fixed inset-0 bg-black/30 z-30 lg:hidden"
+              onClick={() => setSelectedItem(null)}
+            />
+          )}
+
+          {/* Right Side: Slide-in Detail Panel (constrained on small screens) */}
+          {selectedItem && (
+            <div className="fixed inset-y-0 right-0 z-40 w-[360px] max-w-[92vw] lg:static lg:w-[380px] xl:w-[420px] lg:max-w-none shrink-0 h-full flex flex-col overflow-hidden shadow-2xl lg:shadow-none bg-white">
+              <ItemDetailPanel
+                item={selectedItem}
+                stock={stockMap[selectedItem.id] || stockMap[(selectedItem.name || selectedItem.itemName || "").toLowerCase().trim()] || null}
+                onClose={() => setSelectedItem(null)}
+                onEdit={() => setEditingItem(selectedItem)}
+                onDelete={handleInitiateDeactivate}
+                onReactivate={handleInitiateReactivate}
+                onRestockItem={(prodId) => {
+                  setActiveRestockProductId(prodId);
+                  setShowRestockModal(true);
+                }}
+                onQuarantineItem={(prodId) => {
+                  setActiveQuarantineProductId(prodId);
+                  setShowQuarantineModal(true);
+                }}
+                onViewPlantYard={() => setActiveSubTab("plant")}
+                canManage={canManage}
+              />
+            </div>
+          )}
+        </div>
+      ) : (
+        /* 4. BUNAWAN YARD BULK STOCK WORKSPACE */
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
+          <PlantYardView
+            plantStock={plantStock}
+            canManage={canManage}
+            onOpenRestock={() => {
+              setActiveRestockProductId(null);
+              setShowRestockModal(true);
+            }}
+            onOpenQuarantine={() => {
+              setActiveQuarantineProductId(null);
+              setShowQuarantineModal(true);
+            }}
+            onOpenSuggestedSplit={() => setShowSplitModal(true)}
+          />
+        </div>
+      )}
 
       {/* ================= MODALS ================= */}
 
@@ -529,6 +667,35 @@ export default function ItemProfile() {
           setItemToReactivate(null);
         }}
         onSubmit={handleExecuteReactivate}
+      />
+
+      {/* Plant Bulk Modals */}
+      <SupplierRestockModal
+        isOpen={showRestockModal}
+        plantStock={plantStock}
+        defaultProductId={activeRestockProductId}
+        onClose={() => {
+          setShowRestockModal(false);
+          setActiveRestockProductId(null);
+        }}
+        onRestock={handleRestock}
+      />
+
+      <QuarantineDefectsModal
+        isOpen={showQuarantineModal}
+        plantStock={plantStock}
+        defaultProductId={activeQuarantineProductId}
+        onClose={() => {
+          setShowQuarantineModal(false);
+          setActiveQuarantineProductId(null);
+        }}
+        onQuarantine={handleQuarantine}
+      />
+
+      <SuggestedSplitModal
+        isOpen={showSplitModal}
+        plantStock={plantStock}
+        onClose={() => setShowSplitModal(false)}
       />
 
       {/* Toast Notifications */}

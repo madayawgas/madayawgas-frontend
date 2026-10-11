@@ -7,3 +7,5 @@ export * from "./inventory.js";
 export * from "./sales.js";
 export * from "./customers.js";
 export * from "./dashboard.js";
+export * from "./schedules.js";
+export * from "./trips.js";

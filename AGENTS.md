@@ -234,20 +234,37 @@ The application supports all Philippine contact number formats:
 - **Caching**: `localStorage` keys `app_fleet_cache`, `app_work_orders_cache`, `app_maintenance_logs_cache`.
 
 ### 4. Item Profile / Inventory (`/item-profile`, `/inventory`)
-- **Contract**: `docs/api-contracts/inventory/products.api.md`
+- **Contracts**: `docs/api-contracts/inventory/products.api.md`, `docs/api-contracts/inventory/plant-inventory-and-reconciliation.api.md`
 - **Fields**: `id` (UUID), `name`, `category`, `containerType` (`CYLINDER` | `CANISTER`), `netWeightKg`, `isActive`, `createdAt`, `updatedAt`.
+- **Bulk Stock Integration**:
+  - Seamlessly links Bunawan yard stock (`plant_inventory`) to product item profiles.
+  - **Cards Grid View**: Rich product cards displaying live Yard Bulk Stock (Filled units and crates, Empty Good returns, Quarantined defective leakers).
+  - **Master Table View**: Dedicated `Yard Bulk Stock` column with filled unit and crate counts, return buffers, and sorting support.
+  - **Slide-in Detail Panel (`ItemDetailPanel`)**: Complete **Bunawan Yard Bulk Stock** section showing Sale-Ready Filled units/crates, Empty Good Returns, Quarantined Defectives, total yard buffer, and 1-click `+ Restock` and `Quarantine` actions.
+  - **Sticky Header**: Displays total bulk yard units badge alongside registered product metrics.
+  - **Bunawan Yard View**: Master yard management workspace with `SupplierRestockModal`, `QuarantineDefectsModal`, and `SuggestedSplitModal`.
 - **Features**:
   - Master-detail layout with independent scroll containers.
-  - Sticky top header with operational overview badges (Registered Products, Active, Inactive, LPG Cylinders, Canisters count) and yellow `"ADD NEW ITEM"` button.
+  - Sticky top header with operational overview badges and yellow `"ADD NEW ITEM"` button.
   - Controls bar with live search, active filter chips, multi-criteria filter dropdown (Status, Container Type, Category), and dual view mode switcher (`Cards` vs `Table`).
-  - **Cards Grid View**: Rich product cards with brand avatars, category badges, container types, net gas weight in monospace, operational status, and subtle soft gray borderless selection highlight (`bg-slate-100/90`).
-  - **Master Table View**: Dark navy `#0D4B6E` sticky header with sortable columns, row selection highlight (`#E2EDF3`), and action triggers.
-  - **Slide-in Detail Panel (`ItemDetailPanel`)**: Right-side panel with product specs (container type, net weight, category), system metadata (UUID with 1-click copy, timestamps), edit/deactivate/reactivate actions, and bottom pinned yellow `"CLOSE"` button.
   - 3-step Create & Edit wizard modal (`ItemModal`: Form &rarr; Confirm &rarr; Success).
   - Password-guarded deactivation (`PATCH /api/inventory/products/:id/deactivate`) and reactivation with `AdminPasswordModal`.
   - `localStorage` caching (`app_items_cache`, `app_items_view_mode`).
 
-### 5. History Log (`/history-log`)
+### 5. Route Dispatch & Scheduling (`/route-dispatch`)
+- **Contracts**: `docs/api-contracts/schedules/schedules.api.md`, `docs/api-contracts/trips/trips.api.md`
+- **Sub-Navigation Tabs**:
+  - `Active Trips & Yard Return`: Real-time deployment tracking, midday reload manifests, return odometer check-ins, and post-trip stock reconciliations.
+  - `Daily Schedules & Templates`: Weekly recurring master template matrix and date-stamped operational daily truck schedules.
+  - `Service Zones`: Distribution coverage districts across Davao Region.
+- **Schedule & Template Management**:
+  - **Weekly Master Template Matrix**: Interactive vehicle-by-day (Mon-Sun) grid. Clicking any empty cell (`+ Add`) immediately opens `TemplateModal` pre-populated with that vehicle and day. Clicking an existing template badge opens the edit modal. Top header includes a `+ Add Route Template` button.
+  - **`TemplateModal`**: Allows selecting vehicle, visual day-of-week button picker (Mon–Sun), service zone, and default sales person with 1:1 vehicle-day constraint enforcement.
+  - **Date-Stamped Daily Schedules (`SchedulesTable`)**: Card header includes `+ Add Daily Schedule` button, inline search (vehicle, sales, zone, date), and status filter pills (`ALL`, `SCHEDULED`, `DISPATCHED`, `CANCELLED`).
+  - **`ScheduleModal`**: Ad-hoc deployment modal with `Today` and `Tomorrow` quick-date buttons.
+  - **Batch Generator (`BatchGenerateModal`)**: Automatically populates operational schedules from active weekly templates across a date range.
+
+### 6. History Log (`/history-log`)
 - **Contract**: `docs/API Contract/history-log.api.md`
 - **Features**: Chronological audit trail table, search, and module filter dropdown.
 

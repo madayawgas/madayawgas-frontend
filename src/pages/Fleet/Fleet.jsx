@@ -1147,10 +1147,18 @@ export default function Fleet() {
                 </div>
               )}
 
-              {/* Sliding Detail Panel on the right */}
+              {/* Mobile/Tablet Backdrop Overlay (closes panel on outside tap) */}
               {activeDetailTruck && (
                 <div
-                  className={`w-full lg:w-[380px] xl:w-[420px] shrink-0 h-full flex flex-col overflow-hidden transition-all duration-300 ${
+                  className="fixed inset-0 bg-black/30 z-30 lg:hidden"
+                  onClick={handleCloseDetail}
+                />
+              )}
+
+              {/* Sliding Detail Panel on the right (constrained on small screens) */}
+              {activeDetailTruck && (
+                <div
+                  className={`fixed inset-y-0 right-0 z-40 w-[360px] max-w-[92vw] lg:static lg:w-[380px] xl:w-[420px] lg:max-w-none shrink-0 h-full flex flex-col overflow-hidden shadow-2xl lg:shadow-none transition-all duration-300 bg-white ${
                     isClosingPanel
                       ? "animate-slide-fade-out pointer-events-none"
                       : "animate-slide-fade-in"

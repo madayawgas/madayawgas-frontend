@@ -4,6 +4,7 @@ import Badge from "../ui/Badge";
 
 export default function ItemTable({
   items = [],
+  stockMap = {},
   selectedItem,
   onSelectItem,
   sortConfig = { key: "name", direction: "asc" },
@@ -26,11 +27,11 @@ export default function ItemTable({
   return (
     <div className="w-full h-full flex flex-col overflow-hidden border border-[#0A4B6E]/30 rounded-2xl bg-white shadow-sm">
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[650px]">
+        <table className="w-full text-left border-collapse min-w-[760px]">
           <thead className="bg-[#0D4B6E] text-white text-xs md:text-sm sticky top-0 z-10 shadow-xs select-none">
             <tr>
               <th
-                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[32%] min-w-[180px]"
+                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[26%] min-w-[160px]"
                 onClick={() => onSort && onSort("name")}
               >
                 Product Name{" "}
@@ -39,7 +40,7 @@ export default function ItemTable({
                 ) : ""}
               </th>
               <th
-                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[20%] min-w-[130px]"
+                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[15%] min-w-[110px]"
                 onClick={() => onSort && onSort("category")}
               >
                 Category{" "}
@@ -48,7 +49,7 @@ export default function ItemTable({
                 ) : ""}
               </th>
               <th
-                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[18%] min-w-[120px]"
+                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[14%] min-w-[110px]"
                 onClick={() => onSort && onSort("containerType")}
               >
                 Container Type{" "}
@@ -57,7 +58,7 @@ export default function ItemTable({
                 ) : ""}
               </th>
               <th
-                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[16%] min-w-[110px]"
+                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[13%] min-w-[100px]"
                 onClick={() => onSort && onSort("netWeightKg")}
               >
                 Net Weight{" "}
@@ -66,7 +67,16 @@ export default function ItemTable({
                 ) : ""}
               </th>
               <th
-                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] text-center cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[10%] min-w-[90px]"
+                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[20%] min-w-[140px]"
+                onClick={() => onSort && onSort("bulkStock")}
+              >
+                Yard Bulk Stock{" "}
+                {sortConfig.key === "bulkStock" ? (
+                  sortConfig.direction === "asc" ? "▲" : "▼"
+                ) : ""}
+              </th>
+              <th
+                className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] text-center cursor-pointer hover:bg-[#0b3e5b] transition-colors whitespace-nowrap w-[8%] min-w-[85px]"
                 onClick={() => onSort && onSort("isActive")}
               >
                 Status{" "}
@@ -74,7 +84,7 @@ export default function ItemTable({
                   sortConfig.direction === "asc" ? "▲" : "▼"
                 ) : ""}
               </th>
-              <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] text-center whitespace-nowrap w-[4%] min-w-[50px]">
+              <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] text-center whitespace-nowrap w-[4%] min-w-[45px]">
                 {/* Action arrow */}
               </th>
             </tr>
@@ -87,6 +97,12 @@ export default function ItemTable({
                   item.isActive !== undefined
                     ? Boolean(item.isActive)
                     : (item.status || "").toUpperCase() === "ACTIVE";
+
+                const stock = stockMap[item.id] || stockMap[(item.name || item.itemName || "").toLowerCase().trim()] || null;
+                const filledUnits = stock?.quantityFilled ?? null;
+                const cratesFilled = stock?.cratesFilled ?? null;
+                const emptyUnits = stock?.quantityEmptyGood ?? 0;
+                const defUnits = stock?.quantityDefective ?? 0;
 
                 return (
                   <tr
@@ -104,7 +120,7 @@ export default function ItemTable({
                         <div className="w-8 h-8 rounded-full bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 shadow-2xs">
                           {getItemIcon(item.containerType, item.category)}
                         </div>
-                        <span className="font-bold text-[#0A4B6E] truncate max-w-[200px] sm:max-w-xs">
+                        <span className="font-bold text-[#0A4B6E] truncate max-w-[180px] sm:max-w-xs">
                           {item.name || item.itemName || "Product"}
                         </span>
                       </div>
@@ -131,6 +147,32 @@ export default function ItemTable({
                       </span>
                     </td>
 
+                    {/* YARD BULK STOCK */}
+                    <td className="py-3 px-3 md:px-4">
+                      {filledUnits !== null ? (
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1.5 font-bold text-[#0A4B6E]">
+                            <span className="text-emerald-700">
+                              {filledUnits.toLocaleString()} units
+                            </span>
+                            {cratesFilled !== null && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 font-bold border border-emerald-200/80">
+                                {cratesFilled} cr
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10.5px] text-[#6D8AA2] font-medium pt-0.5">
+                            {emptyUnits.toLocaleString()} empty ·{" "}
+                            <span className={defUnits > 0 ? "text-rose-600 font-semibold" : ""}>
+                              {defUnits.toLocaleString()} def
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-xs italic">—</span>
+                      )}
+                    </td>
+
                     {/* STATUS BADGE */}
                     <td className="py-3 px-3 md:px-4 text-center">
                       <Badge
@@ -152,7 +194,7 @@ export default function ItemTable({
               })
             ) : (
               <tr>
-                <td colSpan={6} className="py-12 text-center text-slate-400">
+                <td colSpan={7} className="py-12 text-center text-slate-400">
                   <div className="flex flex-col items-center justify-center gap-2">
                     <Layers size={24} className="text-slate-300" />
                     <span>No product records available</span>
@@ -166,3 +208,4 @@ export default function ItemTable({
     </div>
   );
 }
+

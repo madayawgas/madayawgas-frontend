@@ -24,6 +24,7 @@ import SalesAndDelivery from "./pages/SalesAndDelivery/SalesAndDelivery";
 import HistoryLog from "./pages/HistoryLog/HistoryLog";
 import Profile from "./pages/Profile/Profile";
 import Customers from "./pages/Customers/Customers";
+import FAQs from "./pages/FAQs/FAQs";
 
 // 1. Configure Protected Routes
 const router = createBrowserRouter([
@@ -128,6 +129,10 @@ const router = createBrowserRouter([
             <Profile />
           </ProtectedRoute>
         ),
+      },
+      {
+        path: "faqs",
+        element: <FAQs />,
       }
     ],
   },
