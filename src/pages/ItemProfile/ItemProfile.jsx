@@ -27,7 +27,12 @@ export default function ItemProfile() {
   // RBAC Permission Guard
   const canManage = can
     ? can(PERMISSIONS?.INVENTORY_MANAGE || "inventory.manage")
-    : true;
+    : false;
+  const canViewSplit = can
+    ? (can(PERMISSIONS?.INVENTORY_VIEW || "inventory.view") ||
+       can(PERMISSIONS?.ROUTE_VIEW || "route.view") ||
+       can(PERMISSIONS?.ROUTE_MANAGE || "route.manage"))
+    : false;
 
   // Initialize from cache or fallback to empty array
   const [items, setItems] = useState(() => {
@@ -603,6 +608,7 @@ export default function ItemProfile() {
           <PlantYardView
             plantStock={plantStock}
             canManage={canManage}
+            canViewSplit={canViewSplit}
             onOpenRestock={() => {
               setActiveRestockProductId(null);
               setShowRestockModal(true);

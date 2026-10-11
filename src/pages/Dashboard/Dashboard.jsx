@@ -4,6 +4,7 @@ import SalesGraph from "../../components/dashboard/SalesGraph";
 import FleetStatusCards from "../../components/dashboard/FleetStatusCards";
 import MaintenanceDashboardSection from "../../components/dashboard/MaintenanceDashboardSection";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { PERMISSIONS } from "../../utils/permissions.js";
 import { dashboardApi } from "../../api/dashboard.js";
 import { salesApi } from "../../api/sales.js";
 import { fleetApi } from "../../api/fleet.js";
@@ -12,8 +13,10 @@ import bgHeader from "../../assets/BG-Madayaw8.png";
 import { hasUserRole } from "../../utils/userRoles.js";
 
 export default function Dashboard() {
-  const { currentUser } = useAuth();
+  const { currentUser, can } = useAuth();
   const isSuperAdmin = hasUserRole(currentUser, "Super Admin");
+  const canFleet = can ? (can(PERMISSIONS.FLEET_VIEW) || can(PERMISSIONS.FLEET_MANAGE)) : false;
+  const canSales = can ? (can(PERMISSIONS.SALES_VIEW) || can(PERMISSIONS.SALES_VIEW_OWN)) : false;
 
   const [metrics, setMetrics] = useState({
     grossIncome: 1285000,
@@ -112,71 +115,85 @@ export default function Dashboard() {
     async function loadDashboardData() {
       try {
         const promises = [
-          dashboardApi.getMetrics(),
-          salesApi.getSalesOverview(),
-          fleetApi.getTrucks(),
-          customersApi.getCustomers(),
+          dashboardApi.getMetrics().catch(() => null),
         ];
 
+        let salesIndex = -1;
+        let customersIndex = -1;
+        if (canSales) {
+          salesIndex = promises.push(salesApi.getSalesOverview().catch(() => null)) - 1;
+          customersIndex = promises.push(customersApi.getCustomers().catch(() => null)) - 1;
+        }
+
+        let trucksIndex = -1;
+        if (canFleet) {
+          trucksIndex = promises.push(fleetApi.getTrucks().catch(() => null)) - 1;
+        }
+
+        let logsIndex = -1;
         if (isSuperAdmin) {
-          promises.push(fleetApi.getMaintenanceLogs());
+          logsIndex = promises.push(fleetApi.getMaintenanceLogs().catch(() => null)) - 1;
         }
 
         const results = await Promise.allSettled(promises);
-        const [dashMetrics, sales, trucksData, customersData, logsData] = results;
+        const dashMetrics = results[0];
 
-        if (dashMetrics.status === "fulfilled" && dashMetrics.value) {
+        if (dashMetrics?.status === "fulfilled" && dashMetrics?.value) {
           setMetrics(dashMetrics.value);
         }
 
-        if (sales.status === "fulfilled" && sales.value) {
-          setSalesData(sales.value);
+        if (salesIndex !== -1) {
+          const salesRes = results[salesIndex];
+          if (salesRes?.status === "fulfilled" && salesRes?.value) {
+            setSalesData(salesRes.value);
+          }
         }
 
-        if (trucksData.status === "fulfilled" && Array.isArray(trucksData.value)) {
-          const trucks = trucksData.value;
-          setTotalTrucks(trucks.length);
-          const activeCount = trucks.filter(
-            (t) => (t.status || "").toUpperCase() === "ACTIVE"
-          ).length;
-          const maintenanceCount = trucks.filter(
-            (t) => (t.status || "").toUpperCase() === "UNDER_MAINTENANCE"
-          ).length;
-
-          setTruckCounts({
-            available: activeCount,
-            inUse: 0,
-            maintenance: maintenanceCount,
-            underRepair: 0,
-          });
+        if (customersIndex !== -1) {
+          const custRes = results[customersIndex];
+          if (custRes?.status === "fulfilled" && Array.isArray(custRes?.value)) {
+            const activeCustomers = custRes.value.filter(
+              (c) => c.isActive !== false
+            ).length;
+            setCustomerCount(activeCustomers);
+          }
         }
 
-        if (
-          customersData.status === "fulfilled" &&
-          Array.isArray(customersData.value)
-        ) {
-          const activeCustomers = customersData.value.filter(
-            (c) => c.isActive !== false
-          ).length;
-          setCustomerCount(activeCustomers);
+        if (trucksIndex !== -1) {
+          const trucksRes = results[trucksIndex];
+          if (trucksRes?.status === "fulfilled" && Array.isArray(trucksRes?.value)) {
+            const trucks = trucksRes.value;
+            setTotalTrucks(trucks.length);
+            const activeCount = trucks.filter(
+              (t) => (t.status || "").toUpperCase() === "ACTIVE"
+            ).length;
+            const maintenanceCount = trucks.filter(
+              (t) => (t.status || "").toUpperCase() === "UNDER_MAINTENANCE"
+            ).length;
+
+            setTruckCounts({
+              available: activeCount,
+              inUse: 0,
+              maintenance: maintenanceCount,
+              underRepair: 0,
+            });
+          }
         }
 
-        if (
-          isSuperAdmin &&
-          logsData &&
-          logsData.status === "fulfilled" &&
-          logsData.value
-        ) {
-          const logs =
-            logsData.value?.data?.logs || logsData.value?.logs || [];
-          setMaintenanceLogs(logs);
+        if (logsIndex !== -1) {
+          const logsRes = results[logsIndex];
+          if (logsRes?.status === "fulfilled" && logsRes?.value) {
+            const logs =
+              logsRes.value?.data?.logs || logsRes.value?.logs || [];
+            setMaintenanceLogs(logs);
+          }
         }
       } catch {
         // Retain fallback state on network failure
       }
     }
     loadDashboardData();
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, canFleet, canSales]);
 
   const {
     grossIncome = 0,
@@ -222,29 +239,39 @@ export default function Dashboard() {
               maximumFractionDigits: 2,
             })}`}
           />
-          <StatCard
-            title="Active Customers"
-            value={`${customerCount} Accounts`}
-          />
-          <StatCard
-            title="Fleet Readiness"
-            value={`${fleetReadinessPercent}% (${truckCounts.available}/${totalTrucks})`}
-          />
+          {canSales && (
+            <StatCard
+              title="Active Customers"
+              value={`${customerCount} Accounts`}
+            />
+          )}
+          {canFleet && (
+            <StatCard
+              title="Fleet Readiness"
+              value={`${fleetReadinessPercent}% (${truckCounts.available}/${totalTrucks})`}
+            />
+          )}
         </div>
       </div>
 
       {/* ================= MAIN CONTENT SECTION ================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-        {/* LEFT / TOP SIDE: FLEET OPERATIONAL STATUS (5 COLUMNS) */}
-        <div className="lg:col-span-5 flex">
-          <FleetStatusCards counts={truckCounts} />
-        </div>
+      {(canFleet || canSales) && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+          {/* LEFT / TOP SIDE: FLEET OPERATIONAL STATUS */}
+          {canFleet && (
+            <div className={`${canSales ? "lg:col-span-5" : "lg:col-span-12"} flex`}>
+              <FleetStatusCards counts={truckCounts} />
+            </div>
+          )}
 
-        {/* RIGHT SIDE: SALES GRAPH (7 COLUMNS) */}
-        <div className="lg:col-span-7 flex">
-          <SalesGraph salesData={salesData} />
+          {/* RIGHT SIDE: SALES GRAPH */}
+          {canSales && (
+            <div className={`${canFleet ? "lg:col-span-7" : "lg:col-span-12"} flex`}>
+              <SalesGraph salesData={salesData} />
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* ================= SUPER ADMIN: HISTORICAL MAINTENANCE INTELLIGENCE ================= */}
       {isSuperAdmin && (

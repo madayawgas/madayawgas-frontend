@@ -2,7 +2,7 @@
 
 > **Subsystem**: Inventory Management  
 > **Base Path**: `/api/inventory`  
-> **Primary Roles**: Plant Supervisor (`plant_user`), Super Admin, Admin, Logistics Supervisor, Sales Person (Cabin View)  
+> **Primary Roles**: Plant Supervisor (`plant_supervisor`), Super Admin, Admin, Logistics Supervisor, Sales Person (Cabin View)  
 > **Authentication**: Stateful session cookie (`mg_sid`), `HttpOnly`, `SameSite=Lax`.
 
 ---

@@ -153,7 +153,7 @@ export default function Layout() {
             )}
 
             {/* 2. TRIP OPERATIONS */}
-            {(can(PERMISSIONS.ROUTE_VIEW) || can(PERMISSIONS.ROUTE_VIEW_OWN)) && (
+            {(can(PERMISSIONS.ROUTE_VIEW) || can(PERMISSIONS.ROUTE_MANAGE) || can(PERMISSIONS.ROUTE_VIEW_OWN)) && (
               <>
                 <div className="pt-2.5 pb-1 px-3 select-none">
                   <p className="text-[10px] font-bold tracking-wider uppercase text-white/45">
@@ -229,7 +229,7 @@ export default function Layout() {
             )}
 
             {/* 4. FLEET */}
-            {can(PERMISSIONS.FLEET_VIEW) && (
+            {(can(PERMISSIONS.FLEET_VIEW) || can(PERMISSIONS.FLEET_MANAGE)) && (
               <>
                 <div className="pt-2.5 pb-1 px-3 select-none">
                   <p className="text-[10px] font-bold tracking-wider uppercase text-white/45">
@@ -362,7 +362,7 @@ export default function Layout() {
                 </NavLink>
 
                 {/* Service Delivery Zones in Settings Popover */}
-                {(can(PERMISSIONS.ROUTE_VIEW) || can(PERMISSIONS.ROUTE_VIEW_OWN)) && (
+                {(can(PERMISSIONS.ROUTE_VIEW) || can(PERMISSIONS.ROUTE_MANAGE) || can(PERMISSIONS.ROUTE_VIEW_OWN)) && (
                   <NavLink
                     to="/settings/zones"
                     onClick={() => {

@@ -31,7 +31,7 @@ import ToastNotification from "../../components/ui/ToastNotifications";
 export default function RouteDispatch() {
   const navigate = useNavigate();
   const { can } = useAuth();
-  const canManage = can ? can(PERMISSIONS.ROUTE_MANAGE || "route.manage") : true;
+  const canManage = can ? can(PERMISSIONS.ROUTE_MANAGE || "route.manage") : false;
 
   const [trips, setTrips] = useState(() => {
     try {

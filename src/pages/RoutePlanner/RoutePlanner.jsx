@@ -15,7 +15,7 @@ import ToastNotification from "../../components/ui/ToastNotifications";
 
 export default function RoutePlanner() {
   const { can } = useAuth();
-  const canManage = can ? can(PERMISSIONS.ROUTE_MANAGE || "route.manage") : true;
+  const canManage = can ? can(PERMISSIONS.ROUTE_MANAGE || "route.manage") : false;
 
   const [templates, setTemplates] = useState(() => {
     try {

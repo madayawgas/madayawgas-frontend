@@ -24,7 +24,12 @@ export default function PlantWarehouse() {
   const { can } = useAuth();
   const canManage = can
     ? can(PERMISSIONS?.INVENTORY_MANAGE || "inventory.manage")
-    : true;
+    : false;
+  const canViewSplit = can
+    ? (can(PERMISSIONS?.INVENTORY_VIEW || "inventory.view") ||
+       can(PERMISSIONS?.ROUTE_VIEW || "route.view") ||
+       can(PERMISSIONS?.ROUTE_MANAGE || "route.manage"))
+    : false;
 
   const [plantStock, setPlantStock] = useState(() => {
     try {
@@ -148,18 +153,20 @@ export default function PlantWarehouse() {
       <header className="shrink-0 bg-white border-b border-[#E2E8F0] px-6 py-3.5 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowLoadingGuide(!showLoadingGuide)}
-              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
-                showLoadingGuide
-                  ? "bg-[#0A4B6E] text-white border-[#0A4B6E]"
-                  : "bg-white text-[#0A4B6E] border-[#CBD5E1] hover:bg-slate-50"
-              }`}
-            >
-              <Scale size={14} />
-              <span>Morning Loading Guide</span>
-            </button>
+            {canViewSplit && (
+              <button
+                type="button"
+                onClick={() => setShowLoadingGuide(!showLoadingGuide)}
+                className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
+                  showLoadingGuide
+                    ? "bg-[#0A4B6E] text-white border-[#0A4B6E]"
+                    : "bg-white text-[#0A4B6E] border-[#CBD5E1] hover:bg-slate-50"
+                }`}
+              >
+                <Scale size={14} />
+                <span>Morning Loading Guide</span>
+              </button>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -253,7 +260,7 @@ export default function PlantWarehouse() {
       {/* Main Content Area */}
       <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-6 space-y-6">
         {/* Morning Loading Guide Card (Subtle, Collapsible) */}
-        {showLoadingGuide && (
+        {canViewSplit && showLoadingGuide && (
           <section className="bg-white rounded-xl border border-[#CBD5E1] p-5 shadow-xs animate-fade-in">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E2E8F0]">
               <div className="flex items-center gap-2">

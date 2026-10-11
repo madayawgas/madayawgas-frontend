@@ -27,7 +27,7 @@ export default function StockReconciliation() {
   const initialTripId = searchParams.get("tripId");
 
   const { can } = useAuth();
-  const canManage = can ? can(PERMISSIONS.ROUTE_MANAGE || "route.manage") : true;
+  const canManage = can ? can(PERMISSIONS.ROUTE_MANAGE || "route.manage") : false;
 
   const [trips, setTrips] = useState(() => {
     try {
@@ -481,7 +481,7 @@ export default function StockReconciliation() {
                       </label>
                       <input
                         type="number"
-                        disabled={isTripSettled}
+                        disabled={!canManage || isTripSettled}
                         value={returnOdometer}
                         onChange={(e) => setReturnOdometer(e.target.value)}
                         className={`w-full p-2 rounded-xl text-xs font-bold border-2 ${
@@ -550,7 +550,7 @@ export default function StockReconciliation() {
                             <input
                               type="number"
                               min="0"
-                              disabled={isTripSettled}
+                              disabled={!canManage || isTripSettled}
                               value={counts.returnedFull}
                               onChange={(e) =>
                                 handleCountChange(row.productId, "returnedFull", e.target.value)
@@ -567,7 +567,7 @@ export default function StockReconciliation() {
                             <input
                               type="number"
                               min="0"
-                              disabled={isTripSettled}
+                              disabled={!canManage || isTripSettled}
                               value={counts.returnedEmptyGood}
                               onChange={(e) =>
                                 handleCountChange(row.productId, "returnedEmptyGood", e.target.value)
@@ -584,7 +584,7 @@ export default function StockReconciliation() {
                             <input
                               type="number"
                               min="0"
-                              disabled={isTripSettled}
+                              disabled={!canManage || isTripSettled}
                               value={counts.returnedDefective}
                               onChange={(e) =>
                                 handleCountChange(row.productId, "returnedDefective", e.target.value)
@@ -664,7 +664,7 @@ export default function StockReconciliation() {
                   </label>
                   <textarea
                     rows={2}
-                    disabled={isTripSettled}
+                    disabled={!canManage || isTripSettled}
                     value={supervisorNotes}
                     onChange={(e) => setSupervisorNotes(e.target.value)}
                     placeholder="Physical gate count notes or discrepancy explanation..."

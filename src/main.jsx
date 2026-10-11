@@ -56,7 +56,9 @@ const router = createBrowserRouter([
       {
         path: "fleet",
         element: (
-          <ProtectedRoute permission={PERMISSIONS.FLEET_VIEW}>
+          <ProtectedRoute
+            permission={[PERMISSIONS.FLEET_VIEW, PERMISSIONS.FLEET_MANAGE]}
+          >
             <Fleet />
           </ProtectedRoute>
         ),
@@ -65,7 +67,11 @@ const router = createBrowserRouter([
         path: "route-planner",
         element: (
           <ProtectedRoute
-            permission={[PERMISSIONS.ROUTE_VIEW, PERMISSIONS.ROUTE_VIEW_OWN]}
+            permission={[
+              PERMISSIONS.ROUTE_VIEW,
+              PERMISSIONS.ROUTE_MANAGE,
+              PERMISSIONS.ROUTE_VIEW_OWN,
+            ]}
           >
             <RoutePlanner />
           </ProtectedRoute>
@@ -75,7 +81,11 @@ const router = createBrowserRouter([
         path: "route-dispatch",
         element: (
           <ProtectedRoute
-            permission={[PERMISSIONS.ROUTE_VIEW, PERMISSIONS.ROUTE_VIEW_OWN]}
+            permission={[
+              PERMISSIONS.ROUTE_VIEW,
+              PERMISSIONS.ROUTE_MANAGE,
+              PERMISSIONS.ROUTE_VIEW_OWN,
+            ]}
           >
             <RouteDispatch />
           </ProtectedRoute>
@@ -87,8 +97,8 @@ const router = createBrowserRouter([
           <ProtectedRoute
             permission={[
               PERMISSIONS.ROUTE_VIEW,
+              PERMISSIONS.ROUTE_MANAGE,
               PERMISSIONS.ROUTE_VIEW_OWN,
-              PERMISSIONS.INVENTORY_VIEW,
             ]}
           >
             <StockReconciliation />
@@ -184,7 +194,7 @@ const router = createBrowserRouter([
       {
         path: "profile",
         element: (
-          <ProtectedRoute permission={PERMISSIONS.PROFILE_VIEW}>
+          <ProtectedRoute>
             <Profile />
           </ProtectedRoute>
         ),
