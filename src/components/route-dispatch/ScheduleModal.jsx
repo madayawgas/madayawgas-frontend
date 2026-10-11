@@ -1,5 +1,6 @@
 // src/components/route-dispatch/ScheduleModal.jsx
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Calendar, X } from "lucide-react";
 
 export default function ScheduleModal({
@@ -52,9 +53,9 @@ export default function ScheduleModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl border border-[#D5E3EC] max-w-md w-full p-6 shadow-2xl space-y-4">
+  const modalNode = (
+    <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-white rounded-2xl border border-[#D5E3EC] max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
           <div className="flex items-center gap-2.5">
@@ -196,4 +197,6 @@ export default function ScheduleModal({
       </div>
     </div>
   );
+
+  return createPortal(modalNode, document.body);
 }

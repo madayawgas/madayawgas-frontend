@@ -5,7 +5,6 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
 import { checkActiveWorkOrder } from "../../utils/fleetGuards.js";
 import { isPhilippineDateInRange } from "../../utils/date.js";
-import initialMockFleet from "../../mocks/fleet.json";
 
 import FleetHeader from "../../components/fleet/FleetHeader";
 import FleetControls from "../../components/fleet/FleetControls";
@@ -45,18 +44,18 @@ export default function Fleet() {
     ? can(PERMISSIONS?.FLEET_MANAGE || "fleet.manage")
     : true;
 
-  // Initialize from cache or fallback to initialMockFleet
+  // Initialize from cache or fallback to empty array
   const [trucks, setTrucks] = useState(() => {
     try {
       const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {
       console.error("Error reading cached fleet items:", e);
     }
-    return initialMockFleet?.data?.trucks || [];
+    return [];
   });
 
   const [isLoading, setIsLoading] = useState(trucks.length === 0);
@@ -281,7 +280,7 @@ export default function Fleet() {
           refreshMaintenanceLogs(),
         ]);
 
-        if (trucksData && Array.isArray(trucksData) && trucksData.length > 0) {
+        if (trucksData && Array.isArray(trucksData)) {
           updateFleetState(trucksData);
         }
       } catch (err) {

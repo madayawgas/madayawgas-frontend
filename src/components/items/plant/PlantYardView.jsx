@@ -7,6 +7,7 @@ export default function PlantYardView({
   onOpenQuarantine,
   onOpenSuggestedSplit,
   canManage = true,
+  canViewSplit = true,
 }) {
   const totalFilledUnits = plantStock.reduce(
     (acc, p) => acc + (p.quantityFilled ?? p.quantity_filled ?? 0),
@@ -47,8 +48,8 @@ export default function PlantYardView({
           )}
         </div>
 
-        {canManage && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {canViewSplit && (
             <button
               type="button"
               onClick={onOpenSuggestedSplit}
@@ -57,26 +58,30 @@ export default function PlantYardView({
               <Scale size={14} />
               <span>Suggested Split</span>
             </button>
+          )}
 
-            <button
-              type="button"
-              onClick={onOpenQuarantine}
-              className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-[#D93025] border border-rose-200 font-bold text-xs px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-2xs h-[32px]"
-            >
-              <AlertOctagon size={14} />
-              <span>Quarantine Defects</span>
-            </button>
+          {canManage && (
+            <>
+              <button
+                type="button"
+                onClick={onOpenQuarantine}
+                className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-[#D93025] border border-rose-200 font-bold text-xs px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-2xs h-[32px]"
+              >
+                <AlertOctagon size={14} />
+                <span>Quarantine Defects</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={onOpenRestock}
-              className="flex items-center gap-1.5 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] font-bold text-xs px-4 py-1.5 rounded-full transition-all cursor-pointer shadow-2xs active:scale-95 h-[32px]"
-            >
-              <Download size={14} />
-              <span>+ Supplier Restock</span>
-            </button>
-          </div>
-        )}
+              <button
+                type="button"
+                onClick={onOpenRestock}
+                className="flex items-center gap-1.5 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] font-bold text-xs px-4 py-1.5 rounded-full transition-all cursor-pointer shadow-2xs active:scale-95 h-[32px]"
+              >
+                <Download size={14} />
+                <span>+ Supplier Restock</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Product Stock Cards */}

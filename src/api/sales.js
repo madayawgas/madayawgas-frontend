@@ -15,18 +15,13 @@ export const salesApi = {
     }
     try {
       const result = await apiClient("/sales/overview");
-      if (
-        result?.data &&
-        (result.data.weekly?.length ||
-          result.data.monthly?.length ||
-          result.data.annually?.length)
-      ) {
+      if (result?.data) {
         return result.data;
       }
     } catch {
-      // Endpoint is not ready on backend; fallback to mock sales data
+      // Backend sales overview endpoint is not ready or failed
     }
-    return mockSales.data;
+    return { weekly: [], monthly: [], annually: [] };
   },
 
   /**

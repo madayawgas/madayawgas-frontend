@@ -1,6 +1,7 @@
-// src/components/route-dispatch/DispatchModal.jsx
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Truck, X, Plus, Trash2 } from "lucide-react";
+import { isCanisterProduct } from "../../utils/product.js";
 
 export default function DispatchModal({
   isOpen,
@@ -29,29 +30,33 @@ export default function DispatchModal({
   const [zoneId, setZoneId] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Initial load items
-  const [loadItems, setLoadItems] = useState([
-    {
-      productId: products[0]?.id || "e9b21f37-142c-4f76-96f3-a3d8b02e7b91",
-      condition: "FILLED",
-      quantityUnits: 120,
-    },
-  ]);
+  // Initial load items with canister vs cylinder awareness
+  const [loadItems, setLoadItems] = useState(() => {
+    const defaultProd = products[0];
+    const isCan = isCanisterProduct(defaultProd);
+    return [
+      {
+        productId: defaultProd?.id || "e9b21f37-142c-4f76-96f3-a3d8b02e7b91",
+        condition: "FILLED",
+        quantityUnits: isCan ? 120 : 25,
+      },
+    ];
+  });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  if (!isOpen) return null;
-
   const scheduledOptions = schedules.filter((s) => s.status === "SCHEDULED");
 
   const handleAddItem = () => {
+    const defaultProd = products[0];
+    const isCan = isCanisterProduct(defaultProd);
     setLoadItems((prev) => [
       ...prev,
       {
-        productId: products[0]?.id || "",
+        productId: defaultProd?.id || "",
         condition: "FILLED",
-        quantityUnits: 24,
+        quantityUnits: isCan ? 48 : 20,
       },
     ]);
   };
@@ -75,6 +80,11 @@ export default function DispatchModal({
     try {
       setIsSubmitting(true);
 
+      const validLoads = loadItems.filter((item) => Number(item.quantityUnits) > 0);
+      if (validLoads.length === 0) {
+        throw new Error("Please specify at least one product item with quantity > 0");
+      }
+
       let payload = {};
       if (!isAdHoc) {
         if (!selectedScheduleId && scheduledOptions.length > 0) {
@@ -91,7 +101,7 @@ export default function DispatchModal({
           zoneId: sched?.zoneId,
           zoneCode: sched?.zoneCode,
           notes,
-          initialLoads: loadItems.map((item) => ({
+          initialLoads: validLoads.map((item) => ({
             productId: item.productId,
             condition: item.condition,
             quantityUnits: Number(item.quantityUnits),
@@ -114,7 +124,7 @@ export default function DispatchModal({
           zoneId,
           zoneCode: selZone?.code,
           notes,
-          initialLoads: loadItems.map((item) => ({
+          initialLoads: validLoads.map((item) => ({
             productId: item.productId,
             condition: item.condition,
             quantityUnits: Number(item.quantityUnits),
@@ -131,9 +141,11 @@ export default function DispatchModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl border border-[#D5E3EC] max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+  if (!isOpen) return null;
+
+  const modalNode = (
+    <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-white rounded-2xl border border-[#D5E3EC] max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
           <div className="flex items-center gap-2.5">
@@ -269,7 +281,7 @@ export default function DispatchModal({
               <button
                 type="button"
                 onClick={handleAddItem}
-                className="text-[#0A4B6E] hover:text-[#0E384E] font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                className="text-[#0A4B6E] hover:text-[#0E384E] font-bold text-[11px] flex items-center gap-1 cursor-pointer bg-white border border-[#CBD5E1] hover:bg-slate-50 px-2.5 py-1 rounded-lg"
               >
                 <Plus size={13} /> Add Product Item
               </button>
@@ -277,6 +289,9 @@ export default function DispatchModal({
 
             <div className="space-y-2 bg-[#F8FAFC] p-3 rounded-xl border border-[#E2E8F0]">
               {loadItems.map((item, idx) => {
+                const selectedProd =
+                  products.find((p) => p.id === item.productId) || products[0];
+                const isCanister = isCanisterProduct(selectedProd);
                 const crates = Math.floor(Number(item.quantityUnits || 0) / 24);
 
                 return (
@@ -300,19 +315,19 @@ export default function DispatchModal({
                         value={item.quantityUnits}
                         onChange={(e) => handleItemChange(idx, "quantityUnits", e.target.value)}
                         placeholder="Units"
-                        className="w-full bg-white border border-[#CBD5E1] rounded-md p-1.5 text-xs font-bold text-center"
+                        className="w-full bg-white border border-[#CBD5E1] rounded-md p-1.5 text-xs font-bold text-center text-[#0A4B6E]"
                       />
                     </div>
 
-                    <div className="text-[11px] text-[#6D8AA2] font-semibold w-16 text-right">
-                      {crates > 0 ? `${crates} crates` : ""}
+                    <div className="text-[11px] text-[#6D8AA2] font-semibold w-20 text-right shrink-0">
+                      {isCanister && crates > 0 ? `${crates} crates` : ""}
                     </div>
 
                     {loadItems.length > 1 && (
                       <button
                         type="button"
                         onClick={() => handleRemoveItem(idx)}
-                        className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                        className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer shrink-0"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -356,4 +371,6 @@ export default function DispatchModal({
       </div>
     </div>
   );
+
+  return createPortal(modalNode, document.body);
 }

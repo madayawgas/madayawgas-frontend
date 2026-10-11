@@ -19,11 +19,15 @@ export default function MasterTemplateMatrix({
   onDeleteTemplate,
   canManage = true,
 }) {
-  // Map templates by truckId and dayOfWeek
+  // Map templates by truckId and dayOfWeek, with plateNumber fallback
   const templateMap = {};
   templates.forEach((t) => {
-    const key = `${t.truckId}_${t.dayOfWeek}`;
-    templateMap[key] = t;
+    if (t.truckId) {
+      templateMap[`${t.truckId}_${t.dayOfWeek}`] = t;
+    }
+    if (t.truckPlate) {
+      templateMap[`plate_${String(t.truckPlate).toUpperCase()}_${t.dayOfWeek}`] = t;
+    }
   });
 
   return (
@@ -45,17 +49,6 @@ export default function MasterTemplateMatrix({
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          {canManage && onAddTemplate && (
-            <button
-              type="button"
-              onClick={() => onAddTemplate()}
-              className="flex items-center gap-1.5 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] font-bold text-xs px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-2xs active:scale-95 h-[30px]"
-            >
-              <Plus size={14} />
-              <span>+ Add Route Template</span>
-            </button>
-          )}
-
           <span className="text-[11px] text-[#486581] bg-[#EDF3F7] px-3 py-1 rounded-full font-semibold hidden md:inline-block">
             1 Template per Truck per Day
           </span>
@@ -83,7 +76,7 @@ export default function MasterTemplateMatrix({
                 </td>
 
                 {DAYS.map((d) => {
-                  const t = templateMap[`${v.id}_${d.num}`];
+                  const t = templateMap[`${v.id}_${d.num}`] || (v.plateNumber ? templateMap[`plate_${String(v.plateNumber).toUpperCase()}_${d.num}`] : null);
                   return (
                     <td key={d.num} className="p-2 text-center">
                       {t ? (

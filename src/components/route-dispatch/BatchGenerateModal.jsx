@@ -1,5 +1,6 @@
 // src/components/route-dispatch/BatchGenerateModal.jsx
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { RefreshCw, X, Calendar, CheckCircle2 } from "lucide-react";
 
 export default function BatchGenerateModal({
@@ -37,9 +38,9 @@ export default function BatchGenerateModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl border border-[#D5E3EC] max-w-md w-full p-6 shadow-2xl space-y-4">
+  const modalNode = (
+    <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-white rounded-2xl border border-[#D5E3EC] max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
           <div className="flex items-center gap-2.5">
@@ -75,9 +76,9 @@ export default function BatchGenerateModal({
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div className="p-3 bg-[#E8F3F8] rounded-xl border border-[#BCE1F1] text-xs text-[#0A4B6E]">
-            <p className="font-semibold mb-1">Weekly Template Propagation Engine</p>
+            <p className="font-semibold mb-1">Create Daily Truck Schedules</p>
             <p className="text-[#486581]">
-              Daily operational schedules will be created matching each active truck's recurring day-of-week route template. Existing schedules on those dates are skipped safely.
+              Daily truck runs will be scheduled matching each active vehicle's weekly route plan. Existing schedules on selected dates are skipped safely.
             </p>
           </div>
 
@@ -125,4 +126,6 @@ export default function BatchGenerateModal({
       </div>
     </div>
   );
+
+  return createPortal(modalNode, document.body);
 }

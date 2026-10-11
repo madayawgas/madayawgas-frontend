@@ -71,14 +71,27 @@ export function canAny(user, permissionsList = []) {
  */
 export function getDefaultRoute(user) {
   if (!user || !Array.isArray(user.permissions)) return "/login";
+
+  // Dedicated workplace check for Plant Supervisor:
+  const roleName = (user.role || (Array.isArray(user.roleNames) ? user.roleNames.join(" ") : "")).toLowerCase();
+  if (
+    roleName.includes("plant") ||
+    (can(user, PERMISSIONS.INVENTORY_MANAGE) &&
+      !can(user, PERMISSIONS.ROUTE_VIEW) &&
+      !can(user, PERMISSIONS.ROUTE_MANAGE) &&
+      !can(user, PERMISSIONS.FLEET_VIEW) &&
+      !can(user, PERMISSIONS.SALES_VIEW))
+  ) {
+    return "/inventory/plant";
+  }
+
   if (can(user, PERMISSIONS.DASHBOARD_VIEW)) return "/dashboard";
   if (can(user, PERMISSIONS.SALES_VIEW) || can(user, PERMISSIONS.SALES_VIEW_OWN)) return "/sales-delivery";
-  if (can(user, PERMISSIONS.FLEET_VIEW)) return "/fleet";
-  if (can(user, PERMISSIONS.ROUTE_VIEW) || can(user, PERMISSIONS.ROUTE_VIEW_OWN)) return "/route-dispatch";
-  if (can(user, PERMISSIONS.INVENTORY_VIEW)) return "/item-profile";
-  if (can(user, PERMISSIONS.USERS_VIEW)) return "/users";
+  if (can(user, PERMISSIONS.FLEET_VIEW) || can(user, PERMISSIONS.FLEET_MANAGE)) return "/fleet";
+  if (can(user, PERMISSIONS.ROUTE_VIEW) || can(user, PERMISSIONS.ROUTE_MANAGE) || can(user, PERMISSIONS.ROUTE_VIEW_OWN)) return "/route-dispatch";
+  if (can(user, PERMISSIONS.INVENTORY_VIEW)) return "/inventory/plant";
+  if (can(user, PERMISSIONS.USERS_VIEW) || can(user, PERMISSIONS.USERS_MANAGE)) return "/users";
   if (can(user, PERMISSIONS.HISTORY_VIEW)) return "/history-log";
-  if (can(user, PERMISSIONS.PROFILE_VIEW)) return "/profile";
   return "/dashboard";
 }
 

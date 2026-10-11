@@ -1,5 +1,5 @@
-// src/components/route-dispatch/TemplateModal.jsx
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Calendar, X, Trash2, CheckCircle2 } from "lucide-react";
 
 const DAYS_OF_WEEK = [
@@ -47,7 +47,7 @@ export default function TemplateModal({
       setTruckId(initialTruckId || vehicles[0]?.id || "");
       setDayOfWeek(Number(initialDayOfWeek) || 1);
       setZoneId(zones[0]?.id || "");
-      setDefaultSalesUserId(salesUsers[0]?.id || "");
+      setDefaultSalesUserId("");
       setIsActive(true);
     }
     setError(null);
@@ -114,7 +114,7 @@ export default function TemplateModal({
   const selectedVehicle = vehicles.find((v) => v.id === truckId);
   const selectedZone = zones.find((z) => z.id === zoneId);
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl border border-[#D5E3EC] max-w-lg w-full p-6 shadow-2xl space-y-4 animate-scale-in text-left font-sans">
         {/* Header */}
@@ -303,7 +303,8 @@ export default function TemplateModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

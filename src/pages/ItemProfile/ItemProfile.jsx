@@ -4,9 +4,6 @@ import { Package, Layers } from "lucide-react";
 import { inventoryApi } from "../../api/inventory.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
-import initialMockItems from "../../mocks/items.json";
-import initialMockPlantInventory from "../../mocks/plant-inventory.json";
-
 import ItemHeader from "../../components/items/ItemHeader";
 import ItemControls from "../../components/items/ItemControls";
 import ItemCard from "../../components/items/ItemCard";
@@ -30,22 +27,25 @@ export default function ItemProfile() {
   // RBAC Permission Guard
   const canManage = can
     ? can(PERMISSIONS?.INVENTORY_MANAGE || "inventory.manage")
-    : true;
+    : false;
+  const canViewSplit = can
+    ? (can(PERMISSIONS?.INVENTORY_VIEW || "inventory.view") ||
+       can(PERMISSIONS?.ROUTE_VIEW || "route.view") ||
+       can(PERMISSIONS?.ROUTE_MANAGE || "route.manage"))
+    : false;
 
-  // Initialize from cache or fallback to initialMockItems
+  // Initialize from cache or fallback to empty array
   const [items, setItems] = useState(() => {
     try {
       const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {
       console.error("Error reading cached inventory items:", e);
     }
-    return Array.isArray(initialMockItems)
-      ? initialMockItems
-      : initialMockItems?.data?.products || [];
+    return [];
   });
 
   const [isLoading, setIsLoading] = useState(items.length === 0);
@@ -112,12 +112,12 @@ export default function ItemProfile() {
       const cached = localStorage.getItem("app_plant_stock_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // ignore
     }
-    return initialMockPlantInventory?.data?.inventory || [];
+    return [];
   });
   const [showRestockModal, setShowRestockModal] = useState(false);
   const [activeRestockProductId, setActiveRestockProductId] = useState(null);
@@ -168,14 +168,20 @@ export default function ItemProfile() {
     try {
       setIsLoading(true);
       const [data, plantData] = await Promise.all([
-        inventoryApi.getInventoryItems().catch(() => initialMockItems?.data?.products || initialMockItems || []),
-        inventoryApi.getPlantInventory().catch(() => initialMockPlantInventory?.data?.inventory || []),
+        inventoryApi.getInventoryItems().catch((err) => {
+          console.warn("Failed to fetch inventory items:", err);
+          return [];
+        }),
+        inventoryApi.getPlantInventory().catch((err) => {
+          console.warn("Failed to fetch plant inventory:", err);
+          return [];
+        }),
       ]);
 
-      if (data && Array.isArray(data) && data.length > 0) {
+      if (data && Array.isArray(data)) {
         updateItemsState(data);
       }
-      if (plantData && Array.isArray(plantData) && plantData.length > 0) {
+      if (plantData && Array.isArray(plantData)) {
         setPlantStock(plantData);
         try {
           localStorage.setItem("app_plant_stock_cache", JSON.stringify(plantData));
@@ -198,7 +204,7 @@ export default function ItemProfile() {
     const res = await inventoryApi.restockPlant(payload);
     setToast({ type: "success", message: res?.message || "Restock recorded successfully" });
     const updated = await inventoryApi.getPlantInventory();
-    if (updated && Array.isArray(updated) && updated.length > 0) {
+    if (updated && Array.isArray(updated)) {
       setPlantStock(updated);
       try {
         localStorage.setItem("app_plant_stock_cache", JSON.stringify(updated));
@@ -212,7 +218,7 @@ export default function ItemProfile() {
     const res = await inventoryApi.quarantineDefects(payload);
     setToast({ type: "success", message: res?.message || "Defects quarantined successfully" });
     const updated = await inventoryApi.getPlantInventory();
-    if (updated && Array.isArray(updated) && updated.length > 0) {
+    if (updated && Array.isArray(updated)) {
       setPlantStock(updated);
       try {
         localStorage.setItem("app_plant_stock_cache", JSON.stringify(updated));
@@ -602,6 +608,7 @@ export default function ItemProfile() {
           <PlantYardView
             plantStock={plantStock}
             canManage={canManage}
+            canViewSplit={canViewSplit}
             onOpenRestock={() => {
               setActiveRestockProductId(null);
               setShowRestockModal(true);

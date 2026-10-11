@@ -16,6 +16,7 @@ import {
   Plus,
   FileSpreadsheet,
 } from "lucide-react";
+import { isCanisterProduct, getCanisterCrates } from "../../utils/product.js";
 
 export default function TripDetailPanel({
   trip,
@@ -378,12 +379,21 @@ export default function TripDetailPanel({
                     </span>
                   </div>
                   <div className="space-y-1">
-                    {load.items?.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-[11px] text-slate-700">
-                        <span className="truncate pr-2">{item.productName}</span>
-                        <span className="font-bold shrink-0">{item.quantityUnits} units</span>
-                      </div>
-                    ))}
+                    {load.items?.map((item, idx) => {
+                      const isCan = isCanisterProduct(item);
+                      const units = Number(item.quantityUnits) || 0;
+                      const { crates, remainder } = getCanisterCrates(units);
+
+                      return (
+                        <div key={idx} className="flex justify-between items-center text-[11px] text-slate-700">
+                          <span className="truncate pr-2">{item.productName}</span>
+                          <span className="font-bold shrink-0">
+                            {units} {isCan ? "cans" : "cylinders"}
+                            {isCan && crates > 0 ? ` (${crates} crt${remainder > 0 ? ` +${remainder}` : ""})` : ""}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -400,12 +410,21 @@ export default function TripDetailPanel({
                     </span>
                   </div>
                   <div className="space-y-1">
-                    {load.items?.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-[11px] text-amber-950">
-                        <span className="truncate pr-2">{item.productName}</span>
-                        <span className="font-bold shrink-0">+{item.quantityUnits} units</span>
-                      </div>
-                    ))}
+                    {load.items?.map((item, idx) => {
+                      const isCan = isCanisterProduct(item);
+                      const units = Number(item.quantityUnits) || 0;
+                      const { crates, remainder } = getCanisterCrates(units);
+
+                      return (
+                        <div key={idx} className="flex justify-between items-center text-[11px] text-amber-950">
+                          <span className="truncate pr-2">{item.productName}</span>
+                          <span className="font-bold shrink-0">
+                            +{units} {isCan ? "cans" : "cylinders"}
+                            {isCan && crates > 0 ? ` (${crates} crt${remainder > 0 ? ` +${remainder}` : ""})` : ""}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}

@@ -18,7 +18,7 @@ function getInMemoryZones() {
   } catch {
     // Ignore cache error and fall back to mock
   }
-  return Array.isArray(mockZones) ? [...mockZones] : [];
+  return isMock && Array.isArray(mockZones) ? [...mockZones] : [];
 }
 
 function saveInMemoryZones(zones) {
@@ -39,7 +39,7 @@ function getInMemoryTemplates() {
   } catch {
     // Ignore cache error and fall back to mock
   }
-  return Array.isArray(mockTemplates) ? [...mockTemplates] : [];
+  return isMock && Array.isArray(mockTemplates) ? [...mockTemplates] : [];
 }
 
 function saveInMemoryTemplates(templates) {
@@ -60,7 +60,7 @@ function getInMemorySchedules() {
   } catch {
     // Ignore cache error and fall back to mock
   }
-  return Array.isArray(mockSchedules) ? [...mockSchedules] : [];
+  return isMock && Array.isArray(mockSchedules) ? [...mockSchedules] : [];
 }
 
 function saveInMemorySchedules(schedules) {
@@ -170,20 +170,15 @@ export const schedulesApi = {
     if (params.isActive !== undefined) query.append("isActive", params.isActive);
     if (params.search) query.append("search", params.search);
 
-    try {
-      const qs = query.toString() ? `?${query.toString()}` : "";
-      const res = await apiClient(`/schedules/zones${qs}`);
-      const rawList = res?.data?.zones || res?.data || [];
-      if (Array.isArray(rawList) && rawList.length > 0) {
-        const normalized = rawList.map(normalizeZone);
-        saveInMemoryZones(normalized);
-        return normalized;
-      }
-      return getInMemoryZones().map(normalizeZone);
-    } catch (e) {
-      console.warn("apiClient /schedules/zones failed, falling back to cache/mock:", e?.message);
-      return getInMemoryZones().map(normalizeZone);
+    const qs = query.toString() ? `?${query.toString()}` : "";
+    const res = await apiClient(`/schedules/zones${qs}`);
+    const rawList = res?.data?.zones || res?.data || [];
+    if (Array.isArray(rawList)) {
+      const normalized = rawList.map(normalizeZone);
+      saveInMemoryZones(normalized);
+      return normalized;
     }
+    return [];
   },
 
   async createZone(payload) {
@@ -285,20 +280,15 @@ export const schedulesApi = {
     if (params.dayOfWeek) query.append("dayOfWeek", params.dayOfWeek);
     if (params.isActive !== undefined) query.append("isActive", params.isActive);
 
-    try {
-      const qs = query.toString() ? `?${query.toString()}` : "";
-      const res = await apiClient(`/schedules/templates${qs}`);
-      const rawList = res?.data?.templates || res?.data || [];
-      if (Array.isArray(rawList) && rawList.length > 0) {
-        const normalized = rawList.map(normalizeTemplate);
-        saveInMemoryTemplates(normalized);
-        return normalized;
-      }
-      return getInMemoryTemplates().map(normalizeTemplate);
-    } catch (e) {
-      console.warn("apiClient /schedules/templates failed, falling back to cache/mock:", e?.message);
-      return getInMemoryTemplates().map(normalizeTemplate);
+    const qs = query.toString() ? `?${query.toString()}` : "";
+    const res = await apiClient(`/schedules/templates${qs}`);
+    const rawList = res?.data?.templates || res?.data || [];
+    if (Array.isArray(rawList)) {
+      const normalized = rawList.map(normalizeTemplate);
+      saveInMemoryTemplates(normalized);
+      return normalized;
     }
+    return [];
   },
 
   async createTemplate(payload) {
@@ -343,10 +333,19 @@ export const schedulesApi = {
       return { template: normalizeTemplate(newTemplate), message: "Weekly template created successfully" };
     }
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const cleanPayload = { ...payload };
+    if ("defaultSalesUserId" in cleanPayload) {
+      cleanPayload.defaultSalesUserId =
+        cleanPayload.defaultSalesUserId && uuidRegex.test(cleanPayload.defaultSalesUserId)
+          ? cleanPayload.defaultSalesUserId
+          : null;
+    }
+
     try {
       const res = await apiClient(`/schedules/templates`, {
         method: "POST",
-        body: payload,
+        body: cleanPayload,
       });
       const data = res?.data;
       const tpl = normalizeTemplate(data?.template || data);
@@ -385,10 +384,19 @@ export const schedulesApi = {
       return { template: normalizeTemplate(updated), message: "Weekly template updated successfully" };
     }
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const cleanPayload = { ...payload };
+    if ("defaultSalesUserId" in cleanPayload) {
+      cleanPayload.defaultSalesUserId =
+        cleanPayload.defaultSalesUserId && uuidRegex.test(cleanPayload.defaultSalesUserId)
+          ? cleanPayload.defaultSalesUserId
+          : null;
+    }
+
     try {
       const res = await apiClient(`/schedules/templates/${id}`, {
         method: "PATCH",
-        body: payload,
+        body: cleanPayload,
       });
       const data = res?.data;
       const tpl = normalizeTemplate(data?.template || data);
@@ -460,20 +468,15 @@ export const schedulesApi = {
     if (params.zoneId) query.append("zoneId", params.zoneId);
     if (params.status) query.append("status", params.status);
 
-    try {
-      const qs = query.toString() ? `?${query.toString()}` : "";
-      const res = await apiClient(`/schedules${qs}`);
-      const rawList = res?.data?.schedules || res?.data || [];
-      if (Array.isArray(rawList) && rawList.length > 0) {
-        const normalized = rawList.map(normalizeSchedule);
-        saveInMemorySchedules(normalized);
-        return normalized;
-      }
-      return getInMemorySchedules().map(normalizeSchedule);
-    } catch (e) {
-      console.warn("apiClient /schedules failed, falling back to cache/mock:", e?.message);
-      return getInMemorySchedules().map(normalizeSchedule);
+    const qs = query.toString() ? `?${query.toString()}` : "";
+    const res = await apiClient(`/schedules${qs}`);
+    const rawList = res?.data?.schedules || res?.data || [];
+    if (Array.isArray(rawList)) {
+      const normalized = rawList.map(normalizeSchedule);
+      saveInMemorySchedules(normalized);
+      return normalized;
     }
+    return [];
   },
 
   async createSchedule(payload) {

@@ -1,59 +1,49 @@
 // src/pages/RouteDispatch/RouteDispatch.jsx
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Truck,
+  Plus,
+  Search,
+  MapPin,
+  Clock,
+  Layers,
+  ArrowRight,
+  UserCheck,
+  CheckCircle2,
+  Calendar,
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
 
-import { schedulesApi } from "../../api/schedules.js";
 import { tripsApi } from "../../api/trips.js";
+import { schedulesApi } from "../../api/schedules.js";
 import { fleetApi } from "../../api/fleet.js";
 import { inventoryApi } from "../../api/inventory.js";
 import { usersApi } from "../../api/users.js";
 
-import initialMockTrips from "../../mocks/trips.json";
-import initialMockSchedules from "../../mocks/schedules.json";
-import initialMockTemplates from "../../mocks/templates.json";
-import initialMockZones from "../../mocks/zones.json";
-import initialMockFleet from "../../mocks/fleet.json";
-import initialMockUsers from "../../mocks/users.json";
-import initialMockItems from "../../mocks/items.json";
+import { isCanisterProduct, getCanisterCrates } from "../../utils/product.js";
 
-import RouteDispatchHeader from "../../components/route-dispatch/RouteDispatchHeader";
-import RouteDispatchControls from "../../components/route-dispatch/RouteDispatchControls";
-import TripCard from "../../components/route-dispatch/TripCard";
-import TripTable from "../../components/route-dispatch/TripTable";
-import TripDetailPanel from "../../components/route-dispatch/TripDetailPanel";
-import RouteCalendarView from "../../components/route-dispatch/RouteCalendarView";
-import MasterTemplateMatrix from "../../components/route-dispatch/MasterTemplateMatrix";
-import SchedulesTable from "../../components/route-dispatch/SchedulesTable";
 import DispatchModal from "../../components/route-dispatch/DispatchModal";
 import MiddayReloadModal from "../../components/route-dispatch/MiddayReloadModal";
-import ReturnCheckInModal from "../../components/route-dispatch/ReturnCheckInModal";
-import ReconciliationModal from "../../components/route-dispatch/ReconciliationModal";
-import BatchGenerateModal from "../../components/route-dispatch/BatchGenerateModal";
-import ScheduleModal from "../../components/route-dispatch/ScheduleModal";
-import TemplateModal from "../../components/route-dispatch/TemplateModal";
-import ZonesModal from "../../components/route-dispatch/ZonesModal";
 import ToastNotification from "../../components/ui/ToastNotifications";
 
 export default function RouteDispatch() {
+  const navigate = useNavigate();
   const { can } = useAuth();
-  const canManage = can ? can(PERMISSIONS.ROUTE_MANAGE || "route.manage") : true;
+  const canManage = can ? can(PERMISSIONS.ROUTE_MANAGE || "route.manage") : false;
 
-  // Active Main Sub-Tab ('trips' | 'schedules' | 'zones')
-  const [activeTab, setActiveTab] = useState("trips");
-
-  // Core Data States (Synchronously seeded from localStorage / mock fallbacks)
   const [trips, setTrips] = useState(() => {
     try {
       const cached = localStorage.getItem("app_trips_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
-    } catch (e) {
-      console.error("Error reading cached trips:", e);
+    } catch {
+      // ignore
     }
-    return Array.isArray(initialMockTrips) ? initialMockTrips : [];
+    return [];
   });
 
   const [schedules, setSchedules] = useState(() => {
@@ -61,38 +51,12 @@ export default function RouteDispatch() {
       const cached = localStorage.getItem("app_schedules_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
-    } catch (e) {
-      console.error("Error reading cached schedules:", e);
+    } catch {
+      // ignore
     }
-    return Array.isArray(initialMockSchedules) ? initialMockSchedules : [];
-  });
-
-  const [templates, setTemplates] = useState(() => {
-    try {
-      const cached = localStorage.getItem("app_templates_cache");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error("Error reading cached templates:", e);
-    }
-    return Array.isArray(initialMockTemplates) ? initialMockTemplates : [];
-  });
-
-  const [zones, setZones] = useState(() => {
-    try {
-      const cached = localStorage.getItem("app_zones_cache");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error("Error reading cached zones:", e);
-    }
-    return Array.isArray(initialMockZones) ? initialMockZones : [];
+    return [];
   });
 
   const [vehicles, setVehicles] = useState(() => {
@@ -100,12 +64,25 @@ export default function RouteDispatch() {
       const cached = localStorage.getItem("app_fleet_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
-    } catch (e) {
-      console.error("Error reading cached fleet:", e);
+    } catch {
+      // ignore
     }
-    return initialMockFleet?.data?.vehicles || initialMockFleet?.data?.trucks || [];
+    return [];
+  });
+
+  const [zones, setZones] = useState(() => {
+    try {
+      const cached = localStorage.getItem("app_zones_cache");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return [];
   });
 
   const [products, setProducts] = useState(() => {
@@ -113,408 +90,176 @@ export default function RouteDispatch() {
       const cached = localStorage.getItem("app_items_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
-    } catch (e) {
-      console.error("Error reading cached items:", e);
+    } catch {
+      // ignore
     }
-    return Array.isArray(initialMockItems)
-      ? initialMockItems
-      : initialMockItems?.data?.products || [];
+    return [];
   });
 
-  const allUsersList = useMemo(() => initialMockUsers?.data?.users || [], []);
-  const [salesUsers, setSalesUsers] = useState(() =>
-    allUsersList.filter((u) => (u.role || "").toLowerCase().includes("sales"))
+  const [users, setUsers] = useState([]);
+  const drivers = useMemo(
+    () => users.filter((u) => {
+      const role = (u.role || u.roleNames?.join(" ") || "").toLowerCase();
+      return role.includes("driver");
+    }),
+    [users]
   );
-  const [drivers, setDrivers] = useState(() =>
-    allUsersList.filter((u) => (u.role || "").toLowerCase().includes("driver"))
-  );
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Slide-in Drawer Detail Panel States (Identical to Fleet & ItemProfile)
-  const [selectedTrip, setSelectedTrip] = useState(null);
-  const [activeDetailTrip, setActiveDetailTrip] = useState(null);
-  const [isClosingPanel, setIsClosingPanel] = useState(false);
-  const closeTimerRef = useRef(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [toast, setToast] = useState(null);
 
-  // Modals & Action States
+  // Modals state
   const [showDispatchModal, setShowDispatchModal] = useState(false);
   const [prefillScheduleId, setPrefillScheduleId] = useState("");
   const [showMiddayModal, setShowMiddayModal] = useState(false);
   const [selectedTripForReload, setSelectedTripForReload] = useState(null);
 
-  const [showReturnModal, setShowReturnModal] = useState(false);
-  const [selectedTripForReturn, setSelectedTripForReturn] = useState(null);
-
-  const [showReconModal, setShowReconModal] = useState(false);
-  const [selectedTripForRecon, setSelectedTripForRecon] = useState(null);
-
-  const [showBatchModal, setShowBatchModal] = useState(false);
-  const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [templateToEdit, setTemplateToEdit] = useState(null);
-  const [prefillTruckId, setPrefillTruckId] = useState("");
-  const [prefillDayOfWeek, setPrefillDayOfWeek] = useState(1);
-  const [showZonesModal, setShowZonesModal] = useState(false);
-
-  // Toast State
-  const [toast, setToast] = useState(null);
-
   const showToast = (type, message) => {
     setToast({ type, message });
   };
 
-  // Cleanup close timer on unmount
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Slide-in Detail Panel Selection & Toggle Handler
-  const handleSelectTrip = (trip) => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-
-    const isSameTrip =
-      (selectedTrip?.id && selectedTrip.id === trip.id) ||
-      (activeDetailTrip?.id && activeDetailTrip.id === trip.id);
-
-    if (isSameTrip && !isClosingPanel) {
-      handleCloseDetail();
-    } else {
-      setIsClosingPanel(false);
-      setSelectedTrip(trip);
-      setActiveDetailTrip(trip);
-    }
-  };
-
-  const handleCloseDetail = () => {
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    setIsClosingPanel(true);
-    setSelectedTrip(null);
-    closeTimerRef.current = setTimeout(() => {
-      setActiveDetailTrip(null);
-      setIsClosingPanel(false);
-      closeTimerRef.current = null;
-    }, 250);
-  };
-
-  // Asynchronous Data Refetch
   const loadData = useCallback(async () => {
     try {
-      setIsLoading(true);
-      const [
-        tripsData,
-        schedulesData,
-        templatesData,
-        zonesData,
-        vehiclesData,
-        productsData,
-        usersData,
-      ] = await Promise.all([
-        tripsApi.getTrips().catch(() => initialMockTrips),
-        schedulesApi.getSchedules().catch(() => initialMockSchedules),
-        schedulesApi.getTemplates().catch(() => initialMockTemplates),
-        schedulesApi.getZones().catch(() => initialMockZones),
-        fleetApi.getTrucks().catch(() => initialMockFleet?.data?.vehicles || []),
-        inventoryApi.getInventoryItems().catch(() => initialMockItems),
-        usersApi.getAllUsers().catch(() => allUsersList),
+      const [tripsData, schedData, vData, zData, prodData, uData] = await Promise.all([
+        tripsApi.getTrips().catch((err) => {
+          console.warn("Failed to fetch trips:", err);
+          return [];
+        }),
+        schedulesApi.getSchedules().catch((err) => {
+          console.warn("Failed to fetch schedules:", err);
+          return [];
+        }),
+        fleetApi.getVehicles().catch((err) => {
+          console.warn("Failed to fetch fleet:", err);
+          return [];
+        }),
+        schedulesApi.getZones().catch((err) => {
+          console.warn("Failed to fetch zones:", err);
+          return [];
+        }),
+        inventoryApi.getInventoryItems().catch((err) => {
+          console.warn("Failed to fetch items:", err);
+          return [];
+        }),
+        usersApi.getUsers().catch(() => []),
       ]);
 
-      if (tripsData && tripsData.length > 0) {
-        setTrips(tripsData);
-        // Keep active detail panel synchronized if open
-        setActiveDetailTrip((prev) => {
-          if (!prev) return null;
-          const matched = tripsData.find((t) => t.id === prev.id);
-          return matched ? { ...prev, ...matched } : prev;
-        });
-      }
-      if (schedulesData && schedulesData.length > 0) setSchedules(schedulesData);
-      if (templatesData && templatesData.length > 0) setTemplates(templatesData);
-      if (zonesData && zonesData.length > 0) setZones(zonesData);
-      if (vehiclesData && vehiclesData.length > 0) setVehicles(vehiclesData);
-      if (productsData && productsData.length > 0) setProducts(productsData);
-
-      const allUsers = usersData && usersData.length > 0 ? usersData : allUsersList;
-      setSalesUsers(allUsers.filter((u) => (u.role || "").toLowerCase().includes("sales")));
-      setDrivers(allUsers.filter((u) => (u.role || "").toLowerCase().includes("driver")));
+      if (Array.isArray(tripsData)) setTrips(tripsData);
+      if (Array.isArray(schedData)) setSchedules(schedData);
+      if (Array.isArray(vData)) setVehicles(vData);
+      if (Array.isArray(zData)) setZones(zData);
+      if (Array.isArray(prodData)) setProducts(prodData);
+      if (Array.isArray(uData)) setUsers(uData);
     } catch (err) {
-      console.error("Error loading route dispatch data:", err);
-    } finally {
-      setIsLoading(false);
+      console.warn("Failed to refresh today's dispatches:", err);
     }
-  }, [allUsersList]);
+  }, []);
 
   useEffect(() => {
-    async function initRouteData() {
-      await loadData();
-    }
-    initRouteData();
+    let mounted = true;
+    const fetchAll = async () => {
+      if (mounted) {
+        await loadData();
+      }
+    };
+    fetchAll();
+    return () => {
+      mounted = false;
+    };
   }, [loadData]);
 
-  // Operational Action Handlers
+  // 1. Out on the Road: Active trips (IN_PROGRESS)
+  const activeTrips = useMemo(() => {
+    let list = trips.filter((t) => (t.status || "").toUpperCase() === "IN_PROGRESS");
+    if (searchTerm.trim()) {
+      const q = searchTerm.trim().toLowerCase();
+      list = list.filter(
+        (t) =>
+          (t.truckPlate || "").toLowerCase().includes(q) ||
+          (t.driverName || "").toLowerCase().includes(q) ||
+          (t.salesName || "").toLowerCase().includes(q) ||
+          (t.zoneCode || "").toLowerCase().includes(q) ||
+          (t.zoneName || "").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [trips, searchTerm]);
+
+  // 2. Ready to Dispatch: Scheduled runs (SCHEDULED)
+  const readySchedules = useMemo(() => {
+    let list = schedules.filter((s) => (s.status || "").toUpperCase() === "SCHEDULED");
+    if (searchTerm.trim()) {
+      const q = searchTerm.trim().toLowerCase();
+      list = list.filter(
+        (s) =>
+          (s.truckPlate || "").toLowerCase().includes(q) ||
+          (s.driverName || "").toLowerCase().includes(q) ||
+          (s.salesName || "").toLowerCase().includes(q) ||
+          (s.zoneCode || "").toLowerCase().includes(q) ||
+          (s.zoneName || "").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [schedules, searchTerm]);
+
   const handleDispatchTrip = async (payload) => {
-    const res = await tripsApi.dispatchTrip(payload);
-    showToast("success", res?.message || "Truck dispatched successfully");
-    await loadData();
+    try {
+      await tripsApi.dispatchTrip(payload);
+      showToast("success", "Truck departure dispatched successfully");
+      setShowDispatchModal(false);
+      setPrefillScheduleId("");
+      loadData();
+    } catch (err) {
+      showToast("error", err.message || "Failed to dispatch truck");
+      throw err;
+    }
   };
 
   const handleAddTripLoad = async (tripId, payload) => {
-    const res = await tripsApi.addTripLoad(tripId, payload);
-    showToast("success", res?.message || "Midday reload recorded");
-    await loadData();
-  };
-
-  const handleCompleteReturn = async (tripId, payload) => {
-    const res = await tripsApi.completeTripReturn(tripId, payload);
-    showToast("success", res?.message || "Return check-in completed");
-    await loadData();
-  };
-
-  const handleSettleReconciliation = async (tripId, payload) => {
-    const res = await tripsApi.settleReconciliation(tripId, payload);
-    showToast("success", res?.message || "Trip reconciliation settled");
-    await loadData();
-  };
-
-  const handleCreateSchedule = async (payload) => {
-    const res = await schedulesApi.createSchedule(payload);
-    showToast("success", res?.message || "Schedule created");
-    await loadData();
-  };
-
-  const handleBatchGenerate = async (payload) => {
-    const res = await schedulesApi.generateSchedules(payload);
-    showToast("success", res?.message || "Schedules generated");
-    await loadData();
-    return res;
-  };
-
-  const handleCancelSchedule = async (id) => {
-    await schedulesApi.cancelSchedule(id);
-    showToast("info", "Schedule cancelled");
-    await loadData();
-  };
-
-  const handleDeleteTemplate = async (id) => {
-    await schedulesApi.deleteTemplate(id);
-    showToast("info", "Template assignment removed");
-    await loadData();
-  };
-
-  const handleOpenAddTemplate = (truckId = "", dayOfWeek = 1) => {
-    setTemplateToEdit(null);
-    setPrefillTruckId(truckId || "");
-    setPrefillDayOfWeek(dayOfWeek || 1);
-    setShowTemplateModal(true);
-  };
-
-  const handleOpenEditTemplate = (template) => {
-    setTemplateToEdit(template);
-    setPrefillTruckId(template.truckId || "");
-    setPrefillDayOfWeek(template.dayOfWeek || 1);
-    setShowTemplateModal(true);
-  };
-
-  const handleSaveTemplate = async (payload) => {
-    if (payload.id) {
-      const res = await schedulesApi.updateTemplate(payload.id, payload);
-      showToast("success", res?.message || "Route template updated successfully");
-    } else {
-      const res = await schedulesApi.createTemplate(payload);
-      showToast("success", res?.message || "Weekly route template created successfully");
-    }
-    await loadData();
-  };
-
-  const handleCreateZone = async (payload) => {
-    const res = await schedulesApi.createZone(payload);
-    showToast("success", res?.message || "Service zone added");
-    await loadData();
-  };
-
-  const handleUpdateZone = async (id, payload) => {
-    const res = await schedulesApi.updateZone(id, payload);
-    showToast("success", res?.message || "Service zone updated");
-    await loadData();
-  };
-
-  // Search & Filter States
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filters, setFilters] = useState({
-    dateScope: "today",
-    status: "",
-    zone: "All Zones",
-    dateFrom: "",
-    dateTo: "",
-  });
-
-  // View Mode ('grid' | 'table')
-  const [viewMode, setViewMode] = useState(() => {
     try {
-      return localStorage.getItem("app_route_view_mode") || "grid";
-    } catch {
-      return "grid";
-    }
-  });
-
-  const handleViewModeChange = (mode) => {
-    setViewMode(mode);
-    try {
-      localStorage.setItem("app_route_view_mode", mode);
-    } catch {
-      // ignore
+      await tripsApi.addTripLoad(tripId, payload);
+      showToast("success", "Midday reload recorded successfully");
+      setShowMiddayModal(false);
+      setSelectedTripForReload(null);
+      loadData();
+    } catch (err) {
+      showToast("error", err.message || "Failed to log midday reload");
+      throw err;
     }
   };
 
-  // Sort Config
-  const [sortConfig, setSortConfig] = useState({
-    key: "truckPlate",
-    direction: "asc",
-  });
+  const getFullCargoBreakdown = (trip) => {
+    const loads = trip.loads || [];
+    const items = loads
+      .flatMap((l) => l.items || [])
+      .filter((i) => i.condition === "FILLED");
 
-  const handleSort = (key) => {
-    setSortConfig((prev) => {
-      if (prev.key === key) {
-        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+    let canisterUnits = 0;
+    let cylinderUnits = 0;
+
+    items.forEach((it) => {
+      const q = Number(it.quantityUnits) || 0;
+      if (isCanisterProduct(it)) {
+        canisterUnits += q;
+      } else {
+        cylinderUnits += q;
       }
-      return { key, direction: "asc" };
     });
+
+    const { crates: canisterCrates, remainder: canisterRemainder } = getCanisterCrates(canisterUnits);
+    return {
+      totalUnits: canisterUnits + cylinderUnits,
+      canisterUnits,
+      canisterCrates,
+      canisterRemainder,
+      cylinderUnits,
+    };
   };
-
-  // Filtered & Sorted Trips Memo
-  const filteredAndSortedTrips = useMemo(() => {
-    const list = trips.filter((trip) => {
-      // 1. Search Query
-      const q = (typeof searchTerm === "string" ? searchTerm : "").toLowerCase().trim();
-      if (q) {
-        const tripNumber = (trip.tripNumber || "").toLowerCase();
-        const plate = (trip.truckPlate || "").toLowerCase();
-        const model = (trip.truckModel || "").toLowerCase();
-        const driver = (trip.driverName || "").toLowerCase();
-        const sales = (trip.salesName || "").toLowerCase();
-        const zoneCode = (trip.zoneCode || "").toLowerCase();
-        const zoneName = (trip.zoneName || "").toLowerCase();
-        const notes = (trip.notes || "").toLowerCase();
-
-        const matches =
-          tripNumber.includes(q) ||
-          plate.includes(q) ||
-          model.includes(q) ||
-          driver.includes(q) ||
-          sales.includes(q) ||
-          zoneCode.includes(q) ||
-          zoneName.includes(q) ||
-          notes.includes(q);
-
-        if (!matches) return false;
-      }
-
-      // 2. Date Scope
-      const tripDate = trip.departureTime ? new Date(trip.departureTime) : null;
-      if (filters.dateScope === "today" && tripDate) {
-        const todayStr = new Date().toISOString().slice(0, 10);
-        const tripDateStr = tripDate.toISOString().slice(0, 10);
-        // Matches current date or the primary mock test date 2026-10-04
-        const isMatchToday = tripDateStr === "2026-10-04" || tripDateStr === todayStr;
-        if (!isMatchToday) return false;
-      } else if (filters.dateScope === "yesterday" && tripDate) {
-        const tripDateStr = tripDate.toISOString().slice(0, 10);
-        const isMatchYesterday = tripDateStr === "2026-10-03";
-        if (!isMatchYesterday) return false;
-      }
-
-      // 2.1 Date Range
-      if (filters.dateFrom && tripDate) {
-        const from = new Date(filters.dateFrom).setHours(0, 0, 0, 0);
-        if (tripDate.getTime() < from) return false;
-      }
-      if (filters.dateTo && tripDate) {
-        const to = new Date(filters.dateTo).setHours(23, 59, 59, 999);
-        if (tripDate.getTime() > to) return false;
-      }
-
-      // 3. Status Filter
-      if (filters.status) {
-        if ((trip.status || "").toUpperCase() !== filters.status.toUpperCase()) {
-          return false;
-        }
-      }
-
-      // 4. Zone Filter
-      if (filters.zone && filters.zone !== "All Zones") {
-        const zCode = (trip.zoneCode || "").toUpperCase();
-        const zName = (trip.zoneName || "").toUpperCase();
-        const filterZ = filters.zone.toUpperCase();
-        if (zCode !== filterZ && zName !== filterZ) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-
-    // Sorting
-    return [...list].sort((a, b) => {
-      let aVal = "";
-      let bVal = "";
-
-      if (sortConfig.key === "tripNumber") {
-        aVal = a.tripNumber || "";
-        bVal = b.tripNumber || "";
-        return sortConfig.direction === "asc"
-          ? aVal.localeCompare(bVal, undefined, { numeric: true })
-          : bVal.localeCompare(aVal, undefined, { numeric: true });
-      }
-      if (sortConfig.key === "departureTime") {
-        const aTime = a.departureTime ? new Date(a.departureTime).getTime() : 0;
-        const bTime = b.departureTime ? new Date(b.departureTime).getTime() : 0;
-        return sortConfig.direction === "asc" ? aTime - bTime : bTime - aTime;
-      }
-      if (sortConfig.key === "zoneCode") {
-        aVal = a.zoneCode || a.zoneName || "";
-        bVal = b.zoneCode || b.zoneName || "";
-        return sortConfig.direction === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-      }
-      if (sortConfig.key === "truckPlate") {
-        aVal = a.truckPlate || "";
-        bVal = b.truckPlate || "";
-        return sortConfig.direction === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-      }
-      if (sortConfig.key === "driverName") {
-        aVal = a.driverName || "";
-        bVal = b.driverName || "";
-        return sortConfig.direction === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-      }
-      if (sortConfig.key === "departureOdometer") {
-        const aOdo = Number(a.departureOdometer) || 0;
-        const bOdo = Number(b.departureOdometer) || 0;
-        return sortConfig.direction === "asc" ? aOdo - bOdo : bOdo - aOdo;
-      }
-      if (sortConfig.key === "status") {
-        aVal = (a.status || "").toUpperCase();
-        bVal = (b.status || "").toUpperCase();
-        return sortConfig.direction === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-      }
-
-      return 0;
-    });
-  }, [trips, searchTerm, filters, sortConfig]);
-
-  // Metrics
-  const inProgressCount = trips.filter((t) => t.status === "IN_PROGRESS").length;
-  const awaitingSyncCount = trips.filter((t) => t.status === "AWAITING_SYNC").length;
 
   return (
-    <div className="h-[calc(100vh-112px)] md:h-[calc(100vh-128px)] flex flex-col overflow-hidden w-full max-w-[1600px] mx-auto text-left font-sans">
-      {/* Toast Notification */}
+    <div className="h-full flex flex-col space-y-4">
       {toast && (
         <ToastNotification
           type={toast.type}
@@ -523,276 +268,266 @@ export default function RouteDispatch() {
         />
       )}
 
-      {/* 1. Header with Subsystem Switcher & Action Buttons */}
-      <div className="shrink-0">
-        <RouteDispatchHeader
-          activeTab={activeTab}
-          onTabChange={(tab) => {
-            setActiveTab(tab);
-            if (activeDetailTrip) handleCloseDetail();
-          }}
-          tripsCount={trips.length}
-          inProgressCount={inProgressCount}
-          awaitingSyncCount={awaitingSyncCount}
-          schedulesCount={schedules.length}
-          zonesCount={zones.length}
-          canManage={canManage}
-          onOpenDispatchModal={() => setShowDispatchModal(true)}
-          onOpenBatchGenerateModal={() => setShowBatchModal(true)}
-          onOpenAddScheduleModal={() => setShowAddScheduleModal(true)}
-          onOpenAddTemplateModal={() => handleOpenAddTemplate()}
-          onOpenAddZoneModal={() => setShowZonesModal(true)}
-        />
+      {/* Top Controls & Search Bar */}
+      <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#D5E3EC]">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+            <span>{activeTrips.length} Out on the Road</span>
+          </span>
+
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
+            <Clock size={13} className="text-[#0A4B6E]" />
+            <span>{readySchedules.length} Ready to Dispatch</span>
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          {/* Quick Search */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-2.5 text-[#6D8AA2]" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search truck, crew, zone..."
+              className="pl-8 pr-3 py-1.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-full text-xs text-[#0A4B6E] focus:outline-[#0A4B6E] w-48 sm:w-56"
+            />
+          </div>
+
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => {
+                setPrefillScheduleId("");
+                setShowDispatchModal(true);
+              }}
+              className="flex items-center gap-1.5 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] font-bold text-xs px-3.5 py-2 rounded-full transition-all cursor-pointer shadow-2xs active:scale-95"
+            >
+              <Plus size={14} />
+              <span>Dispatch Truck</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* 2. Main Content Area */}
-      {isLoading && trips.length === 0 ? (
-        <div className="p-12 text-center bg-white rounded-2xl border border-[#D5E3EC]">
-          <p className="text-[#0A4B6E] font-semibold text-sm">Loading route dispatch operations...</p>
-        </div>
-      ) : (
-        <>
-          {/* TAB 1: TRIPS & OPERATIONS (Controls + Cards Grid / Table + Right Sliding Detail Panel) */}
-          {activeTab === "trips" && (
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden min-w-0">
-              {/* Controls: Search Bar, Active Filter Chips, Filter Dropdown & View Mode Switcher */}
-              <div className="shrink-0">
-                <RouteDispatchControls
-                  searchTerm={searchTerm}
-                  onSearchChange={setSearchTerm}
-                  onClearSearch={() => setSearchTerm("")}
-                  activeFilters={filters}
-                  onApplyFilters={setFilters}
-                  onClearDateScope={() => setFilters((prev) => ({ ...prev, dateScope: "all" }))}
-                  onClearStatus={() => setFilters((prev) => ({ ...prev, status: "" }))}
-                  onClearZone={() => setFilters((prev) => ({ ...prev, zone: "All Zones" }))}
-                  onClearDates={() => setFilters((prev) => ({ ...prev, dateFrom: "", dateTo: "" }))}
-                  zonesList={zones}
-                  viewMode={viewMode}
-                  onViewModeChange={handleViewModeChange}
-                />
-              </div>
+      {/* Main Content: Two Clean Sections */}
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-6 pr-1 pb-4">
+        {/* SECTION 1: OUT ON THE ROAD */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <h3 className="text-sm font-bold text-[#0A4B6E] uppercase tracking-wide">
+                Out on the Road ({activeTrips.length})
+              </h3>
+            </div>
+            <span className="text-[11px] text-[#6D8AA2]">Active distribution runs in progress</span>
+          </div>
 
-              {/* Main Content Area: Cards Grid / Table / Calendar + Right Sliding Detail Panel */}
-              <div className="flex-1 min-h-0 flex flex-col lg:flex-row items-stretch gap-4 lg:gap-6 overflow-hidden min-w-0 pt-1 relative">
-                {viewMode === "table" ? (
-                  <div className="flex-1 min-w-0 h-full overflow-hidden pb-4">
-                    <TripTable
-                      trips={filteredAndSortedTrips}
-                      selectedTrip={!isClosingPanel ? activeDetailTrip || selectedTrip : null}
-                      onSelectTrip={handleSelectTrip}
-                      sortConfig={sortConfig}
-                      onSort={handleSort}
-                      onMiddayReload={(t) => {
-                        setSelectedTripForReload(t);
-                        setShowMiddayModal(true);
-                      }}
-                      onReturnCheckIn={(t) => {
-                        setSelectedTripForReturn(t);
-                        setShowReturnModal(true);
-                      }}
-                      onReconciliation={(t) => {
-                        setSelectedTripForRecon(t);
-                        setShowReconModal(true);
-                      }}
-                      canManage={canManage}
-                    />
-                  </div>
-                ) : viewMode === "calendar" ? (
-                  <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col overflow-hidden pb-4">
-                    <RouteCalendarView
-                      trips={filteredAndSortedTrips}
-                      schedules={schedules}
-                      selectedTrip={!isClosingPanel ? activeDetailTrip || selectedTrip : null}
-                      onSelectTrip={handleSelectTrip}
-                      onDispatchSchedule={(sched) => {
-                        setPrefillScheduleId(sched.id);
-                        setShowDispatchModal(true);
-                      }}
-                      onMiddayReload={(t) => {
-                        setSelectedTripForReload(t);
-                        setShowMiddayModal(true);
-                      }}
-                      onReturnCheckIn={(t) => {
-                        setSelectedTripForReturn(t);
-                        setShowReturnModal(true);
-                      }}
-                      onReconciliation={(t) => {
-                        setSelectedTripForRecon(t);
-                        setShowReconModal(true);
-                      }}
-                      onOpenDispatchModal={() => {
-                        setPrefillScheduleId("");
-                        setShowDispatchModal(true);
-                      }}
-                      onOpenAddScheduleModal={() => setShowAddScheduleModal(true)}
-                      canManage={canManage}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col overflow-hidden">
-                    {filteredAndSortedTrips.length === 0 ? (
-                      <div className="bg-[#E8F3F8]/40 border border-dashed border-[#BCE1F1] rounded-2xl p-12 text-center">
-                        <p className="text-[#0A4B6E] font-bold text-sm mb-1">No Operational Trips Found</p>
-                        <p className="text-[#6D8AA2] text-xs">
-                          {trips.length === 0
-                            ? "Dispatch a scheduled or ad-hoc truck run to start tracking real-time delivery lifecycle."
-                            : "No trips match the current search or filter criteria. Try adjusting your filters."}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 pb-4">
-                        <div
-                          className={`grid gap-4 ${
-                            activeDetailTrip
-                              ? "grid-cols-1 md:grid-cols-2"
-                              : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-                          }`}
-                        >
-                          {filteredAndSortedTrips.map((trip) => (
-                            <TripCard
-                              key={trip.id}
-                              trip={trip}
-                              isSelected={
-                                !isClosingPanel &&
-                                ((selectedTrip && selectedTrip.id === trip.id) ||
-                                  (activeDetailTrip && activeDetailTrip.id === trip.id))
-                              }
-                              onClick={handleSelectTrip}
-                              canManage={canManage}
-                              onMiddayReload={(t) => {
-                                setSelectedTripForReload(t);
-                                setShowMiddayModal(true);
-                              }}
-                              onReturnCheckIn={(t) => {
-                                setSelectedTripForReturn(t);
-                                setShowReturnModal(true);
-                              }}
-                              onReconciliation={(t) => {
-                                setSelectedTripForRecon(t);
-                                setShowReconModal(true);
-                              }}
-                            />
-                          ))}
+          {activeTrips.length === 0 ? (
+            <div className="bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-2xl p-8 text-center">
+              <Truck size={28} className="mx-auto text-[#6D8AA2] mb-2 opacity-50" />
+              <p className="text-xs font-semibold text-[#0A4B6E]">No active trucks currently out on the road</p>
+              <p className="text-[11px] text-[#6D8AA2] mt-0.5">
+                Vehicles ready to depart can be dispatched below.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {activeTrips.map((trip) => {
+                const departureFormatted = trip.departureTime
+                  ? new Date(trip.departureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : "—";
+                const cargo = getFullCargoBreakdown(trip);
+
+                return (
+                  <div
+                    key={trip.id}
+                    className="bg-white border border-[#D5E3EC] hover:border-[#0A4B6E]/40 rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all text-left"
+                  >
+                    <div>
+                      {/* Top: Plate & Zone */}
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-base font-bold text-[#0A4B6E] tracking-tight">
+                              {trip.truckPlate}
+                            </span>
+                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                              EN ROUTE
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-[#6D8AA2] mt-0.5">
+                            <MapPin size={11} className="text-[#0A4B6E]" />
+                            <span>Zone: <strong className="text-[#0A4B6E]">{trip.zoneCode || trip.zoneName}</strong></span>
+                          </div>
                         </div>
+
+                        <div className="w-8 h-8 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
+                          <Truck size={15} />
+                        </div>
+                      </div>
+
+                      {/* Middle Meta Details */}
+                      <div className="bg-[#F8FAFC] rounded-xl p-2.5 border border-[#E2E8F0] space-y-1 text-xs mb-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#6D8AA2]">Crew:</span>
+                          <span className="font-medium text-slate-800 truncate max-w-[170px] text-right">
+                            {trip.driverName} · {trip.salesName}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#6D8AA2] flex items-center gap-1">
+                            <Clock size={11} /> Departed:
+                          </span>
+                          <span className="font-semibold text-slate-700">{departureFormatted}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-1 border-t border-[#E2E8F0]">
+                          <span className="text-[#6D8AA2] flex items-center gap-1">
+                            <Layers size={11} /> Cargo On-Board:
+                          </span>
+                          <span className="font-bold text-[#0A4B6E] text-right">
+                            {cargo.cylinderUnits > 0 && cargo.canisterUnits > 0 ? (
+                              <>
+                                {cargo.cylinderUnits} cyl · {cargo.canisterUnits} cans ({cargo.canisterCrates} crt)
+                              </>
+                            ) : cargo.canisterUnits > 0 ? (
+                              <>
+                                {cargo.canisterUnits} cans ({cargo.canisterCrates} crt{cargo.canisterRemainder > 0 ? ` +${cargo.canisterRemainder}` : ""})
+                              </>
+                            ) : cargo.cylinderUnits > 0 ? (
+                              <>
+                                {cargo.cylinderUnits} cylinders
+                              </>
+                            ) : (
+                              "0 units"
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions: Add Midday Reload & Check-In Return */}
+                    {canManage && (
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#E2E8F0]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedTripForReload(trip);
+                            setShowMiddayModal(true);
+                          }}
+                          className="w-full py-1.5 px-2 bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#0A4B6E] rounded-full text-xs font-bold transition cursor-pointer"
+                        >
+                          + Midday Reload
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/reconciliation?tripId=${trip.id}`)}
+                          className="w-full py-1.5 px-2 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] rounded-full text-xs font-bold transition cursor-pointer shadow-2xs flex items-center justify-center gap-1"
+                        >
+                          <span>Check-In Return</span>
+                          <ArrowRight size={12} />
+                        </button>
                       </div>
                     )}
                   </div>
-                )}
-
-              {/* Mobile/Tablet Backdrop Overlay (closes panel on outside tap) */}
-              {activeDetailTrip && (
-                <div
-                  className="fixed inset-0 bg-black/30 z-30 lg:hidden"
-                  onClick={handleCloseDetail}
-                />
-              )}
-
-              {/* Right Column: Sliding Detail Panel (Constrained width on small screens) */}
-              {activeDetailTrip && (
-                <div
-                  className={`fixed inset-y-0 right-0 z-40 w-[360px] max-w-[92vw] lg:static lg:w-[390px] xl:w-[420px] lg:max-w-none shrink-0 h-full flex flex-col overflow-hidden shadow-2xl lg:shadow-none transition-all duration-300 bg-white ${
-                    isClosingPanel
-                      ? "animate-slide-fade-out pointer-events-none"
-                      : "animate-slide-fade-in"
-                  }`}
-                >
-                  <TripDetailPanel
-                    trip={activeDetailTrip}
-                    onClose={handleCloseDetail}
-                    onMiddayReload={(t) => {
-                      setSelectedTripForReload(t);
-                      setShowMiddayModal(true);
-                    }}
-                    onReturnCheckIn={(t) => {
-                      setSelectedTripForReturn(t);
-                      setShowReturnModal(true);
-                    }}
-                    onReconciliation={(t) => {
-                      setSelectedTripForRecon(t);
-                      setShowReconModal(true);
-                    }}
-                    canManage={canManage}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-          {/* TAB 2: SCHEDULES & TEMPLATES */}
-          {activeTab === "schedules" && (
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-6 pr-1 pb-4">
-              <MasterTemplateMatrix
-                templates={templates}
-                vehicles={vehicles}
-                canManage={canManage}
-                onAddTemplate={handleOpenAddTemplate}
-                onEditTemplate={handleOpenEditTemplate}
-                onDeleteTemplate={handleDeleteTemplate}
-              />
-
-              <SchedulesTable
-                schedules={schedules}
-                trips={trips}
-                canManage={canManage}
-                onOpenAddSchedule={() => setShowAddScheduleModal(true)}
-                onCancelSchedule={handleCancelSchedule}
-                onDispatchSchedule={(sched) => {
-                  setPrefillScheduleId(sched.id);
-                  setShowDispatchModal(true);
-                }}
-                onSelectTrip={handleSelectTrip}
-              />
+                );
+              })}
             </div>
           )}
+        </div>
 
-          {/* TAB 3: SERVICE ZONES */}
-          {activeTab === "zones" && (
-            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-1 pb-4">
-              <div className="bg-white rounded-2xl border border-[#D5E3EC] p-5 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
+        {/* SECTION 2: READY TO DISPATCH */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#0A4B6E]" />
+              <h3 className="text-sm font-bold text-[#0A4B6E] uppercase tracking-wide">
+                Ready to Dispatch ({readySchedules.length})
+              </h3>
+            </div>
+            <span className="text-[11px] text-[#6D8AA2]">Scheduled vehicle deployments</span>
+          </div>
+
+          {readySchedules.length === 0 ? (
+            <div className="bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-2xl p-8 text-center">
+              <Calendar size={28} className="mx-auto text-[#6D8AA2] mb-2 opacity-50" />
+              <p className="text-xs font-semibold text-[#0A4B6E]">No pending schedules ready to deploy</p>
+              <p className="text-[11px] text-[#6D8AA2] mt-0.5">
+                Generate upcoming schedules from the Route Planner or click Dispatch Truck for an ad-hoc run.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {readySchedules.map((sched) => (
+                <div
+                  key={sched.id}
+                  className="bg-white border border-[#D5E3EC] hover:border-[#0A4B6E]/40 rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all text-left"
+                >
                   <div>
-                    <h2 className="text-sm font-bold text-[#0A4B6E]">Active Service Delivery Zones</h2>
-                    <p className="text-xs text-[#6D8AA2]">Distribution coverage districts across Davao Region</p>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-base font-bold text-[#0A4B6E] tracking-tight">
+                            {sched.truckPlate}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full">
+                            SCHEDULED
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#6D8AA2]">{sched.truckModel}</p>
+                      </div>
+
+                      <div className="w-8 h-8 rounded-full bg-[#EDF3F7] text-[#0A4B6E] flex items-center justify-center shrink-0">
+                        <Truck size={15} />
+                      </div>
+                    </div>
+
+                    <div className="bg-[#F8FAFC] rounded-xl p-2.5 border border-[#E2E8F0] space-y-1 text-xs mb-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[#6D8AA2]">Route Zone:</span>
+                        <span className="font-bold text-[#0A4B6E]">{sched.zoneCode || sched.zoneName}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <span className="text-[#6D8AA2]">Assigned Crew:</span>
+                        <span className="font-medium text-slate-800 truncate max-w-[170px] text-right">
+                          {sched.driverName || "Driver"} · {sched.salesName || "Sales Rep"}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center pt-1 border-t border-[#E2E8F0]">
+                        <span className="text-[#6D8AA2]">Scheduled Date:</span>
+                        <span className="font-medium text-slate-700">{sched.scheduledDate}</span>
+                      </div>
+                    </div>
                   </div>
+
                   {canManage && (
                     <button
                       type="button"
-                      onClick={() => setShowZonesModal(true)}
-                      className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#0A4B6E] text-white hover:bg-[#0E384E] cursor-pointer"
+                      onClick={() => {
+                        setPrefillScheduleId(sched.id);
+                        setShowDispatchModal(true);
+                      }}
+                      className="w-full py-2 px-3 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] rounded-full text-xs font-bold transition cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
                     >
-                      Manage Service Zones
+                      <Plus size={13} />
+                      <span>Dispatch Truck</span>
                     </button>
                   )}
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {zones.map((z) => (
-                    <div
-                      key={z.id}
-                      className="p-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-bold text-xs text-[#0A4B6E]">{z.code}</span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                            ACTIVE
-                          </span>
-                        </div>
-                        <h4 className="font-semibold text-xs text-slate-800 mb-1">{z.name}</h4>
-                        <p className="text-[11px] text-slate-500">{z.description || "—"}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              ))}
             </div>
           )}
-        </>
-      )}
+        </div>
+      </div>
 
-      {/* ALL MODALS */}
+      {/* Modals */}
       <DispatchModal
         isOpen={showDispatchModal}
         onClose={() => {
@@ -817,67 +552,6 @@ export default function RouteDispatch() {
           setSelectedTripForReload(null);
         }}
         onAddLoad={handleAddTripLoad}
-      />
-
-      <ReturnCheckInModal
-        isOpen={showReturnModal}
-        trip={selectedTripForReturn}
-        products={products}
-        onClose={() => {
-          setShowReturnModal(false);
-          setSelectedTripForReturn(null);
-        }}
-        onCompleteReturn={handleCompleteReturn}
-      />
-
-      <ReconciliationModal
-        isOpen={showReconModal}
-        trip={selectedTripForRecon}
-        onClose={() => {
-          setShowReconModal(false);
-          setSelectedTripForRecon(null);
-        }}
-        onSettle={handleSettleReconciliation}
-      />
-
-      <BatchGenerateModal
-        isOpen={showBatchModal}
-        onClose={() => setShowBatchModal(false)}
-        onGenerate={handleBatchGenerate}
-      />
-
-      <ScheduleModal
-        isOpen={showAddScheduleModal}
-        onClose={() => setShowAddScheduleModal(false)}
-        vehicles={vehicles}
-        salesUsers={salesUsers}
-        zones={zones}
-        onCreateSchedule={handleCreateSchedule}
-      />
-
-      <TemplateModal
-        isOpen={showTemplateModal}
-        onClose={() => {
-          setShowTemplateModal(false);
-          setTemplateToEdit(null);
-        }}
-        template={templateToEdit}
-        initialTruckId={prefillTruckId}
-        initialDayOfWeek={prefillDayOfWeek}
-        vehicles={vehicles}
-        zones={zones}
-        salesUsers={salesUsers}
-        onSaveTemplate={handleSaveTemplate}
-        onDeleteTemplate={handleDeleteTemplate}
-      />
-
-      <ZonesModal
-        isOpen={showZonesModal}
-        onClose={() => setShowZonesModal(false)}
-        zones={zones}
-        canManage={canManage}
-        onCreateZone={handleCreateZone}
-        onUpdateZone={handleUpdateZone}
       />
     </div>
   );

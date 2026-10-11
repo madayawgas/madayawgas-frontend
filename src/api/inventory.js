@@ -275,7 +275,7 @@ export const inventoryApi = {
     try {
       const res = await apiClient(`/inventory/plant`);
       const list = res?.data?.inventory || res?.data || [];
-      if (Array.isArray(list) && list.length > 0) {
+      if (Array.isArray(list)) {
         return list.map((item) => ({
           ...item,
           productId: item.productId || item.product_id,
@@ -290,10 +290,10 @@ export const inventoryApi = {
           cratesDefective: item.cratesDefective !== undefined ? item.cratesDefective : (item.container_type === 'CANISTER' ? Math.floor(Number(item.quantity_defective) / 24) : null),
         }));
       }
-      return inMemoryPlantStock;
+      return [];
     } catch (err) {
-      console.warn("Failed to fetch plant inventory from API, using fallback:", err.message);
-      return inMemoryPlantStock;
+      console.error("Failed to fetch plant inventory from API:", err);
+      throw err;
     }
   },
 
@@ -386,5 +386,220 @@ export const inventoryApi = {
       `/inventory/plant/suggested-split?productId=${productId}&activeTripCount=${activeTripCount}`
     );
     return res?.data;
+  },
+
+  // ==========================================
+  // Global Cross-Fleet Stock Movement Transfers
+  // ==========================================
+
+  /**
+   * Global cross-fleet inventory transfers ledger.
+   * Consumes GET /api/inventory/transfers
+   * @param {object} params - { page, limit, search, transferType, startDate, endDate, productId, tripId, truckId }
+   * @returns {Promise<{ transfers: Array, meta: object }>}
+   */
+  async getTransfers(params = {}) {
+    const page = Number(params.page) || 1;
+    const limit = Number(params.limit) || 20;
+
+    if (isMock) {
+      await delay(200);
+
+      // Collect mock transfers from cached trips loads + mock adjustments
+      let mockList = [];
+      try {
+        const cachedTrips = localStorage.getItem("app_trips_cache");
+        const parsedTrips = cachedTrips ? JSON.parse(cachedTrips) : [];
+        parsedTrips.forEach((trip) => {
+          (trip.loads || []).forEach((load) => {
+            mockList.push({
+              id: load.id || `trans-${Date.now()}-${Math.random()}`,
+              sourceType: "TRIP_LOAD",
+              transferType: load.transferType || "DISPATCH_LOAD",
+              slipNumber: load.slipNumber || `LOAD-${trip.tripNumber}`,
+              recordedAt: load.recordedAt || trip.departureTime || new Date().toISOString(),
+              recordedBy: load.recordedBy || {
+                username: "plant_supervisor",
+                firstName: "Plant",
+                lastName: "Supervisor",
+              },
+              remarks: load.remarks || trip.notes || "Trip load manifest",
+              trip: {
+                id: trip.id,
+                tripNumber: trip.tripNumber,
+                truckId: trip.truckId,
+                plateNumber: trip.truckPlate,
+              },
+              supplierInvoiceNumber: null,
+              items: (load.items || []).map((it) => ({
+                id: it.id || `item-${Math.random()}`,
+                productId: it.productId,
+                productName: it.productName || "LPG Product",
+                productCategory: it.productCategory || "Cylinder",
+                containerType: it.containerType || "CYLINDER",
+                netWeightKg: it.netWeightKg || 11.0,
+                condition: it.condition || "FILLED",
+                quantityUnits: Number(it.quantityUnits) || 0,
+                crates: it.containerType === "CANISTER" ? Math.floor((it.quantityUnits || 0) / 24) : null,
+              })),
+            });
+          });
+        });
+      } catch (e) {
+        console.warn("Error collecting mock trip transfers:", e);
+      }
+
+      // Add mock supplier restock and defect movements if list is small
+      if (mockList.length < 5) {
+        mockList.push(
+          {
+            id: "trans-mock-restock-1",
+            sourceType: "PLANT_ADJUSTMENT",
+            transferType: "SUPPLIER_PURCHASE",
+            slipNumber: "INV-SUP-2026-108",
+            recordedAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+            recordedBy: { username: "plant_user", firstName: "Plant", lastName: "Manager" },
+            remarks: "Bulk shipment intake from refinery depot",
+            trip: null,
+            supplierInvoiceNumber: "INV-SUP-2026-108",
+            items: [
+              {
+                id: "item-rst-1",
+                productId: "e9b21f37-142c-4f76-96f3-a3d8b02e7b91",
+                productName: "Butane Canister 250g",
+                containerType: "CANISTER",
+                condition: "FILLED",
+                quantityUnits: 2400,
+                crates: 100,
+              },
+            ],
+          },
+          {
+            id: "trans-mock-quarantine-1",
+            sourceType: "PLANT_ADJUSTMENT",
+            transferType: "DEFECT_ADJUSTMENT",
+            slipNumber: "QUAR-20261008-01",
+            recordedAt: new Date(Date.now() - 3600000 * 18).toISOString(),
+            recordedBy: { username: "plant_supervisor", firstName: "Yard", lastName: "Inspector" },
+            remarks: "Defective valve quarantine during intake check",
+            trip: null,
+            supplierInvoiceNumber: null,
+            items: [
+              {
+                id: "item-qar-1",
+                productId: "27d6365b-bfb0-4ca7-b286-63d1bcfa2520",
+                productName: "11kg LPG Cylinder",
+                containerType: "CYLINDER",
+                condition: "DEFECTIVE",
+                quantityUnits: 8,
+                crates: null,
+              },
+            ],
+          }
+        );
+      }
+
+      // Filter by transferType
+      if (params.transferType && params.transferType !== "ALL") {
+        mockList = mockList.filter(
+          (t) => (t.transferType || "").toUpperCase() === params.transferType.toUpperCase()
+        );
+      }
+
+      // Filter by search query
+      if (params.search && params.search.trim()) {
+        const q = params.search.trim().toLowerCase();
+        mockList = mockList.filter(
+          (t) =>
+            (t.slipNumber || "").toLowerCase().includes(q) ||
+            (t.trip?.tripNumber || "").toLowerCase().includes(q) ||
+            (t.trip?.plateNumber || "").toLowerCase().includes(q) ||
+            (t.supplierInvoiceNumber || "").toLowerCase().includes(q) ||
+            (t.remarks || "").toLowerCase().includes(q)
+        );
+      }
+
+      // Sort reverse chronological
+      mockList.sort((a, b) => new Date(b.recordedAt) - new Date(a.recordedAt));
+
+      const totalItems = mockList.length;
+      const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+      const startIndex = (page - 1) * limit;
+      const paginatedItems = mockList.slice(startIndex, startIndex + limit);
+
+      return {
+        transfers: paginatedItems,
+        meta: {
+          page,
+          limit,
+          totalItems,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
+        },
+      };
+    }
+
+    const query = new URLSearchParams();
+    query.append("page", page);
+    query.append("limit", limit);
+    if (params.transferType && params.transferType !== "ALL") query.append("transferType", params.transferType);
+    if (params.search && params.search.trim()) query.append("search", params.search.trim());
+    if (params.startDate) query.append("startDate", params.startDate);
+    if (params.endDate) query.append("endDate", params.endDate);
+    if (params.productId) query.append("productId", params.productId);
+    if (params.tripId) query.append("tripId", params.tripId);
+    if (params.truckId) query.append("truckId", params.truckId);
+
+    try {
+      const res = await apiClient(`/inventory/transfers?${query.toString()}`);
+      const rawList = res?.data || [];
+      const meta = res?.meta || {
+        page,
+        limit,
+        totalItems: rawList.length,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false,
+      };
+      return {
+        transfers: Array.isArray(rawList) ? rawList : [],
+        meta,
+      };
+    } catch (err) {
+      console.warn("apiClient /inventory/transfers failed, returning empty list:", err.message);
+      return {
+        transfers: [],
+        meta: { page: 1, limit, totalItems: 0, totalPages: 1 },
+      };
+    }
+  },
+
+  /**
+   * Historical plant stock adjustments audit log.
+   */
+  async getPlantAdjustments(params = {}) {
+    if (isMock) {
+      await delay(150);
+      return [];
+    }
+
+    const query = new URLSearchParams(params).toString();
+    const qs = query ? `?${query}` : "";
+    const res = await apiClient(`/inventory/plant/adjustments${qs}`);
+    return res?.data?.adjustments || res?.data || [];
+  },
+
+  /**
+   * Retrieves all multi-load and return transfer slips for a trip.
+   */
+  async getTripTransfers(tripId) {
+    if (isMock) {
+      await delay(100);
+      return [];
+    }
+
+    const res = await apiClient(`/inventory/trips/${tripId}/transfers`);
+    return res?.data?.transfers || res?.data || [];
   },
 };
