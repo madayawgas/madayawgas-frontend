@@ -143,34 +143,9 @@ export default function TransferRecords() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-[#F8FAFC]">
-      {/* Header Banner */}
-      <header className="shrink-0 bg-white border-b border-[#E2E8F0] px-6 py-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xl">📋</span>
-              <h1 className="text-xl font-bold text-[#0A4B6E]">Transfer Records</h1>
-            </div>
-            <p className="text-xs text-[#6D8AA2] mt-0.5">
-              Audit log of dispatch loads, yard return unloads, and supplier restocks
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => fetchTransfers(meta.page)}
-              disabled={isLoading}
-              title="Refresh transfer records"
-              className="p-2 text-[#6D8AA2] hover:text-[#0A4B6E] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-            >
-              <RefreshCw size={15} className={isLoading ? "animate-spin" : ""} />
-            </button>
-          </div>
-        </div>
-
-        {/* Filter Controls Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 pt-3 border-t border-[#F1F5F9]">
+      {/* Top Controls Header */}
+      <header className="shrink-0 bg-white border-b border-[#E2E8F0] px-6 py-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           {/* Movement Type Filter Tabs */}
           <div className="flex flex-wrap items-center gap-1.5">
             {TRANSFER_TYPES.map((t) => (
@@ -178,10 +153,10 @@ export default function TransferRecords() {
                 key={t.value}
                 type="button"
                 onClick={() => handleTypeChange(t.value)}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
+                className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
                   transferType === t.value
-                    ? "bg-[#0A4B6E] text-white border-[#0A4B6E]"
-                    : "bg-white text-[#6D8AA2] border-[#E2E8F0] hover:text-[#0A4B6E] hover:bg-slate-50"
+                    ? "bg-[#0A4B6E] text-white border-[#0A4B6E] shadow-2xs"
+                    : "bg-white text-[#6D8AA2] border-[#CBD5E1] hover:text-[#0A4B6E] hover:bg-slate-50"
                 }`}
               >
                 {t.label}
@@ -189,55 +164,67 @@ export default function TransferRecords() {
             ))}
           </div>
 
-          {/* Search on Enter */}
-          <form onSubmit={handleSearchSubmit} className="relative sm:w-72">
-            <label htmlFor={searchInputId} className="sr-only">Search slips, trips, or vehicles</label>
-            <input
-              id={searchInputId}
-              type="text"
-              placeholder="Search slip, truck, or notes (Press Enter)..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-9 pr-8 py-1.5 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg text-[#0A4B6E] placeholder-[#6D8AA2]/70 focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white transition-all"
-            />
-            <Search
-              size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6D8AA2]"
-            />
-            {searchInput && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchInput("");
-                  setActiveSearch("");
-                  setMeta((prev) => ({ ...prev, page: 1 }));
-                }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
-              >
-                ×
-              </button>
-            )}
-          </form>
+          <div className="flex items-center gap-2.5">
+            {/* Search on Enter */}
+            <form onSubmit={handleSearchSubmit} className="relative sm:w-72">
+              <label htmlFor={searchInputId} className="sr-only">Search slips, trips, or vehicles</label>
+              <input
+                id={searchInputId}
+                type="text"
+                placeholder="Search slip, truck, or notes..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full pl-9 pr-8 py-1.5 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-full text-[#0A4B6E] placeholder-[#6D8AA2]/70 focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white transition-all"
+              />
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6D8AA2]"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput("");
+                    setActiveSearch("");
+                    setMeta((prev) => ({ ...prev, page: 1 }));
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                >
+                  ×
+                </button>
+              )}
+            </form>
+
+            <button
+              type="button"
+              onClick={() => fetchTransfers(meta.page)}
+              disabled={isLoading}
+              title="Refresh transfer records"
+              className="p-1.5 text-[#6D8AA2] hover:text-[#0A4B6E] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+            >
+              <RefreshCw size={15} className={isLoading ? "animate-spin" : ""} />
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Main Table Container */}
       <main className="flex-1 min-h-0 overflow-hidden flex flex-col p-6">
-        <div className="flex-1 min-h-0 bg-white border border-[#E2E8F0] rounded-xl flex flex-col overflow-hidden shadow-2xs">
+        <div className="flex-1 min-h-0 bg-white border border-[#0A4B6E]/30 rounded-2xl flex flex-col overflow-hidden shadow-sm">
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="sticky top-0 bg-[#F8FAFC] border-b border-[#E2E8F0] z-10 text-[#6D8AA2] font-semibold select-none">
+              <thead className="sticky top-0 bg-[#0D4B6E] text-white text-xs md:text-sm z-10 shadow-xs select-none">
                 <tr>
-                  <th className="py-3 px-4">Slip Number</th>
-                  <th className="py-3 px-4">Movement Type</th>
-                  <th className="py-3 px-4">Destination / Source</th>
-                  <th className="py-3 px-4">Recorded By</th>
-                  <th className="py-3 px-4">Date & Time</th>
-                  <th className="py-3 px-4 text-right">Total Units</th>
-                  <th className="py-3 px-4 text-center">Action</th>
+                  <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Slip Number</th>
+                  <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Movement Type</th>
+                  <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Destination / Source</th>
+                  <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Recorded By</th>
+                  <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Date & Time</th>
+                  <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap text-right">Total Units</th>
+                  <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap text-center">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#F1F5F9] text-[#0A4B6E]">
+              <tbody className="divide-y divide-gray-100 text-xs md:text-sm">
                 {isLoading && transfers.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-16 text-center text-[#6D8AA2]">
@@ -276,7 +263,7 @@ export default function TransferRecords() {
                     return (
                       <tr
                         key={slip.id}
-                        className="hover:bg-[#F8FAFC] transition-colors cursor-pointer"
+                        className="hover:bg-[#F4F9FC] transition-colors cursor-pointer"
                         onClick={() => setSelectedSlip(slip)}
                       >
                         {/* Slip Number */}

@@ -20,13 +20,8 @@ import { tripsApi } from "../../api/trips.js";
 import { schedulesApi } from "../../api/schedules.js";
 import { fleetApi } from "../../api/fleet.js";
 import { inventoryApi } from "../../api/inventory.js";
+import { usersApi } from "../../api/users.js";
 
-import initialMockTrips from "../../mocks/trips.json";
-import initialMockSchedules from "../../mocks/schedules.json";
-import initialMockFleet from "../../mocks/fleet.json";
-import initialMockZones from "../../mocks/zones.json";
-import initialMockUsers from "../../mocks/users.json";
-import initialMockItems from "../../mocks/items.json";
 import { isCanisterProduct, getCanisterCrates } from "../../utils/product.js";
 
 import DispatchModal from "../../components/route-dispatch/DispatchModal";
@@ -43,12 +38,12 @@ export default function RouteDispatch() {
       const cached = localStorage.getItem("app_trips_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // ignore
     }
-    return Array.isArray(initialMockTrips) ? initialMockTrips : [];
+    return [];
   });
 
   const [schedules, setSchedules] = useState(() => {
@@ -56,12 +51,12 @@ export default function RouteDispatch() {
       const cached = localStorage.getItem("app_schedules_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // ignore
     }
-    return Array.isArray(initialMockSchedules) ? initialMockSchedules : [];
+    return [];
   });
 
   const [vehicles, setVehicles] = useState(() => {
@@ -69,12 +64,12 @@ export default function RouteDispatch() {
       const cached = localStorage.getItem("app_fleet_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // ignore
     }
-    return initialMockFleet?.data?.vehicles || initialMockFleet?.data?.trucks || [];
+    return [];
   });
 
   const [zones, setZones] = useState(() => {
@@ -82,12 +77,12 @@ export default function RouteDispatch() {
       const cached = localStorage.getItem("app_zones_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // ignore
     }
-    return Array.isArray(initialMockZones) ? initialMockZones : [];
+    return [];
   });
 
   const [products, setProducts] = useState(() => {
@@ -95,20 +90,21 @@ export default function RouteDispatch() {
       const cached = localStorage.getItem("app_items_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // ignore
     }
-    return Array.isArray(initialMockItems)
-      ? initialMockItems
-      : initialMockItems?.data?.products || [];
+    return [];
   });
 
-  const allUsersList = useMemo(() => initialMockUsers?.data?.users || [], []);
+  const [users, setUsers] = useState([]);
   const drivers = useMemo(
-    () => allUsersList.filter((u) => (u.role || "").toLowerCase().includes("driver")),
-    [allUsersList]
+    () => users.filter((u) => {
+      const role = (u.role || u.roleNames?.join(" ") || "").toLowerCase();
+      return role.includes("driver");
+    }),
+    [users]
   );
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -126,50 +122,53 @@ export default function RouteDispatch() {
 
   const loadData = useCallback(async () => {
     try {
-      const [tripsData, schedData, vData, zData, prodData] = await Promise.all([
-        tripsApi.getTrips().catch(() => initialMockTrips),
-        schedulesApi.getSchedules().catch(() => initialMockSchedules),
-        fleetApi.getVehicles().catch(() => initialMockFleet?.data?.vehicles || []),
-        schedulesApi.getZones().catch(() => initialMockZones),
-        inventoryApi.getInventoryItems().catch(() => initialMockItems),
+      const [tripsData, schedData, vData, zData, prodData, uData] = await Promise.all([
+        tripsApi.getTrips().catch((err) => {
+          console.warn("Failed to fetch trips:", err);
+          return [];
+        }),
+        schedulesApi.getSchedules().catch((err) => {
+          console.warn("Failed to fetch schedules:", err);
+          return [];
+        }),
+        fleetApi.getVehicles().catch((err) => {
+          console.warn("Failed to fetch fleet:", err);
+          return [];
+        }),
+        schedulesApi.getZones().catch((err) => {
+          console.warn("Failed to fetch zones:", err);
+          return [];
+        }),
+        inventoryApi.getInventoryItems().catch((err) => {
+          console.warn("Failed to fetch items:", err);
+          return [];
+        }),
+        usersApi.getUsers().catch(() => []),
       ]);
 
       if (Array.isArray(tripsData)) setTrips(tripsData);
       if (Array.isArray(schedData)) setSchedules(schedData);
-      if (Array.isArray(vData) && vData.length > 0) setVehicles(vData);
-      if (Array.isArray(zData) && zData.length > 0) setZones(zData);
-      if (Array.isArray(prodData) && prodData.length > 0) setProducts(prodData);
+      if (Array.isArray(vData)) setVehicles(vData);
+      if (Array.isArray(zData)) setZones(zData);
+      if (Array.isArray(prodData)) setProducts(prodData);
+      if (Array.isArray(uData)) setUsers(uData);
     } catch (err) {
       console.warn("Failed to refresh today's dispatches:", err);
     }
   }, []);
 
   useEffect(() => {
-    let ignore = false;
-    const fetchDispatches = async () => {
-      try {
-        const [tripsData, schedData, vData, zData, prodData] = await Promise.all([
-          tripsApi.getTrips().catch(() => initialMockTrips),
-          schedulesApi.getSchedules().catch(() => initialMockSchedules),
-          fleetApi.getVehicles().catch(() => initialMockFleet?.data?.vehicles || []),
-          schedulesApi.getZones().catch(() => initialMockZones),
-          inventoryApi.getInventoryItems().catch(() => initialMockItems),
-        ]);
-        if (ignore) return;
-        if (Array.isArray(tripsData)) setTrips(tripsData);
-        if (Array.isArray(schedData)) setSchedules(schedData);
-        if (Array.isArray(vData) && vData.length > 0) setVehicles(vData);
-        if (Array.isArray(zData) && zData.length > 0) setZones(zData);
-        if (Array.isArray(prodData) && prodData.length > 0) setProducts(prodData);
-      } catch (err) {
-        console.warn("Failed to refresh today's dispatches:", err);
+    let mounted = true;
+    const fetchAll = async () => {
+      if (mounted) {
+        await loadData();
       }
     };
-    fetchDispatches();
+    fetchAll();
     return () => {
-      ignore = true;
+      mounted = false;
     };
-  }, []);
+  }, [loadData]);
 
   // 1. Out on the Road: Active trips (IN_PROGRESS)
   const activeTrips = useMemo(() => {
@@ -269,18 +268,18 @@ export default function RouteDispatch() {
         />
       )}
 
-      {/* Top Header & Search Bar */}
+      {/* Top Controls & Search Bar */}
       <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#D5E3EC]">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-[#0A4B6E]">Today's Dispatches</h2>
-            <span className="text-xs text-[#6D8AA2]">
-              · {activeTrips.length} Out on the Road · {readySchedules.length} Ready to Dispatch
-            </span>
-          </div>
-          <p className="text-xs text-[#6D8AA2]">
-            Monitor active delivery runs, record midday reloads, and dispatch scheduled vehicles.
-          </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+            <span>{activeTrips.length} Out on the Road</span>
+          </span>
+
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
+            <Clock size={13} className="text-[#0A4B6E]" />
+            <span>{readySchedules.length} Ready to Dispatch</span>
+          </span>
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto">

@@ -449,7 +449,7 @@ export default function Layout() {
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col h-screen min-w-0 overflow-hidden p-6">
         {/* Slim, clean white top header with page title */}
-        <header className="h-[60px] bg-white flex items-center justify-between px-4 md:px-8 text-slate-800 shrink-0 border-b border-slate-200/80 shadow-2xs z-10">
+        <header className="h-[60px] bg-white flex items-center justify-between px-4 md:px-8 text-slate-800 shrink-0 border-b border-slate-200/80 shadow-2xs">
           <div className="flex items-center gap-3">
             <button
               className="md:hidden p-1.5 rounded-xl text-[#0A4B6E] hover:bg-[#E8F3F8] transition cursor-pointer"

@@ -14,7 +14,6 @@ import {
 import { inventoryApi } from "../../api/inventory.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
-import initialMockPlantInventory from "../../mocks/plant-inventory.json";
 import SupplierRestockModal from "../../components/items/plant/SupplierRestockModal.jsx";
 import QuarantineDefectsModal from "../../components/items/plant/QuarantineDefectsModal.jsx";
 import ToastNotification from "../../components/ui/ToastNotifications.jsx";
@@ -32,12 +31,12 @@ export default function PlantWarehouse() {
       const cached = localStorage.getItem(PLANT_CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // ignore
     }
-    return initialMockPlantInventory?.data?.inventory || [];
+    return [];
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -63,7 +62,7 @@ export default function PlantWarehouse() {
       setIsLoading(true);
       const res = await inventoryApi.getPlantInventory();
       const list = Array.isArray(res) ? res : res?.data?.inventory || [];
-      if (list.length > 0) {
+      if (Array.isArray(list)) {
         setPlantStock(list);
         try {
           localStorage.setItem(PLANT_CACHE_KEY, JSON.stringify(list));
@@ -145,24 +144,14 @@ export default function PlantWarehouse() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-[#F8FAFC]">
-      {/* Header Banner */}
-      <header className="shrink-0 bg-white border-b border-[#E2E8F0] px-6 py-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xl">🏭</span>
-              <h1 className="text-xl font-bold text-[#0A4B6E]">Plant Warehouse</h1>
-            </div>
-            <p className="text-xs text-[#6D8AA2] mt-0.5">
-              Daily Bunawan yard inventory tracking across conditions
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
+      {/* Top Controls Header */}
+      <header className="shrink-0 bg-white border-b border-[#E2E8F0] px-6 py-3.5 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setShowLoadingGuide(!showLoadingGuide)}
-              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
                 showLoadingGuide
                   ? "bg-[#0A4B6E] text-white border-[#0A4B6E]"
                   : "bg-white text-[#0A4B6E] border-[#CBD5E1] hover:bg-slate-50"
@@ -171,7 +160,9 @@ export default function PlantWarehouse() {
               <Scale size={14} />
               <span>Morning Loading Guide</span>
             </button>
+          </div>
 
+          <div className="flex flex-wrap items-center gap-2">
             {canManage && (
               <>
                 <button
@@ -180,7 +171,7 @@ export default function PlantWarehouse() {
                     setActiveQuarantineProductId(null);
                     setShowQuarantineModal(true);
                   }}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-white border border-[#CBD5E1] text-[#C93B32] hover:bg-rose-50 transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-full bg-white border border-[#CBD5E1] text-[#C93B32] hover:bg-rose-50 transition-all cursor-pointer shadow-2xs"
                 >
                   <AlertOctagon size={14} />
                   <span>Mark Defective Stock</span>
@@ -192,7 +183,7 @@ export default function PlantWarehouse() {
                     setActiveRestockProductId(null);
                     setShowRestockModal(true);
                   }}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-[#FFDF2C] text-[#0A4B6E] hover:bg-[#ebd024] shadow-xs transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-1.5 rounded-full bg-[#FFDF2C] text-[#0A4B6E] hover:bg-[#ebd024] shadow-2xs transition-all cursor-pointer uppercase tracking-wider text-[11px]"
                 >
                   <Download size={14} />
                   <span>Receive Supplier Stock</span>
@@ -205,7 +196,7 @@ export default function PlantWarehouse() {
               onClick={fetchStock}
               disabled={isLoading}
               title="Refresh warehouse stock"
-              className="p-2 text-[#6D8AA2] hover:text-[#0A4B6E] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              className="p-1.5 text-[#6D8AA2] hover:text-[#0A4B6E] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
             >
               <RefreshCw size={15} className={isLoading ? "animate-spin" : ""} />
             </button>
@@ -213,7 +204,7 @@ export default function PlantWarehouse() {
         </div>
 
         {/* Minimal Summary Metrics Strip */}
-        <div className="grid grid-cols-3 gap-3 mt-4 pt-3 border-t border-[#F1F5F9]">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2.5 border-t border-[#F1F5F9]">
           <div className="bg-[#F8FAFC] rounded-lg p-2.5 border border-[#E2E8F0] flex items-center justify-between">
             <div>
               <span className="text-[11px] font-semibold text-[#6D8AA2] uppercase tracking-wide block">

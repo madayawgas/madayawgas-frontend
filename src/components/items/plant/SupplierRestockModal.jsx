@@ -1,5 +1,6 @@
 // src/components/items/plant/SupplierRestockModal.jsx
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Download, X } from "lucide-react";
 
 export default function SupplierRestockModal({
@@ -51,9 +52,9 @@ export default function SupplierRestockModal({
   const selectedItem = plantStock.find((p) => p.productId === productId) || plantStock[0];
   const crates = Math.floor(Number(quantityUnits || 0) / 24);
 
-  return (
-    <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl border border-[#D5E3EC] max-w-md w-full p-6 shadow-2xl space-y-4">
+  const modalNode = (
+    <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-white rounded-2xl border border-[#D5E3EC] max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
           <div className="flex items-center gap-2.5">
@@ -159,4 +160,6 @@ export default function SupplierRestockModal({
       </div>
     </div>
   );
+
+  return createPortal(modalNode, document.body);
 }

@@ -8,7 +8,6 @@ import { dashboardApi } from "../../api/dashboard.js";
 import { salesApi } from "../../api/sales.js";
 import { fleetApi } from "../../api/fleet.js";
 import { customersApi } from "../../api/customers.js";
-import mockSales from "../../mocks/sales.json";
 import bgHeader from "../../assets/BG-Madayaw8.png";
 import { hasUserRole } from "../../utils/userRoles.js";
 
@@ -33,7 +32,7 @@ export default function Dashboard() {
     } catch (e) {
       console.error("Error reading cached customers for dashboard:", e);
     }
-    return 6;
+    return 0;
   });
 
   const [totalTrucks, setTotalTrucks] = useState(() => {
@@ -48,7 +47,7 @@ export default function Dashboard() {
     } catch (e) {
       console.error("Error reading cached fleet items for dashboard:", e);
     }
-    return 5;
+    return 0;
   });
 
   const [truckCounts, setTruckCounts] = useState(() => {
@@ -73,14 +72,14 @@ export default function Dashboard() {
       console.error("Error reading cached fleet items for dashboard:", e);
     }
     return {
-      available: 3,
+      available: 0,
       inUse: 0,
-      maintenance: 2,
+      maintenance: 0,
       underRepair: 0,
     };
   });
 
-  const [salesData, setSalesData] = useState(mockSales.data);
+  const [salesData, setSalesData] = useState({ weekly: [], monthly: [], annually: [] });
   const [maintenanceLogs, setMaintenanceLogs] = useState(() => {
     try {
       const cached = localStorage.getItem("app_maintenance_logs_cache");

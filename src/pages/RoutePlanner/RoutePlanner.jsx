@@ -6,11 +6,7 @@ import { PERMISSIONS } from "../../utils/permissions.js";
 
 import { schedulesApi } from "../../api/schedules.js";
 import { fleetApi } from "../../api/fleet.js";
-
-import initialMockTemplates from "../../mocks/templates.json";
-import initialMockZones from "../../mocks/zones.json";
-import initialMockFleet from "../../mocks/fleet.json";
-import initialMockUsers from "../../mocks/users.json";
+import { usersApi } from "../../api/users.js";
 
 import MasterTemplateMatrix from "../../components/route-dispatch/MasterTemplateMatrix";
 import TemplateModal from "../../components/route-dispatch/TemplateModal";
@@ -26,12 +22,12 @@ export default function RoutePlanner() {
       const cached = localStorage.getItem("app_templates_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // ignore
     }
-    return Array.isArray(initialMockTemplates) ? initialMockTemplates : [];
+    return [];
   });
 
   const [vehicles, setVehicles] = useState(() => {
@@ -39,12 +35,12 @@ export default function RoutePlanner() {
       const cached = localStorage.getItem("app_fleet_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // ignore
     }
-    return initialMockFleet?.data?.vehicles || initialMockFleet?.data?.trucks || [];
+    return [];
   });
 
   const [zones, setZones] = useState(() => {
@@ -52,19 +48,21 @@ export default function RoutePlanner() {
       const cached = localStorage.getItem("app_zones_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // ignore
     }
-    return Array.isArray(initialMockZones) ? initialMockZones : [];
+    return [];
   });
 
-  const allUsersList = useMemo(() => initialMockUsers?.data?.users || [], []);
-  const salesUsers = useMemo(
-    () => allUsersList.filter((u) => (u.role || "").toLowerCase().includes("sales")),
-    [allUsersList]
-  );
+  const [users, setUsers] = useState([]);
+  const salesUsers = useMemo(() => {
+    return users.filter((u) => {
+      const role = (u.role || u.roleNames?.join(" ") || "").toLowerCase();
+      return role.includes("sales");
+    });
+  }, [users]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState(null);
@@ -83,15 +81,26 @@ export default function RoutePlanner() {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [tplData, vData, zData] = await Promise.all([
-        schedulesApi.getTemplates().catch(() => initialMockTemplates),
-        fleetApi.getVehicles().catch(() => initialMockFleet?.data?.vehicles || []),
-        schedulesApi.getZones().catch(() => initialMockZones),
+      const [tplData, vData, zData, uData] = await Promise.all([
+        schedulesApi.getTemplates().catch((err) => {
+          console.warn("Error fetching templates:", err);
+          return [];
+        }),
+        fleetApi.getVehicles().catch((err) => {
+          console.warn("Error fetching fleet:", err);
+          return [];
+        }),
+        schedulesApi.getZones().catch((err) => {
+          console.warn("Error fetching zones:", err);
+          return [];
+        }),
+        usersApi.getUsers().catch(() => []),
       ]);
 
       if (Array.isArray(tplData)) setTemplates(tplData);
-      if (Array.isArray(vData) && vData.length > 0) setVehicles(vData);
-      if (Array.isArray(zData) && zData.length > 0) setZones(zData);
+      if (Array.isArray(vData)) setVehicles(vData);
+      if (Array.isArray(zData)) setZones(zData);
+      if (Array.isArray(uData)) setUsers(uData);
     } catch (err) {
       console.warn("Failed to load route planner data:", err);
     } finally {
@@ -163,18 +172,13 @@ export default function RoutePlanner() {
         />
       )}
 
-      {/* Top Header Bar */}
+      {/* Top Controls Bar */}
       <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#D5E3EC]">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-[#0A4B6E]">Weekly Route Planner</h2>
-            <span className="text-xs text-[#6D8AA2]">
-              · {templates.length} Active Templates
-            </span>
-          </div>
-          <p className="text-xs text-[#6D8AA2]">
-            Plan recurring vehicle routes by day of week and generate daily deployment runs ahead of time.
-          </p>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
+            <Calendar size={13} className="text-[#0A4B6E]" />
+            <span>{templates.length} Active Weekly Templates</span>
+          </span>
         </div>
 
         {canManage && (
@@ -185,7 +189,7 @@ export default function RoutePlanner() {
               className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-[#D5E3EC] text-[#0A4B6E] font-bold text-xs px-3.5 py-2 rounded-full transition-all cursor-pointer shadow-2xs"
             >
               <Plus size={14} />
-              <span>+ Add Route Template</span>
+              <span>Add Route Template</span>
             </button>
 
             <button

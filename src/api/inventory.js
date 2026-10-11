@@ -275,7 +275,7 @@ export const inventoryApi = {
     try {
       const res = await apiClient(`/inventory/plant`);
       const list = res?.data?.inventory || res?.data || [];
-      if (Array.isArray(list) && list.length > 0) {
+      if (Array.isArray(list)) {
         return list.map((item) => ({
           ...item,
           productId: item.productId || item.product_id,
@@ -290,10 +290,10 @@ export const inventoryApi = {
           cratesDefective: item.cratesDefective !== undefined ? item.cratesDefective : (item.container_type === 'CANISTER' ? Math.floor(Number(item.quantity_defective) / 24) : null),
         }));
       }
-      return inMemoryPlantStock;
+      return [];
     } catch (err) {
-      console.warn("Failed to fetch plant inventory from API, using fallback:", err.message);
-      return inMemoryPlantStock;
+      console.error("Failed to fetch plant inventory from API:", err);
+      throw err;
     }
   },
 
@@ -567,7 +567,7 @@ export const inventoryApi = {
         meta,
       };
     } catch (err) {
-      console.warn("apiClient /inventory/transfers failed, falling back to mock:", err.message);
+      console.warn("apiClient /inventory/transfers failed, returning empty list:", err.message);
       return {
         transfers: [],
         meta: { page: 1, limit, totalItems: 0, totalPages: 1 },

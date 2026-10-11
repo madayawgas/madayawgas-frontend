@@ -14,7 +14,7 @@ function getInMemoryTrips() {
   } catch (e) {
     console.error("Error reading cached trips:", e);
   }
-  return Array.isArray(mockTrips) ? [...mockTrips] : [];
+  return isMock && Array.isArray(mockTrips) ? [...mockTrips] : [];
 }
 
 function saveInMemoryTrips(trips) {
@@ -192,20 +192,15 @@ export const tripsApi = {
     if (params.page) query.append("page", params.page);
     if (params.limit) query.append("limit", params.limit);
 
-    try {
-      const qs = query.toString() ? `?${query.toString()}` : "";
-      const res = await apiClient(`/trips${qs}`);
-      const rawList = res?.data?.trips || res?.data || [];
-      if (Array.isArray(rawList) && rawList.length > 0) {
-        const normalized = rawList.map(normalizeTrip);
-        saveInMemoryTrips(normalized);
-        return normalized;
-      }
-      return getInMemoryTrips().map(normalizeTrip);
-    } catch (e) {
-      console.warn("apiClient /trips failed, falling back to cache/mock:", e?.message);
-      return getInMemoryTrips().map(normalizeTrip);
+    const qs = query.toString() ? `?${query.toString()}` : "";
+    const res = await apiClient(`/trips${qs}`);
+    const rawList = res?.data?.trips || res?.data || [];
+    if (Array.isArray(rawList)) {
+      const normalized = rawList.map(normalizeTrip);
+      saveInMemoryTrips(normalized);
+      return normalized;
     }
+    return [];
   },
 
   /**
