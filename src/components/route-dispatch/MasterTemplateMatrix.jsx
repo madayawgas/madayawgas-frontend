@@ -1,5 +1,6 @@
-// src/components/route-dispatch/MasterTemplateMatrix.jsx
+import { useMemo } from "react";
 import { Calendar, Trash2, Plus, Info } from "lucide-react";
+import { getPhilippineDayOfWeek } from "../../utils/date.js";
 
 const DAYS = [
   { num: 1, label: "Mon", full: "Monday" },
@@ -19,6 +20,8 @@ export default function MasterTemplateMatrix({
   onDeleteTemplate,
   canManage = true,
 }) {
+  const currentIsoDay = useMemo(() => getPhilippineDayOfWeek(new Date()), []);
+
   // Map templates by truckId and dayOfWeek, with plateNumber fallback
   const templateMap = {};
   templates.forEach((t) => {
@@ -60,11 +63,26 @@ export default function MasterTemplateMatrix({
           <thead>
             <tr className="bg-[#EDF3F7] text-[#0A4B6E] font-bold border-b border-[#D5E3EC]">
               <th className="p-3 rounded-l-xl w-48">Vehicle</th>
-              {DAYS.map((d) => (
-                <th key={d.num} className="p-3 text-center">
-                  <span>{d.label}</span>
-                </th>
-              ))}
+              {DAYS.map((d) => {
+                const isToday = d.num === currentIsoDay;
+                return (
+                  <th
+                    key={d.num}
+                    className={`p-3 text-center transition-colors ${
+                      isToday ? "bg-[#0A4B6E]/10" : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      <span>{d.label}</span>
+                      {isToday && (
+                        <span className="text-[9px] bg-[#FFDF2C] text-[#0A4B6E] px-1.5 py-0.2 rounded-full font-bold shadow-2xs">
+                          Today
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="divide-y divide-[#E2E8F0]">
@@ -76,9 +94,15 @@ export default function MasterTemplateMatrix({
                 </td>
 
                 {DAYS.map((d) => {
+                  const isToday = d.num === currentIsoDay;
                   const t = templateMap[`${v.id}_${d.num}`] || (v.plateNumber ? templateMap[`plate_${String(v.plateNumber).toUpperCase()}_${d.num}`] : null);
                   return (
-                    <td key={d.num} className="p-2 text-center">
+                    <td
+                      key={d.num}
+                      className={`p-2 text-center transition-colors ${
+                        isToday ? "bg-amber-50/40" : ""
+                      }`}
+                    >
                       {t ? (
                         <div className="group relative inline-flex items-center justify-center">
                           <button

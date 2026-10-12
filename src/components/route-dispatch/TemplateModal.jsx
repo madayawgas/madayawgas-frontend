@@ -85,7 +85,7 @@ export default function TemplateModal({
         truckModel: selTruck?.model,
         zoneCode: selZone?.code,
         zoneName: selZone?.name,
-        salesName: selSales ? `${selSales.firstName} ${selSales.lastName}` : null,
+        salesName: selSales ? (selSales.fullName || `${selSales.firstName || ""} ${selSales.lastName || ""}`.trim() || selSales.username) : null,
       });
 
       onClose();
@@ -238,7 +238,7 @@ export default function TemplateModal({
               <option value="">None (Can be assigned upon dispatch)</option>
               {salesUsers.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.firstName} {u.lastName} ({u.username})
+                  {u.fullName || `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username} ({u.username})
                 </option>
               ))}
             </select>

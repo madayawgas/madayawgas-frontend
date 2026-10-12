@@ -13,6 +13,8 @@ import { PERMISSIONS } from "./utils/permissions.js";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import DynamicHomeRedirect from "./components/auth/DynamicHomeRedirect.jsx";
 
+import { sanitizeAppCaches } from "./utils/storageSanitizer.js";
+
 import Layout from "./pages/Layout";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Login from "./pages/Login/Login";
@@ -211,7 +213,10 @@ const router = createBrowserRouter([
   },
 ]);
 
-// 2. Wrap router with AuthProvider
+// 2. Clear any stale mock caches before rendering
+sanitizeAppCaches();
+
+// 3. Wrap router with AuthProvider
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <AuthProvider>

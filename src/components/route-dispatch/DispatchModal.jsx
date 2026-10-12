@@ -2,6 +2,11 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Truck, X, Plus, Trash2 } from "lucide-react";
 import { isCanisterProduct } from "../../utils/product.js";
+import {
+  getPhilippineTodayString,
+  toPhilippineDateInputString,
+  formatPhilippineDate,
+} from "../../utils/date.js";
 
 export default function DispatchModal({
   isOpen,
@@ -12,6 +17,7 @@ export default function DispatchModal({
   drivers = [],
   zones = [],
   products = [],
+  salesUsers = [],
   initialScheduleId = "",
 }) {
   const [isAdHoc, setIsAdHoc] = useState(false);
@@ -27,6 +33,7 @@ export default function DispatchModal({
   // Ad-hoc run fields
   const [truckId, setTruckId] = useState("");
   const [driverId, setDriverId] = useState("");
+  const [salesUserId, setSalesUserId] = useState("");
   const [zoneId, setZoneId] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -36,25 +43,57 @@ export default function DispatchModal({
     const isCan = isCanisterProduct(defaultProd);
     return [
       {
-        productId: defaultProd?.id || "e9b21f37-142c-4f76-96f3-a3d8b02e7b91",
+        productId: defaultProd?.id || "",
         condition: "FILLED",
         quantityUnits: isCan ? 120 : 25,
       },
     ];
   });
 
+  // Ensure load items synchronize once products array resolves
+  useEffect(() => {
+    if (products.length > 0) {
+      setLoadItems((prev) => {
+        const hasMissing = prev.some(
+          (it) => !it.productId || it.productId === "e9b21f37-142c-4f76-96f3-a3d8b02e7b91"
+        );
+        if (hasMissing) {
+          const firstProd = products[0];
+          const isCan = isCanisterProduct(firstProd);
+          return [
+            {
+              productId: firstProd.id,
+              condition: "FILLED",
+              quantityUnits: isCan ? 120 : 25,
+            },
+          ];
+        }
+        return prev;
+      });
+    }
+  }, [products, isOpen]);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  const scheduledOptions = schedules.filter((s) => s.status === "SCHEDULED");
+  const todayPht = getPhilippineTodayString();
+
+  const scheduledOptions = schedules.filter((s) => {
+    const isScheduled = (s.status || "").toUpperCase() === "SCHEDULED";
+    const schedDate = toPhilippineDateInputString(s.scheduledDate);
+    const isToday = schedDate === todayPht;
+    const isPreselected = initialScheduleId && s.id === initialScheduleId;
+    return isScheduled && (isToday || isPreselected);
+  });
 
   const handleAddItem = () => {
     const defaultProd = products[0];
+    if (!defaultProd) return;
     const isCan = isCanisterProduct(defaultProd);
     setLoadItems((prev) => [
       ...prev,
       {
-        productId: defaultProd?.id || "",
+        productId: defaultProd.id,
         condition: "FILLED",
         quantityUnits: isCan ? 48 : 20,
       },
@@ -91,15 +130,25 @@ export default function DispatchModal({
           throw new Error("Please select a scheduled operational run");
         }
         const sched = scheduledOptions.find((s) => s.id === selectedScheduleId) || scheduledOptions[0];
+        if (!sched) throw new Error("No scheduled run available for dispatch");
+
+        const selTruck = vehicles.find((v) => v.id === sched.truckId);
+        const resolvedDriverId = driverId || sched.driverId || sched.truckDriverId || selTruck?.driverId || null;
+        const selDriver = drivers.find((d) => d.id === resolvedDriverId);
+
         payload = {
-          scheduleId: sched?.id,
-          truckId: sched?.truckId,
-          truckPlate: sched?.truckPlate,
-          truckModel: sched?.truckModel,
-          salesUserId: sched?.salesUserId,
-          salesName: sched?.salesName,
-          zoneId: sched?.zoneId,
-          zoneCode: sched?.zoneCode,
+          scheduleId: sched.isTemplateDerived ? null : sched.id,
+          truckId: sched.truckId,
+          truckPlate: sched.truckPlate,
+          truckModel: sched.truckModel,
+          driverId: resolvedDriverId,
+          driverName: selDriver
+            ? (selDriver.fullName || `${selDriver.firstName || ""} ${selDriver.lastName || ""}`.trim() || selDriver.username)
+            : (sched.driverName || "Juan Driver"),
+          salesUserId: sched.salesUserId,
+          salesName: sched.salesName,
+          zoneId: sched.zoneId,
+          zoneCode: sched.zoneCode,
           notes,
           initialLoads: validLoads.map((item) => ({
             productId: item.productId,
@@ -110,17 +159,26 @@ export default function DispatchModal({
       } else {
         if (!truckId) throw new Error("Please select a vehicle");
         if (!zoneId) throw new Error("Please select a service zone");
+        if (!salesUserId) throw new Error("Please select an assigned Sales Person");
 
         const selTruck = vehicles.find((v) => v.id === truckId);
-        const selDriver = drivers.find((d) => d.id === driverId);
+        const resolvedDriverId = driverId || selTruck?.driverId || null;
+        const selDriver = drivers.find((d) => d.id === resolvedDriverId);
+        const selSales = salesUsers.find((u) => u.id === salesUserId);
         const selZone = zones.find((z) => z.id === zoneId);
 
         payload = {
           truckId,
           truckPlate: selTruck?.plateNumber,
           truckModel: selTruck?.model,
-          driverId: driverId || selTruck?.driverId,
-          driverName: selDriver ? `${selDriver.firstName} ${selDriver.lastName}` : "Juan Driver",
+          driverId: resolvedDriverId,
+          driverName: selDriver
+            ? (selDriver.fullName || `${selDriver.firstName || ""} ${selDriver.lastName || ""}`.trim() || selDriver.username)
+            : "Juan Driver",
+          salesUserId,
+          salesName: selSales
+            ? (selSales.fullName || `${selSales.firstName || ""} ${selSales.lastName || ""}`.trim() || selSales.username)
+            : "Sales Person",
           zoneId,
           zoneCode: selZone?.code,
           notes,
@@ -199,25 +257,45 @@ export default function DispatchModal({
           </div>
 
           {!isAdHoc ? (
-            <div>
-              <label className="block font-bold text-[#0A4B6E] mb-1">Select Today's Schedule *</label>
-              {scheduledOptions.length > 0 ? (
-                <select
-                  value={selectedScheduleId}
-                  onChange={(e) => setSelectedScheduleId(e.target.value)}
-                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl p-2.5 text-xs text-[#0A4B6E] font-medium focus:outline-[#0A4B6E]"
-                >
-                  <option value="">Select a schedule...</option>
-                  {scheduledOptions.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.scheduledDate} — {s.truckPlate} ({s.zoneCode || "Zone"}) · {s.salesName || "Sales"}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <p className="text-slate-500 italic p-2 bg-[#F8FAFC] rounded-xl border border-dashed border-[#CBD5E1]">
-                  No scheduled runs awaiting dispatch today. Switch to Ad-Hoc Run.
-                </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block font-bold text-[#0A4B6E] mb-1">Select Today's Schedule *</label>
+                {scheduledOptions.length > 0 ? (
+                  <select
+                    value={selectedScheduleId}
+                    onChange={(e) => setSelectedScheduleId(e.target.value)}
+                    className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl p-2.5 text-xs text-[#0A4B6E] font-medium focus:outline-[#0A4B6E]"
+                  >
+                    <option value="">Select a schedule...</option>
+                    {scheduledOptions.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {formatPhilippineDate(s.scheduledDate)} — {s.truckPlate} ({s.zoneCode || "Zone"}) · {s.salesName || "Sales"}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-slate-500 italic p-2 bg-[#F8FAFC] rounded-xl border border-dashed border-[#CBD5E1]">
+                    No scheduled runs awaiting dispatch today. Switch to Ad-Hoc Run.
+                  </p>
+                )}
+              </div>
+
+              {selectedScheduleId && (
+                <div>
+                  <label className="block font-bold text-[#0A4B6E] mb-1">Driver Assignment (Optional Override)</label>
+                  <select
+                    value={driverId}
+                    onChange={(e) => setDriverId(e.target.value)}
+                    className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl p-2.5 text-xs text-[#0A4B6E] focus:outline-[#0A4B6E]"
+                  >
+                    <option value="">Default driver assigned to vehicle</option>
+                    {drivers.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.fullName || `${d.firstName || ""} ${d.lastName || ""}`.trim() || d.username}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
             </div>
           ) : (
@@ -228,6 +306,7 @@ export default function DispatchModal({
                   value={truckId}
                   onChange={(e) => setTruckId(e.target.value)}
                   className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl p-2.5 text-xs text-[#0A4B6E] focus:outline-[#0A4B6E]"
+                  required
                 >
                   <option value="">Select vehicle...</option>
                   {vehicles.map((v) => (
@@ -244,11 +323,29 @@ export default function DispatchModal({
                   value={zoneId}
                   onChange={(e) => setZoneId(e.target.value)}
                   className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl p-2.5 text-xs text-[#0A4B6E] focus:outline-[#0A4B6E]"
+                  required
                 >
                   <option value="">Select zone...</option>
                   {zones.map((z) => (
                     <option key={z.id} value={z.id}>
                       {z.code} — {z.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-[#0A4B6E] mb-1">Sales Person *</label>
+                <select
+                  value={salesUserId}
+                  onChange={(e) => setSalesUserId(e.target.value)}
+                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl p-2.5 text-xs text-[#0A4B6E] focus:outline-[#0A4B6E]"
+                  required
+                >
+                  <option value="">Select sales person...</option>
+                  {salesUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.fullName || `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username} ({u.username})
                     </option>
                   ))}
                 </select>
@@ -264,7 +361,7 @@ export default function DispatchModal({
                   <option value="">Default vehicle driver</option>
                   {drivers.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.firstName} {d.lastName}
+                      {d.fullName || `${d.firstName || ""} ${d.lastName || ""}`.trim() || d.username}
                     </option>
                   ))}
                 </select>

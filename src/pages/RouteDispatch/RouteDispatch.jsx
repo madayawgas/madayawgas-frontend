@@ -20,9 +20,15 @@ import { tripsApi } from "../../api/trips.js";
 import { schedulesApi } from "../../api/schedules.js";
 import { fleetApi } from "../../api/fleet.js";
 import { inventoryApi } from "../../api/inventory.js";
-import { usersApi } from "../../api/users.js";
 
 import { isCanisterProduct, getCanisterCrates } from "../../utils/product.js";
+import {
+  getPhilippineTodayString,
+  getPhilippineDayOfWeek,
+  toPhilippineDateInputString,
+  formatPhilippineDate,
+  formatPhilippineTime,
+} from "../../utils/date.js";
 
 import DispatchModal from "../../components/route-dispatch/DispatchModal";
 import MiddayReloadModal from "../../components/route-dispatch/MiddayReloadModal";
@@ -32,6 +38,8 @@ export default function RouteDispatch() {
   const navigate = useNavigate();
   const { can } = useAuth();
   const canManage = can ? can(PERMISSIONS.ROUTE_MANAGE || "route.manage") : false;
+
+  const todayPht = useMemo(() => getPhilippineTodayString(), []);
 
   const [trips, setTrips] = useState(() => {
     try {
@@ -49,6 +57,19 @@ export default function RouteDispatch() {
   const [schedules, setSchedules] = useState(() => {
     try {
       const cached = localStorage.getItem("app_schedules_cache");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+
+  const [templates, setTemplates] = useState(() => {
+    try {
+      const cached = localStorage.getItem("app_templates_cache");
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) return parsed;
@@ -98,14 +119,8 @@ export default function RouteDispatch() {
     return [];
   });
 
-  const [users, setUsers] = useState([]);
-  const drivers = useMemo(
-    () => users.filter((u) => {
-      const role = (u.role || u.roleNames?.join(" ") || "").toLowerCase();
-      return role.includes("driver");
-    }),
-    [users]
-  );
+  const [drivers, setDrivers] = useState([]);
+  const [salesUsers, setSalesUsers] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [toast, setToast] = useState(null);
@@ -122,13 +137,17 @@ export default function RouteDispatch() {
 
   const loadData = useCallback(async () => {
     try {
-      const [tripsData, schedData, vData, zData, prodData, uData] = await Promise.all([
+      const [tripsData, schedData, tplData, vData, zData, prodData, driverData, salesData] = await Promise.all([
         tripsApi.getTrips().catch((err) => {
           console.warn("Failed to fetch trips:", err);
           return [];
         }),
-        schedulesApi.getSchedules().catch((err) => {
+        schedulesApi.getSchedules({ date: todayPht }).catch((err) => {
           console.warn("Failed to fetch schedules:", err);
+          return [];
+        }),
+        schedulesApi.getTemplates().catch((err) => {
+          console.warn("Failed to fetch templates:", err);
           return [];
         }),
         fleetApi.getVehicles().catch((err) => {
@@ -143,19 +162,29 @@ export default function RouteDispatch() {
           console.warn("Failed to fetch items:", err);
           return [];
         }),
-        usersApi.getUsers().catch(() => []),
+        fleetApi.getDrivers().catch((err) => {
+          console.warn("Failed to fetch drivers:", err);
+          return { drivers: [] };
+        }),
+        schedulesApi.getSalesPersons().catch((err) => {
+          console.warn("Failed to fetch sales persons:", err);
+          return [];
+        }),
       ]);
 
       if (Array.isArray(tripsData)) setTrips(tripsData);
       if (Array.isArray(schedData)) setSchedules(schedData);
+      if (Array.isArray(tplData)) setTemplates(tplData);
       if (Array.isArray(vData)) setVehicles(vData);
       if (Array.isArray(zData)) setZones(zData);
       if (Array.isArray(prodData)) setProducts(prodData);
-      if (Array.isArray(uData)) setUsers(uData);
+      const parsedDrivers = Array.isArray(driverData) ? driverData : (driverData?.drivers || []);
+      setDrivers(parsedDrivers);
+      if (Array.isArray(salesData)) setSalesUsers(salesData);
     } catch (err) {
       console.warn("Failed to refresh today's dispatches:", err);
     }
-  }, []);
+  }, [todayPht]);
 
   useEffect(() => {
     let mounted = true;
@@ -187,12 +216,70 @@ export default function RouteDispatch() {
     return list;
   }, [trips, searchTerm]);
 
-  // 2. Ready to Dispatch: Scheduled runs (SCHEDULED)
+  // 2. Ready to Dispatch: Scheduled runs (SCHEDULED) FOR TODAY ONLY
   const readySchedules = useMemo(() => {
-    let list = schedules.filter((s) => (s.status || "").toUpperCase() === "SCHEDULED");
+    // 1. Explicit operational schedules for today that are SCHEDULED
+    const directScheduled = schedules.filter((s) => {
+      const isSched = (s.status || "").toUpperCase() === "SCHEDULED";
+      const schedDate = toPhilippineDateInputString(s.scheduledDate);
+      return isSched && schedDate === todayPht;
+    });
+
+    // 2. Identify truck IDs already covered today (scheduled or active trip)
+    const coveredTruckIds = new Set([
+      ...directScheduled.map((s) => s.truckId),
+      ...trips
+        .filter((t) => (t.status || "").toUpperCase() === "IN_PROGRESS")
+        .map((t) => t.truckId),
+    ]);
+
+    // 3. Current Philippine day of week (1=Monday ... 7=Sunday)
+    const currentIsoDay = getPhilippineDayOfWeek(todayPht);
+
+    // 4. Find active templates for TODAY whose vehicle isn't already covered
+    const templateDerived = templates
+      .filter((t) => {
+        const isToday = Number(t.dayOfWeek) === Number(currentIsoDay);
+        const isActive = t.isActive !== false;
+        const notCovered = !coveredTruckIds.has(t.truckId);
+        return isToday && isActive && notCovered;
+      })
+      .map((t) => {
+        const vehicle = vehicles.find((v) => v.id === t.truckId);
+        const zone = zones.find((z) => z.id === t.zoneId);
+        const salesUser = salesUsers.find((u) => u.id === t.defaultSalesUserId);
+        const driverUser = drivers.find((d) => d.id === vehicle?.driverId);
+
+        return {
+          id: `tpl-${t.id}`,
+          templateId: t.id,
+          scheduledDate: todayPht,
+          truckId: t.truckId,
+          truckPlate: t.truckPlate || vehicle?.plateNumber || "No Plate",
+          truckModel: t.truckModel || vehicle?.model || "Delivery Vehicle",
+          truckStatus: vehicle?.status || "ACTIVE",
+          truckDriverId: vehicle?.driverId || null,
+          driverName: driverUser
+            ? (driverUser.fullName || `${driverUser.firstName || ""} ${driverUser.lastName || ""}`.trim() || driverUser.username)
+            : (vehicle?.driver ? `${vehicle.driver.firstName || ""} ${vehicle.driver.lastName || ""}`.trim() : "Unassigned"),
+          salesUserId: t.defaultSalesUserId || null,
+          salesName: salesUser
+            ? (salesUser.fullName || `${salesUser.firstName || ""} ${salesUser.lastName || ""}`.trim() || salesUser.username)
+            : (t.salesName || "Unassigned"),
+          zoneId: t.zoneId,
+          zoneCode: t.zoneCode || zone?.code || "",
+          zoneName: t.zoneName || zone?.name || "",
+          status: "SCHEDULED",
+          notes: `Weekly template (Day ${currentIsoDay})`,
+          isTemplateDerived: true,
+        };
+      });
+
+    let combined = [...directScheduled, ...templateDerived];
+
     if (searchTerm.trim()) {
       const q = searchTerm.trim().toLowerCase();
-      list = list.filter(
+      combined = combined.filter(
         (s) =>
           (s.truckPlate || "").toLowerCase().includes(q) ||
           (s.driverName || "").toLowerCase().includes(q) ||
@@ -201,8 +288,8 @@ export default function RouteDispatch() {
           (s.zoneName || "").toLowerCase().includes(q)
       );
     }
-    return list;
-  }, [schedules, searchTerm]);
+    return combined;
+  }, [schedules, templates, trips, vehicles, zones, salesUsers, drivers, searchTerm, todayPht]);
 
   const handleDispatchTrip = async (payload) => {
     try {
@@ -337,7 +424,7 @@ export default function RouteDispatch() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
               {activeTrips.map((trip) => {
                 const departureFormatted = trip.departureTime
-                  ? new Date(trip.departureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  ? formatPhilippineTime(trip.departureTime)
                   : "—";
                 const cargo = getFullCargoBreakdown(trip);
 
@@ -449,14 +536,17 @@ export default function RouteDispatch() {
               <h3 className="text-sm font-bold text-[#0A4B6E] uppercase tracking-wide">
                 Ready to Dispatch ({readySchedules.length})
               </h3>
+              <span className="text-[10px] font-bold text-[#0A4B6E] bg-[#E8F3F8] border border-[#BCE1F1] px-2.5 py-0.5 rounded-full">
+                Today · {formatPhilippineDate(todayPht)}
+              </span>
             </div>
-            <span className="text-[11px] text-[#6D8AA2]">Scheduled vehicle deployments</span>
+            <span className="text-[11px] text-[#6D8AA2]">Scheduled vehicle deployments for today</span>
           </div>
 
           {readySchedules.length === 0 ? (
             <div className="bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-2xl p-8 text-center">
               <Calendar size={28} className="mx-auto text-[#6D8AA2] mb-2 opacity-50" />
-              <p className="text-xs font-semibold text-[#0A4B6E]">No pending schedules ready to deploy</p>
+              <p className="text-xs font-semibold text-[#0A4B6E]">No pending schedules ready to deploy today</p>
               <p className="text-[11px] text-[#6D8AA2] mt-0.5">
                 Generate upcoming schedules from the Route Planner or click Dispatch Truck for an ad-hoc run.
               </p>
@@ -502,7 +592,7 @@ export default function RouteDispatch() {
 
                       <div className="flex justify-between items-center pt-1 border-t border-[#E2E8F0]">
                         <span className="text-[#6D8AA2]">Scheduled Date:</span>
-                        <span className="font-medium text-slate-700">{sched.scheduledDate}</span>
+                        <span className="font-bold text-[#0A4B6E]">{formatPhilippineDate(sched.scheduledDate)}</span>
                       </div>
                     </div>
                   </div>
@@ -535,11 +625,12 @@ export default function RouteDispatch() {
           setPrefillScheduleId("");
         }}
         onDispatch={handleDispatchTrip}
-        schedules={schedules}
+        schedules={readySchedules}
         vehicles={vehicles}
         drivers={drivers}
         zones={zones}
         products={products}
+        salesUsers={salesUsers}
         initialScheduleId={prefillScheduleId}
       />
 

@@ -6,7 +6,6 @@ import { PERMISSIONS } from "../../utils/permissions.js";
 
 import { schedulesApi } from "../../api/schedules.js";
 import { fleetApi } from "../../api/fleet.js";
-import { usersApi } from "../../api/users.js";
 
 import MasterTemplateMatrix from "../../components/route-dispatch/MasterTemplateMatrix";
 import TemplateModal from "../../components/route-dispatch/TemplateModal";
@@ -56,13 +55,7 @@ export default function RoutePlanner() {
     return [];
   });
 
-  const [users, setUsers] = useState([]);
-  const salesUsers = useMemo(() => {
-    return users.filter((u) => {
-      const role = (u.role || u.roleNames?.join(" ") || "").toLowerCase();
-      return role.includes("sales");
-    });
-  }, [users]);
+  const [salesUsers, setSalesUsers] = useState([]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState(null);
@@ -81,7 +74,7 @@ export default function RoutePlanner() {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [tplData, vData, zData, uData] = await Promise.all([
+      const [tplData, vData, zData, salesData] = await Promise.all([
         schedulesApi.getTemplates().catch((err) => {
           console.warn("Error fetching templates:", err);
           return [];
@@ -94,13 +87,16 @@ export default function RoutePlanner() {
           console.warn("Error fetching zones:", err);
           return [];
         }),
-        usersApi.getUsers().catch(() => []),
+        schedulesApi.getSalesPersons().catch((err) => {
+          console.warn("Error fetching sales persons:", err);
+          return [];
+        }),
       ]);
 
       if (Array.isArray(tplData)) setTemplates(tplData);
       if (Array.isArray(vData)) setVehicles(vData);
       if (Array.isArray(zData)) setZones(zData);
-      if (Array.isArray(uData)) setUsers(uData);
+      if (Array.isArray(salesData)) setSalesUsers(salesData);
     } catch (err) {
       console.warn("Failed to load route planner data:", err);
     } finally {
@@ -138,6 +134,7 @@ export default function RoutePlanner() {
       loadData();
     } catch (err) {
       showToast("error", err.message || "Failed to save route template");
+      throw err;
     }
   };
 
