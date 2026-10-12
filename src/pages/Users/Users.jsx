@@ -9,7 +9,6 @@ import ResetPasswordModal from "../../components/users/ResetPasswordModal";
 import AdminPasswordModal from "../../components/users/AdminPasswordModal";
 import CreatedCredentialsModal from "../../components/users/CreatedCredentialsModal";
 import UserModal from "../../components/users/UserModal";
-import PermissionsModal from "../../components/users/PermissionsModal";
 import SavedChangesToast from "../../components/ui/SavedChangesToast";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { usersApi } from "../../api/users.js";
@@ -18,30 +17,6 @@ import { getUserRoleNames, formatUserRoles, hasUserRole } from "../../utils/user
 import { isPhilippineDateInRange } from "../../utils/date.js";
 
 const LOCAL_STORAGE_KEY = "app_users_cache";
-
-const INITIAL_PERMISSIONS_MAP = {
-  "Super Admin": [
-    PERMISSIONS?.FLEET_VIEW || "fleet.view",
-    PERMISSIONS?.ROUTE_VIEW || "route.view",
-    PERMISSIONS?.INVENTORY_VIEW || "inventory.view",
-    PERMISSIONS?.SALES_VIEW || "sales.view",
-    PERMISSIONS?.USERS_VIEW || "users.view",
-  ],
-  "Admin": [
-    PERMISSIONS?.FLEET_VIEW || "fleet.view",
-    PERMISSIONS?.ROUTE_VIEW || "route.view",
-    PERMISSIONS?.INVENTORY_VIEW || "inventory.view",
-    PERMISSIONS?.SALES_VIEW || "sales.view",
-    PERMISSIONS?.USERS_VIEW || "users.view",
-  ],
-  "Fleet Manager": [PERMISSIONS?.FLEET_VIEW || "fleet.view"],
-  "Driver": [PERMISSIONS?.ROUTE_VIEW || "route.view"],
-  "Sales Manager": [
-    PERMISSIONS?.SALES_VIEW || "sales.view",
-    PERMISSIONS?.INVENTORY_VIEW || "inventory.view",
-  ],
-  "Sales Person": [PERMISSIONS?.SALES_VIEW || "sales.view"],
-};
 
 export default function Users() {
   const { can } = useAuth();
@@ -66,9 +41,8 @@ export default function Users() {
   const [isClosingPanel, setIsClosingPanel] = useState(false);
   const closeTimerRef = useRef(null);
 
-  // System Roles & Dynamic Permissions State
+  // System Roles State
   const [roles, setRoles] = useState([]);
-  const [permissionsMap, setPermissionsMap] = useState(INITIAL_PERMISSIONS_MAP);
 
   // Table Filtering and Sorting
   const [searchTerm, setSearchTerm] = useState("");
@@ -78,7 +52,6 @@ export default function Users() {
   // Modal States
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
   // Password Security Action States (Deactivate/Reactivate/ResetPassword)
@@ -354,15 +327,6 @@ export default function Users() {
     }
   };
 
-  // Role Permissions Save Handler
-  const handleSavePermissions = (roleName, updatedPerms) => {
-    setPermissionsMap((prev) => ({
-      ...prev,
-      [roleName]: updatedPerms,
-    }));
-    setShowToast(true);
-  };
-
   // Triggers warning confirmation modals first
   const handleInitiateDeactivate = (targetUser) => {
     if (!targetUser || hasUserRole(targetUser, "Super Admin")) return;
@@ -474,7 +438,6 @@ export default function Users() {
       {/* Header (Pinned at Top) */}
       <div className="shrink-0">
         <UsersHeader
-          onOpenPermissions={() => setIsPermissionsModalOpen(true)}
           onAddUser={() => setIsAddingUser(true)}
           userSummary={userSummary}
         />
@@ -548,14 +511,6 @@ export default function Users() {
           setEditingUser(null);
           handleInitiateResetPassword(u);
         }}
-      />
-
-      {/* Permissions Matrix Modal */}
-      <PermissionsModal
-        isOpen={isPermissionsModalOpen}
-        onClose={() => setIsPermissionsModalOpen(false)}
-        permissionsMap={permissionsMap}
-        onSave={handleSavePermissions}
       />
 
       {/* Deactivate User Modal */}

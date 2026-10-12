@@ -90,7 +90,7 @@ export default function TemplateModal({
 
       onClose();
     } catch (err) {
-      setError(err.message || "Failed to save route template");
+      setError(err.message || "Failed to save route schedule");
     } finally {
       setIsSubmitting(false);
     }
@@ -98,13 +98,13 @@ export default function TemplateModal({
 
   const handleDelete = async () => {
     if (!template?.id || !onDeleteTemplate) return;
-    if (window.confirm("Are you sure you want to remove this recurring template assignment?")) {
+    if (window.confirm("Are you sure you want to remove this route schedule?")) {
       try {
         setIsSubmitting(true);
         await onDeleteTemplate(template.id);
         onClose();
       } catch (err) {
-        setError(err.message || "Failed to delete template");
+        setError(err.message || "Failed to delete route schedule");
       } finally {
         setIsSubmitting(false);
       }
@@ -125,10 +125,10 @@ export default function TemplateModal({
             </div>
             <div>
               <h3 className="text-sm font-bold text-[#0A4B6E]">
-                {isEditing ? "Edit Route Template" : "Add Weekly Route Template"}
+                {isEditing ? "Edit Route Schedule" : "Add Route Schedule"}
               </h3>
               <p className="text-[11px] text-[#6D8AA2]">
-                Recurring weekly deployment pattern for automated schedule generation
+                Assign recurring weekly route and designated sales representative
               </p>
             </div>
           </div>
@@ -243,7 +243,7 @@ export default function TemplateModal({
               ))}
             </select>
             <p className="text-[11px] text-[#6D8AA2] mt-1 pl-1">
-              Automatically pre-fills the sales representative during daily schedule generation
+              Automatically pre-fills the sales representative when dispatching
             </p>
           </div>
 
@@ -257,7 +257,7 @@ export default function TemplateModal({
               className="w-4 h-4 text-[#0A4B6E] rounded focus:ring-0 cursor-pointer"
             />
             <label htmlFor="templateIsActive" className="text-xs text-[#0A4B6E] font-semibold cursor-pointer">
-              Active recurring template (included in batch schedule runs)
+              Active route schedule
             </label>
           </div>
 
@@ -265,7 +265,7 @@ export default function TemplateModal({
           <div className="p-2.5 bg-[#EDF3F7] border border-[#D5E3EC] rounded-xl text-[11px] text-[#486581] flex items-center gap-2">
             <CheckCircle2 size={14} className="text-[#0A4B6E] shrink-0" />
             <span>
-              <strong>Rule:</strong> Exactly one master template is maintained per vehicle per day of week. Saving will update the assignment for this slot.
+              <strong>Rule:</strong> Exactly one route schedule is maintained per vehicle per day of week. Saving will update the assignment for this slot.
             </span>
           </div>
 
@@ -297,7 +297,7 @@ export default function TemplateModal({
                 disabled={isSubmitting}
                 className="px-5 py-2 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#0E384E] cursor-pointer shadow-xs disabled:opacity-50"
               >
-                {isSubmitting ? "Saving..." : isEditing ? "Save Template ➔" : "+ Add Template"}
+                {isSubmitting ? "Saving..." : isEditing ? "Save Schedule ➔" : "+ Add Schedule"}
               </button>
             </div>
           </div>

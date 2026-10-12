@@ -1,7 +1,6 @@
-import { Settings, Plus, Users } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 
 export default function UsersHeader({
-  onOpenPermissions,
   onAddUser,
   userSummary = null,
 }) {
@@ -23,17 +22,8 @@ export default function UsersHeader({
         </span>
       </div>
 
-      {/* Right side: Manage Roles and Add User Actions */}
+      {/* Right side: Add User Action */}
       <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-        <button
-          type="button"
-          onClick={onOpenPermissions}
-          className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-[#0A4B6E] font-semibold text-xs px-3 py-1.5 rounded-full transition-colors cursor-pointer shadow-2xs active:scale-95 h-[30px]"
-        >
-          <Settings size={13} />
-          <span>Manage Roles and Permissions</span>
-        </button>
-
         <button
           type="button"
           onClick={onAddUser}

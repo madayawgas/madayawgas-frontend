@@ -270,7 +270,7 @@ export default function RouteDispatch() {
           zoneCode: t.zoneCode || zone?.code || "",
           zoneName: t.zoneName || zone?.name || "",
           status: "SCHEDULED",
-          notes: `Weekly template (Day ${currentIsoDay})`,
+          notes: `Weekly route schedule (Day ${currentIsoDay})`,
           isTemplateDerived: true,
         };
       });
