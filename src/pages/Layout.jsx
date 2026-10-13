@@ -233,7 +233,7 @@ export default function Layout() {
               <>
                 <div className="pt-2.5 pb-1 px-3 select-none">
                   <p className="text-[10px] font-bold tracking-wider uppercase text-white/45">
-                    Fleet
+                    Fleet & Maintenance
                   </p>
                 </div>
 
