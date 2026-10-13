@@ -11,6 +11,7 @@ import { fleetApi } from "../../api/fleet.js";
 import { customersApi } from "../../api/customers.js";
 import bgHeader from "../../assets/BG-Madayaw8.png";
 import { hasUserRole } from "../../utils/userRoles.js";
+import mockSales from "../../mocks/sales.json" with { type: "json" };
 
 export default function Dashboard() {
   const { currentUser, can } = useAuth();
@@ -82,7 +83,7 @@ export default function Dashboard() {
     };
   });
 
-  const [salesData, setSalesData] = useState({ weekly: [], monthly: [], annually: [] });
+  const [salesData, setSalesData] = useState(() => mockSales.data);
   const [maintenanceLogs, setMaintenanceLogs] = useState(() => {
     try {
       const cached = localStorage.getItem("app_maintenance_logs_cache");
