@@ -83,7 +83,8 @@ export default function DispatchModal({
     const schedDate = toPhilippineDateInputString(s.scheduledDate);
     const isToday = schedDate === todayPht;
     const isPreselected = initialScheduleId && s.id === initialScheduleId;
-    return isScheduled && (isToday || isPreselected);
+    const isAllowed = s.gating ? s.gating.canDispatch : true;
+    return isScheduled && (isToday || isPreselected) && isAllowed;
   });
 
   const handleAddItem = () => {
@@ -309,11 +310,16 @@ export default function DispatchModal({
                   required
                 >
                   <option value="">Select vehicle...</option>
-                  {vehicles.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.plateNumber} ({v.model})
-                    </option>
-                  ))}
+                  {vehicles
+                    .filter((v) => {
+                      const status = (v.status || v.operationalStatus || "ACTIVE").toUpperCase();
+                      return status === "ACTIVE" && v.allowDispatch !== false && v.isGrounded !== true;
+                    })
+                    .map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.plateNumber} ({v.model})
+                      </option>
+                    ))}
                 </select>
               </div>
 

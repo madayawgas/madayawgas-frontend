@@ -14,6 +14,7 @@ import {
   Calendar,
   AlertOctagon,
   CalendarX,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
@@ -22,6 +23,7 @@ import { tripsApi } from "../../api/trips.js";
 import { schedulesApi } from "../../api/schedules.js";
 import { fleetApi } from "../../api/fleet.js";
 import { inventoryApi } from "../../api/inventory.js";
+import { getScheduleDispatchGating } from "../../utils/fleetGuards.js";
 
 import { isCanisterProduct, getCanisterCrates } from "../../utils/product.js";
 import {
@@ -224,8 +226,8 @@ export default function RouteDispatch() {
     return list;
   }, [trips, searchTerm]);
 
-  // 2. Ready to Dispatch: Scheduled runs (SCHEDULED) FOR TODAY ONLY
-  const readySchedules = useMemo(() => {
+  // 2. Scheduled runs (SCHEDULED) FOR TODAY ONLY (Direct + Template-derived)
+  const allTodaySchedules = useMemo(() => {
     // 1. Explicit operational schedules for today that are SCHEDULED
     const directScheduled = schedules.filter((s) => {
       const isSched = (s.status || "").toUpperCase() === "SCHEDULED";
@@ -300,6 +302,22 @@ export default function RouteDispatch() {
     }
     return combined;
   }, [schedules, templates, trips, vehicles, zones, salesUsers, drivers, searchTerm, todayPht]);
+
+  // Partition into Ready to Dispatch vs Unavailable Vehicles
+  const { availableSchedules, unavailableSchedules } = useMemo(() => {
+    const available = [];
+    const unavailable = [];
+    allTodaySchedules.forEach((sched) => {
+      const gating = getScheduleDispatchGating(sched, vehicles, drivers);
+      const enriched = { ...sched, gating };
+      if (gating.canDispatch) {
+        available.push(enriched);
+      } else {
+        unavailable.push(enriched);
+      }
+    });
+    return { availableSchedules: available, unavailableSchedules: unavailable };
+  }, [allTodaySchedules, vehicles, drivers]);
 
   const handleDispatchTrip = async (payload) => {
     try {
@@ -416,8 +434,15 @@ export default function RouteDispatch() {
 
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
             <Clock size={13} className="text-[#0A4B6E]" />
-            <span>{readySchedules.length} Ready to Dispatch</span>
+            <span>{availableSchedules.length} Ready to Dispatch</span>
           </span>
+
+          {unavailableSchedules.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-bold text-xs shadow-2xs">
+              <AlertTriangle size={13} className="text-amber-700" />
+              <span>{unavailableSchedules.length} Unavailable</span>
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
@@ -599,16 +624,16 @@ export default function RouteDispatch() {
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#0A4B6E]" />
               <h3 className="text-sm font-bold text-[#0A4B6E] uppercase tracking-wide">
-                Ready to Dispatch ({readySchedules.length})
+                Ready to Dispatch ({availableSchedules.length})
               </h3>
               <span className="text-[10px] font-bold text-[#0A4B6E] bg-[#E8F3F8] border border-[#BCE1F1] px-2.5 py-0.5 rounded-full">
                 Today · {formatPhilippineDate(todayPht)}
               </span>
             </div>
-            <span className="text-[11px] text-[#6D8AA2]">Scheduled vehicle deployments for today</span>
+            <span className="text-[11px] text-[#6D8AA2]">Scheduled vehicle deployments ready for departure</span>
           </div>
 
-          {readySchedules.length === 0 ? (
+          {availableSchedules.length === 0 ? (
             <div className="bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-2xl p-8 text-center">
               <Calendar size={28} className="mx-auto text-[#6D8AA2] mb-2 opacity-50" />
               <p className="text-xs font-semibold text-[#0A4B6E]">No pending schedules ready to deploy today</p>
@@ -618,7 +643,7 @@ export default function RouteDispatch() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {readySchedules.map((sched) => (
+              {availableSchedules.map((sched) => (
                 <div
                   key={sched.id}
                   className="bg-white border border-[#D5E3EC] hover:border-[#0A4B6E]/40 rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all text-left"
@@ -695,6 +720,116 @@ export default function RouteDispatch() {
             </div>
           )}
         </div>
+
+        {/* SECTION 3: UNAVAILABLE VEHICLES */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+              <h3 className="text-sm font-bold text-[#0A4B6E] uppercase tracking-wide">
+                Unavailable Vehicles ({unavailableSchedules.length})
+              </h3>
+              <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
+                Scheduled · Blocked from Dispatch
+              </span>
+            </div>
+            <span className="text-[11px] text-[#6D8AA2]">Vehicles with mechanical or driver constraints</span>
+          </div>
+
+          {unavailableSchedules.length === 0 ? (
+            <div className="bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-2xl p-6 text-center">
+              <p className="text-xs font-semibold text-[#6D8AA2]">All scheduled vehicles are operational and ready for dispatch</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {unavailableSchedules.map((sched) => {
+                const gating = sched.gating || {};
+                const badgeClasses =
+                  gating.variant === "maintenance"
+                    ? "bg-amber-50 text-amber-800 border-amber-200"
+                    : gating.variant === "danger"
+                    ? "bg-rose-50 text-rose-800 border-rose-200"
+                    : "bg-slate-100 text-slate-700 border-slate-200";
+
+                return (
+                  <div
+                    key={sched.id}
+                    className="bg-[#FCFDFE] border border-amber-200/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all text-left"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-base font-bold text-[#0A4B6E] tracking-tight">
+                              {sched.truckPlate}
+                            </span>
+                            <span className={`text-[10px] font-bold border px-2 py-0.5 rounded-full ${badgeClasses}`}>
+                              {gating.reasonTag || "UNAVAILABLE"}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#6D8AA2]">{sched.truckModel}</p>
+                        </div>
+
+                        <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center shrink-0">
+                          <AlertTriangle size={15} />
+                        </div>
+                      </div>
+
+                      {/* Status Callout Banner */}
+                      {gating.reasonText && (
+                        <div className="mb-2.5 p-2 bg-amber-50/70 border border-amber-200/60 rounded-xl text-[11px] text-amber-900 font-medium flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-600 shrink-0" />
+                          <span>{gating.reasonText}</span>
+                        </div>
+                      )}
+
+                      <div className="bg-[#F8FAFC] rounded-xl p-2.5 border border-[#E2E8F0] space-y-1 text-xs mb-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#6D8AA2]">Route Zone:</span>
+                          <span className="font-bold text-[#0A4B6E]">{sched.zoneCode || sched.zoneName}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#6D8AA2]">Assigned Crew:</span>
+                          <span className="font-medium text-slate-800 truncate max-w-[170px] text-right">
+                            {sched.driverName || "Driver"} · {sched.salesName || "Sales Rep"}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-1 border-t border-[#E2E8F0]">
+                          <span className="text-[#6D8AA2]">Scheduled Date:</span>
+                          <span className="font-bold text-[#0A4B6E]">{formatPhilippineDate(sched.scheduledDate)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions: Cancel Run for today, NO DISPATCH BUTTON */}
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#E2E8F0]">
+                      <span className="text-[11px] font-medium text-slate-500 italic">
+                        Dispatch locked
+                      </span>
+
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedScheduleToCancel(sched);
+                            setShowCancelScheduleModal(true);
+                          }}
+                          className="py-1.5 px-3 bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 text-slate-600 hover:text-rose-700 rounded-full text-xs font-semibold transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                          title="Cancel this vehicle's run for today"
+                        >
+                          <CalendarX size={13} />
+                          <span>Cancel Run</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modals */}
@@ -705,7 +840,7 @@ export default function RouteDispatch() {
           setPrefillScheduleId("");
         }}
         onDispatch={handleDispatchTrip}
-        schedules={readySchedules}
+        schedules={availableSchedules}
         vehicles={vehicles}
         drivers={drivers}
         zones={zones}

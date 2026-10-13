@@ -98,3 +98,100 @@ export function checkActiveWorkOrder(truck, workOrders = []) {
 
   return { hasActiveWorkOrder: false, activeWorkOrder: null };
 }
+
+/**
+ * Evaluates whether a scheduled truck run can be dispatched today.
+ * Inspects vehicle operational status, grounding flags, safety inspection allowance,
+ * and assigned driver account status.
+ *
+ * @param {object} sched - Schedule or template-derived run object
+ * @param {Array} [vehicles] - Current vehicles collection from fleetApi
+ * @param {Array} [drivers] - Current drivers / staff collection
+ * @returns {{
+ *   canDispatch: boolean,
+ *   reasonTag: string,
+ *   reasonText: string | null,
+ *   variant: 'success' | 'maintenance' | 'inactive' | 'retired' | 'danger'
+ * }}
+ */
+export function getScheduleDispatchGating(sched, vehicles = [], drivers = []) {
+  if (!sched) {
+    return {
+      canDispatch: false,
+      reasonTag: "UNKNOWN",
+      reasonText: "No schedule record provided",
+      variant: "inactive",
+    };
+  }
+
+  const truckId = sched.truckId || sched.truck_id;
+  const vehicle = Array.isArray(vehicles) ? vehicles.find((v) => v.id === truckId) : null;
+  const vStatus = (vehicle?.status || vehicle?.operationalStatus || sched.truckStatus || "ACTIVE").toUpperCase();
+
+  if (vStatus === "UNDER_MAINTENANCE") {
+    return {
+      canDispatch: false,
+      reasonTag: "UNDER MAINTENANCE",
+      reasonText: "Vehicle is grounded for maintenance or repairs",
+      variant: "maintenance",
+    };
+  }
+
+  if (vStatus === "INACTIVE") {
+    return {
+      canDispatch: false,
+      reasonTag: "INACTIVE",
+      reasonText: "Vehicle is temporarily disabled or off-duty",
+      variant: "inactive",
+    };
+  }
+
+  if (vStatus === "RETIRED") {
+    return {
+      canDispatch: false,
+      reasonTag: "RETIRED",
+      reasonText: "Vehicle has been decommissioned from the fleet",
+      variant: "retired",
+    };
+  }
+
+  if (vehicle?.allowDispatch === false || vehicle?.isGrounded === true) {
+    return {
+      canDispatch: false,
+      reasonTag: "GROUNDED",
+      reasonText: "Vehicle failed safety inspection gating",
+      variant: "danger",
+    };
+  }
+
+  // Driver account status
+  const driverId = sched.truckDriverId || sched.driverId || vehicle?.driverId;
+  if (driverId && Array.isArray(drivers) && drivers.length > 0) {
+    const driverUser = drivers.find((d) => d.id === driverId || d.userId === driverId);
+    if (driverUser) {
+      if (driverUser.isBlocked) {
+        return {
+          canDispatch: false,
+          reasonTag: "DRIVER SUSPENDED",
+          reasonText: "Assigned driver account is suspended",
+          variant: "danger",
+        };
+      }
+      if (driverUser.isActive === false) {
+        return {
+          canDispatch: false,
+          reasonTag: "DRIVER INACTIVE",
+          reasonText: "Assigned driver account is deactivated",
+          variant: "inactive",
+        };
+      }
+    }
+  }
+
+  return {
+    canDispatch: true,
+    reasonTag: "READY",
+    reasonText: null,
+    variant: "success",
+  };
+}

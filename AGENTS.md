@@ -293,8 +293,9 @@ The MadayawGas backend API transmits all timestamps and dates in **UTC format** 
   - **Vehicle Search & Controls**: Instant filter search by plate number or model, active schedule count badge, primary `+ Add Route Schedule` action button, and refresh trigger.
   - **`TemplateModal` / Schedule Modal**: Allows selecting vehicle, visual day-of-week button picker (Mon–Sun), service zone, and default sales person with 1:1 vehicle-day constraint enforcement.
 - **Today's Dispatches (`/route-dispatch`)**:
-  - `Ready to Dispatch`: Displays trucks scheduled for today (auto-derived from active weekly route schedules and direct runs). Includes `Cancel Run` action (`CancelScheduleModal`) which cancels for today only without affecting recurring weekly route templates.
   - `Out on the Road`: Real-time monitoring of in-progress trips, driver & sales person assignments, loaded canisters/cylinders, midday reloads (`MiddayReloadModal`), and mid-way trip cancellation (`CancelTripModal`) which logs return odometer telemetry and checks on-board canisters/cylinders back into Bunawan yard bulk stock.
+  - `Ready to Dispatch`: Displays operational trucks scheduled for today (auto-derived from active weekly route schedules and direct runs) that pass all vehicle operational status and driver account checks. Includes `Dispatch Truck` and `Cancel Run` action (`CancelScheduleModal`) which cancels for today only without affecting recurring weekly route templates.
+  - `Unavailable Vehicles`: Dedicated section below Ready to Dispatch displaying scheduled vehicles that cannot be dispatched due to operational or account gating (`UNDER_MAINTENANCE`, `INACTIVE`, `RETIRED`, safety inspection grounding, or suspended/inactive drivers via `getScheduleDispatchGating`). Shows prominent status tags, an inline constraint explanation banner, removes the dispatch option ("Dispatch locked"), and retains `Cancel Run` for today.
   - `Return Check-In & Stock Reconciliation`: Return odometer logging, empty cylinder/canister intake, settlement audit, and graceful display of cancelled trip records.
 
 ### 6. History Log (`/history-log`)
