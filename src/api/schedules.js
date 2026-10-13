@@ -674,13 +674,19 @@ export const schedulesApi = {
     }
   },
 
-  async cancelSchedule(id) {
+  async cancelSchedule(id, payload = {}) {
     if (isMock) {
       await delay(100);
       const list = getInMemorySchedules();
       const idx = list.findIndex((s) => s.id === id);
       if (idx !== -1) {
         list[idx].status = "CANCELLED";
+        if (payload.reason) {
+          list[idx].cancelReason = payload.reason;
+          list[idx].notes = list[idx].notes
+            ? `${list[idx].notes} | Cancelled: ${payload.reason}`
+            : `Cancelled: ${payload.reason}`;
+        }
         saveInMemorySchedules(list);
       }
       return { message: "Schedule cancelled successfully" };
@@ -689,11 +695,13 @@ export const schedulesApi = {
     try {
       const res = await apiClient(`/schedules/${id}/cancel`, {
         method: "PATCH",
+        body: payload,
       });
       const list = getInMemorySchedules();
       const idx = list.findIndex((s) => s.id === id);
       if (idx !== -1) {
         list[idx].status = "CANCELLED";
+        if (payload.reason) list[idx].cancelReason = payload.reason;
         saveInMemorySchedules(list);
       }
       return res.data;

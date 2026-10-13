@@ -12,6 +12,8 @@ import {
   UserCheck,
   CheckCircle2,
   Calendar,
+  AlertOctagon,
+  CalendarX,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
@@ -32,6 +34,8 @@ import {
 
 import DispatchModal from "../../components/route-dispatch/DispatchModal";
 import MiddayReloadModal from "../../components/route-dispatch/MiddayReloadModal";
+import CancelTripModal from "../../components/route-dispatch/CancelTripModal";
+import CancelScheduleModal from "../../components/route-dispatch/CancelScheduleModal";
 import ToastNotification from "../../components/ui/ToastNotifications";
 
 export default function RouteDispatch() {
@@ -130,6 +134,10 @@ export default function RouteDispatch() {
   const [prefillScheduleId, setPrefillScheduleId] = useState("");
   const [showMiddayModal, setShowMiddayModal] = useState(false);
   const [selectedTripForReload, setSelectedTripForReload] = useState(null);
+  const [showCancelTripModal, setShowCancelTripModal] = useState(false);
+  const [selectedTripToCancel, setSelectedTripToCancel] = useState(null);
+  const [showCancelScheduleModal, setShowCancelScheduleModal] = useState(false);
+  const [selectedScheduleToCancel, setSelectedScheduleToCancel] = useState(null);
 
   const showToast = (type, message) => {
     setToast({ type, message });
@@ -225,9 +233,11 @@ export default function RouteDispatch() {
       return isSched && schedDate === todayPht;
     });
 
-    // 2. Identify truck IDs already covered today (scheduled or active trip)
+    // 2. Identify truck IDs already covered today (scheduled, dispatched, cancelled for today, or active trip)
     const coveredTruckIds = new Set([
-      ...directScheduled.map((s) => s.truckId),
+      ...schedules
+        .filter((s) => toPhilippineDateInputString(s.scheduledDate) === todayPht)
+        .map((s) => s.truckId),
       ...trips
         .filter((t) => (t.status || "").toUpperCase() === "IN_PROGRESS")
         .map((t) => t.truckId),
@@ -313,6 +323,47 @@ export default function RouteDispatch() {
       loadData();
     } catch (err) {
       showToast("error", err.message || "Failed to log midday reload");
+      throw err;
+    }
+  };
+
+  const handleCancelTrip = async (tripId, payload) => {
+    try {
+      await tripsApi.cancelTrip(tripId, payload);
+      showToast("success", "Trip cancelled successfully and returned cargo checked back in to yard.");
+      setShowCancelTripModal(false);
+      setSelectedTripToCancel(null);
+      loadData();
+    } catch (err) {
+      showToast("error", err.message || "Failed to cancel trip");
+      throw err;
+    }
+  };
+
+  const handleCancelSchedule = async (schedule, payload) => {
+    try {
+      if (schedule.isTemplateDerived) {
+        // Create an explicit operational schedule for today and immediately cancel it
+        const created = await schedulesApi.createSchedule({
+          scheduledDate: todayPht,
+          truckId: schedule.truckId,
+          salesUserId: schedule.salesUserId || undefined,
+          zoneId: schedule.zoneId,
+          notes: payload.reason,
+        });
+        const createdId = created?.schedule?.id || created?.id;
+        if (createdId) {
+          await schedulesApi.cancelSchedule(createdId, { reason: payload.reason });
+        }
+      } else {
+        await schedulesApi.cancelSchedule(schedule.id, { reason: payload.reason });
+      }
+      showToast("success", `Scheduled dispatch for ${schedule.truckPlate} cancelled for today.`);
+      setShowCancelScheduleModal(false);
+      setSelectedScheduleToCancel(null);
+      loadData();
+    } catch (err) {
+      showToast("error", err.message || "Failed to cancel schedule");
       throw err;
     }
   };
@@ -497,24 +548,38 @@ export default function RouteDispatch() {
                       </div>
                     </div>
 
-                    {/* Actions: Add Midday Reload & Check-In Return */}
+                    {/* Actions: Add Midday Reload, Cancel Trip & Check-In Return */}
                     {canManage && (
-                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#E2E8F0]">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedTripForReload(trip);
-                            setShowMiddayModal(true);
-                          }}
-                          className="w-full py-1.5 px-2 bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#0A4B6E] rounded-full text-xs font-bold transition cursor-pointer"
-                        >
-                          + Midday Reload
-                        </button>
+                      <div className="pt-2 border-t border-[#E2E8F0] space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedTripForReload(trip);
+                              setShowMiddayModal(true);
+                            }}
+                            className="w-full py-1.5 px-2 bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#0A4B6E] rounded-full text-xs font-bold transition cursor-pointer"
+                          >
+                            + Midday Reload
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedTripToCancel(trip);
+                              setShowCancelTripModal(true);
+                            }}
+                            className="w-full py-1.5 px-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-full text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1"
+                          >
+                            <AlertOctagon size={12} />
+                            <span>Cancel Trip</span>
+                          </button>
+                        </div>
 
                         <button
                           type="button"
                           onClick={() => navigate(`/reconciliation?tripId=${trip.id}`)}
-                          className="w-full py-1.5 px-2 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] rounded-full text-xs font-bold transition cursor-pointer shadow-2xs flex items-center justify-center gap-1"
+                          className="w-full py-1.5 px-3 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] rounded-full text-xs font-bold transition cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
                         >
                           <span>Check-In Return</span>
                           <ArrowRight size={12} />
@@ -598,17 +663,32 @@ export default function RouteDispatch() {
                   </div>
 
                   {canManage && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPrefillScheduleId(sched.id);
-                        setShowDispatchModal(true);
-                      }}
-                      className="w-full py-2 px-3 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] rounded-full text-xs font-bold transition cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
-                    >
-                      <Plus size={13} />
-                      <span>Dispatch Truck</span>
-                    </button>
+                    <div className="flex items-center gap-2 pt-2 border-t border-[#E2E8F0]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedScheduleToCancel(sched);
+                          setShowCancelScheduleModal(true);
+                        }}
+                        className="py-2 px-3 bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 text-slate-600 hover:text-rose-700 rounded-full text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-1"
+                        title="Cancel this vehicle's run for today"
+                      >
+                        <CalendarX size={13} />
+                        <span>Cancel Run</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPrefillScheduleId(sched.id);
+                          setShowDispatchModal(true);
+                        }}
+                        className="flex-1 py-2 px-3 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] rounded-full text-xs font-bold transition cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
+                      >
+                        <Plus size={13} />
+                        <span>Dispatch Truck</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -643,6 +723,27 @@ export default function RouteDispatch() {
           setSelectedTripForReload(null);
         }}
         onAddLoad={handleAddTripLoad}
+      />
+
+      <CancelTripModal
+        isOpen={showCancelTripModal}
+        trip={selectedTripToCancel}
+        products={products}
+        onClose={() => {
+          setShowCancelTripModal(false);
+          setSelectedTripToCancel(null);
+        }}
+        onCancelTrip={handleCancelTrip}
+      />
+
+      <CancelScheduleModal
+        isOpen={showCancelScheduleModal}
+        schedule={selectedScheduleToCancel}
+        onClose={() => {
+          setShowCancelScheduleModal(false);
+          setSelectedScheduleToCancel(null);
+        }}
+        onCancelSchedule={handleCancelSchedule}
       />
     </div>
   );
