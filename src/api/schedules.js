@@ -3,6 +3,12 @@ import { apiClient, isMock, delay } from "./client.js";
 import mockZones from "../mocks/zones.json" with { type: "json" };
 import mockTemplates from "../mocks/templates.json" with { type: "json" };
 import mockSchedules from "../mocks/schedules.json" with { type: "json" };
+import mockUsers from "../mocks/users.json" with { type: "json" };
+import {
+  toPhilippineDateInputString,
+  getPhilippineDayOfWeek,
+  addPhilippineDays,
+} from "../utils/date.js";
 
 const ZONES_CACHE_KEY = "app_zones_cache";
 const TEMPLATES_CACHE_KEY = "app_templates_cache";
@@ -108,6 +114,8 @@ export function normalizeTemplate(t) {
 
 export function normalizeSchedule(s) {
   if (!s) return null;
+  const rawDate = s.scheduledDate || s.scheduled_date;
+  const normalizedDate = toPhilippineDateInputString(rawDate) || rawDate;
   const salesName =
     s.salesName ||
     (s.sales_first_name
@@ -122,7 +130,7 @@ export function normalizeSchedule(s) {
   return {
     ...s,
     id: s.id,
-    scheduledDate: s.scheduledDate || s.scheduled_date,
+    scheduledDate: normalizedDate,
     truckId: s.truckId || s.truck_id,
     truckPlate: s.truckPlate || s.truck_plate_number || "No Plate",
     truckModel: s.truckModel || s.truck_model || "Delivery Vehicle",
@@ -334,13 +342,23 @@ export const schedulesApi = {
     }
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const cleanPayload = { ...payload };
-    if ("defaultSalesUserId" in cleanPayload) {
-      cleanPayload.defaultSalesUserId =
-        cleanPayload.defaultSalesUserId && uuidRegex.test(cleanPayload.defaultSalesUserId)
-          ? cleanPayload.defaultSalesUserId
-          : null;
+    let salesUserId = payload.defaultSalesUserId;
+    if (typeof salesUserId === "string") {
+      salesUserId = salesUserId.trim();
+      if (!uuidRegex.test(salesUserId)) {
+        salesUserId = null;
+      }
+    } else {
+      salesUserId = null;
     }
+
+    const cleanPayload = {
+      truckId: payload.truckId,
+      zoneId: payload.zoneId,
+      dayOfWeek: Number(payload.dayOfWeek),
+      defaultSalesUserId: salesUserId,
+      isActive: payload.isActive !== false,
+    };
 
     try {
       const res = await apiClient(`/schedules/templates`, {
@@ -385,12 +403,19 @@ export const schedulesApi = {
     }
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const cleanPayload = { ...payload };
-    if ("defaultSalesUserId" in cleanPayload) {
-      cleanPayload.defaultSalesUserId =
-        cleanPayload.defaultSalesUserId && uuidRegex.test(cleanPayload.defaultSalesUserId)
-          ? cleanPayload.defaultSalesUserId
-          : null;
+    const cleanPayload = {};
+    if (payload.truckId !== undefined) cleanPayload.truckId = payload.truckId;
+    if (payload.zoneId !== undefined) cleanPayload.zoneId = payload.zoneId;
+    if (payload.dayOfWeek !== undefined) cleanPayload.dayOfWeek = Number(payload.dayOfWeek);
+    if (payload.isActive !== undefined) cleanPayload.isActive = Boolean(payload.isActive);
+    if ("defaultSalesUserId" in payload) {
+      let salesUserId = payload.defaultSalesUserId;
+      if (typeof salesUserId === "string") {
+        salesUserId = salesUserId.trim();
+        cleanPayload.defaultSalesUserId = uuidRegex.test(salesUserId) ? salesUserId : null;
+      } else {
+        cleanPayload.defaultSalesUserId = null;
+      }
     }
 
     try {
@@ -441,6 +466,53 @@ export const schedulesApi = {
   // 3. Operational Daily Truck Schedules
   // ==========================================
 
+  /**
+   * Fetches active sales representatives eligible for route planning & scheduling.
+   * Accessible to route managers without requiring administrative users.view.
+   * @param {object} [params] - { search }
+   * @returns {Promise<Array>} List of sales user objects
+   */
+  async getSalesPersons(params = {}) {
+    if (isMock) {
+      await delay(150);
+      let list = [];
+      try {
+        const cached = localStorage.getItem("app_users_cache");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) list = parsed;
+        }
+      } catch {
+        // ignore
+      }
+      if (list.length === 0) {
+        list = mockUsers?.data?.users || [];
+      }
+      return list
+        .filter((u) => {
+          const role = (u.role || u.roleNames?.join(" ") || "").toLowerCase();
+          return role.includes("sales") && u.isActive !== false && !u.isBlocked;
+        })
+        .map((u) => ({
+          id: u.id,
+          username: u.username,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          fullName: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username,
+          phone: u.phone,
+          roleName: u.role || "Sales Person",
+        }));
+    }
+
+    const query = new URLSearchParams();
+    if (params.search) query.append("search", params.search);
+    const qs = query.toString() ? `?${query.toString()}` : "";
+
+    const res = await apiClient(`/schedules/sales-persons${qs}`);
+    const rawList = res?.data?.salesPersons || res?.data || [];
+    return Array.isArray(rawList) ? rawList : [];
+  },
+
   async getSchedules(params = {}) {
     if (isMock) {
       await delay(100);
@@ -470,10 +542,22 @@ export const schedulesApi = {
 
     const qs = query.toString() ? `?${query.toString()}` : "";
     const res = await apiClient(`/schedules${qs}`);
-    const rawList = res?.data?.schedules || res?.data || [];
+    const rawList =
+      res?.data?.schedules ||
+      res?.data?.items ||
+      (Array.isArray(res?.data) ? res.data : []);
     if (Array.isArray(rawList)) {
       const normalized = rawList.map(normalizeSchedule);
-      saveInMemorySchedules(normalized);
+      // Only overwrite the entire cache if no filtering params were applied;
+      // otherwise merge to prevent erasing other dates
+      if (Object.keys(params).length === 0) {
+        saveInMemorySchedules(normalized);
+      } else {
+        const cached = getInMemorySchedules();
+        const map = new Map(cached.map((s) => [s.id, s]));
+        normalized.forEach((s) => map.set(s.id, s));
+        saveInMemorySchedules(Array.from(map.values()));
+      }
       return normalized;
     }
     return [];
@@ -503,10 +587,18 @@ export const schedulesApi = {
       return { schedule: normalizeSchedule(newSchedule), message: "Operational schedule created successfully" };
     }
 
+    const cleanPayload = {
+      scheduledDate: payload.scheduledDate,
+      truckId: payload.truckId,
+      salesUserId: payload.salesUserId,
+      zoneId: payload.zoneId,
+      notes: payload.notes || null,
+    };
+
     try {
       const res = await apiClient(`/schedules`, {
         method: "POST",
-        body: payload,
+        body: cleanPayload,
       });
       const data = res?.data;
       const sch = normalizeSchedule(data?.schedule || data);
@@ -525,10 +617,48 @@ export const schedulesApi = {
   async generateSchedules(payload) {
     if (isMock) {
       await delay(250);
-      const count = 6;
+      const { startDate, endDate } = payload || {};
+      const tpls = getInMemoryTemplates().filter((t) => t.isActive !== false);
+      const schedList = getInMemorySchedules();
+      let generatedCount = 0;
+
+      if (startDate && endDate) {
+        let current = startDate;
+        while (current <= endDate) {
+          const dayOfWeek = getPhilippineDayOfWeek(current);
+          const dayTpls = tpls.filter((t) => Number(t.dayOfWeek) === Number(dayOfWeek));
+
+          for (const t of dayTpls) {
+            const alreadyExists = schedList.some(
+              (s) => s.truckId === t.truckId && s.scheduledDate === current
+            );
+            if (!alreadyExists) {
+              schedList.push({
+                id: `sch-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                scheduledDate: current,
+                truckId: t.truckId,
+                truckPlate: t.truckPlate,
+                truckModel: t.truckModel,
+                truckStatus: "ACTIVE",
+                salesUserId: t.defaultSalesUserId,
+                salesName: t.salesName || "Sales Person",
+                zoneId: t.zoneId,
+                zoneCode: t.zoneCode,
+                zoneName: t.zoneName,
+                status: "SCHEDULED",
+                createdAt: new Date().toISOString(),
+              });
+              generatedCount++;
+            }
+          }
+          current = addPhilippineDays(current, 1);
+        }
+        saveInMemorySchedules(schedList);
+      }
+
       return {
-        message: `Successfully generated ${count} daily truck schedules`,
-        data: { generatedCount: count },
+        message: `Successfully generated ${generatedCount} daily truck schedules`,
+        data: { generatedCount },
       };
     }
 
@@ -544,13 +674,19 @@ export const schedulesApi = {
     }
   },
 
-  async cancelSchedule(id) {
+  async cancelSchedule(id, payload = {}) {
     if (isMock) {
       await delay(100);
       const list = getInMemorySchedules();
       const idx = list.findIndex((s) => s.id === id);
       if (idx !== -1) {
         list[idx].status = "CANCELLED";
+        if (payload.reason) {
+          list[idx].cancelReason = payload.reason;
+          list[idx].notes = list[idx].notes
+            ? `${list[idx].notes} | Cancelled: ${payload.reason}`
+            : `Cancelled: ${payload.reason}`;
+        }
         saveInMemorySchedules(list);
       }
       return { message: "Schedule cancelled successfully" };
@@ -559,11 +695,13 @@ export const schedulesApi = {
     try {
       const res = await apiClient(`/schedules/${id}/cancel`, {
         method: "PATCH",
+        body: payload,
       });
       const list = getInMemorySchedules();
       const idx = list.findIndex((s) => s.id === id);
       if (idx !== -1) {
         list[idx].status = "CANCELLED";
+        if (payload.reason) list[idx].cancelReason = payload.reason;
         saveInMemorySchedules(list);
       }
       return res.data;

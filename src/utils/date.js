@@ -216,3 +216,41 @@ export function isPhilippineDateInRange(dateInput, dateFrom, dateTo) {
 
   return true;
 }
+
+/**
+ * Returns the ISO 8601 day of week (1=Monday, 2=Tuesday, ..., 7=Sunday) in Philippine Time.
+ *
+ * @param {string | number | Date} [dateInput=new Date()]
+ * @returns {number} 1 to 7
+ */
+export function getPhilippineDayOfWeek(dateInput = new Date()) {
+  const parsed = parsePhilippineDate(dateInput);
+  if (!parsed) return 1;
+
+  try {
+    const formatter = new Intl.DateTimeFormat(PHILIPPINE_LOCALE, {
+      timeZone: PHILIPPINE_TIMEZONE,
+      weekday: "short",
+    });
+    const weekday = formatter.format(parsed);
+    const map = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+    return map[weekday] || 1;
+  } catch {
+    const jsDay = parsed.getDay();
+    return jsDay === 0 ? 7 : jsDay;
+  }
+}
+
+/**
+ * Adds or subtracts days to/from a date in Philippine Time, returning "YYYY-MM-DD".
+ *
+ * @param {string | number | Date} dateInput
+ * @param {number} days
+ * @returns {string} "YYYY-MM-DD"
+ */
+export function addPhilippineDays(dateInput, days) {
+  const parsed = parsePhilippineDate(dateInput);
+  if (!parsed) return "";
+  const next = new Date(parsed.getTime() + days * 24 * 60 * 60 * 1000);
+  return toPhilippineDateInputString(next);
+}

@@ -1,7 +1,7 @@
-// src/components/route-dispatch/ScheduleModal.jsx
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Calendar, X } from "lucide-react";
+import { getPhilippineTodayString, addPhilippineDays } from "../../utils/date.js";
 
 export default function ScheduleModal({
   isOpen,
@@ -11,8 +11,7 @@ export default function ScheduleModal({
   zones = [],
   onCreateSchedule,
 }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const [scheduledDate, setScheduledDate] = useState(today);
+  const [scheduledDate, setScheduledDate] = useState(() => getPhilippineTodayString());
   const [truckId, setTruckId] = useState(vehicles[0]?.id || "");
   const [salesUserId, setSalesUserId] = useState(salesUsers[0]?.id || "");
   const [zoneId, setZoneId] = useState(zones[0]?.id || "");
@@ -89,18 +88,14 @@ export default function ScheduleModal({
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => setScheduledDate(new Date().toISOString().slice(0, 10))}
+                  onClick={() => setScheduledDate(getPhilippineTodayString())}
                   className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F3F8] text-[#0A4B6E] hover:bg-[#D5EAF4] cursor-pointer"
                 >
                   Today
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    const tmrw = new Date();
-                    tmrw.setDate(tmrw.getDate() + 1);
-                    setScheduledDate(tmrw.toISOString().slice(0, 10));
-                  }}
+                  onClick={() => setScheduledDate(addPhilippineDays(getPhilippineTodayString(), 1))}
                   className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E8F3F8] text-[#0A4B6E] hover:bg-[#D5EAF4] cursor-pointer"
                 >
                   Tomorrow

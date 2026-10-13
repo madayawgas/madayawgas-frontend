@@ -1,5 +1,5 @@
 // src/components/route-dispatch/ReturnCheckInModal.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Gauge, X, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export default function ReturnCheckInModal({
@@ -12,12 +12,19 @@ export default function ReturnCheckInModal({
   const departureOdo = trip?.departureOdometer || 45000;
   const [returnOdometer, setReturnOdometer] = useState(departureOdo + 120);
 
-  // Return unloads count
-  const defaultProdId = products[0]?.id || "e9b21f37-142c-4f76-96f3-a3d8b02e7b91";
+  // Return unloads count & selected product
+  const [selectedProductId, setSelectedProductId] = useState(products[0]?.id || "");
+  const [returnTime, setReturnTime] = useState("");
   const [filledUnits, setFilledUnits] = useState(20);
   const [emptyGoodUnits, setEmptyGoodUnits] = useState(95);
   const [defectiveUnits, setDefectiveUnits] = useState(5);
   const [supervisorNotes, setSupervisorNotes] = useState("Evening physical return verified at yard gate");
+
+  useEffect(() => {
+    if (products.length > 0 && (!selectedProductId || selectedProductId === "e9b21f37-142c-4f76-96f3-a3d8b02e7b91")) {
+      setSelectedProductId(products[0].id);
+    }
+  }, [products, selectedProductId]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -40,17 +47,28 @@ export default function ReturnCheckInModal({
       return;
     }
 
+    const activeProdId = selectedProductId || products[0]?.id;
+    if (!activeProdId) {
+      setError("Please select a product for return unload");
+      return;
+    }
+
     try {
       setIsSubmitting(true);
-      await onCompleteReturn(trip.id, {
+      const payload = {
         returnOdometerKm: Number(returnOdometer),
         supervisorNotes,
         returnLoads: [
-          { productId: defaultProdId, condition: "FILLED", quantityUnits: Number(filledUnits) },
-          { productId: defaultProdId, condition: "EMPTY_GOOD", quantityUnits: Number(emptyGoodUnits) },
-          { productId: defaultProdId, condition: "DEFECTIVE", quantityUnits: Number(defectiveUnits) },
+          { productId: activeProdId, condition: "FILLED", quantityUnits: Number(filledUnits) },
+          { productId: activeProdId, condition: "EMPTY_GOOD", quantityUnits: Number(emptyGoodUnits) },
+          { productId: activeProdId, condition: "DEFECTIVE", quantityUnits: Number(defectiveUnits) },
         ],
-      });
+      };
+      if (returnTime.trim()) {
+        payload.returnTime = returnTime.trim();
+      }
+
+      await onCompleteReturn(trip.id, payload);
       onClose();
     } catch (err) {
       setError(err.message || "Failed to complete return check-in");
@@ -123,6 +141,38 @@ export default function ReturnCheckInModal({
                   Return odometer must be at least {departureOdo.toLocaleString()} km
                 </p>
               )}
+            </div>
+          </div>
+
+          {/* Product Selection */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-[#0A4B6E] mb-1">Returned Product *</label>
+              <select
+                value={selectedProductId}
+                onChange={(e) => setSelectedProductId(e.target.value)}
+                className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl p-2.5 text-xs text-[#0A4B6E] font-medium focus:outline-[#0A4B6E]"
+                required
+              >
+                {products.length === 0 && <option value="">No products available</option>}
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.containerType || "LPG"})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-bold text-[#0A4B6E] mb-1">
+                Return Clock-In (Optional)
+              </label>
+              <input
+                type="datetime-local"
+                value={returnTime}
+                onChange={(e) => setReturnTime(e.target.value)}
+                className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl p-2 text-xs text-[#0A4B6E] focus:outline-[#0A4B6E]"
+              />
             </div>
           </div>
 

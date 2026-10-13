@@ -24,6 +24,7 @@ function getInMemoryTrucks() {
   } catch (e) {
     console.error("Error reading cached fleet:", e);
   }
+  if (!isMock) return [];
   const fallback = mockFleet?.data?.vehicles || mockFleet?.data?.trucks || [];
   return fallback.map((t) => ({
     ...t,

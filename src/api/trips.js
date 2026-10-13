@@ -111,6 +111,7 @@ export function normalizeTrip(raw) {
       cylinders: cylinderUnits,
     },
     notes: raw.notes || null,
+    cancelReason: raw.cancelReason || raw.cancel_reason || null,
   };
 }
 
@@ -443,12 +444,34 @@ export const tripsApi = {
    */
   async cancelTrip(tripId, payload = {}) {
     if (isMock) {
-      await delay(100);
+      await delay(150);
       const list = getInMemoryTrips();
       const trip = list.find((t) => t.id === tripId);
-      if (trip) trip.status = "CANCELLED";
-      saveInMemoryTrips(list);
-      return { message: "Trip cancelled successfully" };
+      if (trip) {
+        trip.status = "CANCELLED";
+        trip.returnTime = new Date().toISOString();
+        if (payload.reason) {
+          trip.cancelReason = payload.reason;
+          trip.notes = trip.notes ? `${trip.notes} | Cancelled: ${payload.reason}` : `Cancelled: ${payload.reason}`;
+        }
+        if (payload.returnOdometerKm) {
+          trip.returnOdometer = Number(payload.returnOdometerKm);
+          trip.distanceDrivenKm = Math.max(0, trip.returnOdometer - (trip.departureOdometer || 0));
+        }
+        if (payload.returnLoads?.length) {
+          if (!trip.loads) trip.loads = [];
+          trip.loads.push({
+            id: `lod-${Date.now()}`,
+            transferType: "RETURN_UNLOAD",
+            slipNumber: `CANCEL-UNLOAD-${Date.now()}`,
+            remarks: `Aborted trip return: ${payload.reason || "Cancelled mid-way"}`,
+            items: payload.returnLoads,
+            recordedAt: new Date().toISOString(),
+          });
+        }
+        saveInMemoryTrips(list);
+      }
+      return { message: "Trip cancelled successfully", trip };
     }
 
     const res = await apiClient(`/trips/${tripId}/cancel`, {
@@ -459,6 +482,19 @@ export const tripsApi = {
     const idx = list.findIndex((t) => t.id === tripId);
     if (idx !== -1) {
       list[idx].status = "CANCELLED";
+      if (payload.reason) list[idx].cancelReason = payload.reason;
+      if (payload.returnOdometerKm) list[idx].returnOdometer = Number(payload.returnOdometerKm);
+      if (payload.returnLoads?.length) {
+        if (!list[idx].loads) list[idx].loads = [];
+        list[idx].loads.push({
+          id: `lod-${Date.now()}`,
+          transferType: "RETURN_UNLOAD",
+          slipNumber: `CANCEL-UNLOAD-${Date.now()}`,
+          remarks: `Aborted trip return: ${payload.reason || "Cancelled mid-way"}`,
+          items: payload.returnLoads,
+          recordedAt: new Date().toISOString(),
+        });
+      }
       saveInMemoryTrips(list);
     }
     return res.data;

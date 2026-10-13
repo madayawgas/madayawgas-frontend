@@ -295,6 +295,7 @@ export default function StockReconciliation() {
   };
 
   const isTripSettled = selectedTrip?.status === "SETTLED";
+  const isTripCancelled = selectedTrip?.status === "CANCELLED";
 
   return (
     <div className="h-full flex flex-col space-y-3">
@@ -393,6 +394,11 @@ export default function StockReconciliation() {
                           SETTLED
                         </span>
                       )}
+                      {status === "CANCELLED" && (
+                        <span className="text-[10px] font-bold text-rose-800 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                          CANCELLED
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex justify-between items-center text-[11px] text-[#6D8AA2]">
@@ -433,7 +439,11 @@ export default function StockReconciliation() {
                       <span className="text-xs text-[#6D8AA2]">
                         ({selectedTrip.tripNumber})
                       </span>
-                      {isTripSettled ? (
+                      {isTripCancelled ? (
+                        <span className="text-[10px] font-bold text-rose-800 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <AlertTriangle size={11} /> TRIP CANCELLED
+                        </span>
+                      ) : isTripSettled ? (
                         <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
                           <Check size={11} /> SETTLED RECORD
                         </span>
@@ -455,6 +465,19 @@ export default function StockReconciliation() {
                     </span>
                   </div>
                 </div>
+
+                {isTripCancelled && (
+                  <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 text-xs text-rose-800 flex items-start gap-2.5">
+                    <AlertTriangle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">This trip was aborted & cancelled mid-way.</p>
+                      <p className="mt-0.5 text-rose-700">
+                        Reason: <strong>{selectedTrip.cancelReason || selectedTrip.notes || "Aborted delivery run"}</strong>.
+                        Return inventory and odometer reading were recorded upon cancellation.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* 1. ODOMETER READING SECTION */}
                 <div className="border border-[#CBD5E1] rounded-xl p-3.5 bg-white space-y-2.5 shadow-2xs">
@@ -676,7 +699,11 @@ export default function StockReconciliation() {
               {/* Bottom Sticky Action Bar */}
               <div className="shrink-0 pt-3 border-t border-[#CBD5E1] flex items-center justify-between gap-3 bg-white">
                 <div className="text-xs text-[#6D8AA2]">
-                  {isTripSettled ? (
+                  {isTripCancelled ? (
+                    <span className="text-rose-700 font-semibold flex items-center gap-1">
+                      <AlertTriangle size={13} /> This trip was cancelled mid-way. No further reconciliation settlement needed.
+                    </span>
+                  ) : isTripSettled ? (
                     <span className="text-emerald-700 font-semibold flex items-center gap-1">
                       <CheckCircle2 size={13} /> This trip was settled and locked on {selectedTrip.reconciliation?.reconciledAt ? formatPhilippineDate(selectedTrip.reconciliation.reconciledAt) : "file"}.
                     </span>
@@ -685,7 +712,7 @@ export default function StockReconciliation() {
                   )}
                 </div>
 
-                {canManage && !isTripSettled && (
+                {canManage && !isTripSettled && !isTripCancelled && (
                   <button
                     type="submit"
                     disabled={isSubmitting || !isOdometerValid}

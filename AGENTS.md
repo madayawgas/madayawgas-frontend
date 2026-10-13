@@ -51,7 +51,7 @@ madayawgas-frontend/
 │   │   ├── fleet/              # FleetHeader, TruckCard, TruckModal, DeleteConfirmationModal, etc.
 │   │   ├── history log/        # HistoryTable, ActionTypePill
 │   │   ├── ui/                 # Reusable atomic UI: Badge, Button, Card, FilterDropdown, Input, Modal, SavedChangesToast, SearchBar, Select, ToastNotifications, UnsavedChangesToast
-│   │   └── users/              # UsersHeader, UsersControls, UsersTable, UserModal (Wizard steps 1-4), AdminPasswordModal, DeactivateUserModal, ReactivateUserModal, FilterRole, PermissionsModal, etc.
+│   │   └── users/              # UsersHeader, UsersControls, UsersTable, UserModal (Wizard steps 1-4), AdminPasswordModal, DeactivateUserModal, ReactivateUserModal, FilterRole, etc.
 │   ├── context/
 │   │   └── AuthContext.jsx     # Auth state, session bootstrap, can/canAll/canAny permission helpers
 │   ├── mocks/                  # JSON datasets for offline/mock development (isMock = true)
@@ -250,7 +250,7 @@ The MadayawGas backend API transmits all timestamps and dates in **UTC format** 
 - **Status Distinction**:
   - **Suspend (`isBlocked = true`)**: Temporary login restriction without deleting or deactivating account. User remains active in table (`isActive = true`) with a red `"SUSPENDED"` badge. Can be toggled in the Edit modal or status endpoint.
   - **Deactivate (`isActive = false`)**: Soft-deletes user account. Deactivated accounts show a gray `"DEACTIVATED"` badge, sort to the bottom, and can be reactivated via the `RotateCcw` action button or status endpoint with admin password confirmation.
-- **Features**: Multi-step user wizard, password reset, temporary credentials generator, deactivation, reactivation, and RBAC permissions modal matrix.
+- **Features**: Multi-step user wizard, password reset, temporary credentials generator, deactivation, and reactivation (role permissions are hardcoded in the database/backend).
 
 ### 3. Fleet & Maintenance (`/fleet`)
 - **Contracts**: `docs/api-contracts/fleet/` (`availability.api.md`, `drivers.api.md`, `maintenance.api.md`, `vehicles.api.md`)
@@ -285,18 +285,18 @@ The MadayawGas backend API transmits all timestamps and dates in **UTC format** 
   - Password-guarded deactivation (`PATCH /api/inventory/products/:id/deactivate`) and reactivation with `AdminPasswordModal`.
   - `localStorage` caching (`app_items_cache`, `app_items_view_mode`).
 
-### 5. Route Dispatch & Scheduling (`/route-dispatch`)
+### 5. Route Planner & Dispatch (`/route-planner`, `/route-dispatch`)
 - **Contracts**: `docs/api-contracts/schedules/schedules.api.md`, `docs/api-contracts/trips/trips.api.md`
-- **Sub-Navigation Tabs**:
-  - `Active Trips & Yard Return`: Real-time deployment tracking, midday reload manifests, return odometer check-ins, and post-trip stock reconciliations.
-  - `Daily Schedules & Templates`: Weekly recurring master template matrix and date-stamped operational daily truck schedules.
-  - `Service Zones`: Distribution coverage districts across Davao Region.
-- **Schedule & Template Management**:
-  - **Weekly Master Template Matrix**: Interactive vehicle-by-day (Mon-Sun) grid. Clicking any empty cell (`+ Add`) immediately opens `TemplateModal` pre-populated with that vehicle and day. Clicking an existing template badge opens the edit modal. Top header includes a `+ Add Route Template` button.
-  - **`TemplateModal`**: Allows selecting vehicle, visual day-of-week button picker (Mon–Sun), service zone, and default sales person with 1:1 vehicle-day constraint enforcement.
-  - **Date-Stamped Daily Schedules (`SchedulesTable`)**: Card header includes `+ Add Daily Schedule` button, inline search (vehicle, sales, zone, date), and status filter pills (`ALL`, `SCHEDULED`, `DISPATCHED`, `CANCELLED`).
-  - **`ScheduleModal`**: Ad-hoc deployment modal with `Today` and `Tomorrow` quick-date buttons.
-  - **Batch Generator (`BatchGenerateModal`)**: Automatically populates operational schedules from active weekly templates across a date range.
+- **Route Planner (`/route-planner`)**:
+  - **Weekly Route Schedule Matrix**: Interactive vehicle-by-day (Mon–Sun) grid displaying active route assignments. Highlights current day ("Today").
+  - **Streamlined Workflow**: Direct weekly route schedules eliminate the confusing separate batch daily generation step. Any route scheduled for a vehicle automatically populates under "Ready to Dispatch" on that day.
+  - **Vehicle Search & Controls**: Instant filter search by plate number or model, active schedule count badge, primary `+ Add Route Schedule` action button, and refresh trigger.
+  - **`TemplateModal` / Schedule Modal**: Allows selecting vehicle, visual day-of-week button picker (Mon–Sun), service zone, and default sales person with 1:1 vehicle-day constraint enforcement.
+- **Today's Dispatches (`/route-dispatch`)**:
+  - `Out on the Road`: Real-time monitoring of in-progress trips, driver & sales person assignments, loaded canisters/cylinders, midday reloads (`MiddayReloadModal`), and mid-way trip cancellation (`CancelTripModal`) which logs return odometer telemetry and checks on-board canisters/cylinders back into Bunawan yard bulk stock.
+  - `Ready to Dispatch`: Displays operational trucks scheduled for today (auto-derived from active weekly route schedules and direct runs) that pass all vehicle operational status and driver account checks. Includes `Dispatch Truck` and `Cancel Run` action (`CancelScheduleModal`) which cancels for today only without affecting recurring weekly route templates.
+  - `Unavailable Vehicles`: Dedicated section below Ready to Dispatch displaying scheduled vehicles that cannot be dispatched due to operational or account gating (`UNDER_MAINTENANCE`, `INACTIVE`, `RETIRED`, safety inspection grounding, or suspended/inactive drivers via `getScheduleDispatchGating`). Shows prominent status tags, an inline constraint explanation banner, removes the dispatch option ("Dispatch locked"), and retains `Cancel Run` for today.
+  - `Return Check-In & Stock Reconciliation`: Return odometer logging, empty cylinder/canister intake, settlement audit, and graceful display of cancelled trip records.
 
 ### 6. History Log (`/history-log`)
 - **Contract**: `docs/API Contract/history-log.api.md`
