@@ -189,6 +189,11 @@ export default function ProductsCatalog() {
       }
 
       setFormModalOpen(false);
+      try {
+        localStorage.removeItem("app_plant_stock_cache");
+      } catch {
+        // ignore
+      }
       await fetchProducts();
     } catch (err) {
       setFormError(err?.message || "Failed to save product.");
@@ -219,6 +224,12 @@ export default function ProductsCatalog() {
     } else {
       await inventoryApi.reactivateProduct(product.id, { confirmPassword: adminPassword });
       showToastMessage(`Product "${product.name}" reactivated.`);
+    }
+
+    try {
+      localStorage.removeItem("app_plant_stock_cache");
+    } catch {
+      // ignore
     }
 
     setShowPasswordModal(false);

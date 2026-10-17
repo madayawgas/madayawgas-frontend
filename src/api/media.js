@@ -1,33 +1,7 @@
 // src/api/media.js
-import { apiClient, isMock, delay } from "./client.js";
+import { apiClient } from "./client.js";
 import { compressAndPrepareImage } from "../utils/imageCompressor.js";
-import { isValidMediaDomain, ALLOWED_MEDIA_DOMAINS, resolveMediaUrl } from "../utils/media.js";
-
-/**
- * Generates a mock canonical storage key adhering to the backend standard:
- * {domain}/{timestamp}-{randomHex}{extension}
- *
- * @param {string} domain
- * @param {string} mimeType
- * @returns {string}
- */
-function generateMockStorageKey(domain, mimeType) {
-  const timestamp = Date.now();
-  const hexPart1 = Math.random().toString(16).slice(2, 8).padStart(6, "0");
-  const hexPart2 = Math.random().toString(16).slice(2, 8).padStart(6, "0");
-  const randomHex = `${hexPart1}${hexPart2}`;
-
-  let extension = ".jpg";
-  if (mimeType === "application/pdf") {
-    extension = ".pdf";
-  } else if (mimeType === "image/png") {
-    extension = ".png";
-  } else if (mimeType === "image/webp") {
-    extension = ".webp";
-  }
-
-  return `${domain}/${timestamp}-${randomHex}${extension}`;
-}
+import { isValidMediaDomain, ALLOWED_MEDIA_DOMAINS } from "../utils/media.js";
 
 /**
  * Uploads a media file into the canonical MadayawGas media storage subsystem.
@@ -51,25 +25,7 @@ export async function uploadMediaFile(file, domain) {
   // 1. Client-side compression & size verification (< 5 MB)
   const preparedFile = await compressAndPrepareImage(file);
 
-  // 2. Mock mode fallback
-  if (isMock) {
-    await delay(350);
-    const mockStorageKey = generateMockStorageKey(domain, preparedFile.type);
-    const objectUrl =
-      typeof window !== "undefined" && typeof URL !== "undefined"
-        ? URL.createObjectURL(preparedFile)
-        : `http://localhost:5000/media/${mockStorageKey}`;
-
-    return {
-      storageKey: mockStorageKey,
-      url: objectUrl,
-      mimeType: preparedFile.type || "image/jpeg",
-      sizeBytes: preparedFile.size,
-      originalName: file.name || "uploaded-file",
-    };
-  }
-
-  // 3. Live backend upload via multipart/form-data
+  // 2. Live backend upload via multipart/form-data
   const formData = new FormData();
   formData.append("file", preparedFile);
   formData.append("domain", domain);
@@ -93,14 +49,6 @@ export async function resolveMediaKey(storageKey) {
     throw new Error("storageKey must be provided as a non-empty string");
   }
 
-  if (isMock) {
-    await delay(100);
-    return {
-      storageKey,
-      url: resolveMediaUrl(storageKey),
-    };
-  }
-
   const response = await apiClient("/media/resolve", {
     method: "POST",
     body: { storageKey },
@@ -118,14 +66,6 @@ export async function resolveMediaKey(storageKey) {
  */
 export async function deleteMediaFile(storageKey) {
   if (!storageKey) return null;
-
-  if (isMock) {
-    await delay(150);
-    return {
-      status: "success",
-      message: "Media asset deleted successfully",
-    };
-  }
 
   const response = await apiClient("/media", {
     method: "DELETE",

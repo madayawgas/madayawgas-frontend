@@ -1,11 +1,9 @@
 /**
  * Storage Sanitizer Utility
- * Ensures stale mock data or malformed UUID caches do not contaminate
- * live API environments when running with VITE_USE_MOCK=false.
+ * Ensures stale legacy data or malformed UUID caches do not contaminate
+ * live API environments.
  */
-import { isMock } from "../api/client.js";
-
-const SANITIZE_VERSION = "mg_storage_v2_sanitized";
+const SANITIZE_VERSION = "mg_storage_v3_pure_live";
 
 const LIVE_CACHE_KEYS = [
   "app_users_cache",
@@ -18,6 +16,9 @@ const LIVE_CACHE_KEYS = [
   "app_odometer_cache",
   "app_work_orders_cache",
   "app_maintenance_logs_cache",
+  "app_items_cache",
+  "app_plant_stock_cache",
+  "app_customers_cache",
 ];
 
 const MOCK_SIGNATURES = [
@@ -33,9 +34,7 @@ const MOCK_SIGNATURES = [
 export function sanitizeAppCaches() {
   if (typeof window === "undefined" || !window.localStorage) return;
 
-  // In live mode (isMock === false), purge stale mock data
-  if (!isMock) {
-    const isAlreadySanitized = localStorage.getItem(SANITIZE_VERSION);
+  const isAlreadySanitized = localStorage.getItem(SANITIZE_VERSION);
 
     LIVE_CACHE_KEYS.forEach((key) => {
       try {
@@ -58,5 +57,4 @@ export function sanitizeAppCaches() {
     } catch {
       // Ignore quota errors
     }
-  }
 }

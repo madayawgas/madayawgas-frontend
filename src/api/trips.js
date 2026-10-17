@@ -1,29 +1,5 @@
 // src/api/trips.js
-import { apiClient, isMock, delay } from "./client.js";
-import mockTrips from "../mocks/trips.json" with { type: "json" };
-
-const LOCAL_STORAGE_KEY = "app_trips_cache";
-
-function getInMemoryTrips() {
-  try {
-    const cached = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch (e) {
-    console.error("Error reading cached trips:", e);
-  }
-  return isMock && Array.isArray(mockTrips) ? [...mockTrips] : [];
-}
-
-function saveInMemoryTrips(trips) {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(trips));
-  } catch (e) {
-    console.error("Error saving trips cache:", e);
-  }
-}
+import { apiClient } from "./client.js";
 
 export function normalizeTrip(raw) {
   if (!raw) return null;
@@ -171,21 +147,6 @@ export const tripsApi = {
    * List delivery trips with optional filters.
    */
   async getTrips(params = {}) {
-    if (isMock) {
-      await delay(100);
-      let list = getInMemoryTrips().map(normalizeTrip);
-      if (params.status) {
-        list = list.filter((t) => (t.status || "").toUpperCase() === params.status.toUpperCase());
-      }
-      if (params.truckId) {
-        list = list.filter((t) => t.truckId === params.truckId);
-      }
-      if (params.zoneId) {
-        list = list.filter((t) => t.zoneId === params.zoneId);
-      }
-      return list;
-    }
-
     const query = new URLSearchParams();
     if (params.status) query.append("status", params.status);
     if (params.truckId) query.append("truckId", params.truckId);
@@ -197,9 +158,7 @@ export const tripsApi = {
     const res = await apiClient(`/trips${qs}`);
     const rawList = res?.data?.trips || res?.data || [];
     if (Array.isArray(rawList)) {
-      const normalized = rawList.map(normalizeTrip);
-      saveInMemoryTrips(normalized);
-      return normalized;
+      return rawList.map(normalizeTrip);
     }
     return [];
   },
@@ -208,83 +167,20 @@ export const tripsApi = {
    * Get single trip detail by ID.
    */
   async getTripById(id) {
-    if (isMock) {
-      await delay(100);
-      const trip = getInMemoryTrips().find((t) => t.id === id);
-      if (!trip) throw new Error("Trip not found");
-      return normalizeTrip(trip);
-    }
-
-    try {
-      const res = await apiClient(`/trips/${id}`);
-      const trip = res?.data?.trip || res?.data;
-      if (trip) return normalizeTrip(trip);
-      const cached = getInMemoryTrips().find((t) => t.id === id);
-      return cached ? normalizeTrip(cached) : null;
-    } catch (e) {
-      console.warn(`apiClient /trips/${id} failed, falling back to cache:`, e?.message);
-      const cached = getInMemoryTrips().find((t) => t.id === id);
-      if (cached) return normalizeTrip(cached);
-      throw e;
-    }
+    const res = await apiClient(`/trips/${id}`);
+    const trip = res?.data?.trip || res?.data;
+    if (trip) return normalizeTrip(trip);
+    return null;
   },
 
   /**
    * Dispatch a delivery truck for a scheduled or ad-hoc run.
    */
   async dispatchTrip(payload) {
-    if (isMock) {
-      await delay(200);
-      const list = getInMemoryTrips();
-      const tripId = `trp-${Date.now()}`;
-      const tripNumber = `TRIP-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(list.length + 1).padStart(3, "0")}`;
-
-      const newTrip = {
-        id: tripId,
-        tripNumber,
-        scheduleId: payload.scheduleId || null,
-        truckId: payload.truckId || "trk-11111111-2222-3333-4444-555555555555",
-        truckPlate: payload.truckPlate || "ABC-1001",
-        truckModel: payload.truckModel || "Isuzu Elf N-Series",
-        driverId: payload.driverId || "d1111111-aaaa-bbbb-cccc-111111111111",
-        driverName: payload.driverName || "Juan Driver",
-        salesUserId: payload.salesUserId || "98b3be70-2bd5-4a6d-be32-a9174cb1cb84",
-        salesName: payload.salesName || "Sales Representative",
-        zoneId: payload.zoneId || "7b8f9e6a-5432-41a9-83bc-9d0e12345678",
-        zoneCode: payload.zoneCode || "TORIL",
-        zoneName: payload.zoneName || "Toril District",
-        status: "IN_PROGRESS",
-        departureTime: new Date().toISOString(),
-        departureOdometer: payload.departureOdometer || 45000,
-        notes: payload.notes || "Trip dispatched from yard",
-        loads: payload.initialLoads?.length
-          ? [
-              {
-                id: `lod-${Date.now()}`,
-                transferType: "DISPATCH_LOAD",
-                slipNumber: `LOAD-${Date.now()}`,
-                items: payload.initialLoads,
-              },
-            ]
-          : [],
-      };
-
-      list.unshift(newTrip);
-      saveInMemoryTrips(list);
-      return { trip: newTrip, message: `Truck dispatched successfully with number ${tripNumber}` };
-    }
-
     const res = await apiClient(`/trips/dispatch`, {
       method: "POST",
       body: payload,
     });
-    const dispatched = res?.data?.trip || res?.data;
-    if (dispatched) {
-      const list = getInMemoryTrips();
-      const norm = normalizeTrip(dispatched);
-      list.unshift(norm);
-      saveInMemoryTrips(list);
-    }
     return res.data;
   },
 
@@ -292,27 +188,6 @@ export const tripsApi = {
    * Record a midday reload or transfer slip.
    */
   async addTripLoad(tripId, payload) {
-    if (isMock) {
-      await delay(150);
-      const list = getInMemoryTrips();
-      const trip = list.find((t) => t.id === tripId);
-      if (!trip) throw new Error("Trip not found");
-
-      const newLoad = {
-        id: `lod-${Date.now()}`,
-        transferType: payload.transferType || "DISPATCH_LOAD",
-        slipNumber: `LOAD-${Date.now()}`,
-        remarks: payload.remarks || null,
-        items: payload.items || [],
-        recordedAt: new Date().toISOString(),
-      };
-
-      if (!trip.loads) trip.loads = [];
-      trip.loads.push(newLoad);
-      saveInMemoryTrips(list);
-      return { load: newLoad, message: "Load manifest recorded successfully" };
-    }
-
     const res = await apiClient(`/trips/${tripId}/loads`, {
       method: "POST",
       body: payload,
@@ -324,61 +199,10 @@ export const tripsApi = {
    * Complete yard return check-in with return odometer reading and return unloads.
    */
   async completeTripReturn(tripId, payload) {
-    if (isMock) {
-      await delay(200);
-      const list = getInMemoryTrips();
-      const trip = list.find((t) => t.id === tripId);
-      if (!trip) throw new Error("Trip not found");
-
-      trip.status = "AWAITING_SYNC";
-      trip.returnTime = new Date().toISOString();
-      trip.returnOdometer = Number(payload.returnOdometerKm);
-      trip.distanceDrivenKm = Math.max(0, trip.returnOdometer - (trip.departureOdometer || 0));
-
-      if (payload.returnLoads?.length) {
-        if (!trip.loads) trip.loads = [];
-        trip.loads.push({
-          id: `lod-${Date.now()}`,
-          transferType: "RETURN_UNLOAD",
-          slipNumber: `UNLOAD-${Date.now()}`,
-          items: payload.returnLoads,
-          recordedAt: new Date().toISOString(),
-        });
-      }
-
-      trip.reconciliation = {
-        status: "AWAITING_SYNC",
-        totalLoadedFull: 120,
-        totalSoldFull: 95,
-        totalReturnedFull: payload.returnLoads?.find((i) => i.condition === "FILLED")?.quantityUnits || 20,
-        totalReturnedEmptyGood: payload.returnLoads?.find((i) => i.condition === "EMPTY_GOOD")?.quantityUnits || 95,
-        totalReturnedDefective: payload.returnLoads?.find((i) => i.condition === "DEFECTIVE")?.quantityUnits || 5,
-        netCustomerDebtCreated: 0,
-        fullDiscrepancy: 0,
-        emptyDiscrepancy: 0,
-        isSettled: false,
-      };
-
-      saveInMemoryTrips(list);
-      return {
-        trip,
-        message: "Plant return check-in recorded successfully. Trip is now awaiting sync.",
-      };
-    }
-
     const res = await apiClient(`/trips/${tripId}/complete`, {
       method: "POST",
       body: payload,
     });
-    const completedTrip = res?.data?.trip;
-    if (completedTrip) {
-      const list = getInMemoryTrips();
-      const idx = list.findIndex((t) => t.id === tripId);
-      if (idx !== -1) {
-        list[idx] = normalizeTrip(completedTrip);
-        saveInMemoryTrips(list);
-      }
-    }
     return res.data;
   },
 
@@ -386,12 +210,6 @@ export const tripsApi = {
    * Retrieve post-trip reconciliation breakdown.
    */
   async getTripReconciliation(tripId) {
-    if (isMock) {
-      await delay(100);
-      const trip = getInMemoryTrips().find((t) => t.id === tripId);
-      return trip?.reconciliation || { status: "AWAITING_SYNC" };
-    }
-
     const res = await apiClient(`/trips/${tripId}/reconciliation`);
     const recon = res?.data?.reconciliation || res?.data;
     return recon ? normalizeReconciliation(recon) : { status: "AWAITING_SYNC" };
@@ -401,41 +219,10 @@ export const tripsApi = {
    * Settle post-trip stock reconciliation.
    */
   async settleReconciliation(tripId, payload) {
-    if (isMock) {
-      await delay(200);
-      const list = getInMemoryTrips();
-      const trip = list.find((t) => t.id === tripId);
-      if (!trip) throw new Error("Trip not found");
-
-      trip.status = "SETTLED";
-      if (!trip.reconciliation) trip.reconciliation = {};
-      trip.reconciliation.status = "SETTLED";
-      trip.reconciliation.isSettled = true;
-      trip.reconciliation.supervisorNotes = payload.supervisorNotes || "Verified and settled";
-      trip.reconciliation.reconciledAt = new Date().toISOString();
-
-      saveInMemoryTrips(list);
-      return {
-        trip,
-        reconciliation: trip.reconciliation,
-        message: "Trip stock reconciliation settled successfully",
-      };
-    }
-
     const res = await apiClient(`/trips/${tripId}/reconcile`, {
       method: "POST",
       body: payload,
     });
-    const list = getInMemoryTrips();
-    const idx = list.findIndex((t) => t.id === tripId);
-    if (idx !== -1) {
-      list[idx].status = "SETTLED";
-      if (list[idx].reconciliation) {
-        list[idx].reconciliation.status = "SETTLED";
-        list[idx].reconciliation.isSettled = true;
-      }
-      saveInMemoryTrips(list);
-    }
     return res.data;
   },
 
@@ -443,60 +230,10 @@ export const tripsApi = {
    * Cancel an operational trip.
    */
   async cancelTrip(tripId, payload = {}) {
-    if (isMock) {
-      await delay(150);
-      const list = getInMemoryTrips();
-      const trip = list.find((t) => t.id === tripId);
-      if (trip) {
-        trip.status = "CANCELLED";
-        trip.returnTime = new Date().toISOString();
-        if (payload.reason) {
-          trip.cancelReason = payload.reason;
-          trip.notes = trip.notes ? `${trip.notes} | Cancelled: ${payload.reason}` : `Cancelled: ${payload.reason}`;
-        }
-        if (payload.returnOdometerKm) {
-          trip.returnOdometer = Number(payload.returnOdometerKm);
-          trip.distanceDrivenKm = Math.max(0, trip.returnOdometer - (trip.departureOdometer || 0));
-        }
-        if (payload.returnLoads?.length) {
-          if (!trip.loads) trip.loads = [];
-          trip.loads.push({
-            id: `lod-${Date.now()}`,
-            transferType: "RETURN_UNLOAD",
-            slipNumber: `CANCEL-UNLOAD-${Date.now()}`,
-            remarks: `Aborted trip return: ${payload.reason || "Cancelled mid-way"}`,
-            items: payload.returnLoads,
-            recordedAt: new Date().toISOString(),
-          });
-        }
-        saveInMemoryTrips(list);
-      }
-      return { message: "Trip cancelled successfully", trip };
-    }
-
     const res = await apiClient(`/trips/${tripId}/cancel`, {
       method: "PATCH",
       body: payload,
     });
-    const list = getInMemoryTrips();
-    const idx = list.findIndex((t) => t.id === tripId);
-    if (idx !== -1) {
-      list[idx].status = "CANCELLED";
-      if (payload.reason) list[idx].cancelReason = payload.reason;
-      if (payload.returnOdometerKm) list[idx].returnOdometer = Number(payload.returnOdometerKm);
-      if (payload.returnLoads?.length) {
-        if (!list[idx].loads) list[idx].loads = [];
-        list[idx].loads.push({
-          id: `lod-${Date.now()}`,
-          transferType: "RETURN_UNLOAD",
-          slipNumber: `CANCEL-UNLOAD-${Date.now()}`,
-          remarks: `Aborted trip return: ${payload.reason || "Cancelled mid-way"}`,
-          items: payload.returnLoads,
-          recordedAt: new Date().toISOString(),
-        });
-      }
-      saveInMemoryTrips(list);
-    }
     return res.data;
   },
 };

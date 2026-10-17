@@ -1,12 +1,5 @@
 // src/api/client.js
 
-export const isMock =
-  typeof import.meta !== "undefined" && import.meta.env
-    ? import.meta.env.VITE_USE_MOCK === undefined
-      ? true
-      : import.meta.env.VITE_USE_MOCK === "true"
-    : true;
-
 export const API_BASE_URL = (
   typeof import.meta !== "undefined" &&
   import.meta.env &&
@@ -14,14 +7,6 @@ export const API_BASE_URL = (
     ? import.meta.env.VITE_API_URL
     : "http://localhost:5000/api"
 ).replace(/\/+$/, "");
-
-/**
- * Simulated network delay for mock operations.
- * @param {number} ms - Milliseconds to delay
- * @returns {Promise<void>}
- */
-export const delay = (ms = 300) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Lightweight native fetch wrapper.

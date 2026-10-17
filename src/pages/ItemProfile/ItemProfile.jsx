@@ -242,6 +242,20 @@ export default function ItemProfile() {
     }
   }, [items, selectedItem]);
 
+  // Helper to refresh live plant stock
+  const refreshPlantStock = async () => {
+    try {
+      localStorage.removeItem("app_plant_stock_cache");
+      const updatedStock = await inventoryApi.getPlantInventory();
+      if (updatedStock && Array.isArray(updatedStock)) {
+        setPlantStock(updatedStock);
+        localStorage.setItem("app_plant_stock_cache", JSON.stringify(updatedStock));
+      }
+    } catch (err) {
+      console.warn("Failed to refresh plant stock after product change:", err);
+    }
+  };
+
   // Add Item Handler
   const handleAddItem = async (newItemData) => {
     const result = await inventoryApi.createProduct(newItemData);
@@ -259,6 +273,8 @@ export default function ItemProfile() {
       type: "success",
       message: `Product ${created.name || created.itemName || ""} registered successfully`,
     });
+
+    await refreshPlantStock();
   };
 
   // Update Item Handler
@@ -279,6 +295,8 @@ export default function ItemProfile() {
       type: "success",
       message: `Product ${updated.name || updated.itemName || ""} updated successfully`,
     });
+
+    await refreshPlantStock();
   };
 
   // Deactivate Item Flow
@@ -318,6 +336,8 @@ export default function ItemProfile() {
       type: "success",
       message: `Product ${itemToDeactivate.name || itemToDeactivate.itemName || ""} deactivated successfully`,
     });
+
+    await refreshPlantStock();
   };
 
   // Reactivate Item Flow
@@ -355,6 +375,8 @@ export default function ItemProfile() {
       type: "success",
       message: `Product ${itemToReactivate.name || itemToReactivate.itemName || ""} reactivated successfully`,
     });
+
+    await refreshPlantStock();
   };
 
   // Header Summary metrics
