@@ -62,19 +62,15 @@ export const AuthProvider = ({ children }) => {
   // Change password handler
   const changePassword = async (payload) => {
     const result = await authApi.changePassword(payload);
-    // After password change, backend/mock invalidates session
+    // After password change, backend invalidates session
     setUser(null);
     return result;
   };
 
-  // Update user profile in state & session storage
+  // Update user profile in state
   const updateUser = (updatedUserData) => {
     setUser((prev) => {
-      const merged = { ...prev, ...updatedUserData };
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("mg_mock_session_user", JSON.stringify(merged));
-      }
-      return merged;
+      return { ...prev, ...updatedUserData };
     });
   };
 

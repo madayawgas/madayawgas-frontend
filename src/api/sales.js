@@ -1,6 +1,5 @@
 // src/api/sales.js
-import { apiClient, isMock, delay } from "./client.js";
-import mockSales from "../mocks/sales.json" with { type: "json" };
+import { apiClient } from "./client.js";
 import { customersApi } from "./customers.js";
 
 export const salesApi = {
@@ -9,25 +8,19 @@ export const salesApi = {
    * @returns {Promise<{ weekly: Array, monthly: Array, annually: Array }>}
    */
   async getSalesOverview() {
-    if (isMock) {
-      await delay(200);
-      return mockSales.data;
-    }
     try {
       const result = await apiClient("/sales/overview");
-      if (
-        result?.data &&
-        (result.data.weekly?.length ||
-          result.data.monthly?.length ||
-          result.data.annually?.length)
-      ) {
-        return result.data;
+      if (result?.data) {
+        return {
+          weekly: Array.isArray(result.data.weekly) ? result.data.weekly : [],
+          monthly: Array.isArray(result.data.monthly) ? result.data.monthly : [],
+          annually: Array.isArray(result.data.annually) ? result.data.annually : [],
+        };
       }
     } catch {
-      // Backend sales overview endpoint is not ready or failed
+      // Backend sales overview endpoint not implemented or empty
     }
-    // Aesthetic fallback: provide mock sales series for the dashboard graph even when isMock=false
-    return mockSales.data;
+    return { weekly: [], monthly: [], annually: [] };
   },
 
   /**

@@ -32,9 +32,9 @@ madayawgas-frontend/
 │   ├── Reference/              # UI/UX design mockups and reference screenshots
 │   └── permissions.md          # RBAC matrix and role permissions mapping
 ├── src/
-│   ├── api/                    # API services (wraps fetch with auto session cookie & mock fallbacks)
+│   ├── api/                    # API services (wraps fetch with auto session cookie and Bearer fallback)
 │   │   ├── auth.js             # Login, logout, getMe, verifyPassword, changePassword
-│   │   ├── client.js           # apiClient wrapper, isMock flag, delay helper
+│   │   ├── client.js           # apiClient wrapper (live REST calls to backend)
 │   │   ├── customers.js        # Customer CRUD & password verification
 │   │   ├── dashboard.js        # Metrics & analytics
 │   │   ├── fleet.js            # Vehicle CRUD, maintenance, driver assignments
@@ -54,15 +54,6 @@ madayawgas-frontend/
 │   │   └── users/              # UsersHeader, UsersControls, UsersTable, UserModal (Wizard steps 1-4), AdminPasswordModal, DeactivateUserModal, ReactivateUserModal, FilterRole, etc.
 │   ├── context/
 │   │   └── AuthContext.jsx     # Auth state, session bootstrap, can/canAll/canAny permission helpers
-│   ├── mocks/                  # JSON datasets for offline/mock development (isMock = true)
-│   │   ├── customers.json
-│   │   ├── dashboard.json
-│   │   ├── fleet.json
-│   │   ├── history.json
-│   │   ├── me.json
-│   │   ├── roles.json
-│   │   ├── sales.json
-│   │   └── users.json
 │   ├── pages/
 │   │   ├── Customers/          # Customer Profile page (Master-Detail layout)
 │   │   ├── Dashboard/          # Analytics dashboard
@@ -106,10 +97,11 @@ madayawgas-frontend/
    - Use `<ProtectedRoute permission={[PERMISSIONS.SALES_VIEW, PERMISSIONS.SALES_VIEW_OWN]}>` to wrap routes in `main.jsx`.
    - Condition management buttons/actions with `can(PERMISSIONS.SALES_CREATE)`, `can(PERMISSIONS.USERS_MANAGE)`, etc.
 
-### B. Mock System (`isMock`)
-- Governed by `VITE_USE_MOCK` in `src/api/client.js` (defaults to `true` if not explicitly set to `"false"`).
-- All API services (`users.js`, `customers.js`, `fleet.js`, etc.) check `isMock`. In mock mode, they simulate latency (`await delay(250)`) and update in-memory/mock JSON collections.
-- Pages also utilize `localStorage` cache keys (e.g. `app_customers_cache`, `app_users_cache`) to retain state across browser refreshes.
+### B. Live API & Data State Architecture
+- All frontend modules communicate directly with the live REST backend via `apiClient` in `src/api/client.js`.
+- Target API base URL is configured via `VITE_API_URL` in `.env.local` (defaulting to local or designated network backend).
+- There is NO mock data fallback or simulated mock state. All data displayed strictly reflects real backend database records.
+- UI views leverage standard cache keys (e.g. `app_customers_cache`, `app_users_cache`, `app_fleet_cache`) for instantaneous perceived performance, automatically invalidating caches on entity mutations (creates, updates, deactivations).
 
 ### C. Visual Identity & Design System
 - **Colors**:
@@ -324,8 +316,8 @@ npm run lint
 
 ### Creating New Features — Checklist for Agents
 1. **Check API Contract**: Always read the corresponding file in `docs/API Contract/` before coding. **API Contract takes precedence over design mockups**.
-2. **Implement API Service**: Add functions to `src/api/<module>.js` supporting both live `apiClient` calls and simulated `isMock` operations.
-3. **Seed Mock Data**: Add realistic mock entries in `src/mocks/<module>.json`.
+2. **Implement API Service**: Add functions to `src/api/<module>.js` communicating directly via `apiClient` to backend endpoints. Ensure proper payload formatting, response unwrapping, and error propagation.
+3. **Handle Data State**: Connect UI components to live API services, managing loading and error states cleanly. Ensure optimistic or cache invalidation on mutations.
 4. **Permissions Guard**: Guard routes in `main.jsx` with `<ProtectedRoute permission={...}>` and check actions with `can(...)` from `useAuth()`.
 5. **Follow UI Patterns**:
    - Reuse `src/components/ui/` (`Badge`, `Button`, `Modal`, `SearchBar`, `ToastNotifications`, `SavedChangesToast`).

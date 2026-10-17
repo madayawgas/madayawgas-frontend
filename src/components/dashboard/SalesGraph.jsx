@@ -10,14 +10,12 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import Card from "../ui/Card";
-import mockSales from "../../mocks/sales.json" with { type: "json" };
-
 export default function SalesGraph({ salesData }) {
   const [timeframe, setTimeframe] = useState("monthly");
 
-  const weeklySales = salesData?.weekly?.length ? salesData.weekly : mockSales.data.weekly;
-  const monthlySales = salesData?.monthly?.length ? salesData.monthly : mockSales.data.monthly;
-  const annualSales = salesData?.annually?.length ? salesData.annually : mockSales.data.annually;
+  const weeklySales = salesData?.weekly || [];
+  const monthlySales = salesData?.monthly || [];
+  const annualSales = salesData?.annually || [];
 
   const activeData =
     timeframe === "weekly"
@@ -69,60 +67,64 @@ export default function SalesGraph({ salesData }) {
       </div>
 
       {/* Chart Area */}
-      <div className="w-full border border-gray-300 rounded-xl h-[190px] md:h-[190px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            key={timeframe}
-            data={activeData}
-            margin={{ top: 10, right: 20, left: -40, bottom: 0 }}
-          >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              vertical={false}
-              stroke="#E5E7EB"
-            />
+      <div className="w-full border border-gray-300 rounded-xl h-[190px] md:h-[190px] flex items-center justify-center">
+        {activeData.length === 0 ? (
+          <p className="text-xs text-gray-400 font-medium">No sales data available for this timeframe</p>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              key={timeframe}
+              data={activeData}
+              margin={{ top: 10, right: 20, left: -40, bottom: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="#E5E7EB"
+              />
 
-            <XAxis
-              dataKey="name"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "#6B7280", fontSize: 12 }}
-              dy={10}
-            />
+              <XAxis
+                dataKey="name"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: "#6B7280", fontSize: 12 }}
+                dy={10}
+              />
 
-            <YAxis axisLine={false} tickLine={false} tick={false} />
+              <YAxis axisLine={false} tickLine={false} tick={false} />
 
-            <Tooltip
-              contentStyle={{
-                borderRadius: "8px",
-                border: "none",
-                boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-              }}
-            />
+              <Tooltip
+                contentStyle={{
+                  borderRadius: "8px",
+                  border: "none",
+                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                }}
+              />
 
-            <Bar
-              dataKey="butane"
-              name="Butane Canister"
-              fill="#93B5D0"
-              barSize={16}
-              radius={[4, 4, 0, 0]}
-            />
-            <Bar
-              dataKey="lpg11kg"
-              name="11 kg LPG"
-              fill="#0F7AB2"
-              barSize={16}
-              radius={[4, 4, 0, 0]}
-            />
-            <Bar
-              dataKey="lpg50kg"
-              name="50 kg LPG"
-              fill="#FFDF2C"
-              barSize={16}
-              radius={[4, 4, 0, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
+              <Bar
+                dataKey="butane"
+                name="Butane Canister"
+                fill="#93B5D0"
+                barSize={16}
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar
+                dataKey="lpg11kg"
+                name="11 kg LPG"
+                fill="#0F7AB2"
+                barSize={16}
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar
+                dataKey="lpg50kg"
+                name="50 kg LPG"
+                fill="#FFDF2C"
+                barSize={16}
+                radius={[4, 4, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </Card>
   );

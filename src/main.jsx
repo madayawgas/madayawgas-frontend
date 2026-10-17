@@ -213,7 +213,7 @@ const router = createBrowserRouter([
   },
 ]);
 
-// 2. Clear any stale mock caches before rendering
+// 2. Clear any stale caches before rendering
 sanitizeAppCaches();
 
 // 3. Wrap router with AuthProvider

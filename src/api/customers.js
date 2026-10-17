@@ -1,6 +1,5 @@
 // src/api/customers.js
-import { apiClient, isMock, delay } from "./client.js";
-import mockCustomers from "../mocks/customers.json" with { type: "json" };
+import { apiClient } from "./client.js";
 import { authApi } from "./auth.js";
 
 /**
@@ -21,98 +20,10 @@ export const customersApi = {
 
   /**
    * View customer overview (List & Search).
-   * @param {object} [params] - Query parameters (search, customerType, status, isActive)
-   * @returns {Promise<Array>} Array of customer objects
+   * @param {object} [params] - Query parameters (search, customerType, status, isActive, sortBy, sortOrder, page, limit)
+   * @returns {Promise<Array|object>} Array of customer objects or paginated envelope
    */
   async getCustomers(params = {}) {
-    if (isMock) {
-      await delay(250);
-      let list = [...mockCustomers.data.customers];
-
-      // Use cached customers if present in localStorage
-      try {
-        const cached = localStorage.getItem("app_customers_cache");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            list = [...parsed];
-          }
-        }
-      } catch (e) {
-        console.error("Failed to read customers cache in mock mode:", e);
-      }
-
-      if (params.customerType && params.customerType !== "All Types") {
-        list = list.filter(
-          (c) =>
-            (c.customerType || "").toUpperCase() ===
-            params.customerType.toUpperCase()
-        );
-      }
-
-      if (params.status) {
-        if (params.status.toUpperCase() === "ACTIVE") {
-          list = list.filter((c) => c.isActive === true);
-        } else if (params.status.toUpperCase() === "INACTIVE") {
-          list = list.filter((c) => c.isActive === false);
-        }
-      }
-
-      if (params.isActive !== undefined) {
-        const activeBool =
-          params.isActive === true || params.isActive === "true";
-        list = list.filter((c) => c.isActive === activeBool);
-      }
-
-      if (params.search) {
-        const q = params.search.toLowerCase();
-        list = list.filter(
-          (c) =>
-            (c.name || "").toLowerCase().includes(q) ||
-            (c.address || "").toLowerCase().includes(q) ||
-            (c.contactNumber || "").toLowerCase().includes(q) ||
-            (c.customerType || "").toLowerCase().includes(q)
-        );
-      }
-
-      // Sorting
-      if (params.sortBy) {
-        list.sort((a, b) => {
-          const dir = params.sortOrder === "desc" ? -1 : 1;
-          const aVal = a[params.sortBy] || "";
-          const bVal = b[params.sortBy] || "";
-          if (typeof aVal === "string") {
-            return aVal.localeCompare(bVal) * dir;
-          }
-          return (aVal > bVal ? 1 : -1) * dir;
-        });
-      }
-
-      // If page or limit is provided, paginate and return { data, meta }
-      if (params.page !== undefined || params.limit !== undefined) {
-        const page = Math.max(1, Number(params.page) || 1);
-        const limit = Math.max(1, Number(params.limit) || 20);
-        const totalItems = list.length;
-        const totalPages = Math.max(1, Math.ceil(totalItems / limit));
-        const paginatedData = list.slice((page - 1) * limit, page * limit);
-
-        return {
-          status: "success",
-          data: paginatedData,
-          meta: {
-            page,
-            limit,
-            totalItems,
-            totalPages,
-            hasNextPage: page < totalPages,
-            hasPrevPage: page > 1,
-          },
-        };
-      }
-
-      return list;
-    }
-
     const query = new URLSearchParams();
     if (params.page) query.append("page", params.page);
     if (params.limit) query.append("limit", params.limit);
@@ -127,7 +38,10 @@ export const customersApi = {
 
     const queryString = query.toString() ? `?${query.toString()}` : "";
     const result = await apiClient(`/sales/customers${queryString}`);
-    return result;
+    if (Array.isArray(result?.data)) {
+      return result.data;
+    }
+    return result?.data?.customers || result?.data || (Array.isArray(result) ? result : []);
   },
 
   /**
@@ -136,19 +50,8 @@ export const customersApi = {
    * @returns {Promise<object>} Customer object
    */
   async getCustomerById(id) {
-    if (isMock) {
-      await delay(150);
-      const customer = mockCustomers.data.customers.find((c) => c.id === id);
-      if (!customer) {
-        const error = new Error("Customer not found");
-        error.status = 404;
-        throw error;
-      }
-      return customer;
-    }
-
     const result = await apiClient(`/sales/customers/${id}`);
-    return result.data.customer;
+    return result?.data?.customer || result?.data || result;
   },
 
   /**
@@ -157,24 +60,6 @@ export const customersApi = {
    * @returns {Promise<{ customer: object }>} Created customer response
    */
   async createCustomer(customerData) {
-    if (isMock) {
-      await delay(300);
-      const newCustomer = {
-        id: `cust-${Date.now()}`,
-        name: customerData.name,
-        address: customerData.address,
-        contactNumber: customerData.contactNumber,
-        customerType: customerData.customerType || "COMMERCIAL",
-        isActive: customerData.isActive !== undefined ? customerData.isActive : true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      // Keep mock in-memory array updated
-      mockCustomers.data.customers.unshift(newCustomer);
-      mockCustomers.data.count = mockCustomers.data.customers.length;
-      return { customer: newCustomer };
-    }
-
     const result = await apiClient("/sales/customers", {
       method: "POST",
       body: customerData,
@@ -189,21 +74,6 @@ export const customersApi = {
    * @returns {Promise<{ customer: object }>} Updated customer response
    */
   async updateCustomer(id, customerData) {
-    if (isMock) {
-      await delay(250);
-      const index = mockCustomers.data.customers.findIndex((c) => c.id === id);
-      const existing = index !== -1 ? mockCustomers.data.customers[index] : {};
-      const updated = {
-        ...existing,
-        ...customerData,
-        updatedAt: new Date().toISOString(),
-      };
-      if (index !== -1) {
-        mockCustomers.data.customers[index] = updated;
-      }
-      return { customer: updated };
-    }
-
     const result = await apiClient(`/sales/customers/${id}`, {
       method: "PATCH",
       body: customerData,
@@ -218,30 +88,6 @@ export const customersApi = {
    * @returns {Promise<{ customer: object, message: string }>} Updated deactivated customer
    */
   async deactivateCustomer(id, { confirmPassword }) {
-    if (isMock) {
-      await delay(300);
-      if (!confirmPassword) {
-        const error = new Error("Admin password confirmation is required");
-        error.status = 401;
-        throw error;
-      }
-
-      const index = mockCustomers.data.customers.findIndex((c) => c.id === id);
-      const existing = index !== -1 ? mockCustomers.data.customers[index] : {};
-      const updated = {
-        ...existing,
-        isActive: false,
-        updatedAt: new Date().toISOString(),
-      };
-      if (index !== -1) {
-        mockCustomers.data.customers[index] = updated;
-      }
-      return {
-        customer: updated,
-        message: "Customer successfully deactivated",
-      };
-    }
-
     const password =
       typeof confirmPassword === "object"
         ? confirmPassword?.confirmPassword || confirmPassword?.adminPassword

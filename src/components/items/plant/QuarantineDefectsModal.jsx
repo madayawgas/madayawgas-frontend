@@ -10,7 +10,8 @@ export default function QuarantineDefectsModal({
   onQuarantine,
   defaultProductId,
 }) {
-  const [productId, setProductId] = useState(defaultProductId || plantStock[0]?.productId || "");
+  const initialId = defaultProductId || plantStock[0]?.productId || plantStock[0]?.id || "";
+  const [productId, setProductId] = useState(initialId);
   const [sourceCondition, setSourceCondition] = useState("FILLED");
   const [quantityUnits, setQuantityUnits] = useState(10);
   const [reason, setReason] = useState("Damaged valve / leaker identified during yard inspection");
@@ -18,8 +19,9 @@ export default function QuarantineDefectsModal({
   useEffect(() => {
     if (defaultProductId) {
       setProductId(defaultProductId);
-    } else if (plantStock[0]?.productId) {
-      setProductId((prev) => prev || plantStock[0].productId);
+    } else if (plantStock.length > 0) {
+      const firstId = plantStock[0]?.productId || plantStock[0]?.id || "";
+      setProductId((prev) => prev || firstId);
     }
   }, [defaultProductId, isOpen, plantStock]);
 
@@ -35,7 +37,7 @@ export default function QuarantineDefectsModal({
     try {
       setIsSubmitting(true);
       await onQuarantine({
-        productId: productId || plantStock[0]?.productId,
+        productId: productId || plantStock[0]?.productId || plantStock[0]?.id,
         sourceCondition,
         quantityUnits: Number(quantityUnits),
         reason,
@@ -86,11 +88,15 @@ export default function QuarantineDefectsModal({
               className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl p-2.5 text-xs text-[#0A4B6E] focus:outline-[#0A4B6E]"
               required
             >
-              {plantStock.map((p) => (
-                <option key={p.productId} value={p.productId}>
-                  {p.productName} ({p.containerType})
-                </option>
-              ))}
+              {plantStock.map((p) => {
+                const pId = p.productId || p.id;
+                const pName = p.productName || p.name;
+                return (
+                  <option key={pId} value={pId}>
+                    {pName} ({p.containerType})
+                  </option>
+                );
+              })}
             </select>
           </div>
 
