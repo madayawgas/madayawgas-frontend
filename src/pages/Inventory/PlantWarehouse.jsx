@@ -17,6 +17,7 @@ import { PERMISSIONS } from "../../utils/permissions.js";
 import SupplierRestockModal from "../../components/items/plant/SupplierRestockModal.jsx";
 import QuarantineDefectsModal from "../../components/items/plant/QuarantineDefectsModal.jsx";
 import ToastNotification from "../../components/ui/ToastNotifications.jsx";
+import { useRealtimeRefresh } from "../../hooks/useRealtimeRefresh.js";
 
 const PLANT_CACHE_KEY = "app_plant_stock_cache";
 
@@ -81,6 +82,13 @@ export default function PlantWarehouse() {
       setIsLoading(false);
     }
   }, []);
+
+  // Real-Time WebSocket Hook: Auto-refreshes yard stock when inventory/trips update
+  useRealtimeRefresh({
+    events: ["PLANT_STOCK_UPDATED", "TRIP_RECONCILIATION_UPDATED"],
+    cacheKeysToInvalidate: [PLANT_CACHE_KEY],
+    onRefresh: fetchStock,
+  });
 
   useEffect(() => {
     fetchStock();

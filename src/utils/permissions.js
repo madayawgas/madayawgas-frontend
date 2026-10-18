@@ -24,6 +24,9 @@ export const PERMISSIONS = {
   USERS_VIEW: "users.view",
   USERS_MANAGE: "users.manage",
   HISTORY_VIEW: "history.view",
+  ALERTS_VIEW: "alerts.view",
+  ALERTS_MANAGE: "alerts.manage",
+  ALERTS_TRIGGER: "alerts.trigger",
 };
 
 

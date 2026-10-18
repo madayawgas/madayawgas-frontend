@@ -39,6 +39,7 @@ import MiddayReloadModal from "../../components/route-dispatch/MiddayReloadModal
 import CancelTripModal from "../../components/route-dispatch/CancelTripModal";
 import CancelScheduleModal from "../../components/route-dispatch/CancelScheduleModal";
 import ToastNotification from "../../components/ui/ToastNotifications";
+import { useRealtimeRefresh } from "../../hooks/useRealtimeRefresh.js";
 
 export default function RouteDispatch() {
   const navigate = useNavigate();
@@ -195,6 +196,18 @@ export default function RouteDispatch() {
       console.warn("Failed to refresh today's dispatches:", err);
     }
   }, [todayPht]);
+
+  // Real-Time WebSocket Hook: Auto-refreshes trips, vehicle status, and schedules
+  useRealtimeRefresh({
+    events: [
+      "FLEET_VEHICLE_GROUNDED",
+      "FLEET_VEHICLE_RELEASED",
+      "TRIP_RECONCILIATION_UPDATED",
+      "SALES_BATCH_SYNCED",
+    ],
+    cacheKeysToInvalidate: ["app_fleet_cache", "app_trips_cache"],
+    onRefresh: loadData,
+  });
 
   useEffect(() => {
     let mounted = true;

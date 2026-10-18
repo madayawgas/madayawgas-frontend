@@ -33,6 +33,7 @@ import WorkOrderTable from "../../components/fleet/work-orders/WorkOrderTable";
 import MaintenanceLogsControls from "../../components/fleet/logs/MaintenanceLogsControls";
 import MaintenanceLogsTable from "../../components/fleet/logs/MaintenanceLogsTable";
 import RecurringIssuesAnalytics from "../../components/fleet/analytics/RecurringIssuesAnalytics";
+import { useRealtimeRefresh } from "../../hooks/useRealtimeRefresh.js";
 
 const LOCAL_STORAGE_KEY = "app_fleet_cache";
 
@@ -268,6 +269,16 @@ export default function Fleet() {
       console.error("Failed to refresh trucks:", err);
     }
   }, []);
+
+  // Real-Time WebSocket Hook: Auto-refreshes trucks & work orders when vehicles are grounded or released
+  useRealtimeRefresh({
+    events: ["FLEET_VEHICLE_GROUNDED", "FLEET_VEHICLE_RELEASED"],
+    cacheKeysToInvalidate: [LOCAL_STORAGE_KEY],
+    onRefresh: () => {
+      refreshTrucks();
+      refreshWorkOrders();
+    },
+  });
 
   useEffect(() => {
     async function loadFleet() {

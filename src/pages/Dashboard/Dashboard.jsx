@@ -11,6 +11,7 @@ import { fleetApi } from "../../api/fleet.js";
 import { customersApi } from "../../api/customers.js";
 import bgHeader from "../../assets/BG-Madayaw8.png";
 import { hasUserRole } from "../../utils/userRoles.js";
+import { useRealtimeRefresh } from "../../hooks/useRealtimeRefresh.js";
 
 export default function Dashboard() {
   const { currentUser, can } = useAuth();
@@ -111,89 +112,101 @@ export default function Dashboard() {
     }
   }, [isSuperAdmin]);
 
-  useEffect(() => {
-    async function loadDashboardData() {
-      try {
-        const promises = [
-          dashboardApi.getMetrics().catch(() => null),
-        ];
+  const loadDashboardData = useCallback(async () => {
+    try {
+      const promises = [
+        dashboardApi.getMetrics().catch(() => null),
+      ];
 
-        let salesIndex = -1;
-        let customersIndex = -1;
-        if (canSales) {
-          salesIndex = promises.push(salesApi.getSalesOverview().catch(() => null)) - 1;
-          customersIndex = promises.push(customersApi.getCustomers().catch(() => null)) - 1;
-        }
-
-        let trucksIndex = -1;
-        if (canFleet) {
-          trucksIndex = promises.push(fleetApi.getTrucks().catch(() => null)) - 1;
-        }
-
-        let logsIndex = -1;
-        if (isSuperAdmin) {
-          logsIndex = promises.push(fleetApi.getMaintenanceLogs().catch(() => null)) - 1;
-        }
-
-        const results = await Promise.allSettled(promises);
-        const dashMetrics = results[0];
-
-        if (dashMetrics?.status === "fulfilled" && dashMetrics?.value) {
-          setMetrics(dashMetrics.value);
-        }
-
-        if (salesIndex !== -1) {
-          const salesRes = results[salesIndex];
-          if (salesRes?.status === "fulfilled" && salesRes?.value) {
-            setSalesData(salesRes.value);
-          }
-        }
-
-        if (customersIndex !== -1) {
-          const custRes = results[customersIndex];
-          if (custRes?.status === "fulfilled" && Array.isArray(custRes?.value)) {
-            const activeCustomers = custRes.value.filter(
-              (c) => c.isActive !== false
-            ).length;
-            setCustomerCount(activeCustomers);
-          }
-        }
-
-        if (trucksIndex !== -1) {
-          const trucksRes = results[trucksIndex];
-          if (trucksRes?.status === "fulfilled" && Array.isArray(trucksRes?.value)) {
-            const trucks = trucksRes.value;
-            setTotalTrucks(trucks.length);
-            const activeCount = trucks.filter(
-              (t) => (t.status || "").toUpperCase() === "ACTIVE"
-            ).length;
-            const maintenanceCount = trucks.filter(
-              (t) => (t.status || "").toUpperCase() === "UNDER_MAINTENANCE"
-            ).length;
-
-            setTruckCounts({
-              available: activeCount,
-              inUse: 0,
-              maintenance: maintenanceCount,
-              underRepair: 0,
-            });
-          }
-        }
-
-        if (logsIndex !== -1) {
-          const logsRes = results[logsIndex];
-          if (logsRes?.status === "fulfilled" && logsRes?.value) {
-            const logs =
-              logsRes.value?.data?.logs || logsRes.value?.logs || [];
-            setMaintenanceLogs(logs);
-          }
-        }
-      } catch {
-        // Retain fallback state on network failure
+      let salesIndex = -1;
+      let customersIndex = -1;
+      if (canSales) {
+        salesIndex = promises.push(salesApi.getSalesOverview().catch(() => null)) - 1;
+        customersIndex = promises.push(customersApi.getCustomers().catch(() => null)) - 1;
       }
+
+      let trucksIndex = -1;
+      if (canFleet) {
+        trucksIndex = promises.push(fleetApi.getTrucks().catch(() => null)) - 1;
+      }
+
+      let logsIndex = -1;
+      if (isSuperAdmin) {
+        logsIndex = promises.push(fleetApi.getMaintenanceLogs().catch(() => null)) - 1;
+      }
+
+      const results = await Promise.allSettled(promises);
+      const dashMetrics = results[0];
+
+      if (dashMetrics?.status === "fulfilled" && dashMetrics?.value) {
+        setMetrics(dashMetrics.value);
+      }
+
+      if (salesIndex !== -1) {
+        const salesRes = results[salesIndex];
+        if (salesRes?.status === "fulfilled" && salesRes?.value) {
+          setSalesData(salesRes.value);
+        }
+      }
+
+      if (customersIndex !== -1) {
+        const custRes = results[customersIndex];
+        if (custRes?.status === "fulfilled" && Array.isArray(custRes?.value)) {
+          const activeCustomers = custRes.value.filter(
+            (c) => c.isActive !== false
+          ).length;
+          setCustomerCount(activeCustomers);
+        }
+      }
+
+      if (trucksIndex !== -1) {
+        const trucksRes = results[trucksIndex];
+        if (trucksRes?.status === "fulfilled" && Array.isArray(trucksRes?.value)) {
+          const trucks = trucksRes.value;
+          setTotalTrucks(trucks.length);
+          const activeCount = trucks.filter(
+            (t) => (t.status || "").toUpperCase() === "ACTIVE"
+          ).length;
+          const maintenanceCount = trucks.filter(
+            (t) => (t.status || "").toUpperCase() === "UNDER_MAINTENANCE"
+          ).length;
+
+          setTruckCounts({
+            available: activeCount,
+            inUse: 0,
+            maintenance: maintenanceCount,
+            underRepair: 0,
+          });
+        }
+      }
+
+      if (logsIndex !== -1) {
+        const logsRes = results[logsIndex];
+        if (logsRes?.status === "fulfilled" && logsRes?.value) {
+          const logs =
+            logsRes.value?.data?.logs || logsRes.value?.logs || [];
+          setMaintenanceLogs(logs);
+        }
+      }
+    } catch {
+      // Retain fallback state on network failure
     }
-    loadDashboardData();
   }, [isSuperAdmin, canFleet, canSales]);
+
+  // Real-Time WebSocket Hook: Auto-refreshes dashboard when vehicles are grounded/released or sales batch committed
+  useRealtimeRefresh({
+    events: [
+      "FLEET_VEHICLE_GROUNDED",
+      "FLEET_VEHICLE_RELEASED",
+      "SALES_BATCH_SYNCED",
+    ],
+    cacheKeysToInvalidate: ["app_fleet_cache"],
+    onRefresh: loadDashboardData,
+  });
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const {
     grossIncome = 0,

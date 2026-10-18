@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 
 import { AuthProvider } from "./context/AuthContext.jsx";
+import { SocketProvider } from "./context/SocketContext.jsx";
 import { Analytics } from "@vercel/analytics/react";
 import { PERMISSIONS } from "./utils/permissions.js";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
@@ -216,12 +217,14 @@ const router = createBrowserRouter([
 // 2. Clear any stale caches before rendering
 sanitizeAppCaches();
 
-// 3. Wrap router with AuthProvider
+// 3. Wrap router with AuthProvider and SocketProvider
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <AuthProvider>
-      <RouterProvider router={router} />
-      <Analytics />
+      <SocketProvider>
+        <RouterProvider router={router} />
+        <Analytics />
+      </SocketProvider>
     </AuthProvider>
   </StrictMode>
 );
