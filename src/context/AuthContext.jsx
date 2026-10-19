@@ -6,6 +6,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 import { authApi } from "../api/auth.js";
 import {
@@ -13,6 +14,11 @@ import {
   canAll as canAllHelper,
   canAny as canAnyHelper,
 } from "../utils/permissions.js";
+import {
+  onSessionExpired,
+  broadcastLogout,
+  setupCrossTabSessionSync,
+} from "../utils/sessionEvents.js";
 
 const AuthContext = createContext(null);
 
@@ -23,6 +29,13 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const wasAuthenticatedRef = useRef(false);
+
+  useEffect(() => {
+    if (user) {
+      wasAuthenticatedRef.current = true;
+    }
+  }, [user]);
 
   // Check active session on initial load / refresh
   const checkSession = useCallback(async () => {
@@ -43,6 +56,69 @@ export const AuthProvider = ({ children }) => {
     checkSession();
   }, [checkSession]);
 
+  // Listen for session expiration events and cross-tab session events
+  useEffect(() => {
+    const unsubExpired = onSessionExpired(() => {
+      setUser(null);
+    });
+
+    const unsubSync = setupCrossTabSessionSync({
+      onExpired: () => {
+        setUser(null);
+      },
+      onLogout: () => {
+        setUser(null);
+      },
+    });
+
+    return () => {
+      unsubExpired();
+      unsubSync();
+    };
+  }, []);
+
+  // Proactively check session when user switches back to an inactive tab after a period of time
+  useEffect(() => {
+    if (!user) return;
+
+    let lastCheckTime = Date.now();
+    const MIN_CHECK_INTERVAL_MS = 60 * 1000; // Check at most once every 60 seconds
+
+    const handleTabActive = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        return;
+      }
+      const now = Date.now();
+      if (now - lastCheckTime < MIN_CHECK_INTERVAL_MS) {
+        return;
+      }
+      lastCheckTime = now;
+
+      try {
+        // Silent check: verifies session cookie without showing full-page loading spinner
+        const me = await authApi.getMe();
+        if (me) {
+          setUser((prev) => (prev ? { ...prev, ...me } : me));
+        }
+      } catch {
+        // Genuine 401s will trigger notifySessionExpired via apiClient.
+        // Network/offline blips will be safely caught without logging user out.
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", handleTabActive);
+      document.addEventListener("visibilitychange", handleTabActive);
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", handleTabActive);
+        document.removeEventListener("visibilitychange", handleTabActive);
+      }
+    };
+  }, [user]);
+
   // Login handler
   const login = async (username, password) => {
     const loggedInUser = await authApi.login(username, password);
@@ -55,6 +131,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await authApi.logout();
     } finally {
+      broadcastLogout();
       setUser(null);
     }
   };
@@ -63,6 +140,7 @@ export const AuthProvider = ({ children }) => {
   const changePassword = async (payload) => {
     const result = await authApi.changePassword(payload);
     // After password change, backend invalidates session
+    broadcastLogout();
     setUser(null);
     return result;
   };

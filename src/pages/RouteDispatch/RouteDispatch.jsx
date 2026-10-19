@@ -23,6 +23,7 @@ import { tripsApi } from "../../api/trips.js";
 import { schedulesApi } from "../../api/schedules.js";
 import { fleetApi } from "../../api/fleet.js";
 import { inventoryApi } from "../../api/inventory.js";
+import { attendanceApi } from "../../api/attendance.js";
 import { getScheduleDispatchGating } from "../../utils/fleetGuards.js";
 
 import { isCanisterProduct, getCanisterCrates } from "../../utils/product.js";
@@ -128,6 +129,7 @@ export default function RouteDispatch() {
 
   const [drivers, setDrivers] = useState([]);
   const [salesUsers, setSalesUsers] = useState([]);
+  const [activeDutyDriverIds, setActiveDutyDriverIds] = useState(() => new Set());
 
   const [searchTerm, setSearchTerm] = useState("");
   const [toast, setToast] = useState(null);
@@ -148,7 +150,17 @@ export default function RouteDispatch() {
 
   const loadData = useCallback(async () => {
     try {
-      const [tripsData, schedData, tplData, vData, zData, prodData, driverData, salesData] = await Promise.all([
+      const [
+        tripsData,
+        schedData,
+        tplData,
+        vData,
+        zData,
+        prodData,
+        driverData,
+        salesData,
+        activeAttendance,
+      ] = await Promise.all([
         tripsApi.getTrips().catch((err) => {
           console.warn("Failed to fetch trips:", err);
           return [];
@@ -181,6 +193,10 @@ export default function RouteDispatch() {
           console.warn("Failed to fetch sales persons:", err);
           return [];
         }),
+        attendanceApi.getActivePersonnel().catch((err) => {
+          console.warn("Failed to fetch active personnel attendance:", err);
+          return [];
+        }),
       ]);
 
       if (Array.isArray(tripsData)) setTrips(tripsData);
@@ -192,6 +208,12 @@ export default function RouteDispatch() {
       const parsedDrivers = Array.isArray(driverData) ? driverData : (driverData?.drivers || []);
       setDrivers(parsedDrivers);
       if (Array.isArray(salesData)) setSalesUsers(salesData);
+
+      const activeList = Array.isArray(activeAttendance) ? activeAttendance : [];
+      const activeIds = new Set(
+        activeList.map((rec) => rec.userId || rec.user_id || rec.user?.id).filter(Boolean)
+      );
+      setActiveDutyDriverIds(activeIds);
     } catch (err) {
       console.warn("Failed to refresh today's dispatches:", err);
     }
@@ -204,6 +226,7 @@ export default function RouteDispatch() {
       "FLEET_VEHICLE_RELEASED",
       "TRIP_RECONCILIATION_UPDATED",
       "SALES_BATCH_SYNCED",
+      "ATTENDANCE_DUTY_UPDATED",
     ],
     cacheKeysToInvalidate: ["app_fleet_cache", "app_trips_cache"],
     onRefresh: loadData,
@@ -321,7 +344,7 @@ export default function RouteDispatch() {
     const available = [];
     const unavailable = [];
     allTodaySchedules.forEach((sched) => {
-      const gating = getScheduleDispatchGating(sched, vehicles, drivers);
+      const gating = getScheduleDispatchGating(sched, vehicles, drivers, activeDutyDriverIds);
       const enriched = { ...sched, gating };
       if (gating.canDispatch) {
         available.push(enriched);
@@ -330,7 +353,7 @@ export default function RouteDispatch() {
       }
     });
     return { availableSchedules: available, unavailableSchedules: unavailable };
-  }, [allTodaySchedules, vehicles, drivers]);
+  }, [allTodaySchedules, vehicles, drivers, activeDutyDriverIds]);
 
   const handleDispatchTrip = async (payload) => {
     try {
@@ -856,6 +879,7 @@ export default function RouteDispatch() {
         schedules={availableSchedules}
         vehicles={vehicles}
         drivers={drivers}
+        activeDutyDriverIds={activeDutyDriverIds}
         zones={zones}
         products={products}
         salesUsers={salesUsers}

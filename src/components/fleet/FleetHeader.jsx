@@ -8,6 +8,8 @@ import {
   Truck,
   Wrench,
   FileText,
+  Fuel,
+  FileWarning,
 } from "lucide-react";
 
 export default function FleetHeader({
@@ -16,6 +18,8 @@ export default function FleetHeader({
   trucksCount = 0,
   workOrdersCount = 0,
   logsCount = 0,
+  fuelLogsCount = 0,
+  apprehensionsCount = 0,
   pendingApprovalCount = 0,
   canCreate = true,
   onAddTruck,
@@ -47,7 +51,7 @@ export default function FleetHeader({
       {/* 1. TOP: Centered Segmented Control View Switcher */}
       <div className="w-full flex items-center justify-center mb-3">
         <div className="inline-flex items-center p-1 bg-[#EDF3F7] rounded-full border border-[#D5E3EC] shadow-inner gap-1 max-w-full overflow-x-auto custom-scrollbar">
-          {/* Vehicles & Fleets Tab */}
+          {/* 1. Vehicles & Fleets Tab */}
           <button
             type="button"
             onClick={() => onTabChange("vehicles")}
@@ -70,7 +74,7 @@ export default function FleetHeader({
             </span>
           </button>
 
-          {/* Work Orders Tab */}
+          {/* 2. Work Orders Tab */}
           <button
             type="button"
             onClick={() => onTabChange("work-orders")}
@@ -99,7 +103,7 @@ export default function FleetHeader({
             )}
           </button>
 
-          {/* Maintenance Logs Tab */}
+          {/* 3. Maintenance Logs Tab */}
           <button
             type="button"
             onClick={() => onTabChange("logs")}
@@ -122,7 +126,57 @@ export default function FleetHeader({
             </span>
           </button>
 
-          {/* Recurring Defect Report Tab */}
+          {/* 4. Fuel Log Tab (NEW) */}
+          <button
+            type="button"
+            onClick={() => onTabChange("fuel")}
+            className={`px-3.5 py-1.5 rounded-full text-xs transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              activeSubTab === "fuel"
+                ? "bg-[#0A4B6E] text-[#FFDF2C] shadow-sm font-bold scale-[1.02]"
+                : "text-[#486581] hover:text-[#0A4B6E] hover:bg-white/70 font-medium"
+            }`}
+          >
+            <Fuel className="w-3.5 h-3.5 shrink-0" />
+            <span>Fuel Log</span>
+            {fuelLogsCount > 0 && (
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold min-w-[18px] text-center ${
+                  activeSubTab === "fuel"
+                    ? "bg-white/20 text-white"
+                    : "bg-slate-200/90 text-slate-600"
+                }`}
+              >
+                {fuelLogsCount}
+              </span>
+            )}
+          </button>
+
+          {/* 5. Apprehensions Tab (NEW) */}
+          <button
+            type="button"
+            onClick={() => onTabChange("apprehensions")}
+            className={`px-3.5 py-1.5 rounded-full text-xs transition-all duration-200 flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              activeSubTab === "apprehensions"
+                ? "bg-[#0A4B6E] text-[#FFDF2C] shadow-sm font-bold scale-[1.02]"
+                : "text-[#486581] hover:text-[#0A4B6E] hover:bg-white/70 font-medium"
+            }`}
+          >
+            <FileWarning className="w-3.5 h-3.5 shrink-0" />
+            <span>Apprehensions</span>
+            {apprehensionsCount > 0 && (
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold min-w-[18px] text-center ${
+                  activeSubTab === "apprehensions"
+                    ? "bg-white/20 text-white"
+                    : "bg-amber-100 text-amber-900 border border-amber-300"
+                }`}
+              >
+                {apprehensionsCount}
+              </span>
+            )}
+          </button>
+
+          {/* 6. Recurring Defect Report Tab */}
           <button
             type="button"
             onClick={() => onTabChange("analytics")}
@@ -139,7 +193,7 @@ export default function FleetHeader({
       </div>
 
       {/* 2. BOTTOM: Context-Aware Badges & Action Buttons */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between pb-3.5 border-b border-[#6D8AA2]/20 gap-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between pb-3.5 border-b border-[#6D8AA2]/20 gap-3 min-h-[44px]">
         {/* TAB 1: VEHICLES & FLEETS */}
         {activeSubTab === "vehicles" && (
           <>
@@ -180,7 +234,7 @@ export default function FleetHeader({
             </div>
 
             {/* Right: Incidents Dropdown & Add New Fleet */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 h-[30px]">
               {(onOpenIncidentsLog || onReportIncident) && (
                 <div className="relative" ref={menuRef}>
                   <button
@@ -263,7 +317,7 @@ export default function FleetHeader({
             </div>
 
             {/* Right: Create Work Order Button */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 h-[30px]">
               {canCreate && onCreateWorkOrder && (
                 <button
                   type="button"
@@ -281,32 +335,52 @@ export default function FleetHeader({
         {/* TAB 3: MAINTENANCE LOGS */}
         {activeSubTab === "logs" && (
           <>
-            {/* Left: Logs Summary */}
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
                 <FileText size={13} className="text-[#0A4B6E]" />
                 <span>{logsCount} Maintenance Records</span>
               </span>
             </div>
-
-            {/* Right: Empty for clean logs view */}
-            <div className="flex items-center gap-2" />
+            <div className="flex items-center gap-2 h-[30px]" />
           </>
         )}
 
-        {/* TAB 4: RECURRING DEFECT REPORT */}
+        {/* TAB 4: FUEL MONITORING / FUEL LOG */}
+        {activeSubTab === "fuel" && (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
+                <Fuel size={13} className="text-[#0A4B6E]" />
+                <span>Fleet Fuel Monitoring & Consumption Telemetry</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2 h-[30px]" />
+          </>
+        )}
+
+        {/* TAB 5: APPREHENSIONS */}
+        {activeSubTab === "apprehensions" && (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
+                <FileWarning size={13} className="text-amber-600" />
+                <span>Driver Roadside Apprehensions & Traffic Citations</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2 h-[30px]" />
+          </>
+        )}
+
+        {/* TAB 6: RECURRING DEFECT REPORT */}
         {activeSubTab === "analytics" && (
           <>
-            {/* Left: Defect Intelligence Summary */}
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
                 <AlertOctagon size={13} className="text-[#0A4B6E]" />
                 <span>Cross-Fleet Recurring Defect Intelligence</span>
               </span>
             </div>
-
-            {/* Right: Empty */}
-            <div className="flex items-center gap-2" />
+            <div className="flex items-center gap-2 h-[30px]" />
           </>
         )}
       </div>

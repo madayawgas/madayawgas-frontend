@@ -15,6 +15,7 @@ import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import DynamicHomeRedirect from "./components/auth/DynamicHomeRedirect.jsx";
 
 import { sanitizeAppCaches } from "./utils/storageSanitizer.js";
+import { onSessionExpired } from "./utils/sessionEvents.js";
 
 import Layout from "./pages/Layout";
 import Dashboard from "./pages/Dashboard/Dashboard";
@@ -65,6 +66,22 @@ const router = createBrowserRouter([
             <Fleet />
           </ProtectedRoute>
         ),
+      },
+      {
+        path: "fleet/fuel",
+        element: <Navigate to="/fleet?tab=fuel" replace />,
+      },
+      {
+        path: "fleet/apprehensions",
+        element: <Navigate to="/fleet?tab=apprehensions" replace />,
+      },
+      {
+        path: "fuel",
+        element: <Navigate to="/fleet?tab=fuel" replace />,
+      },
+      {
+        path: "apprehensions",
+        element: <Navigate to="/fleet?tab=apprehensions" replace />,
       },
       {
         path: "route-planner",
@@ -217,7 +234,24 @@ const router = createBrowserRouter([
 // 2. Clear any stale caches before rendering
 sanitizeAppCaches();
 
-// 3. Wrap router with AuthProvider and SocketProvider
+// 3. Listen for session expiration events and immediately navigate to /login
+onSessionExpired(() => {
+  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+    router.navigate("/login", {
+      replace: true,
+      state: {
+        sessionExpired: true,
+        from: {
+          pathname: window.location.pathname,
+          search: window.location.search,
+        },
+        message: "Your session has expired. Please log in again to continue.",
+      },
+    });
+  }
+});
+
+// 4. Wrap router with AuthProvider and SocketProvider
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <AuthProvider>

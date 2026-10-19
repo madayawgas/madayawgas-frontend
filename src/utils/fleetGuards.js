@@ -107,6 +107,7 @@ export function checkActiveWorkOrder(truck, workOrders = []) {
  * @param {object} sched - Schedule or template-derived run object
  * @param {Array} [vehicles] - Current vehicles collection from fleetApi
  * @param {Array} [drivers] - Current drivers / staff collection
+ * @param {Set<string>|Array<string>|null} [activeDutyDriverIds] - Currently clocked-in driver user IDs
  * @returns {{
  *   canDispatch: boolean,
  *   reasonTag: string,
@@ -114,7 +115,12 @@ export function checkActiveWorkOrder(truck, workOrders = []) {
  *   variant: 'success' | 'maintenance' | 'inactive' | 'retired' | 'danger'
  * }}
  */
-export function getScheduleDispatchGating(sched, vehicles = [], drivers = []) {
+export function getScheduleDispatchGating(
+  sched,
+  vehicles = [],
+  drivers = [],
+  activeDutyDriverIds = null
+) {
   if (!sched) {
     return {
       canDispatch: false,
@@ -164,8 +170,17 @@ export function getScheduleDispatchGating(sched, vehicles = [], drivers = []) {
     };
   }
 
-  // Driver account status
+  // Driver account & attendance status
   const driverId = sched.truckDriverId || sched.driverId || vehicle?.driverId;
+  if (!driverId) {
+    return {
+      canDispatch: false,
+      reasonTag: "NO DRIVER",
+      reasonText: "Vehicle has no assigned driver. A driver must be assigned to dispatch.",
+      variant: "danger",
+    };
+  }
+
   if (driverId && Array.isArray(drivers) && drivers.length > 0) {
     const driverUser = drivers.find((d) => d.id === driverId || d.userId === driverId);
     if (driverUser) {
@@ -184,6 +199,29 @@ export function getScheduleDispatchGating(sched, vehicles = [], drivers = []) {
           reasonText: "Assigned driver account is deactivated",
           variant: "inactive",
         };
+      }
+
+      // Attendance Verification: Driver must be actively clocked in on duty
+      if (activeDutyDriverIds) {
+        const isDutySet = activeDutyDriverIds instanceof Set;
+        const isOnDuty = isDutySet
+          ? activeDutyDriverIds.has(driverId)
+          : Array.isArray(activeDutyDriverIds)
+          ? activeDutyDriverIds.includes(driverId)
+          : false;
+
+        if (!isOnDuty) {
+          const driverName =
+            driverUser.fullName ||
+            `${driverUser.firstName || ""} ${driverUser.lastName || ""}`.trim() ||
+            driverUser.username;
+          return {
+            canDispatch: false,
+            reasonTag: "DRIVER OFF-DUTY",
+            reasonText: `Assigned driver '${driverName}' has not clocked in yet. Driver must be on active duty to dispatch.`,
+            variant: "maintenance",
+          };
+        }
       }
     }
   }

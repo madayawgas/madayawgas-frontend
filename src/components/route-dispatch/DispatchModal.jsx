@@ -15,6 +15,7 @@ export default function DispatchModal({
   schedules = [],
   vehicles = [],
   drivers = [],
+  activeDutyDriverIds = new Set(),
   zones = [],
   products = [],
   salesUsers = [],
@@ -87,6 +88,35 @@ export default function DispatchModal({
     return isScheduled && (isToday || isPreselected) && isAllowed;
   });
 
+  const isDriverOnDuty = (id) => {
+    if (!id || !activeDutyDriverIds) return false;
+    return activeDutyDriverIds instanceof Set
+      ? activeDutyDriverIds.has(id)
+      : Array.isArray(activeDutyDriverIds)
+      ? activeDutyDriverIds.includes(id)
+      : false;
+  };
+
+  const selectedSchedule = !isAdHoc
+    ? scheduledOptions.find((s) => s.id === selectedScheduleId) || scheduledOptions[0] || null
+    : null;
+
+  const currentTruck = isAdHoc
+    ? vehicles.find((v) => v.id === truckId) || null
+    : selectedSchedule
+    ? vehicles.find((v) => v.id === selectedSchedule.truckId) || null
+    : null;
+
+  const resolvedDriverId = isAdHoc
+    ? driverId || currentTruck?.driverId || null
+    : driverId || selectedSchedule?.driverId || selectedSchedule?.truckDriverId || currentTruck?.driverId || null;
+
+  const resolvedDriver = resolvedDriverId
+    ? drivers.find((d) => d.id === resolvedDriverId || d.userId === resolvedDriverId) || null
+    : null;
+
+  const isResolvedDriverOffDuty = Boolean(resolvedDriverId && !isDriverOnDuty(resolvedDriverId));
+
   const handleAddItem = () => {
     const defaultProd = products[0];
     if (!defaultProd) return;
@@ -135,7 +165,20 @@ export default function DispatchModal({
 
         const selTruck = vehicles.find((v) => v.id === sched.truckId);
         const resolvedDriverId = driverId || sched.driverId || sched.truckDriverId || selTruck?.driverId || null;
-        const selDriver = drivers.find((d) => d.id === resolvedDriverId);
+        const selDriver = drivers.find((d) => d.id === resolvedDriverId || d.userId === resolvedDriverId);
+
+        if (!resolvedDriverId) {
+          throw new Error("Vehicle has no assigned driver. A driver must be assigned or specified in the dispatch request.");
+        }
+
+        if (!isDriverOnDuty(resolvedDriverId)) {
+          const dName = selDriver
+            ? (selDriver.fullName || `${selDriver.firstName || ""} ${selDriver.lastName || ""}`.trim() || selDriver.username)
+            : (sched.driverName || "Assigned driver");
+          throw new Error(
+            `Cannot dispatch trip: Assigned driver '${dName}' has not clocked in yet. Driver must be clocked in on active duty to be dispatched.`
+          );
+        }
 
         payload = {
           scheduleId: sched.isTemplateDerived ? null : sched.id,
@@ -164,9 +207,22 @@ export default function DispatchModal({
 
         const selTruck = vehicles.find((v) => v.id === truckId);
         const resolvedDriverId = driverId || selTruck?.driverId || null;
-        const selDriver = drivers.find((d) => d.id === resolvedDriverId);
+        const selDriver = drivers.find((d) => d.id === resolvedDriverId || d.userId === resolvedDriverId);
         const selSales = salesUsers.find((u) => u.id === salesUserId);
         const selZone = zones.find((z) => z.id === zoneId);
+
+        if (!resolvedDriverId) {
+          throw new Error("Vehicle has no assigned driver. A driver must be selected for this ad-hoc dispatch.");
+        }
+
+        if (!isDriverOnDuty(resolvedDriverId)) {
+          const dName = selDriver
+            ? (selDriver.fullName || `${selDriver.firstName || ""} ${selDriver.lastName || ""}`.trim() || selDriver.username)
+            : "Juan Driver";
+          throw new Error(
+            `Cannot dispatch trip: Assigned driver '${dName}' has not clocked in yet. Driver must be clocked in on active duty to be dispatched.`
+          );
+        }
 
         payload = {
           truckId,
@@ -283,7 +339,18 @@ export default function DispatchModal({
 
               {selectedScheduleId && (
                 <div>
-                  <label className="block font-bold text-[#0A4B6E] mb-1">Driver Assignment (Optional Override)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-bold text-[#0A4B6E]">Driver Assignment (Optional Override)</label>
+                    {resolvedDriver && (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        isDriverOnDuty(resolvedDriverId)
+                          ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                          : "bg-amber-50 text-amber-800 border border-amber-200"
+                      }`}>
+                        {isDriverOnDuty(resolvedDriverId) ? "● On Duty" : "○ Off Duty"}
+                      </span>
+                    )}
+                  </div>
                   <select
                     value={driverId}
                     onChange={(e) => setDriverId(e.target.value)}
@@ -292,10 +359,19 @@ export default function DispatchModal({
                     <option value="">Default driver assigned to vehicle</option>
                     {drivers.map((d) => (
                       <option key={d.id} value={d.id}>
-                        {d.fullName || `${d.firstName || ""} ${d.lastName || ""}`.trim() || d.username}
+                        {d.fullName || `${d.firstName || ""} ${d.lastName || ""}`.trim() || d.username} {isDriverOnDuty(d.id) ? "• (On Duty)" : "• (Off Duty)"}
                       </option>
                     ))}
                   </select>
+
+                  {isResolvedDriverOffDuty && (
+                    <div className="mt-2 p-2 bg-amber-50 border border-amber-200/80 rounded-xl text-amber-900 text-[11px] font-medium flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                      <span>
+                        <strong>Driver Off-Duty:</strong> Assigned driver '{resolvedDriver?.fullName || resolvedDriver?.username || "Driver"}' has not clocked in yet. Driver must be on active duty to dispatch.
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -358,7 +434,18 @@ export default function DispatchModal({
               </div>
 
               <div>
-                <label className="block font-bold text-[#0A4B6E] mb-1">Driver</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold text-[#0A4B6E]">Driver</label>
+                  {resolvedDriver && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      isDriverOnDuty(resolvedDriverId)
+                        ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                        : "bg-amber-50 text-amber-800 border border-amber-200"
+                    }`}>
+                      {isDriverOnDuty(resolvedDriverId) ? "● On Duty" : "○ Off Duty"}
+                    </span>
+                  )}
+                </div>
                 <select
                   value={driverId}
                   onChange={(e) => setDriverId(e.target.value)}
@@ -367,10 +454,19 @@ export default function DispatchModal({
                   <option value="">Default vehicle driver</option>
                   {drivers.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.fullName || `${d.firstName || ""} ${d.lastName || ""}`.trim() || d.username}
+                      {d.fullName || `${d.firstName || ""} ${d.lastName || ""}`.trim() || d.username} {isDriverOnDuty(d.id) ? "• (On Duty)" : "• (Off Duty)"}
                     </option>
                   ))}
                 </select>
+
+                {isResolvedDriverOffDuty && (
+                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200/80 rounded-xl text-amber-900 text-[11px] font-medium flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                    <span>
+                      <strong>Driver Off-Duty:</strong> Assigned driver '{resolvedDriver?.fullName || resolvedDriver?.username || "Driver"}' has not clocked in yet. Driver must be on active duty to dispatch.
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -464,8 +560,9 @@ export default function DispatchModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="px-5 py-2 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#0E384E] cursor-pointer shadow-xs disabled:opacity-50"
+              disabled={isSubmitting || isResolvedDriverOffDuty}
+              title={isResolvedDriverOffDuty ? "Assigned driver must be clocked in on active duty to dispatch" : undefined}
+              className="px-5 py-2 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#0E384E] cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Dispatching..." : "Confirm Dispatch ➔"}
             </button>
