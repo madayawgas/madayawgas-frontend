@@ -10,7 +10,13 @@
 export const ALLOWED_MEDIA_DOMAINS = [
   "maintenance/receipts",
   "maintenance/inspections",
+  "maintenance/incidents",
   "fleet/vehicles",
+  "fleet/fuel",
+  "fleet/apprehensions",
+  "fleet/incidents",
+  "operations/fuel",
+  "operations/apprehensions",
   "sales/receipts",
   "sales/payments",
   "users/avatars",

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import logo from "../assets/logov2.svg";
 import ForceChangePasswordModal from "../components/auth/ForceChangePasswordModal.jsx";
+import EmergencyAlertBanner from "../components/alerts/EmergencyAlertBanner.jsx";
 
 export default function Layout() {
   const [open, setOpen] = useState(false);
@@ -96,7 +97,7 @@ export default function Layout() {
 
   // SECURITY Bouncer
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   const handleLogout = async () => {
@@ -482,6 +483,9 @@ export default function Layout() {
             </div>
           </div>
         </header>
+
+        {/* REAL-TIME DRIVER EMERGENCY SOS ALERT BANNER */}
+        <EmergencyAlertBanner />
 
         <main className="flex-1 overflow-y-auto px-4 md:px-8 py-3 md:py-4 animate-fade-in bg-white min-w-0">
           <Outlet />

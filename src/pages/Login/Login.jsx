@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { getDefaultRoute } from "../../utils/permissions.js";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock } from "lucide-react";
 
 import logo from "../../assets/logov2.svg";
 import bgLeftCard from "../../assets/BG-Madayaw8.png";
@@ -19,6 +19,12 @@ export default function Login() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState(
     location.state?.successMessage || ""
+  );
+  const [sessionExpiredMessage, setSessionExpiredMessage] = useState(
+    location.state?.sessionExpired
+      ? location.state?.message ||
+          "Your session has expired. Please log in again to continue."
+      : ""
   );
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -43,11 +49,18 @@ export default function Login() {
 
     setLoading(true);
     setError("");
+    setSessionExpiredMessage("");
 
     try {
       const user = await login(username.trim(), password);
+      const fromObj = location.state?.from;
       const destination =
-        location.state?.from?.pathname || getDefaultRoute(user);
+        typeof fromObj === "string"
+          ? fromObj
+          : fromObj?.pathname
+          ? `${fromObj.pathname}${fromObj.search || ""}`
+          : getDefaultRoute(user);
+
       navigate(destination, { replace: true });
     } catch (err) {
       setError(err.message || "Invalid username or password.");
@@ -114,6 +127,7 @@ export default function Login() {
                 setUsername(e.target.value);
                 setError("");
                 setSuccessMessage("");
+                setSessionExpiredMessage("");
               }}
               onKeyDown={handleKeyDown}
               placeholder="Enter username"
@@ -137,6 +151,7 @@ export default function Login() {
                   setPassword(e.target.value);
                   setError("");
                   setSuccessMessage("");
+                  setSessionExpiredMessage("");
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder="Enter password"
@@ -155,6 +170,13 @@ export default function Login() {
               </button>
             </div>
           </div>
+
+          {sessionExpiredMessage && (
+            <div className="bg-amber-50 border border-amber-200/90 text-amber-900 text-xs font-medium p-2.5 rounded-xl flex items-center gap-2 animate-fade-in shadow-2xs">
+              <Clock size={16} className="shrink-0 text-amber-600" />
+              <span>{sessionExpiredMessage}</span>
+            </div>
+          )}
 
           {successMessage && (
             <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium p-2.5 rounded-xl flex items-center gap-2">

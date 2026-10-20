@@ -1,4 +1,5 @@
 // src/api/client.js
+import { notifySessionExpired } from "../utils/sessionEvents.js";
 
 export const API_BASE_URL = (
   typeof import.meta !== "undefined" &&
@@ -53,6 +54,24 @@ export async function apiClient(endpoint, options = {}) {
   if (!response.ok) {
     if (response.status === 401 && typeof window !== "undefined") {
       localStorage.removeItem("mg_token");
+
+      // Check whether this 401 is genuine session expiration vs public login or password confirmation
+      const isLoginEndpoint =
+        cleanEndpoint.startsWith("/users/login") ||
+        cleanEndpoint.startsWith("/login");
+      const isConfirmationPasswordError =
+        data?.code === "INVALID_CONFIRMATION_PASSWORD" ||
+        data?.code === "PASSWORD_CONFIRMATION_REQUIRED";
+      const isForbiddenError =
+        data?.message?.toLowerCase() === "forbidden" ||
+        data?.code === "FORBIDDEN";
+
+      if (!isLoginEndpoint && !isConfirmationPasswordError && !isForbiddenError) {
+        notifySessionExpired({
+          message: data?.message || "Session expired",
+          endpoint: cleanEndpoint,
+        });
+      }
     }
     const error = new Error(
       data.message || `Request failed with status ${response.status}`

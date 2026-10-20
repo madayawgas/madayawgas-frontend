@@ -294,13 +294,26 @@ The MadayawGas backend API transmits all timestamps and dates in **UTC format** 
 - **Contract**: `docs/API Contract/history-log.api.md`
 - **Features**: Chronological audit trail table, search, and module filter dropdown.
 
-### 6. Layout & Navigation (`/`)
+### 7. Sales & Delivery Dashboard (`/sales-delivery`)
+- **Contracts**: `docs/api-contracts/sales/` (`sync.api.md`, `customer.api.md`), `docs/ERD_mermaid/sales_and_delivery_erd.md`
+- **Core Invariant**: Dedicated strictly to **read-only sales monitoring, delivery tracking, and business analytics**. Zero POS or frontline transaction creation controls (all frontline sales originate exclusively in delivery vehicle cabins via the mobile app).
+- **Sub-Navigation Tabs**:
+  - `Overview & Analytics`: Real-time KPI stat cards (Gross Sales, Completed Orders, Units Sold by container type, Average Order Value, Canister Cylinder Receivables created), interactive Recharts multi-bar trends chart with timeframe toggles (`Daily`, `Weekly`, `Monthly`, `Annually`), product SKU sales and return breakdown table, and payment settlement distribution (Cash on Delivery vs GCash transfers).
+  - `Vehicle & Trip Deliveries`: Operational vehicle delivery runs with driver and sales agent attribution, service zone, completed sales orders count, total revenue collected, and units sold. Includes slide-in `TripShiftSummaryDrawer` showing cash remittance, itemized GCash declarations with references and proof screenshots, and empties returned.
+  - `Transaction Records`: Master transaction registry with independent scroll, sticky header, live search, status and payment method filters, pinned `Pagination`, and slide-in `TransactionDetailDrawer` for inspecting itemized line snapshots, frozen unit prices, and customer delivery profiles.
+  - `Invoices & Settlements`: Sales invoices registry with payment status badges (`PAID_UNVERIFIED` vs `VERIFIED`), GCash reference numbers, 1-click proof image viewing via `DocumentViewerModal`, and supervisor payment confirmation action (`PATCH /api/sales/invoices/:id/verify`).
+- **Real-Time WebSockets**: Connected via `useRealtimeRefresh` listening to `SALES_BATCH_SYNCED`, `SALES_TRANSACTION_CANCELLED`, `SALES_INVOICE_VERIFIED`, and trip status events, with a live connection indicator pill.
+- **Backend Endpoints**: `GET /api/sales/overview`, `GET /api/sales/analytics`, `GET /api/sales/trip-performance`, `GET /api/sales/transactions`, `GET /api/sales/invoices`, `PATCH /api/sales/invoices/:id/verify`.
+- **Caching**: `localStorage` keys `app_sales_analytics_cache`, `app_sales_trips_cache`, `app_sales_transactions_cache`, `app_sales_invoices_cache`.
+
+### 8. Layout & Navigation (`/`)
 - Sidebar includes: Dashboard, Fleet and Maintenance, Route Dispatch, Inventory, Sales and Delivery, Customer, Manage Users, History Log, Profile, Logout.
 - Top header includes: Current user name and role badge with yellow text `#FFDF2C`.
 
 ---
 
-## 8. Developer Cheatsheet
+## 9. Developer Cheatsheet
+
 
 ### Running the App
 ```bash

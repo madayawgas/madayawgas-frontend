@@ -9,6 +9,7 @@ export const authApi = {
    * @param {string} [_username]
    * @returns {Promise<boolean>}
    */
+  // eslint-disable-next-line no-unused-vars
   async verifyPassword(_password, _username) {
     return true;
   },

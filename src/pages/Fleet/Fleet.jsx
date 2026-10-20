@@ -1,5 +1,5 @@
-// src/pages/Fleet/Fleet.jsx
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { fleetApi } from "../../api/fleet.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
@@ -32,7 +32,10 @@ import WorkOrderControls from "../../components/fleet/work-orders/WorkOrderContr
 import WorkOrderTable from "../../components/fleet/work-orders/WorkOrderTable";
 import MaintenanceLogsControls from "../../components/fleet/logs/MaintenanceLogsControls";
 import MaintenanceLogsTable from "../../components/fleet/logs/MaintenanceLogsTable";
+import FuelMonitoringTab from "../../components/fleet/fuel/FuelMonitoringTab.jsx";
+import ApprehensionsTab from "../../components/fleet/apprehensions/ApprehensionsTab.jsx";
 import RecurringIssuesAnalytics from "../../components/fleet/analytics/RecurringIssuesAnalytics";
+import { useRealtimeRefresh } from "../../hooks/useRealtimeRefresh.js";
 
 const LOCAL_STORAGE_KEY = "app_fleet_cache";
 
@@ -134,8 +137,52 @@ export default function Fleet() {
     });
   };
 
-  // Sub-Navigation Tab State ('vehicles' | 'work-orders' | 'logs' | 'analytics')
-  const [activeSubTab, setActiveSubTab] = useState("vehicles");
+  // Sub-Navigation Tab State with URL query sync ('vehicles' | 'work-orders' | 'logs' | 'fuel' | 'apprehensions' | 'analytics')
+  const validTabs = useMemo(
+    () => ["vehicles", "work-orders", "logs", "fuel", "apprehensions", "analytics"],
+    []
+  );
+
+  const [activeSubTab, setActiveSubTab] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      return validTabs.includes(tabParam) ? tabParam : "vehicles";
+    } catch {
+      return "vehicles";
+    }
+  });
+
+  // Keep activeSubTab synced with browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get("tab");
+        const current = validTabs.includes(tabParam) ? tabParam : "vehicles";
+        setActiveSubTab(current);
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [validTabs]);
+
+  const handleTabChange = (newTab) => {
+    setActiveSubTab(newTab);
+    try {
+      const url = new URL(window.location.href);
+      if (newTab === "vehicles") {
+        url.searchParams.delete("tab");
+      } else {
+        url.searchParams.set("tab", newTab);
+      }
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    } catch (e) {
+      console.warn("Failed to sync tab to URL:", e);
+    }
+  };
 
   // Part 3 Work Orders & Maintenance Logs States
   const [workOrders, setWorkOrders] = useState([]);
@@ -268,6 +315,16 @@ export default function Fleet() {
       console.error("Failed to refresh trucks:", err);
     }
   }, []);
+
+  // Real-Time WebSocket Hook: Auto-refreshes trucks & work orders when vehicles are grounded or released
+  useRealtimeRefresh({
+    events: ["FLEET_VEHICLE_GROUNDED", "FLEET_VEHICLE_RELEASED"],
+    cacheKeysToInvalidate: [LOCAL_STORAGE_KEY],
+    onRefresh: () => {
+      refreshTrucks();
+      refreshWorkOrders();
+    },
+  });
 
   useEffect(() => {
     async function loadFleet() {
@@ -1105,7 +1162,7 @@ export default function Fleet() {
       <div className="shrink-0">
         <FleetHeader
           activeSubTab={activeSubTab}
-          onTabChange={setActiveSubTab}
+          onTabChange={handleTabChange}
           trucksCount={trucks.length}
           workOrdersCount={filteredWorkOrders.length}
           logsCount={filteredMaintenanceLogs.length}
@@ -1315,15 +1372,23 @@ export default function Fleet() {
         </div>
       )}
 
-      {/* Tab View 4: Recurring Issues Analytics */}
+      {/* Tab View 4: Fuel Monitoring / Fuel Log */}
+      {activeSubTab === "fuel" && (
+        <FuelMonitoringTab trucks={trucks} />
+      )}
+
+      {/* Tab View 5: Driver Road Apprehensions */}
+      {activeSubTab === "apprehensions" && (
+        <ApprehensionsTab trucks={trucks} canManage={canManage} />
+      )}
+
+      {/* Tab View 6: Recurring Issues Analytics */}
       {activeSubTab === "analytics" && (
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden min-w-0">
-          <div className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar">
-            <RecurringIssuesAnalytics
-              trucks={trucks}
-              onCreateWorkOrderForTruck={(truck) => handleOpenCreateWorkOrder(truck)}
-            />
-          </div>
+          <RecurringIssuesAnalytics
+            trucks={trucks}
+            onCreateWorkOrderForTruck={(truck) => handleOpenCreateWorkOrder(truck)}
+          />
         </div>
       )}
 
