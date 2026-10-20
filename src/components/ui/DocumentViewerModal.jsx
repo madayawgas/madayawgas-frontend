@@ -7,6 +7,8 @@ import {
   Maximize2,
   Minimize2,
   ExternalLink,
+  AlertCircle,
+  FileQuestion,
 } from "lucide-react";
 import Button from "./Button";
 import { getReceiptFileUrl, resolveMediaUrl, isImageFile, isPdfFile } from "../../utils/media.js";
@@ -22,7 +24,10 @@ import { getReceiptFileUrl, resolveMediaUrl, isImageFile, isPdfFile } from "../.
  * @param {Object} props
  * @param {boolean} props.isOpen - Visibility flag
  * @param {Function} props.onClose - Close callback
- * @param {string | Object | null} props.item - Target media (URL, storageKey, or object)
+ * @param {string | Object | null} [props.item] - Target media (URL, storageKey, or object)
+ * @param {string | null} [props.storageKey] - Direct relative or absolute storage key
+ * @param {string | null} [props.fileUrl] - Direct media file URL
+ * @param {string | null} [props.url] - Direct URL
  * @param {string} [props.title] - Optional display title override
  * @param {string} [props.fallbackName="Document Preview"] - Default title if none detected
  * @param {boolean} [props.defaultExpanded=false] - Start directly in fullscreen lightbox mode
@@ -31,21 +36,29 @@ export default function DocumentViewerModal({
   isOpen = false,
   onClose,
   item = null,
+  storageKey = null,
+  fileUrl: propFileUrl = null,
+  url = null,
   title,
   fallbackName = "Document Preview",
   defaultExpanded = false,
 }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [hasImageError, setHasImageError] = useState(false);
 
-  // Sync expanded state when opening
+  const targetItem = item || storageKey || propFileUrl || url;
+
+  // Sync expanded state and reset error state when opening or targetItem changes
   useEffect(() => {
     if (isOpen) {
       setIsExpanded(defaultExpanded);
+      setHasImageError(false);
     }
-  }, [isOpen, defaultExpanded]);
+  }, [isOpen, defaultExpanded, targetItem]);
 
   const handleClose = () => {
     setIsExpanded(false);
+    setHasImageError(false);
     if (typeof onClose === "function") {
       onClose();
     }
@@ -69,24 +82,24 @@ export default function DocumentViewerModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, isExpanded]);
 
-  if (!isOpen || !item || typeof document === "undefined") {
+  if (!isOpen || !targetItem || typeof document === "undefined") {
     return null;
   }
 
   // Resolve media file URL
-  const fileUrl = typeof item === "string"
-    ? resolveMediaUrl(item)
-    : getReceiptFileUrl(item) || resolveMediaUrl(item.fileUrl || item.storageKey || item.url);
+  const fileUrl = typeof targetItem === "string"
+    ? resolveMediaUrl(targetItem)
+    : getReceiptFileUrl(targetItem) || resolveMediaUrl(targetItem.fileUrl || targetItem.storageKey || targetItem.url);
 
   // Determine media format
-  const isImage = isImageFile(item) || (typeof item === "string" && isImageFile(item));
-  const isPdf = isPdfFile(item) || (typeof item === "string" && isPdfFile(item));
+  const isImage = isImageFile(targetItem) || (typeof targetItem === "string" && isImageFile(targetItem));
+  const isPdf = isPdfFile(targetItem) || (typeof targetItem === "string" && isPdfFile(targetItem));
 
   // Determine display label
   const displayName =
     title ||
-    (typeof item === "object" && (item.fileName || item.citationTicketNo || item.title)) ||
-    (typeof item === "string" ? item.split("/").pop()?.split("?")[0] : null) ||
+    (typeof targetItem === "object" && (targetItem.fileName || targetItem.citationTicketNo || targetItem.title)) ||
+    (typeof targetItem === "string" ? targetItem.split("/").pop()?.split("?")[0] : null) ||
     fallbackName;
 
   return createPortal(
@@ -149,10 +162,36 @@ export default function DocumentViewerModal({
           className="flex-1 min-h-0 flex items-center justify-center overflow-auto p-2 md:p-4"
           onClick={() => setIsExpanded(false)}
         >
-          {isImage ? (
+          {hasImageError ? (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="py-16 px-6 text-center flex flex-col items-center justify-center space-y-3 max-w-lg bg-white/5 rounded-2xl border border-white/10"
+            >
+              <div className="w-14 h-14 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 mb-1">
+                <AlertCircle size={32} />
+              </div>
+              <div className="font-bold text-base text-white">
+                Image Preview Unavailable
+              </div>
+              <p className="text-xs text-slate-300">
+                The media attachment could not be loaded from storage. It may still be synchronizing from a frontline mobile device or was uploaded with an unresolvable path.
+              </p>
+              {fileUrl && (
+                <a
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 text-[11px] font-mono text-sky-300 hover:underline break-all bg-white/10 px-3 py-1.5 rounded-lg"
+                >
+                  {fileUrl}
+                </a>
+              )}
+            </div>
+          ) : isImage ? (
             <img
               src={fileUrl}
               alt={displayName}
+              onError={() => setHasImageError(true)}
               onClick={(e) => e.stopPropagation()}
               className="max-h-[85vh] max-w-[95vw] object-contain rounded-xl shadow-2xl transition-transform"
             />
@@ -241,19 +280,43 @@ export default function DocumentViewerModal({
           {/* Main Image / Document Box */}
           <div
             onClick={() => {
-              if (isImage || fileUrl) {
+              if (!hasImageError && (isImage || fileUrl)) {
                 setIsExpanded(true);
               }
             }}
             className={`max-h-[58vh] overflow-hidden flex items-center justify-center bg-slate-100/80 rounded-2xl p-2 relative group ${
-              isImage ? "cursor-pointer" : ""
+              isImage && !hasImageError ? "cursor-pointer" : ""
             }`}
           >
-            {isImage ? (
+            {hasImageError ? (
+              <div className="py-12 px-4 text-center flex flex-col items-center justify-center space-y-2">
+                <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600 mb-1">
+                  <FileQuestion size={26} />
+                </div>
+                <div className="font-semibold text-xs text-slate-800">
+                  Image Attachment Unavailable
+                </div>
+                <p className="text-[11px] text-slate-500 max-w-sm">
+                  The media file could not be loaded from storage.
+                </p>
+                {fileUrl && (
+                  <a
+                    href={fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 text-[10.5px] font-mono text-blue-600 hover:underline break-all bg-white px-2.5 py-1 rounded border border-slate-200"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Open direct link
+                  </a>
+                )}
+              </div>
+            ) : isImage ? (
               <>
                 <img
                   src={fileUrl}
                   alt={displayName}
+                  onError={() => setHasImageError(true)}
                   className="max-h-[54vh] max-w-full object-contain rounded-xl shadow-xs transition group-hover:opacity-95"
                 />
                 <div className="absolute bottom-3 right-3 bg-slate-900/75 text-white px-2.5 py-1 rounded-full text-[11px] font-medium flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md pointer-events-none">
