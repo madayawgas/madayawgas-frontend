@@ -97,9 +97,13 @@ export function resolveMediaUrl(storageKey) {
 export function getReceiptFileUrl(receipt) {
   if (!receipt) return null;
   if (typeof receipt === "string") return resolveMediaUrl(receipt);
+  if (receipt.payment_proof_url) return resolveMediaUrl(receipt.payment_proof_url);
+  if (receipt.paymentProofUrl) return resolveMediaUrl(receipt.paymentProofUrl);
   if (receipt.fileUrl) return resolveMediaUrl(receipt.fileUrl);
   if (receipt.previewUrl) return resolveMediaUrl(receipt.previewUrl);
   if (receipt.storageKey) return resolveMediaUrl(receipt.storageKey);
+  if (receipt.payment_proof_key) return resolveMediaUrl(receipt.payment_proof_key);
+  if (receipt.paymentProofKey) return resolveMediaUrl(receipt.paymentProofKey);
   return null;
 }
 

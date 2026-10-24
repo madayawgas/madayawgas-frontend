@@ -255,10 +255,17 @@ export default function TransactionDetailDrawer({
                 </div>
               )}
 
-              {invoice.payment_proof_key && (
+              {(invoice.payment_proof_url || invoice.paymentProofUrl || invoice.payment_proof_key || invoice.paymentProofKey) && (
                 <button
                   type="button"
-                  onClick={() => setSelectedProofKey(invoice.payment_proof_key)}
+                  onClick={() =>
+                    setSelectedProofKey(
+                      invoice.payment_proof_url ||
+                        invoice.paymentProofUrl ||
+                        invoice.payment_proof_key ||
+                        invoice.paymentProofKey
+                    )
+                  }
                   className="mt-1 text-xs text-[#0F7AB2] hover:underline flex items-center gap-1 font-semibold cursor-pointer"
                 >
                   <ExternalLink size={12} />
