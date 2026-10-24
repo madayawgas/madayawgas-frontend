@@ -210,10 +210,10 @@ export default function TripShiftSummaryDrawer({
                             {p.paymentStatus || "PAID_UNVERIFIED"}
                           </span>
                         </div>
-                        {p.paymentProofKey && (
+                        {(p.paymentProofUrl || p.payment_proof_url || p.paymentProofKey || p.payment_proof_key) && (
                           <button
                             type="button"
-                            onClick={() => setSelectedProofKey(p.paymentProofKey)}
+                            onClick={() => setSelectedProofKey(p.paymentProofUrl || p.payment_proof_url || p.paymentProofKey || p.payment_proof_key)}
                             className="text-[10px] text-[#0F7AB2] hover:underline flex items-center gap-1 font-semibold mt-0.5 cursor-pointer"
                           >
                             <ExternalLink size={10} />

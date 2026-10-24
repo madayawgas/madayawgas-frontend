@@ -170,7 +170,9 @@ export default function InvoicesTab({
                   const status = (inv.payment_status || inv.paymentStatus || "PAID_UNVERIFIED").toUpperCase();
                   const isVerified = status === "VERIFIED";
                   const totalAmount = Number(inv.total_amount || inv.totalAmount || 0);
+                  const proofUrl = inv.payment_proof_url || inv.paymentProofUrl;
                   const proofKey = inv.payment_proof_key || inv.paymentProofKey;
+                  const proofTarget = proofUrl || proofKey;
                   const refNum = inv.payment_reference_number || inv.paymentReferenceNumber;
 
                   return (
@@ -232,10 +234,10 @@ export default function InvoicesTab({
                             Ref: {refNum}
                           </div>
                         )}
-                        {proofKey ? (
+                        {proofTarget ? (
                           <button
                             type="button"
-                            onClick={() => setSelectedProofKey(proofKey)}
+                            onClick={() => setSelectedProofKey(proofTarget)}
                             className="text-[10px] text-[#0F7AB2] hover:underline flex items-center gap-1 font-semibold cursor-pointer mt-0.5"
                           >
                             <ExternalLink size={11} />
