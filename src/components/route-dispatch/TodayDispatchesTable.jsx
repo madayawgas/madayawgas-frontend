@@ -8,9 +8,8 @@ import {
   Layers,
   ArrowRight,
   AlertTriangle,
-  CalendarX,
-  AlertOctagon,
   Plus,
+  CheckCircle2,
 } from "lucide-react";
 import Pagination from "../ui/Pagination";
 import { formatPhilippineTime } from "../../utils/date.js";
@@ -19,18 +18,17 @@ export default function TodayDispatchesTable({
   entries = [],
   sortConfig = { key: "truckPlate", direction: "asc" },
   onSort,
+  selectedId,
+  onSelectEntry,
   onDispatch,
-  onCancelSchedule,
-  onMiddayReload,
   onCheckInReturn,
-  onCancelTrip,
   canManage = false,
   pagination,
 }) {
   const renderSortIndicator = (key) => {
     if (sortConfig.key !== key) return null;
     return (
-      <span className="ml-1 text-[10px] text-[#FFDF2C]">
+      <span className="ml-1 text-[11px] text-[#FFDF2C]">
         {sortConfig.direction === "asc" ? "▲" : "▼"}
       </span>
     );
@@ -41,7 +39,7 @@ export default function TodayDispatchesTable({
       case "OUT_ON_ROAD":
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
             <span>OUT ON ROUTE</span>
           </span>
         );
@@ -117,13 +115,13 @@ export default function TodayDispatchesTable({
                 Assigned Crew {renderSortIndicator("driverName")}
               </th>
 
-              {/* Deployment / Cargo Details */}
-              <th className="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[18%]">
-                Deployment & Cargo Details
+              {/* Deployment & Cargo Manifest */}
+              <th className="py-3 px-3 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[20%]">
+                Staging & Cargo Details
               </th>
 
               {/* Actions */}
-              <th className="py-3 px-3.5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[14%]">
+              <th className="py-3 px-3.5 font-semibold uppercase tracking-wider text-[11px] text-right whitespace-nowrap w-[12%]">
                 Actions
               </th>
             </tr>
@@ -136,6 +134,12 @@ export default function TodayDispatchesTable({
                 const isTrip = entry.operationalStatus === "OUT_ON_ROAD";
                 const isReady = entry.operationalStatus === "READY";
                 const isUnavailable = entry.operationalStatus === "UNAVAILABLE";
+                const isSelected =
+                  Boolean(selectedId) &&
+                  (selectedId === entry.id ||
+                    selectedId === entry.scheduleId ||
+                    selectedId === entry.tripId ||
+                    selectedId === entry.truckPlate);
                 const cargo = entry.cargo || {};
                 const departureFormatted = entry.departureTime
                   ? formatPhilippineTime(entry.departureTime)
@@ -144,27 +148,24 @@ export default function TodayDispatchesTable({
                 return (
                   <tr
                     key={entry.id || entry.truckPlate}
-                    className="hover:bg-[#F8FAFC] transition-colors duration-150"
+                    onClick={() => onSelectEntry && onSelectEntry(entry)}
+                    className={`transition-colors duration-150 cursor-pointer ${
+                      isSelected
+                        ? "bg-[#E2EDF3] text-[#0A4B6E] font-semibold"
+                        : "bg-white hover:bg-[#F4F9FC]"
+                    }`}
                   >
-                    {/* Vehicle Asset Column */}
+                    {/* Vehicle Asset Column (Preserved distinctive Navy + Yellow Truck Icon) */}
                     <td className="py-3 px-3.5 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                            isTrip
-                              ? "bg-emerald-50 text-emerald-800"
-                              : isUnavailable
-                              ? "bg-amber-50 text-amber-700"
-                              : "bg-[#E8F3F8] text-[#0A4B6E]"
-                          }`}
-                        >
-                          <Truck size={14} />
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 font-bold shadow-2xs">
+                          <Truck size={15} />
                         </div>
                         <div>
                           <div className="font-bold text-[#0A4B6E] text-xs tracking-tight">
                             {entry.truckPlate}
                           </div>
-                          <div className="text-[10px] text-[#6D8AA2]">
+                          <div className="text-[11px] text-[#3E5C76]">
                             {entry.truckModel || "Delivery Vehicle"}
                           </div>
                         </div>
@@ -182,7 +183,7 @@ export default function TodayDispatchesTable({
                         <MapPin size={11} className="text-[#0A4B6E] shrink-0" />
                         <span>{entry.zoneCode || entry.zoneName || "—"}</span>
                       </div>
-                      <div className="text-[10px] text-[#6D8AA2] truncate max-w-[150px]">
+                      <div className="text-[11px] text-[#3E5C76] truncate max-w-[150px]">
                         {entry.zoneName || "District Route"}
                       </div>
                     </td>
@@ -190,12 +191,12 @@ export default function TodayDispatchesTable({
                     {/* Assigned Crew Column */}
                     <td className="py-3 px-3 whitespace-nowrap">
                       <div className="flex items-center gap-1 font-medium text-slate-800">
-                        <User size={11} className="text-[#6D8AA2] shrink-0" />
+                        <User size={11} className="text-[#3E5C76] shrink-0" />
                         <span className="truncate max-w-[140px] font-semibold">
                           {entry.driverName || "Unassigned"}
                         </span>
                       </div>
-                      <div className="text-[10px] text-[#6D8AA2] truncate max-w-[140px]">
+                      <div className="text-[11px] text-[#3E5C76] truncate max-w-[140px]">
                         Sales: {entry.salesName || "Unassigned"}
                       </div>
                     </td>
@@ -205,13 +206,13 @@ export default function TodayDispatchesTable({
                       {isTrip ? (
                         <div className="space-y-0.5">
                           {departureFormatted && (
-                            <div className="flex items-center gap-1 text-[11px] text-slate-700 font-medium">
-                              <Clock size={11} className="text-[#6D8AA2]" />
+                            <div className="flex items-center gap-1 text-[11px] text-[#3E5C76] font-medium">
+                              <Clock size={11} className="text-[#0A4B6E]" />
                               <span>Departed {departureFormatted}</span>
                             </div>
                           )}
                           <div className="flex items-center gap-1 text-[11px] font-bold text-[#0A4B6E]">
-                            <Layers size={11} className="text-[#0A4B6E]" />
+                            <Layers size={11} className="text-[#0A4B6E] shrink-0" />
                             <span>
                               {cargo.cylinderUnits > 0 && cargo.canisterUnits > 0 ? (
                                 <>
@@ -232,112 +233,75 @@ export default function TodayDispatchesTable({
                         </div>
                       ) : isReady ? (
                         <div className="space-y-0.5">
-                          <div className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span>Ready for departure</span>
+                          <div className="text-[11px] font-bold text-emerald-800 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                            <span>Cleared for gate departure</span>
                           </div>
-                          <div className="text-[10px] text-[#6D8AA2]">
-                            All inspections & attendance cleared
+                          <div className="text-[11px] text-[#3E5C76]">
+                            Safety inspections & driver duty OK
                           </div>
                         </div>
                       ) : isUnavailable ? (
                         <div className="space-y-0.5 max-w-[200px]">
-                          <div className="text-[11px] font-semibold text-amber-900 flex items-center gap-1 truncate">
-                            <AlertTriangle size={11} className="text-amber-600 shrink-0" />
-                            <span className="truncate">{entry.gating?.reasonTag || "Blocked"}</span>
+                          <div className="text-[11px] font-bold text-amber-900 flex items-center gap-1 truncate">
+                            <AlertTriangle size={11} className="text-amber-700 shrink-0" />
+                            <span className="truncate">{entry.gating?.reasonTag || "Dispatch Gated"}</span>
                           </div>
-                          <div className="text-[10px] text-amber-800/80 truncate">
-                            {entry.gating?.reasonText || "Dispatch locked"}
+                          <div className="text-[11px] text-amber-800/90 truncate">
+                            {entry.gating?.reasonText || "Vehicle locked"}
                           </div>
                         </div>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-slate-500">—</span>
                       )}
                     </td>
 
-                    {/* Actions Column */}
+                    {/* Actions Column (1 Primary Action per Row) */}
                     <td className="py-3 px-3.5 text-right whitespace-nowrap">
                       {canManage ? (
                         <div className="flex items-center justify-end gap-1.5">
-                          {/* Ready to Dispatch Actions */}
+                          {/* Ready to Dispatch: 1 Primary Yellow Action Button */}
                           {isReady && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => onCancelSchedule && onCancelSchedule(entry)}
-                                className="px-2 py-1 rounded-full text-[10px] font-semibold bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 text-slate-600 hover:text-rose-700 transition cursor-pointer flex items-center gap-1"
-                                title="Cancel this vehicle's run for today"
-                              >
-                                <CalendarX size={11} />
-                                <span>Cancel</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => onDispatch && onDispatch(entry)}
-                                className="px-3 py-1 rounded-full text-[10px] font-bold bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition cursor-pointer shadow-2xs flex items-center gap-1 uppercase tracking-wider"
-                                title="Dispatch truck on distribution route"
-                              >
-                                <Plus size={12} />
-                                <span>Dispatch</span>
-                              </button>
-                            </>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDispatch && onDispatch(entry);
+                              }}
+                              className="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 uppercase tracking-wider shrink-0 active:scale-95"
+                              title="Dispatch truck on distribution route"
+                            >
+                              <Plus size={12} strokeWidth={2.5} />
+                              <span>DISPATCH</span>
+                            </button>
                           )}
 
-                          {/* Out on the Road Actions */}
+                          {/* Out on the Road: 1 Primary Navy Action Button */}
                           {isTrip && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => onMiddayReload && onMiddayReload(entry)}
-                                className="px-2 py-1 rounded-full text-[10px] font-bold bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#0A4B6E] transition cursor-pointer"
-                                title="Record midday reload cargo intake"
-                              >
-                                + Reload
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => onCancelTrip && onCancelTrip(entry)}
-                                className="px-2 py-1 rounded-full text-[10px] font-semibold bg-white hover:bg-rose-50 border border-rose-200 text-rose-700 transition cursor-pointer flex items-center gap-0.5"
-                                title="Cancel trip and check returned cargo to yard"
-                              >
-                                <AlertOctagon size={11} />
-                                <span>Cancel</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => onCheckInReturn && onCheckInReturn(entry)}
-                                className="px-3 py-1 rounded-full text-[10px] font-bold bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] transition cursor-pointer shadow-2xs flex items-center gap-1"
-                                title="Check-in return & reconcile stock"
-                              >
-                                <span>Check-In</span>
-                                <ArrowRight size={11} />
-                              </button>
-                            </>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onCheckInReturn && onCheckInReturn(entry);
+                              }}
+                              className="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 uppercase tracking-wider shrink-0 active:scale-95"
+                              title="Check-in return & reconcile stock"
+                            >
+                              <span>CHECK-IN</span>
+                              <ArrowRight size={12} strokeWidth={2.5} />
+                            </button>
                           )}
 
-                          {/* Unavailable Vehicle Actions */}
+                          {/* Unavailable Vehicle: Gated Indicator */}
                           {isUnavailable && (
-                            <div className="flex items-center gap-1.5 justify-end">
-                              <span className="text-[10px] text-slate-400 italic">
-                                Locked
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => onCancelSchedule && onCancelSchedule(entry)}
-                                className="px-2 py-1 rounded-full text-[10px] font-semibold bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 text-slate-600 hover:text-rose-700 transition cursor-pointer flex items-center gap-1"
-                                title="Cancel this vehicle's run for today"
-                              >
-                                <CalendarX size={11} />
-                                <span>Cancel Run</span>
-                              </button>
-                            </div>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-900 border border-amber-200">
+                              <AlertTriangle size={11} className="text-amber-700 shrink-0" />
+                              <span>Gated</span>
+                            </span>
                           )}
                         </div>
                       ) : (
-                        <span className="text-[11px] text-slate-400 italic">View Only</span>
+                        <span className="text-[11px] text-slate-500 italic">View Only</span>
                       )}
                     </td>
                   </tr>
@@ -345,12 +309,14 @@ export default function TodayDispatchesTable({
               })
             ) : (
               <tr>
-                <td colSpan={6} className="p-12 text-center text-slate-500">
+                <td colSpan={6} className="p-12 text-center text-slate-600">
                   <div className="flex flex-col items-center justify-center">
-                    <Truck size={28} className="text-slate-300 mb-2" />
-                    <p className="font-semibold text-xs text-slate-700">No vehicle dispatch records found</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Try adjusting your search query, status tab, or service zone filter.
+                    <div className="w-12 h-12 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center mb-2">
+                      <Truck size={22} />
+                    </div>
+                    <p className="font-bold text-xs text-slate-800">No vehicle dispatch records found</p>
+                    <p className="text-[11px] text-[#3E5C76] mt-0.5 max-w-sm">
+                      No matching records found for this view. Try adjusting your search query, status tab, or service zone filter.
                     </p>
                   </div>
                 </td>

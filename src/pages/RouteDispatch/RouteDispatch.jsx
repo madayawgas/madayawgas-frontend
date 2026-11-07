@@ -21,6 +21,10 @@ import {
 import TodayDispatchesControls from "../../components/route-dispatch/TodayDispatchesControls.jsx";
 import TodayDispatchesTable from "../../components/route-dispatch/TodayDispatchesTable.jsx";
 import TodayDispatchesCards from "../../components/route-dispatch/TodayDispatchesCards.jsx";
+import TripDetailPanel from "../../components/route-dispatch/TripDetailPanel.jsx";
+import SideDrawer from "../../components/ui/SideDrawer.jsx";
+import Badge from "../../components/ui/Badge.jsx";
+import { Truck } from "lucide-react";
 
 import DispatchModal from "../../components/route-dispatch/DispatchModal";
 import MiddayReloadModal from "../../components/route-dispatch/MiddayReloadModal";
@@ -120,6 +124,7 @@ export default function RouteDispatch() {
   const [drivers, setDrivers] = useState([]);
   const [salesUsers, setSalesUsers] = useState([]);
   const [activeDutyDriverIds, setActiveDutyDriverIds] = useState(() => new Set());
+  const [plantInventory, setPlantInventory] = useState([]);
 
   // 2. Filter, View Mode, Sorting, and Pagination States
   const [statusTab, setStatusTab] = useState("ALL"); // 'ALL' | 'OUT_ON_ROAD' | 'READY' | 'UNAVAILABLE'
@@ -165,6 +170,8 @@ export default function RouteDispatch() {
   }, [statusTab, searchTerm, selectedZone]);
 
   const [toast, setToast] = useState(null);
+  const [selectedEntry, setSelectedEntry] = useState(null);
+  const handleCloseDetail = () => setSelectedEntry(null);
 
   // 3. Operational Modals States
   const [showDispatchModal, setShowDispatchModal] = useState(false);
@@ -193,6 +200,7 @@ export default function RouteDispatch() {
         driverData,
         salesData,
         activeAttendance,
+        plantInvData,
       ] = await Promise.all([
         tripsApi.getTrips().catch((err) => {
           console.warn("Failed to fetch trips:", err);
@@ -230,6 +238,10 @@ export default function RouteDispatch() {
           console.warn("Failed to fetch active personnel attendance:", err);
           return [];
         }),
+        inventoryApi.getPlantInventory().catch((err) => {
+          console.warn("Failed to fetch plant inventory:", err);
+          return [];
+        }),
       ]);
 
       if (Array.isArray(tripsData)) setTrips(tripsData);
@@ -238,6 +250,7 @@ export default function RouteDispatch() {
       if (Array.isArray(vData)) setVehicles(vData);
       if (Array.isArray(zData)) setZones(zData);
       if (Array.isArray(prodData)) setProducts(prodData);
+      if (Array.isArray(plantInvData)) setPlantInventory(plantInvData);
       const parsedDrivers = Array.isArray(driverData) ? driverData : (driverData?.drivers || []);
       setDrivers(parsedDrivers);
       if (Array.isArray(salesData)) setSalesUsers(salesData);
@@ -393,13 +406,25 @@ export default function RouteDispatch() {
     return { availableSchedules: available, unavailableSchedules: unavailable };
   }, [allTodaySchedules, vehicles, drivers, activeDutyDriverIds]);
 
-  // Counts for Top Status Filter Tabs
-  const counts = useMemo(() => ({
-    all: activeTrips.length + availableSchedules.length + unavailableSchedules.length,
-    outOnRoad: activeTrips.length,
-    ready: availableSchedules.length,
-    unavailable: unavailableSchedules.length,
-  }), [activeTrips.length, availableSchedules.length, unavailableSchedules.length]);
+  // Counts for Top Status Filter Tabs & Mission-Control KPI Strip
+  const counts = useMemo(() => {
+    let unitsCount = 0;
+    let cratesCount = 0;
+    activeTrips.forEach((t) => {
+      const cargo = getFullCargoBreakdown(t);
+      unitsCount += (cargo.canisterUnits || 0) + (cargo.cylinderUnits || 0);
+      cratesCount += (cargo.canisterCrates || 0);
+    });
+
+    return {
+      all: activeTrips.length + availableSchedules.length + unavailableSchedules.length,
+      outOnRoad: activeTrips.length,
+      ready: availableSchedules.length,
+      unavailable: unavailableSchedules.length,
+      totalUnitsStaged: unitsCount,
+      totalCratesStaged: cratesCount,
+    };
+  }, [activeTrips, availableSchedules.length, unavailableSchedules.length, getFullCargoBreakdown]);
 
   // 7. Unified Operational Entries Array
   const allOperationalEntries = useMemo(() => {
@@ -638,24 +663,14 @@ export default function RouteDispatch() {
             entries={paginatedEntries}
             sortConfig={sortConfig}
             onSort={handleSort}
+            selectedId={selectedEntry?.id || selectedEntry?.scheduleId || selectedEntry?.tripId || selectedEntry?.truckPlate}
+            onSelectEntry={(entry) => setSelectedEntry(entry)}
             onDispatch={(sched) => {
               setPrefillScheduleId(sched.id);
               setShowDispatchModal(true);
             }}
-            onCancelSchedule={(sched) => {
-              setSelectedScheduleToCancel(sched);
-              setShowCancelScheduleModal(true);
-            }}
-            onMiddayReload={(trip) => {
-              setSelectedTripForReload(trip);
-              setShowMiddayModal(true);
-            }}
             onCheckInReturn={(trip) => {
               navigate(`/reconciliation?tripId=${trip.id}`);
-            }}
-            onCancelTrip={(trip) => {
-              setSelectedTripToCancel(trip);
-              setShowCancelTripModal(true);
             }}
             canManage={canManage}
             pagination={{
@@ -677,6 +692,8 @@ export default function RouteDispatch() {
             activeTrips={filteredCardsData.activeTrips}
             availableSchedules={filteredCardsData.availableSchedules}
             unavailableSchedules={filteredCardsData.unavailableSchedules}
+            selectedId={selectedEntry?.id || selectedEntry?.scheduleId || selectedEntry?.tripId || selectedEntry?.truckPlate}
+            onSelectEntry={(entry) => setSelectedEntry(entry)}
             onDispatch={(sched) => {
               setPrefillScheduleId(sched.id);
               setShowDispatchModal(true);
@@ -703,6 +720,116 @@ export default function RouteDispatch() {
         )}
       </div>
 
+      {/* Universal SideDrawer for Detailed Inspection */}
+      <SideDrawer
+        isOpen={Boolean(selectedEntry)}
+        onClose={handleCloseDetail}
+        title={selectedEntry?.truckPlate || "Dispatch Inspection"}
+        subtitle={
+          selectedEntry?.zoneName
+            ? `Route: ${selectedEntry.zoneCode ? `${selectedEntry.zoneCode} — ` : ""}${selectedEntry.zoneName}`
+            : selectedEntry?.truckModel || "Vehicle Asset"
+        }
+        icon={Truck}
+        badge={
+          selectedEntry && (
+            <Badge
+              variant={
+                selectedEntry.operationalStatus === "OUT_ON_ROAD" || selectedEntry.isTrip
+                  ? "success"
+                  : selectedEntry.operationalStatus === "UNAVAILABLE"
+                  ? "danger"
+                  : "roles"
+              }
+              className="px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider"
+            >
+              {selectedEntry.operationalStatus === "OUT_ON_ROAD" || selectedEntry.isTrip
+                ? "OUT ON ROUTE"
+                : selectedEntry.operationalStatus === "UNAVAILABLE"
+                ? "UNAVAILABLE"
+                : "READY TO DISPATCH"}
+            </Badge>
+          )
+        }
+        width="max-w-md sm:max-w-lg"
+        footer={
+          selectedEntry && (
+            <div className="flex items-center justify-between gap-3 w-full">
+              <button
+                type="button"
+                onClick={handleCloseDetail}
+                className="px-5 py-2 rounded-full text-xs font-bold bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all cursor-pointer shadow-2xs uppercase tracking-wider active:scale-95"
+              >
+                CLOSE
+              </button>
+
+              <div className="flex items-center gap-2">
+                {selectedEntry.operationalStatus === "READY" && canManage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPrefillScheduleId(selectedEntry.id);
+                      setShowDispatchModal(true);
+                    }}
+                    className="px-4 py-2 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#0E384E] transition-all cursor-pointer shadow-2xs uppercase tracking-wider flex items-center gap-1.5 active:scale-95"
+                  >
+                    <span>DISPATCH TRUCK</span>
+                    <span>➔</span>
+                  </button>
+                )}
+                {selectedEntry.operationalStatus === "OUT_ON_ROAD" && canManage && (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/reconciliation?tripId=${selectedEntry.id}`)}
+                    className="px-4 py-2 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#0E384E] transition-all cursor-pointer shadow-2xs uppercase tracking-wider flex items-center gap-1.5 active:scale-95"
+                  >
+                    <span>RETURN CHECK-IN</span>
+                    <span>➔</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        }
+      >
+        {selectedEntry && (
+          <TripDetailPanel
+            entry={selectedEntry}
+            trip={
+              selectedEntry.operationalStatus === "OUT_ON_ROAD" || selectedEntry.isTrip
+                ? selectedEntry
+                : null
+            }
+            schedule={
+              selectedEntry.operationalStatus !== "OUT_ON_ROAD" && !selectedEntry.isTrip
+                ? selectedEntry
+                : null
+            }
+            onClose={handleCloseDetail}
+            onDispatch={(sched) => {
+              setPrefillScheduleId(sched.id);
+              setShowDispatchModal(true);
+            }}
+            onMiddayReload={(trip) => {
+              setSelectedTripForReload(trip);
+              setShowMiddayModal(true);
+            }}
+            onReturnCheckIn={(trip) => {
+              navigate(`/reconciliation?tripId=${trip.id}`);
+            }}
+            onCancelTrip={(trip) => {
+              setSelectedTripToCancel(trip);
+              setShowCancelTripModal(true);
+            }}
+            onCancelSchedule={(sched) => {
+              setSelectedScheduleToCancel(sched);
+              setShowCancelScheduleModal(true);
+            }}
+            canManage={canManage}
+          />
+        )}
+      </SideDrawer>
+
       {/* Operational Action Modals */}
       <DispatchModal
         isOpen={showDispatchModal}
@@ -718,6 +845,7 @@ export default function RouteDispatch() {
         zones={zones}
         products={products}
         salesUsers={salesUsers}
+        plantInventory={plantInventory}
         initialScheduleId={prefillScheduleId}
       />
 

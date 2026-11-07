@@ -19,6 +19,8 @@ export default function TodayDispatchesCards({
   activeTrips = [],
   availableSchedules = [],
   unavailableSchedules = [],
+  selectedId,
+  onSelectEntry,
   onDispatch,
   onCancelSchedule,
   onMiddayReload,
@@ -39,29 +41,32 @@ export default function TodayDispatchesCards({
         <div>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
               <h3 className="text-sm font-bold text-[#0A4B6E] uppercase tracking-wide">
                 Out on the Road ({activeTrips.length})
               </h3>
             </div>
-            <span className="text-[11px] text-[#6D8AA2]">
+            <span className="text-[11px] text-[#3E5C76]">
               Active distribution runs in progress
             </span>
           </div>
 
           {activeTrips.length === 0 ? (
             <div className="bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-2xl p-8 text-center">
-              <Truck size={28} className="mx-auto text-[#6D8AA2] mb-2 opacity-50" />
+              <Truck size={28} className="mx-auto text-[#3E5C76] mb-2 opacity-50" />
               <p className="text-xs font-semibold text-[#0A4B6E]">
                 No active trucks currently out on the road
               </p>
-              <p className="text-[11px] text-[#6D8AA2] mt-0.5">
+              <p className="text-[11px] text-[#3E5C76] mt-0.5">
                 Vehicles ready to depart can be dispatched below.
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
               {activeTrips.map((trip) => {
+                const isSelected =
+                  Boolean(selectedId) &&
+                  (selectedId === trip.id || selectedId === trip.truckPlate);
                 const departureFormatted = trip.departureTime
                   ? formatPhilippineTime(trip.departureTime)
                   : "—";
@@ -70,7 +75,12 @@ export default function TodayDispatchesCards({
                 return (
                   <div
                     key={trip.id}
-                    className="bg-white border border-[#D5E3EC] hover:border-[#0A4B6E]/40 rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all text-left"
+                    onClick={() => onSelectEntry && onSelectEntry(trip)}
+                    className={`rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all text-left cursor-pointer border ${
+                      isSelected
+                        ? "border-[#0A4B6E] ring-2 ring-[#0A4B6E]/20 bg-[#F4F9FC]"
+                        : "bg-white border-[#D5E3EC] hover:border-[#0A4B6E]/40"
+                    }`}
                   >
                     <div>
                       {/* Top: Plate & Zone */}
@@ -80,11 +90,11 @@ export default function TodayDispatchesCards({
                             <span className="text-base font-bold text-[#0A4B6E] tracking-tight">
                               {trip.truckPlate}
                             </span>
-                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                            <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                               EN ROUTE
                             </span>
                           </div>
-                          <div className="flex items-center gap-1 text-xs text-[#6D8AA2] mt-0.5">
+                          <div className="flex items-center gap-1 text-xs text-[#3E5C76] mt-0.5">
                             <MapPin size={11} className="text-[#0A4B6E]" />
                             <span>
                               Zone: <strong className="text-[#0A4B6E]">{trip.zoneCode || trip.zoneName}</strong>
@@ -92,7 +102,7 @@ export default function TodayDispatchesCards({
                           </div>
                         </div>
 
-                        <div className="w-8 h-8 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 font-bold shadow-2xs">
                           <Truck size={15} />
                         </div>
                       </div>
@@ -100,21 +110,21 @@ export default function TodayDispatchesCards({
                       {/* Middle Meta Details */}
                       <div className="bg-[#F8FAFC] rounded-xl p-2.5 border border-[#E2E8F0] space-y-1 text-xs mb-3">
                         <div className="flex justify-between items-center">
-                          <span className="text-[#6D8AA2]">Crew:</span>
+                          <span className="text-[#3E5C76]">Crew:</span>
                           <span className="font-medium text-slate-800 truncate max-w-[170px] text-right">
                             {trip.driverName} · {trip.salesName}
                           </span>
                         </div>
 
                         <div className="flex justify-between items-center">
-                          <span className="text-[#6D8AA2] flex items-center gap-1">
+                          <span className="text-[#3E5C76] flex items-center gap-1">
                             <Clock size={11} /> Departed:
                           </span>
                           <span className="font-semibold text-slate-700">{departureFormatted}</span>
                         </div>
 
                         <div className="flex justify-between items-center pt-1 border-t border-[#E2E8F0]">
-                          <span className="text-[#6D8AA2] flex items-center gap-1">
+                          <span className="text-[#3E5C76] flex items-center gap-1">
                             <Layers size={11} /> Cargo On-Board:
                           </span>
                           <span className="font-bold text-[#0A4B6E] text-right">
@@ -139,33 +149,17 @@ export default function TodayDispatchesCards({
 
                     {/* Actions */}
                     {canManage && (
-                      <div className="pt-2 border-t border-[#E2E8F0] space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => onMiddayReload && onMiddayReload(trip)}
-                            className="w-full py-1.5 px-2 bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#0A4B6E] rounded-full text-xs font-bold transition cursor-pointer"
-                          >
-                            + Midday Reload
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => onCancelTrip && onCancelTrip(trip)}
-                            className="w-full py-1.5 px-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-full text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1"
-                          >
-                            <AlertOctagon size={12} />
-                            <span>Cancel Trip</span>
-                          </button>
-                        </div>
-
+                      <div className="pt-2 border-t border-[#E2E8F0]">
                         <button
                           type="button"
-                          onClick={() => onCheckInReturn && onCheckInReturn(trip)}
-                          className="w-full py-1.5 px-3 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] rounded-full text-xs font-bold transition cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCheckInReturn && onCheckInReturn(trip);
+                          }}
+                          className="w-full py-2 px-3 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] rounded-full text-[11px] font-bold uppercase tracking-widest transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
                         >
                           <span>Check-In Return</span>
-                          <ArrowRight size={12} />
+                          <ArrowRight size={12} strokeWidth={2.5} />
                         </button>
                       </div>
                     )}
@@ -187,12 +181,12 @@ export default function TodayDispatchesCards({
                 Ready to Dispatch ({availableSchedules.length})
               </h3>
               {todayPht && (
-                <span className="text-[10px] font-bold text-[#0A4B6E] bg-[#E8F3F8] border border-[#BCE1F1] px-2.5 py-0.5 rounded-full">
+                <span className="text-[11px] font-bold text-[#0A4B6E] bg-[#E8F3F8] border border-[#BCE1F1] px-2.5 py-0.5 rounded-full">
                   Today · {formatPhilippineDate(todayPht)}
                 </span>
               )}
             </div>
-            <span className="text-[11px] text-[#6D8AA2]">
+            <span className="text-[11px] text-[#3E5C76]">
               Scheduled vehicle deployments ready for departure
             </span>
           </div>
@@ -209,78 +203,82 @@ export default function TodayDispatchesCards({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
-              {availableSchedules.map((sched) => (
-                <div
-                  key={sched.id}
-                  className="bg-white border border-[#D5E3EC] hover:border-[#0A4B6E]/40 rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all text-left"
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-base font-bold text-[#0A4B6E] tracking-tight">
-                            {sched.truckPlate}
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full">
-                            SCHEDULED
+              {availableSchedules.map((sched) => {
+                const isSelected =
+                  Boolean(selectedId) &&
+                  (selectedId === sched.id || selectedId === sched.truckPlate);
+
+                return (
+                  <div
+                    key={sched.id}
+                    onClick={() => onSelectEntry && onSelectEntry(sched)}
+                    className={`rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all text-left cursor-pointer border ${
+                      isSelected
+                        ? "border-[#0A4B6E] ring-2 ring-[#0A4B6E]/20 bg-[#F4F9FC]"
+                        : "bg-white border-[#D5E3EC] hover:border-[#0A4B6E]/40"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-base font-bold text-[#0A4B6E] tracking-tight">
+                              {sched.truckPlate}
+                            </span>
+                            <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full">
+                              SCHEDULED
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#3E5C76]">{sched.truckModel}</p>
+                        </div>
+
+                        <div className="w-8 h-8 rounded-full bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 font-bold shadow-2xs">
+                          <Truck size={15} />
+                        </div>
+                      </div>
+
+                      <div className="bg-[#F8FAFC] rounded-xl p-2.5 border border-[#E2E8F0] space-y-1 text-xs mb-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#3E5C76]">Route Zone:</span>
+                          <span className="font-bold text-[#0A4B6E]">
+                            {sched.zoneCode || sched.zoneName}
                           </span>
                         </div>
-                        <p className="text-[11px] text-[#6D8AA2]">{sched.truckModel}</p>
-                      </div>
 
-                      <div className="w-8 h-8 rounded-full bg-[#EDF3F7] text-[#0A4B6E] flex items-center justify-center shrink-0">
-                        <Truck size={15} />
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#3E5C76]">Assigned Crew:</span>
+                          <span className="font-medium text-slate-800 truncate max-w-[170px] text-right">
+                            {sched.driverName || "Driver"} · {sched.salesName || "Sales Rep"}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-1 border-t border-[#E2E8F0]">
+                          <span className="text-[#3E5C76]">Scheduled Date:</span>
+                          <span className="font-bold text-[#0A4B6E]">
+                            {formatPhilippineDate(sched.scheduledDate)}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="bg-[#F8FAFC] rounded-xl p-2.5 border border-[#E2E8F0] space-y-1 text-xs mb-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[#6D8AA2]">Route Zone:</span>
-                        <span className="font-bold text-[#0A4B6E]">
-                          {sched.zoneCode || sched.zoneName}
-                        </span>
+                    {canManage && (
+                      <div className="flex items-center gap-2 pt-2 border-t border-[#E2E8F0]">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDispatch && onDispatch(sched);
+                          }}
+                          className="w-full py-2 px-3 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] rounded-full text-[11px] font-bold uppercase tracking-widest transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
+                        >
+                          <Plus size={13} strokeWidth={2.5} />
+                          <span>Dispatch Truck</span>
+                        </button>
                       </div>
-
-                      <div className="flex justify-between items-center">
-                        <span className="text-[#6D8AA2]">Assigned Crew:</span>
-                        <span className="font-medium text-slate-800 truncate max-w-[170px] text-right">
-                          {sched.driverName || "Driver"} · {sched.salesName || "Sales Rep"}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center pt-1 border-t border-[#E2E8F0]">
-                        <span className="text-[#6D8AA2]">Scheduled Date:</span>
-                        <span className="font-bold text-[#0A4B6E]">
-                          {formatPhilippineDate(sched.scheduledDate)}
-                        </span>
-                      </div>
-                    </div>
+                    )}
                   </div>
-
-                  {canManage && (
-                    <div className="flex items-center gap-2 pt-2 border-t border-[#E2E8F0]">
-                      <button
-                        type="button"
-                        onClick={() => onCancelSchedule && onCancelSchedule(sched)}
-                        className="py-2 px-3 bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 text-slate-600 hover:text-rose-700 rounded-full text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-1"
-                        title="Cancel this vehicle's run for today"
-                      >
-                        <CalendarX size={13} />
-                        <span>Cancel Run</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => onDispatch && onDispatch(sched)}
-                        className="flex-1 py-2 px-3 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] rounded-full text-xs font-bold transition cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
-                      >
-                        <Plus size={13} />
-                        <span>Dispatch Truck</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -295,24 +293,27 @@ export default function TodayDispatchesCards({
               <h3 className="text-sm font-bold text-[#0A4B6E] uppercase tracking-wide">
                 Unavailable Vehicles ({unavailableSchedules.length})
               </h3>
-              <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
+              <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
                 Scheduled · Blocked from Dispatch
               </span>
             </div>
-            <span className="text-[11px] text-[#6D8AA2]">
+            <span className="text-[11px] text-[#3E5C76]">
               Vehicles with mechanical or driver constraints
             </span>
           </div>
 
           {unavailableSchedules.length === 0 ? (
             <div className="bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-2xl p-6 text-center">
-              <p className="text-xs font-semibold text-[#6D8AA2]">
+              <p className="text-xs font-semibold text-[#3E5C76]">
                 All scheduled vehicles are operational and ready for dispatch
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
               {unavailableSchedules.map((sched) => {
+                const isSelected =
+                  Boolean(selectedId) &&
+                  (selectedId === sched.id || selectedId === sched.truckPlate);
                 const gating = sched.gating || {};
                 const badgeClasses =
                   gating.variant === "maintenance"
@@ -324,7 +325,12 @@ export default function TodayDispatchesCards({
                 return (
                   <div
                     key={sched.id}
-                    className="bg-[#FCFDFE] border border-amber-200/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all text-left"
+                    onClick={() => onSelectEntry && onSelectEntry(sched)}
+                    className={`rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all text-left cursor-pointer border ${
+                      isSelected
+                        ? "border-[#0A4B6E] ring-2 ring-[#0A4B6E]/20 bg-[#F4F9FC]"
+                        : "bg-[#FCFDFE] border-amber-200/80 hover:border-[#0A4B6E]/40"
+                    }`}
                   >
                     <div>
                       <div className="flex items-start justify-between gap-2 mb-2">
@@ -334,16 +340,16 @@ export default function TodayDispatchesCards({
                               {sched.truckPlate}
                             </span>
                             <span
-                              className={`text-[10px] font-bold border px-2 py-0.5 rounded-full ${badgeClasses}`}
+                              className={`text-[11px] font-bold border px-2 py-0.5 rounded-full ${badgeClasses}`}
                             >
                               {gating.reasonTag || "UNAVAILABLE"}
                             </span>
                           </div>
-                          <p className="text-[11px] text-[#6D8AA2]">{sched.truckModel}</p>
+                          <p className="text-[11px] text-[#3E5C76]">{sched.truckModel}</p>
                         </div>
 
-                        <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center shrink-0">
-                          <AlertTriangle size={15} />
+                        <div className="w-8 h-8 rounded-full bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 font-bold shadow-2xs">
+                          <Truck size={15} />
                         </div>
                       </div>
 
@@ -357,21 +363,21 @@ export default function TodayDispatchesCards({
 
                       <div className="bg-[#F8FAFC] rounded-xl p-2.5 border border-[#E2E8F0] space-y-1 text-xs mb-3">
                         <div className="flex justify-between items-center">
-                          <span className="text-[#6D8AA2]">Route Zone:</span>
+                          <span className="text-[#3E5C76]">Route Zone:</span>
                           <span className="font-bold text-[#0A4B6E]">
                             {sched.zoneCode || sched.zoneName}
                           </span>
                         </div>
 
                         <div className="flex justify-between items-center">
-                          <span className="text-[#6D8AA2]">Assigned Crew:</span>
+                          <span className="text-[#3E5C76]">Assigned Crew:</span>
                           <span className="font-medium text-slate-800 truncate max-w-[170px] text-right">
                             {sched.driverName || "Driver"} · {sched.salesName || "Sales Rep"}
                           </span>
                         </div>
 
                         <div className="flex justify-between items-center pt-1 border-t border-[#E2E8F0]">
-                          <span className="text-[#6D8AA2]">Scheduled Date:</span>
+                          <span className="text-[#3E5C76]">Scheduled Date:</span>
                           <span className="font-bold text-[#0A4B6E]">
                             {formatPhilippineDate(sched.scheduledDate)}
                           </span>
