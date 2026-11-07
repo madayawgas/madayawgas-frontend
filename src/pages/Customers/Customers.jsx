@@ -7,6 +7,9 @@ import CustomerModal from "../../components/customers/CustomerModal";
 import DeactivateCustomerModal from "../../components/customers/DeactivateCustomerModal";
 import AdminPasswordModal from "../../components/users/AdminPasswordModal";
 import ToastNotification from "../../components/ui/ToastNotifications";
+import SideDrawer from "../../components/ui/SideDrawer";
+import Badge from "../../components/ui/Badge";
+import { UserRound } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { customersApi } from "../../api/customers.js";
 import { PERMISSIONS } from "../../utils/permissions.js";
@@ -47,7 +50,7 @@ export default function Customers() {
 
   // Search, Filter, Sort and Server Pagination (Strategy B)
   const [page, setPage] = useState(1);
-  const limit = 20;
+  const [limit, setLimit] = useState(20);
   const [searchTerm, setSearchTerm] = useState("");
   const [committedSearch, setCommittedSearch] = useState("");
   const [paginationMeta, setPaginationMeta] = useState({
@@ -183,6 +186,11 @@ export default function Customers() {
 
   const handlePageChange = (newPage) => {
     setPage(newPage);
+  };
+
+  const handleLimitChange = (newLimit) => {
+    setLimit(newLimit);
+    setPage(1);
   };
 
   const handleApplyFilters = (newFilters) => {
@@ -353,51 +361,63 @@ export default function Customers() {
         />
       </div>
 
-      {/* Main Content Area (Table + Locked Expanded View on Select) */}
+      {/* Main Content Area: Full-Width Table with Independent SlideDrawer Inspection */}
       {isLoading && customers.length === 0 ? (
         <div className="flex-1 flex items-center justify-center p-12 text-gray-500 font-medium">
           Loading customer records...
         </div>
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col lg:flex-row items-stretch gap-4 lg:gap-6 overflow-hidden min-w-0">
-          {/* Customer Table Container (Scrolls independently) */}
-          <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden transition-all duration-300">
-            <CustomerTable
-              customers={customers}
-              selectedCustomer={selectedCustomer}
-              onSelectCustomer={handleSelectCustomer}
-              sortConfig={sortConfig}
-              onSort={handleSort}
-              pagination={{
-                page,
-                limit,
-                totalItems: paginationMeta.totalItems,
-                totalPages: paginationMeta.totalPages,
-                onPageChange: handlePageChange,
-                isLoading,
-              }}
-            />
-          </div>
+        <div className="flex-1 min-h-0 w-full h-full flex flex-col overflow-hidden">
+          <CustomerTable
+            customers={customers}
+            selectedCustomer={selectedCustomer}
+            onSelectCustomer={handleSelectCustomer}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+            pagination={{
+              page,
+              limit,
+              totalItems: paginationMeta.totalItems,
+              totalPages: paginationMeta.totalPages,
+              onPageChange: handlePageChange,
+              onLimitChange: handleLimitChange,
+              isLoading,
+            }}
+          />
 
-          {/* Locked Expanded Customer Details Panel (Right Side with independent scroll & out-animation) */}
-          {activeDetailCustomer && (
-            <div
-              className={`w-full lg:w-[350px] xl:w-[390px] shrink-0 h-full flex flex-col overflow-hidden transition-all duration-300 ${
-                isClosingPanel
-                  ? "animate-slide-fade-out pointer-events-none"
-                  : "animate-slide-fade-in"
-              }`}
-            >
+          {/* Slide-Over Customer Inspection Drawer */}
+          <SideDrawer
+            isOpen={Boolean(activeDetailCustomer)}
+            onClose={handleCloseDetail}
+            title={activeDetailCustomer?.name || "Customer Profile"}
+            subtitle={activeDetailCustomer?.address || "Customer Account"}
+            icon={UserRound}
+            badge={
+              activeDetailCustomer && (
+                <Badge
+                  variant={activeDetailCustomer.isActive !== false ? "success" : "deactivated"}
+                  className="px-2.5 py-0.5 text-[10px] font-bold"
+                >
+                  {activeDetailCustomer.isActive !== false ? "ACTIVE" : "INACTIVE"}
+                </Badge>
+              )
+            }
+            width="max-w-md sm:max-w-lg"
+          >
+            {activeDetailCustomer && (
               <CustomerDetailPanel
                 customer={activeDetailCustomer}
                 onClose={handleCloseDetail}
-                onEdit={(c) => setEditingCustomer(c)}
+                onEdit={(c) => {
+                  handleCloseDetail();
+                  setEditingCustomer(c);
+                }}
                 onDelete={(c) => handleInitiateDeactivate(c)}
                 onReactivate={(c) => handleReactivateCustomer(c)}
                 canManage={canManage}
               />
-            </div>
-          )}
+            )}
+          </SideDrawer>
         </div>
       )}
 

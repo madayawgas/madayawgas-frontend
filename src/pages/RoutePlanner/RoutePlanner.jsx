@@ -181,11 +181,11 @@ export default function RoutePlanner() {
               value={vehicleSearch}
               onChange={(e) => setVehicleSearch(e.target.value)}
               placeholder="Search vehicle or model..."
-              className="w-full pl-8 pr-3 py-1.5 bg-white border border-[#D5E3EC] rounded-full text-xs text-[#0A4B6E] placeholder-[#6D8AA2] focus:outline-none focus:ring-1 focus:ring-[#0A4B6E] shadow-2xs"
+              className="w-full pl-8 pr-3 py-1.5 bg-white border border-[#CBD5E1] rounded-lg text-xs text-[#0A4B6E] placeholder-[#6D8AA2] focus:outline-hidden focus:border-[#0A4B6E] shadow-2xs"
             />
           </div>
 
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
             <Calendar size={13} className="text-[#0A4B6E]" />
             <span>{templates.length} Active Route Schedules</span>
           </span>
@@ -196,7 +196,7 @@ export default function RoutePlanner() {
             <button
               type="button"
               onClick={() => handleOpenAddTemplate()}
-              className="flex items-center gap-1.5 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] font-bold text-xs px-4 py-2 rounded-full transition-all cursor-pointer shadow-2xs active:scale-95"
+              className="flex items-center gap-1.5 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs px-4 py-2 rounded-lg transition-all cursor-pointer shadow-2xs active:scale-95 uppercase tracking-wider text-[11px]"
             >
               <Plus size={14} />
               <span>Add Route Schedule</span>

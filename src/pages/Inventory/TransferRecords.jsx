@@ -84,12 +84,12 @@ export default function TransferRecords() {
   const [selectedSlip, setSelectedSlip] = useState(null);
 
   const fetchTransfers = useCallback(
-    async (pageToFetch = 1) => {
+    async (pageToFetch = 1, limitToFetch = meta.limit) => {
       try {
         setIsLoading(true);
         const params = {
           page: pageToFetch,
-          limit: 20,
+          limit: limitToFetch || 20,
           search: activeSearch || undefined,
           transferType: transferType !== "ALL" ? transferType : undefined,
         };
@@ -104,7 +104,7 @@ export default function TransferRecords() {
         setIsLoading(false);
       }
     },
-    [activeSearch, transferType]
+    [activeSearch, transferType, meta.limit]
   );
 
   useEffect(() => {
@@ -334,6 +334,10 @@ export default function TransferRecords() {
             totalItems={meta.totalItems}
             limit={meta.limit}
             onPageChange={handlePageChange}
+            onLimitChange={(newLimit) => {
+              setMeta((prev) => ({ ...prev, limit: newLimit, page: 1 }));
+            }}
+            itemLabel="transfer records"
             isLoading={isLoading}
           />
         </div>

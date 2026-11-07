@@ -1,6 +1,7 @@
 // src/components/fleet/FleetTable.jsx
 import { Truck, AlertTriangle, List, UserRound } from "lucide-react";
 import Badge from "../ui/Badge";
+import Pagination from "../ui/Pagination";
 
 export default function FleetTable({
   trucks = [],
@@ -8,6 +9,7 @@ export default function FleetTable({
   onSelectTruck,
   sortConfig = { key: "plateNumber", direction: "asc" },
   onSort,
+  pagination,
 }) {
   const getStatusVariant = (status) => {
     switch (status) {
@@ -303,6 +305,19 @@ export default function FleetTable({
           </tbody>
         </table>
       </div>
+
+      {pagination && (
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          limit={pagination.limit}
+          onPageChange={pagination.onPageChange}
+          onLimitChange={pagination.onLimitChange}
+          isLoading={pagination.isLoading}
+          itemLabel="vehicles"
+        />
+      )}
     </div>
   );
 }

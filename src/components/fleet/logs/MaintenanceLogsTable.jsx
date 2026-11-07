@@ -249,11 +249,12 @@ export default function MaintenanceLogsTable({
       {/* Pinned Pagination Footer */}
       {pagination && (
         <Pagination
-          currentPage={pagination.page}
+          page={pagination.page}
           totalPages={pagination.totalPages}
           totalItems={pagination.totalItems}
           limit={pagination.limit}
           onPageChange={pagination.onPageChange}
+          onLimitChange={pagination.onLimitChange}
           isLoading={pagination.isLoading || isLoading}
           itemLabel="logs"
         />

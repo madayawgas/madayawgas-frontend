@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 
 export default function Modal({
   isOpen,
@@ -14,6 +14,7 @@ export default function Modal({
   footer,
   maxWidth = "max-w-md",
   closeOnBackdrop = true,
+  showCloseButton = true,
 }) {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
@@ -41,6 +42,18 @@ export default function Modal({
     }
   }, [isOpen]);
 
+  // Escape key listener
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!shouldRender && !isOpen) return null;
 
   const modalNode = (
@@ -48,28 +61,28 @@ export default function Modal({
       onClick={() => {
         if (closeOnBackdrop && onClose) onClose();
       }}
-      className={`fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 ${
+      className={`fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 ${
         isAnimatingOut ? "animate-fade-out" : "animate-fade-in"
       }`}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white rounded-3xl w-full shadow-2xl relative flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden ${maxWidth} ${
+        className={`bg-white rounded-2xl w-full shadow-2xl relative flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden ${maxWidth} ${
           isAnimatingOut ? "animate-scale-out" : "animate-scale-in"
         }`}
       >
         {/* Header - Fixed */}
         {title && (
-          <div className="px-5 sm:px-8 pt-5 sm:pt-6 pb-3.5 sm:pb-4 shrink-0 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="px-5 sm:px-6 pt-5 pb-4 shrink-0 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
             <div className="flex items-center gap-3 min-w-0 pr-2">
               {Icon && (
-                <div className="w-10 h-10 rounded-2xl bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 shadow-2xs">
-                  <Icon size={20} />
+                <div className="w-9 h-9 rounded-xl bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 shadow-2xs">
+                  <Icon size={18} />
                 </div>
               )}
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-[#0A4B6E] text-lg sm:text-xl font-bold truncate">
+                  <h2 className="text-[#0A4B6E] text-base sm:text-lg font-bold truncate">
                     {title}
                   </h2>
                   {badge}
@@ -82,27 +95,39 @@ export default function Modal({
               </div>
             </div>
 
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                className="text-[#0A4B6E] hover:bg-[#E8F3F8] p-2 rounded-full transition cursor-pointer shrink-0"
-                title="Go back"
-              >
-                <ArrowLeft size={20} />
-              </button>
-            )}
+            <div className="flex items-center gap-1 shrink-0">
+              {onBack && (
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="text-[#0A4B6E] hover:bg-[#E8F3F8] p-1.5 rounded-lg transition cursor-pointer"
+                  title="Go back"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+              )}
+              {showCloseButton && onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-1.5 rounded-lg transition cursor-pointer"
+                  title="Close modal"
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
           </div>
         )}
 
         {/* Content - Scrollable */}
-        <div className="overflow-y-auto px-5 sm:px-8 py-3.5 sm:py-4 custom-scrollbar flex-1 min-h-0">
+        <div className="overflow-y-auto px-5 sm:px-6 py-4 custom-scrollbar flex-1 min-h-0">
           {children}
         </div>
 
         {/* Footer - Fixed */}
         {footer && (
-          <div className="px-5 sm:px-8 py-3.5 sm:py-4 border-t border-slate-100 shrink-0 bg-white">
+          <div className="px-5 sm:px-6 py-3.5 border-t border-slate-100 shrink-0 bg-white">
             {footer}
           </div>
         )}

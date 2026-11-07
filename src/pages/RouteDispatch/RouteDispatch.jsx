@@ -463,18 +463,18 @@ export default function RouteDispatch() {
       {/* Top Controls & Search Bar */}
       <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#D5E3EC]">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs shadow-2xs">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
             <span>{activeTrips.length} Out on the Road</span>
           </span>
 
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
             <Clock size={13} className="text-[#0A4B6E]" />
             <span>{availableSchedules.length} Ready to Dispatch</span>
           </span>
 
           {unavailableSchedules.length > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-bold text-xs shadow-2xs">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 font-bold text-xs shadow-2xs">
               <AlertTriangle size={13} className="text-amber-700" />
               <span>{unavailableSchedules.length} Unavailable</span>
             </span>
@@ -490,7 +490,7 @@ export default function RouteDispatch() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search truck, crew, zone..."
-              className="pl-8 pr-3 py-1.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-full text-xs text-[#0A4B6E] focus:outline-[#0A4B6E] w-48 sm:w-56"
+              className="pl-8 pr-3 py-1.5 bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg text-xs text-[#0A4B6E] focus:outline-hidden focus:border-[#0A4B6E] w-48 sm:w-56 shadow-2xs"
             />
           </div>
 
@@ -501,7 +501,7 @@ export default function RouteDispatch() {
                 setPrefillScheduleId("");
                 setShowDispatchModal(true);
               }}
-              className="flex items-center gap-1.5 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] font-bold text-xs px-3.5 py-2 rounded-full transition-all cursor-pointer shadow-2xs active:scale-95"
+              className="flex items-center gap-1.5 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs px-4 py-2 rounded-lg transition-all cursor-pointer shadow-2xs active:scale-95 uppercase tracking-wider text-[11px]"
             >
               <Plus size={14} />
               <span>Dispatch Truck</span>

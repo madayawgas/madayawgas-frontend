@@ -268,7 +268,9 @@ export default function WorkOrderTable({
           totalItems={pagination.totalItems}
           limit={pagination.limit}
           onPageChange={pagination.onPageChange}
+          onLimitChange={pagination.onLimitChange}
           isLoading={pagination.isLoading}
+          itemLabel="work orders"
         />
       )}
     </div>

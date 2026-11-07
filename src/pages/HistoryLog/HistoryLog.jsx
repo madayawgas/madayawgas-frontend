@@ -94,9 +94,9 @@ export default function HistoryLog() {
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full h-full flex flex-col overflow-hidden min-w-0">
       {/* Header Section: Summary Pill */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3 border-b border-[#6D8AA2]/20 pb-3.5">
+      <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3 border-b border-[#6D8AA2]/20 pb-3.5">
         {/* Left: Summary Pill */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
@@ -107,7 +107,7 @@ export default function HistoryLog() {
       </div>
 
       {/* Controls Section: Search Bar & Module Filter */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-3.5">
+      <div className="shrink-0 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-3.5">
         {/* Search Bar */}
         <SearchBar
           placeholder="Search history logs (Press Enter)..."
@@ -131,9 +131,9 @@ export default function HistoryLog() {
 
       {/* Table Section */}
       {isLoading && historyLogs.length === 0 ? (
-        <div className="flex justify-center p-8 text-gray-500">Loading history logs...</div>
+        <div className="flex-1 flex items-center justify-center p-8 text-gray-500 font-medium">Loading history logs...</div>
       ) : (
-        <div className="h-[calc(100vh-280px)] min-h-[460px] w-full min-w-0">
+        <div className="flex-1 min-h-0 w-full min-w-0 overflow-hidden flex flex-col">
           <HistoryTable
             logs={historyLogs}
             pagination={{

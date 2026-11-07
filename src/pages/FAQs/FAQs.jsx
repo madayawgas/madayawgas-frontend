@@ -405,7 +405,7 @@ export default function FAQs() {
   }, [searchTerm, selectedCategory]);
 
   return (
-    <div className="h-[calc(100vh-112px)] md:h-[calc(100vh-128px)] flex flex-col overflow-hidden w-full max-w-[1400px] mx-auto text-left font-sans">
+    <div className="h-full flex flex-col overflow-hidden w-full max-w-[1400px] mx-auto text-left font-sans min-w-0">
       {/* 1. Header Banner */}
       <div className="shrink-0 mb-4 bg-gradient-to-r from-[#0E384E] to-[#0A4B6E] rounded-2xl p-5 sm:p-6 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

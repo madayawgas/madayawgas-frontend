@@ -498,7 +498,7 @@ export default function ItemProfile() {
   };
 
   return (
-    <div className="h-[calc(100vh-112px)] md:h-[calc(100vh-128px)] flex flex-col overflow-hidden w-full max-w-[1600px] mx-auto text-left font-sans">
+    <div className="h-full flex flex-col overflow-hidden w-full max-w-[1600px] mx-auto text-left font-sans min-w-0">
       {/* 1. STICKY TOP HEADER WITH SUMMARY BADGES */}
       <div className="shrink-0">
         <ItemHeader

@@ -228,16 +228,24 @@ export default function Dashboard() {
     <div className="w-full max-w-[1400px] mx-auto flex flex-col gap-5 pt-4">
       {/* ================= TOP HEADER BANNER & STAT CARDS ================= */}
       <div
-        className="w-full bg-cover bg-center rounded-[3rem] p-10 md:p-10 relative overflow-hidden shadow-sm"
+        className="w-full bg-cover bg-center rounded-2xl p-6 sm:p-8 relative overflow-hidden shadow-sm"
         style={{ backgroundImage: `url(${bgHeader})` }}
       >
-        {/* Header Title */}
-        <h1 className="text-3xl md:text-4xl font-semibold text-white mb-6 relative z-10">
-          Welcome, {displayName}
-        </h1>
+        {/* Subtle Dark Gradient Overlay for Guaranteed Contrast */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#072d42]/90 via-[#0a4b6e]/75 to-[#0a4b6e]/40 z-0 pointer-events-none" />
+
+        {/* Header Title & Subtitle */}
+        <div className="relative z-10 mb-6">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+            Welcome, {displayName}
+          </h1>
+          <p className="text-xs sm:text-sm text-sky-100/80 font-medium mt-1">
+            Madayaw Petroleum & Gas Operations Overview
+          </p>
+        </div>
 
         {/* Top Metric Cards Row (Overlaying Header) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 relative z-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 relative z-10">
           <StatCard
             title="Gross Income"
             value={`₱ ${grossIncome.toLocaleString(undefined, {
