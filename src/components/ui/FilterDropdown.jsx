@@ -1,6 +1,22 @@
 import { useState, useEffect, useRef } from "react";
 import { Funnel } from "lucide-react";
 
+const getOptionLabel = (opt) => {
+  if (!opt) return "";
+  if (typeof opt === "object" && opt !== null) {
+    return opt.label ?? opt.name ?? opt.value ?? "";
+  }
+  return typeof opt === "string" ? opt.replace(/_/g, " ") : String(opt);
+};
+
+const getOptionValue = (opt) => {
+  if (!opt) return "";
+  if (typeof opt === "object" && opt !== null) {
+    return opt.value !== undefined ? opt.value : opt.id !== undefined ? opt.id : opt.label;
+  }
+  return opt;
+};
+
 export default function FilterDropdown({
   label = "Filter",
   options = [],
@@ -27,6 +43,14 @@ export default function FilterDropdown({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  // Determine trigger button label
+  const selectedOption = options.find((opt) => getOptionValue(opt) === value);
+  const displayLabel = selectedOption
+    ? getOptionLabel(selectedOption)
+    : typeof value === "string" && value
+    ? value.replace(/_/g, " ")
+    : label;
 
   return (
     <div ref={dropdownRef} className="relative">
@@ -57,8 +81,8 @@ export default function FilterDropdown({
           shadow-2xs
         "
       >
-        <span className="truncate">
-          {value ? value.replace(/_/g, " ") : label}
+        <span className="truncate max-w-[140px]">
+          {displayLabel}
         </span>
 
         <Funnel
@@ -72,7 +96,10 @@ export default function FilterDropdown({
           absolute
           right-0
           mt-1.5
-          w-44
+          w-52
+          max-h-60
+          overflow-y-auto
+          custom-scrollbar
           bg-white
           border
           border-[#0A4B6E]/20
@@ -80,7 +107,6 @@ export default function FilterDropdown({
           shadow-lg
           z-20
           py-1
-          overflow-hidden
           origin-top-right
           transition-all
           duration-150
@@ -92,31 +118,39 @@ export default function FilterDropdown({
           }
         `}
       >
-        {options.map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => handleSelect(option)}
-            className={`
-              w-full
-              text-left
-              px-3
-              py-1.5
-              text-xs
-              transition-colors
-              duration-150
-              hover:bg-gray-50
-              cursor-pointer
-              ${
-                value === option
-                  ? "text-[#0F7AB2] font-semibold bg-[#F8FBFC]"
-                  : "text-gray-700"
-              }
-            `}
-          >
-            {option.replace(/_/g, " ")}
-          </button>
-        ))}
+        {options.map((option, index) => {
+          const optValue = getOptionValue(option);
+          const optLabel = getOptionLabel(option);
+          const isSelected = value === optValue;
+
+          return (
+            <button
+              key={optValue || index}
+              type="button"
+              onClick={() => handleSelect(option)}
+              className={`
+                w-full
+                text-left
+                px-3
+                py-1.5
+                text-xs
+                transition-colors
+                duration-150
+                hover:bg-gray-50
+                cursor-pointer
+                truncate
+                ${
+                  isSelected
+                    ? "text-[#0F7AB2] font-semibold bg-[#F8FBFC]"
+                    : "text-gray-700"
+                }
+              `}
+              title={optLabel}
+            >
+              {optLabel}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
