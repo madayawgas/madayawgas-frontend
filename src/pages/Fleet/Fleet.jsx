@@ -113,9 +113,9 @@ export default function Fleet() {
   const [fleetLimit, setFleetLimit] = useState(20);
   const [viewMode, setViewMode] = useState(() => {
     try {
-      return localStorage.getItem("app_fleet_view_mode") || "grid";
+      return localStorage.getItem("app_fleet_view_mode") || "table";
     } catch {
-      return "grid";
+      return "table";
     }
   });
 
@@ -148,46 +148,27 @@ export default function Fleet() {
     []
   );
 
-  const [activeSubTab, setActiveSubTab] = useState(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get("tab");
-      return validTabs.includes(tabParam) ? tabParam : "vehicles";
-    } catch {
-      return "vehicles";
-    }
-  });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const activeSubTab = validTabs.includes(tabParam) ? tabParam : "vehicles";
 
-  // Keep activeSubTab synced with browser back/forward buttons
-  useEffect(() => {
-    const handlePopState = () => {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const tabParam = params.get("tab");
-        const current = validTabs.includes(tabParam) ? tabParam : "vehicles";
-        setActiveSubTab(current);
-      } catch {
-        // ignore
-      }
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, [validTabs]);
-
-  const handleTabChange = (newTab) => {
-    setActiveSubTab(newTab);
-    try {
-      const url = new URL(window.location.href);
-      if (newTab === "vehicles") {
-        url.searchParams.delete("tab");
-      } else {
-        url.searchParams.set("tab", newTab);
-      }
-      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
-    } catch (e) {
-      console.warn("Failed to sync tab to URL:", e);
-    }
-  };
+  const handleTabChange = useCallback(
+    (newTab) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (newTab === "vehicles") {
+            next.delete("tab");
+          } else {
+            next.set("tab", newTab);
+          }
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
 
   // Part 3 Work Orders & Maintenance Logs States
   const [workOrders, setWorkOrders] = useState([]);
@@ -898,20 +879,17 @@ export default function Fleet() {
     setTruckToDelete(truck);
   };
 
-  const handleConfirmDeletePrompt = () => {
-    setShowDeletePasswordModal(true);
-  };
-
-  const handleExecuteDelete = async (adminPassword) => {
-    if (!truckToDelete) return;
-    const targetId = truckToDelete.id;
+  const handleExecuteDelete = async (truck, adminPassword) => {
+    const targetTruck = truck || truckToDelete;
+    if (!targetTruck) return;
+    const targetId = targetTruck.id;
 
     const result = await fleetApi.deactivateTruck(targetId, {
       confirmPassword: adminPassword,
     });
 
     const updated = result?.truck || {
-      ...truckToDelete,
+      ...targetTruck,
       status: "INACTIVE",
       operationalStatus: "INACTIVE",
       isAvailable: false,
@@ -932,12 +910,11 @@ export default function Fleet() {
       setActiveDetailTruck(updated);
     }
 
-    setShowDeletePasswordModal(false);
     setTruckToDelete(null);
     await refreshDrivers();
     setToast({
       type: "success",
-      message: `Vehicle ${truckToDelete.plateNumber || ""} deactivated successfully`,
+      message: `Vehicle ${targetTruck.plateNumber || ""} deactivated successfully`,
     });
   };
 
@@ -1538,24 +1515,14 @@ export default function Fleet() {
         />
       )}
 
-      {/* Delete Confirmation Step 1 */}
-      {truckToDelete && !showDeletePasswordModal && (
+      {/* Delete Confirmation Modal with Inline Password Authorization */}
+      {truckToDelete && (
         <DeleteConfirmationModal
           truck={truckToDelete}
-          onConfirm={handleConfirmDeletePrompt}
+          onConfirm={(truck, password) => handleExecuteDelete(truck, password)}
           onClose={() => setTruckToDelete(null)}
         />
       )}
-
-      {/* Delete Password Verification Step 2 */}
-      <AdminPasswordModal
-        isOpen={showDeletePasswordModal}
-        onClose={() => {
-          setShowDeletePasswordModal(false);
-          setTruckToDelete(null);
-        }}
-        onSubmit={handleExecuteDelete}
-      />
 
       {/* Reactivate Password Verification Modal */}
       <AdminPasswordModal

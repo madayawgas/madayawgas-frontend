@@ -211,8 +211,8 @@ export default function TransferRecords() {
       {/* Main Table Container */}
       <main className="flex-1 min-h-0 overflow-hidden flex flex-col p-6">
         <div className="flex-1 min-h-0 bg-white border border-[#0A4B6E]/30 rounded-2xl flex flex-col overflow-hidden shadow-sm">
-          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left text-xs border-collapse min-w-[850px]">
               <thead className="sticky top-0 bg-[#0D4B6E] text-white text-xs md:text-sm z-10 shadow-xs select-none">
                 <tr>
                   <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Slip Number</th>

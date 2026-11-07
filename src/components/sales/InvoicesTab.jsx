@@ -138,8 +138,8 @@ export default function InvoicesTab({
 
       {/* Main Table Container */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden border border-[#0A4B6E]/15 rounded-2xl bg-white shadow-xs">
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-          <table className="w-full text-left text-xs border-collapse">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left text-xs border-collapse min-w-[840px]">
             <thead className="bg-[#E8F3F8]/70 text-[#0A4B6E] font-bold sticky top-0 z-10 border-b border-[#0A4B6E]/15 backdrop-blur-xs select-none">
               <tr>
                 <th className="py-3 px-3.5 whitespace-nowrap">Invoice & Declaration</th>

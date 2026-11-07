@@ -292,8 +292,8 @@ export default function ServiceZones() {
       {/* Main Table */}
       <main className="flex-1 min-h-0 overflow-hidden flex flex-col p-6">
         <div className="flex-1 min-h-0 bg-white border border-[#CBD5E1] rounded-2xl flex flex-col overflow-hidden shadow-2xs">
-          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left text-xs border-collapse min-w-[700px]">
               <thead className="sticky top-0 bg-[#0D4B6E] text-white text-xs md:text-sm z-10 shadow-xs select-none">
                 <tr>
                   <th className="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Zone Code</th>

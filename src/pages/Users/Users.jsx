@@ -339,12 +339,36 @@ export default function Users() {
     }
   };
 
+  // Direct Deactivation with inline password authorization
+  const handleConfirmDeactivateUser = async (targetUser, adminPassword) => {
+    if (!targetUser) return;
+    const targetId = targetUser.id || targetUser.userId;
+    await usersApi.updateUserStatus(targetId, {
+      confirmPassword: adminPassword,
+      adminPassword,
+      isActive: false,
+    });
+    updateUsersState((prev) =>
+      prev.map((u) =>
+        (u.id || u.userId) === targetId
+          ? { ...u, status: "DEACTIVATED", isActive: false }
+          : u
+      )
+    );
+
+    if (activeDetailUser && ((activeDetailUser.id || activeDetailUser.userId) === targetId)) {
+      setActiveDetailUser((prev) => ({ ...prev, status: "DEACTIVATED", isActive: false }));
+      setSelectedUser((prev) => ({ ...prev, status: "DEACTIVATED", isActive: false }));
+    }
+
+    setShowToast(true);
+    setUserToDeactivate(null);
+  };
+
   // Triggers warning confirmation modals first
   const handleInitiateDeactivate = (targetUser) => {
     if (!targetUser || hasUserRole(targetUser, "Super Admin")) return;
     setUserToDeactivate(targetUser);
-    setPendingAction("DEACTIVATE");
-    setShowPasswordModal(false);
   };
 
   const handleInitiateReactivate = (targetUser) => {
@@ -576,12 +600,12 @@ export default function Users() {
         }}
       />
 
-      {/* Deactivate User Modal */}
-      {userToDeactivate && !showPasswordModal && (
+      {/* Deactivate User Modal with Inline Password Authorization */}
+      {userToDeactivate && (
         <DeactivateUserModal
           user={userToDeactivate}
           onClose={() => setUserToDeactivate(null)}
-          onConfirm={() => setShowPasswordModal(true)}
+          onConfirm={handleConfirmDeactivateUser}
         />
       )}
 

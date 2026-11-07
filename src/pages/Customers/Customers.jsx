@@ -5,7 +5,6 @@ import CustomerTable from "../../components/customers/CustomerTable";
 import CustomerDetailPanel from "../../components/customers/CustomerDetailPanel";
 import CustomerModal from "../../components/customers/CustomerModal";
 import DeactivateCustomerModal from "../../components/customers/DeactivateCustomerModal";
-import AdminPasswordModal from "../../components/users/AdminPasswordModal";
 import ToastNotification from "../../components/ui/ToastNotifications";
 import SideDrawer from "../../components/ui/SideDrawer";
 import Badge from "../../components/ui/Badge";
@@ -43,7 +42,6 @@ export default function Customers() {
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [customerToDeactivate, setCustomerToDeactivate] = useState(null);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   // Toast Notification State
   const [toast, setToast] = useState(null); // { message: string, type: string }
@@ -290,22 +288,18 @@ export default function Customers() {
     setCustomerToDeactivate(targetCustomer);
   };
 
-  const handleConfirmDeactivatePrompt = () => {
-    setShowPasswordModal(true);
-  };
+  // Confirm Password and Deactivate Customer (PATCH /api/sales/customers/:id/deactivate)
+  const handleConfirmDeactivate = async (targetCustomer, adminPassword) => {
+    if (!targetCustomer) return;
 
-  // Confirm Admin Password and Deactivate Customer (PATCH /api/sales/customers/:id/deactivate)
-  const handleConfirmAdminPassword = async (adminPassword) => {
-    if (!customerToDeactivate) return;
-
-    const targetId = customerToDeactivate.id;
+    const targetId = targetCustomer.id;
     // Sends { confirmPassword } directly to PATCH /api/sales/customers/:id/deactivate
     const result = await customersApi.deactivateCustomer(targetId, {
       confirmPassword: adminPassword,
     });
 
     const updatedCustomer = result?.customer || {
-      ...customerToDeactivate,
+      ...targetCustomer,
       isActive: false,
       updatedAt: new Date().toISOString(),
     };
@@ -324,7 +318,6 @@ export default function Customers() {
       message: "Customer Successfully Deactivated",
     });
 
-    setShowPasswordModal(false);
     setCustomerToDeactivate(null);
     await loadCustomers();
   };
@@ -432,24 +425,14 @@ export default function Customers() {
         }}
       />
 
-      {/* Deactivation Confirmation Modal */}
-      {customerToDeactivate && !showPasswordModal && (
+      {/* Deactivate Customer Confirmation Modal with Inline Password Authorization */}
+      {customerToDeactivate && (
         <DeactivateCustomerModal
           customer={customerToDeactivate}
           onClose={() => setCustomerToDeactivate(null)}
-          onConfirm={handleConfirmDeactivatePrompt}
+          onConfirm={handleConfirmDeactivate}
         />
       )}
-
-      {/* Security Admin Password Verification Modal */}
-      <AdminPasswordModal
-        isOpen={showPasswordModal}
-        onClose={() => {
-          setShowPasswordModal(false);
-          setCustomerToDeactivate(null);
-        }}
-        onSubmit={handleConfirmAdminPassword}
-      />
 
       {/* Toast Notification */}
       {toast && (

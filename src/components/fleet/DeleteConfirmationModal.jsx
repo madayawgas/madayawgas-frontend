@@ -8,11 +8,13 @@ export default function DeleteConfirmationModal({ truck, onConfirm, onClose }) {
     <ConfirmationModal
       isOpen={Boolean(truck)}
       onClose={onClose}
-      onConfirm={() => onConfirm(truck)}
+      onConfirm={(password) => onConfirm(truck, password)}
       title="Deactivate Truck?"
-      confirmText="Continue"
+      confirmText="Deactivate"
       cancelText="Cancel"
       variant="danger"
+      requiresPassword={true}
+      passwordLabel="Enter your password to authorize deactivation:"
       message={
         <p className="text-gray-800 leading-relaxed text-xs">
           This action will mark{" "}

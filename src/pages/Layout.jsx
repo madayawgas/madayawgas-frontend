@@ -22,6 +22,9 @@ import {
   Briefcase,
   MapPin,
   ChevronDown,
+  Wrench,
+  Fuel,
+  FileWarning,
 } from "lucide-react";
 import logo from "../assets/logov2.svg";
 import ForceChangePasswordModal from "../components/auth/ForceChangePasswordModal.jsx";
@@ -61,7 +64,13 @@ export default function Layout() {
     if (pathname.startsWith("/inventory/plant")) return "Plant Warehouse";
     if (pathname.startsWith("/inventory/transfers")) return "Transfer Records";
     if (pathname.startsWith("/inventory/products") || pathname.startsWith("/item-profile")) return "Products Catalog";
-    if (pathname.startsWith("/fleet")) return "Fleet Board";
+    if (pathname.startsWith("/fleet")) {
+      const search = location.search;
+      if (search.includes("tab=fuel")) return "Fuel Monitoring";
+      if (search.includes("tab=apprehensions")) return "Driver Roadside Citations";
+      if (search.includes("tab=work-orders") || search.includes("tab=logs") || search.includes("tab=analytics")) return "Fleet Maintenance Hub";
+      return "Fleet Board";
+    }
     if (pathname.startsWith("/sales-delivery")) return "Sales and Delivery";
     if (pathname.startsWith("/customers") || pathname.startsWith("/customer")) return "Customer Profile";
     if (pathname.startsWith("/users")) return "User Management";
@@ -240,11 +249,77 @@ export default function Layout() {
 
                 <NavLink
                   to="/fleet"
-                  className={navClass}
+                  end
+                  className={({ isActive }) => {
+                    const isFleetActive =
+                      isActive &&
+                      (!location.search || location.search.includes("tab=vehicles"));
+                    return `flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1 text-[13px] font-semibold transition-all ${
+                      isFleetActive
+                        ? "bg-[#FFDF2C] text-[#0A4B6E] font-bold shadow-2xs"
+                        : "text-white/85 hover:text-white hover:bg-white/10"
+                    }`;
+                  }}
                   onClick={() => setOpen(false)}
                 >
                   <Truck size={17} className="shrink-0" />
                   <span>Fleet Board</span>
+                </NavLink>
+
+                <NavLink
+                  to="/fleet?tab=work-orders"
+                  className={() => {
+                    const isMaintActive =
+                      location.pathname.startsWith("/fleet") &&
+                      (location.search.includes("tab=work-orders") ||
+                        location.search.includes("tab=logs") ||
+                        location.search.includes("tab=analytics"));
+                    return `flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1 text-[13px] font-semibold transition-all ${
+                      isMaintActive
+                        ? "bg-[#FFDF2C] text-[#0A4B6E] font-bold shadow-2xs"
+                        : "text-white/85 hover:text-white hover:bg-white/10"
+                    }`;
+                  }}
+                  onClick={() => setOpen(false)}
+                >
+                  <Wrench size={17} className="shrink-0" />
+                  <span>Maintenance Hub</span>
+                </NavLink>
+
+                <NavLink
+                  to="/fleet?tab=fuel"
+                  className={() => {
+                    const isFuelActive =
+                      location.pathname.startsWith("/fleet") &&
+                      location.search.includes("tab=fuel");
+                    return `flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1 text-[13px] font-semibold transition-all ${
+                      isFuelActive
+                        ? "bg-[#FFDF2C] text-[#0A4B6E] font-bold shadow-2xs"
+                        : "text-white/85 hover:text-white hover:bg-white/10"
+                    }`;
+                  }}
+                  onClick={() => setOpen(false)}
+                >
+                  <Fuel size={17} className="shrink-0" />
+                  <span>Fuel Monitoring</span>
+                </NavLink>
+
+                <NavLink
+                  to="/fleet?tab=apprehensions"
+                  className={() => {
+                    const isApprehensionActive =
+                      location.pathname.startsWith("/fleet") &&
+                      location.search.includes("tab=apprehensions");
+                    return `flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1 text-[13px] font-semibold transition-all ${
+                      isApprehensionActive
+                        ? "bg-[#FFDF2C] text-[#0A4B6E] font-bold shadow-2xs"
+                        : "text-white/85 hover:text-white hover:bg-white/10"
+                    }`;
+                  }}
+                  onClick={() => setOpen(false)}
+                >
+                  <FileWarning size={17} className="shrink-0" />
+                  <span>Driver Citations</span>
                 </NavLink>
               </>
             )}

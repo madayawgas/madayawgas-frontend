@@ -8,11 +8,13 @@ export default function DeactivateUserModal({ user, onClose, onConfirm }) {
     <ConfirmationModal
       isOpen={Boolean(user)}
       onClose={onClose}
-      onConfirm={() => onConfirm(user)}
+      onConfirm={(password) => onConfirm(user, password)}
       title="Deactivate User?"
-      confirmText="Continue"
+      confirmText="Deactivate"
       cancelText="Cancel"
       variant="danger"
+      requiresPassword={true}
+      passwordLabel="Enter your password to authorize deactivation:"
       message={
         <p className="text-gray-800 leading-relaxed text-xs">
           <strong className="text-[#0A4B6E] font-bold">

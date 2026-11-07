@@ -633,9 +633,9 @@ export default function StockReconciliation() {
                     </span>
                   </div>
 
-                  <div className="border border-[#0A4B6E]/30 rounded-xl overflow-hidden shadow-2xs">
-                    <table className="w-full text-xs text-left border-collapse">
-                      <thead>
+                  <div className="border border-[#0A4B6E]/30 rounded-xl overflow-x-auto overflow-y-auto max-h-[360px] custom-scrollbar shadow-2xs">
+                    <table className="w-full text-xs text-left border-collapse min-w-[580px]">
+                      <thead className="sticky top-0 z-10">
                         <tr className="bg-[#0D4B6E] text-white text-[11px] uppercase tracking-wider font-semibold select-none">
                           <th className="py-2.5 px-3">Product</th>
                           <th className="py-2.5 px-3 text-center">Loaded Out</th>
