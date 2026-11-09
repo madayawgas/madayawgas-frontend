@@ -9,6 +9,8 @@ export default function CustomerFormStep({
   customer,
   phoneError,
   setPhoneError,
+  submitError,
+  isSubmitting,
   onSubmit,
   onClose,
 }) {
@@ -165,16 +167,27 @@ export default function CustomerFormStep({
 
       {/* FOOTER BUTTONS */}
       <div className="pt-2 flex flex-col gap-2">
+        {submitError && (
+          <p className="text-red-500 text-xs font-semibold pb-1 text-center">
+            {submitError}
+          </p>
+        )}
         <button
           type="submit"
-          className="w-full bg-[#FFDF2C] hover:bg-[#ebd024] active:scale-[0.98] text-[#0A4B6E] font-bold py-3.5 px-6 rounded-full text-xs md:text-sm uppercase tracking-wider transition-all duration-150 shadow-sm cursor-pointer"
+          disabled={isSubmitting}
+          className="w-full bg-[#FFDF2C] hover:bg-[#ebd024] active:scale-[0.98] text-[#0A4B6E] font-bold py-3.5 px-6 rounded-full text-xs md:text-sm uppercase tracking-wider transition-all duration-150 shadow-sm cursor-pointer disabled:opacity-50"
         >
-          {customer ? "SAVE CHANGES" : "CONTINUE TO CONFIRMATION"}
+          {isSubmitting
+            ? "SAVING..."
+            : customer
+            ? "SAVE CHANGES"
+            : "CREATE CUSTOMER"}
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="w-full bg-transparent hover:bg-slate-50 text-slate-500 font-semibold py-2 rounded-full text-xs uppercase tracking-wider transition-all cursor-pointer"
+          disabled={isSubmitting}
+          className="w-full bg-transparent hover:bg-slate-50 text-slate-500 font-semibold py-2 rounded-full text-xs uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50"
         >
           CANCEL
         </button>

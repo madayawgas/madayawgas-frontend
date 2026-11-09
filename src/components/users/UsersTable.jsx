@@ -2,6 +2,7 @@ import { UserRound, Phone, Calendar } from "lucide-react";
 import { formatPhilippinePhone } from "../../utils/phone.js";
 import { getUserRoleNames } from "../../utils/userRoles.js";
 import Badge from "../ui/Badge";
+import Pagination from "../ui/Pagination";
 import { formatPhilippineDateShort } from "../../utils/date.js";
 
 export default function UsersTable({
@@ -10,6 +11,7 @@ export default function UsersTable({
   onSelectUser,
   sortConfig = { key: "firstName", direction: "asc" },
   onSort,
+  pagination,
 }) {
   const getStatus = (user) => {
     if (user.isBlocked) return "SUSPENDED";
@@ -192,6 +194,19 @@ export default function UsersTable({
           </tbody>
         </table>
       </div>
+
+      {pagination && (
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          limit={pagination.limit}
+          onPageChange={pagination.onPageChange}
+          onLimitChange={pagination.onLimitChange}
+          isLoading={pagination.isLoading}
+          itemLabel="users"
+        />
+      )}
     </div>
   );
 }

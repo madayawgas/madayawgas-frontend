@@ -304,20 +304,17 @@ export default function ItemProfile() {
     setItemToDeactivate(item);
   };
 
-  const handleConfirmDeactivatePrompt = () => {
-    setShowDeletePasswordModal(true);
-  };
-
-  const handleExecuteDeactivate = async (adminPassword) => {
-    if (!itemToDeactivate) return;
-    const targetId = itemToDeactivate.id;
+  const handleExecuteDeactivate = async (item, adminPassword) => {
+    const targetItem = item || itemToDeactivate;
+    if (!targetItem) return;
+    const targetId = targetItem.id;
 
     const result = await inventoryApi.deactivateProduct(targetId, {
       confirmPassword: adminPassword,
     });
 
     const updated = result?.product || {
-      ...itemToDeactivate,
+      ...targetItem,
       isActive: false,
       updatedAt: new Date().toISOString(),
     };
@@ -330,11 +327,10 @@ export default function ItemProfile() {
       setSelectedItem(updated);
     }
 
-    setShowDeletePasswordModal(false);
     setItemToDeactivate(null);
     setToast({
       type: "success",
-      message: `Product ${itemToDeactivate.name || itemToDeactivate.itemName || ""} deactivated successfully`,
+      message: `Product ${targetItem.name || targetItem.itemName || ""} deactivated successfully`,
     });
 
     await refreshPlantStock();
@@ -498,7 +494,7 @@ export default function ItemProfile() {
   };
 
   return (
-    <div className="h-[calc(100vh-112px)] md:h-[calc(100vh-128px)] flex flex-col overflow-hidden w-full max-w-[1600px] mx-auto text-left font-sans">
+    <div className="h-full flex flex-col overflow-hidden w-full max-w-[1600px] mx-auto text-left font-sans min-w-0">
       {/* 1. STICKY TOP HEADER WITH SUMMARY BADGES */}
       <div className="shrink-0">
         <ItemHeader
@@ -669,24 +665,14 @@ export default function ItemProfile() {
         />
       )}
 
-      {/* Deactivate Step 1: Warning Modal */}
-      {itemToDeactivate && !showDeletePasswordModal && (
+      {/* Deactivate Item Confirmation Modal with Inline Password Authorization */}
+      {itemToDeactivate && (
         <DeactivateItemModal
           item={itemToDeactivate}
-          onConfirm={handleConfirmDeactivatePrompt}
+          onConfirm={(item, password) => handleExecuteDeactivate(item, password)}
           onClose={() => setItemToDeactivate(null)}
         />
       )}
-
-      {/* Deactivate Step 2: Password Verification Modal */}
-      <AdminPasswordModal
-        isOpen={showDeletePasswordModal}
-        onClose={() => {
-          setShowDeletePasswordModal(false);
-          setItemToDeactivate(null);
-        }}
-        onSubmit={handleExecuteDeactivate}
-      />
 
       {/* Reactivate Password Verification Modal */}
       <AdminPasswordModal

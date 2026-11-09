@@ -1,7 +1,7 @@
 // src/components/route-dispatch/MiddayReloadModal.jsx
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Layers, X, Plus, Trash2 } from "lucide-react";
+import { Layers, X, Plus, Trash2, Truck } from "lucide-react";
 import { isCanisterProduct } from "../../utils/product.js";
 
 export default function MiddayReloadModal({
@@ -58,7 +58,7 @@ export default function MiddayReloadModal({
       }
 
       await onAddLoad(trip.id, {
-        transferType: "DISPATCH_LOAD",
+        transferType: "MIDDAY_RELOAD",
         remarks,
         items: validLoads.map((i) => ({
           productId: i.productId,
@@ -79,15 +79,15 @@ export default function MiddayReloadModal({
   const modalNode = (
     <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
       <div className="bg-white rounded-2xl border border-[#D5E3EC] max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar animate-scale-in">
-        {/* Header */}
+        {/* Header with Truck Badge */}
         <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center font-bold">
-              <Layers size={17} />
+            <div className="w-9 h-9 rounded-full bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center font-bold shrink-0 shadow-2xs">
+              <Truck size={17} />
             </div>
             <div>
               <h3 className="text-sm font-bold text-[#0A4B6E]">Midday Staging Reload</h3>
-              <p className="text-[11px] text-[#6D8AA2]">
+              <p className="text-[11px] text-[#3E5C76]">
                 Vehicle: <strong className="text-[#0A4B6E]">{trip.truckPlate}</strong> · {trip.zoneCode || trip.zoneName}
               </p>
             </div>
@@ -95,7 +95,8 @@ export default function MiddayReloadModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 font-bold p-1 cursor-pointer"
+            aria-label="Close dialog"
+            className="text-slate-400 hover:text-slate-700 font-bold p-1 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -114,7 +115,7 @@ export default function MiddayReloadModal({
               type="text"
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
-              className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl p-2.5 text-xs focus:outline-[#0A4B6E]"
+              className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-xl p-2.5 text-xs text-slate-800 focus:outline-[#0A4B6E]"
             />
           </div>
 
@@ -125,9 +126,9 @@ export default function MiddayReloadModal({
               <button
                 type="button"
                 onClick={handleAddItem}
-                className="text-[#0A4B6E] hover:text-[#0E384E] font-bold text-[11px] flex items-center gap-1 cursor-pointer bg-white border border-[#CBD5E1] hover:bg-slate-50 px-2.5 py-1 rounded-lg"
+                className="text-[#0A4B6E] hover:text-[#0E384E] font-bold text-[11px] flex items-center gap-1 cursor-pointer bg-white border border-[#CBD5E1] hover:bg-slate-50 px-2.5 py-1 rounded-full shadow-2xs"
               >
-                <Plus size={13} /> Add Product Item
+                <Plus size={13} strokeWidth={2.5} /> Add Item
               </button>
             </div>
 
@@ -140,30 +141,36 @@ export default function MiddayReloadModal({
 
                 return (
                   <div key={idx} className="flex items-center gap-2 bg-white p-2.5 rounded-lg border border-[#E2E8F0]">
-                    <select
-                      value={item.productId}
-                      onChange={(e) => handleItemChange(idx, "productId", e.target.value)}
-                      className="flex-1 bg-white border border-[#CBD5E1] rounded-md p-1.5 text-xs text-[#0A4B6E] font-medium"
-                    >
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({p.containerType})
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex-1">
+                      <label className="sr-only">Product</label>
+                      <select
+                        value={item.productId}
+                        onChange={(e) => handleItemChange(idx, "productId", e.target.value)}
+                        aria-label={`Product item ${idx + 1}`}
+                        className="w-full bg-white border border-[#CBD5E1] rounded-md p-1.5 text-xs text-[#0A4B6E] font-semibold"
+                      >
+                        {products.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} ({p.containerType})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
                     <div className="w-24">
+                      <label className="sr-only">Quantity Units</label>
                       <input
                         type="number"
                         min="1"
                         value={item.quantityUnits}
                         onChange={(e) => handleItemChange(idx, "quantityUnits", e.target.value)}
+                        aria-label={`Quantity units ${idx + 1}`}
                         placeholder="Units"
                         className="w-full bg-white border border-[#CBD5E1] rounded-md p-1.5 text-xs font-bold text-center text-[#0A4B6E]"
                       />
                     </div>
 
-                    <div className="text-[11px] text-[#6D8AA2] font-semibold w-20 text-right shrink-0">
+                    <div className="text-[11px] text-[#3E5C76] font-semibold w-20 text-right shrink-0">
                       {isCanister && crates > 0 ? `${crates} crates` : ""}
                     </div>
 
@@ -171,9 +178,10 @@ export default function MiddayReloadModal({
                       <button
                         type="button"
                         onClick={() => handleRemoveItem(idx)}
-                        className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer shrink-0"
+                        aria-label={`Remove reload item ${idx + 1}`}
+                        className="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={15} />
                       </button>
                     )}
                   </div>
@@ -187,14 +195,14 @@ export default function MiddayReloadModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-full text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              className="px-4 py-2 rounded-full text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#0E384E] cursor-pointer shadow-xs disabled:opacity-50"
+              className="px-5 py-2.5 rounded-full text-xs font-bold bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all cursor-pointer shadow-2xs uppercase tracking-wider disabled:opacity-50 active:scale-95"
             >
               {isSubmitting ? "Recording..." : "Record Reload Manifest"}
             </button>

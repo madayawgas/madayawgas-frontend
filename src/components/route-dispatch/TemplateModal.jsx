@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Calendar, X, Trash2, CheckCircle2 } from "lucide-react";
+import { Calendar, X, Trash2, CheckCircle2, ArrowRight } from "lucide-react";
 
 const DAYS_OF_WEEK = [
   { num: 1, label: "Mon", full: "Monday" },
@@ -295,9 +295,10 @@ export default function TemplateModal({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-5 py-2 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#0E384E] cursor-pointer shadow-xs disabled:opacity-50"
+                className="px-5 py-2 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#0E384E] cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
               >
-                {isSubmitting ? "Saving..." : isEditing ? "Save Schedule ➔" : "+ Add Schedule"}
+                <span>{isSubmitting ? "Saving..." : isEditing ? "Save Schedule" : "Add Schedule"}</span>
+                {isEditing && <ArrowRight size={13} strokeWidth={2.5} />}
               </button>
             </div>
           </div>

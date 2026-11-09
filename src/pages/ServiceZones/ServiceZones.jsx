@@ -11,11 +11,17 @@ import {
   AlertCircle,
   ToggleLeft,
   ToggleRight,
+  Eye,
+  Info,
 } from "lucide-react";
 import { schedulesApi } from "../../api/schedules.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
 import ToastNotification from "../../components/ui/ToastNotifications.jsx";
+import Pagination from "../../components/ui/Pagination.jsx";
+import SideDrawer from "../../components/ui/SideDrawer.jsx";
+import Badge from "../../components/ui/Badge.jsx";
+import Button from "../../components/ui/Button.jsx";
 
 export default function ServiceZones() {
   const searchInputId = useId();
@@ -31,6 +37,13 @@ export default function ServiceZones() {
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  // SideDrawer selected zone
+  const [selectedZone, setSelectedZone] = useState(null);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -83,6 +96,19 @@ export default function ServiceZones() {
     });
   }, [zones, statusFilter, searchTerm]);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter]);
+
+  // Paginated slice
+  const paginatedZones = useMemo(() => {
+    const start = (page - 1) * limit;
+    return filteredZones.slice(start, start + limit);
+  }, [filteredZones, page, limit]);
+
+  const totalPages = Math.ceil(filteredZones.length / limit) || 1;
+
   // Open Create
   const handleOpenCreate = () => {
     setEditingZone(null);
@@ -132,6 +158,14 @@ export default function ServiceZones() {
           isActive: formData.isActive,
         });
         showToastMessage("Service zone updated successfully.");
+        if (selectedZone?.id === editingZone.id) {
+          setSelectedZone((prev) => ({
+            ...prev,
+            name: formData.name.trim(),
+            description: formData.description?.trim() || null,
+            isActive: formData.isActive,
+          }));
+        }
       } else {
         await schedulesApi.createZone({
           code: formData.code.toUpperCase().trim(),
@@ -161,6 +195,9 @@ export default function ServiceZones() {
       showToastMessage(
         `Zone ${zone.code} ${!zone.isActive ? "activated" : "deactivated"}.`
       );
+      if (selectedZone?.id === zone.id) {
+        setSelectedZone((prev) => ({ ...prev, isActive: !zone.isActive }));
+      }
       await fetchZones();
     } catch (err) {
       showToastMessage(err?.message || "Failed to update zone status.", "error");
@@ -187,7 +224,7 @@ export default function ServiceZones() {
               <button
                 type="button"
                 onClick={handleOpenCreate}
-                className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-[#FFDF2C] text-[#0A4B6E] hover:bg-[#ebd024] shadow-xs transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-[#FFDF2C] text-[#0A4B6E] hover:bg-[#ebd024] shadow-xs transition-all cursor-pointer uppercase tracking-wider text-[11px]"
               >
                 <Plus size={14} />
                 <span>Add Zone</span>
@@ -216,7 +253,7 @@ export default function ServiceZones() {
                 onClick={() => setStatusFilter(st)}
                 className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
                   statusFilter === st
-                    ? "bg-white text-[#0A4B6E] shadow-2xs"
+                    ? "bg-white text-[#0A4B6E] shadow-2xs font-bold"
                     : "text-[#6D8AA2] hover:text-[#0A4B6E]"
                 }`}
               >
@@ -243,7 +280,7 @@ export default function ServiceZones() {
               <button
                 type="button"
                 onClick={() => setSearchTerm("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
               >
                 ×
               </button>
@@ -254,29 +291,29 @@ export default function ServiceZones() {
 
       {/* Main Table */}
       <main className="flex-1 min-h-0 overflow-hidden flex flex-col p-6">
-        <div className="flex-1 min-h-0 bg-white border border-[#E2E8F0] rounded-xl flex flex-col overflow-hidden shadow-2xs">
-          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="sticky top-0 bg-[#F8FAFC] border-b border-[#E2E8F0] z-10 text-[#6D8AA2] font-semibold select-none">
+        <div className="flex-1 min-h-0 bg-white border border-[#CBD5E1] rounded-2xl flex flex-col overflow-hidden shadow-2xs">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left text-xs border-collapse min-w-[700px]">
+              <thead className="sticky top-0 bg-[#0D4B6E] text-white text-xs md:text-sm z-10 shadow-xs select-none">
                 <tr>
-                  <th className="py-3 px-4">Zone Code</th>
-                  <th className="py-3 px-4">Zone Name</th>
-                  <th className="py-3 px-4">Description / Coverage</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  {canManage && <th className="py-3 px-4 text-center">Actions</th>}
+                  <th className="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Zone Code</th>
+                  <th className="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Zone Name</th>
+                  <th className="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Description / Coverage</th>
+                  <th className="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap text-center">Status</th>
+                  <th className="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#F1F5F9] text-[#0A4B6E]">
+              <tbody className="divide-y divide-[#F1F5F9] text-[#0A4B6E] text-xs md:text-sm">
                 {isLoading && zones.length === 0 ? (
                   <tr>
-                    <td colSpan={canManage ? 5 : 4} className="py-16 text-center text-[#6D8AA2]">
+                    <td colSpan={5} className="py-16 text-center text-[#6D8AA2]">
                       <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-[#0A4B6E]" />
                       Loading service delivery zones...
                     </td>
                   </tr>
-                ) : filteredZones.length === 0 ? (
+                ) : paginatedZones.length === 0 ? (
                   <tr>
-                    <td colSpan={canManage ? 5 : 4} className="py-16 text-center text-[#6D8AA2]">
+                    <td colSpan={5} className="py-16 text-center text-[#6D8AA2]">
                       <MapPin size={24} className="mx-auto mb-2 text-[#CBD5E1]" />
                       <p className="font-semibold text-[#0A4B6E]">No Service Zones Found</p>
                       <p className="text-[11px] mt-0.5">
@@ -287,85 +324,219 @@ export default function ServiceZones() {
                     </td>
                   </tr>
                 ) : (
-                  filteredZones.map((z) => (
-                    <tr key={z.id} className="hover:bg-[#F8FAFC] transition-colors">
-                      {/* Code */}
-                      <td className="py-3 px-4 font-bold text-[#0A4B6E]">
-                        <span className="font-mono bg-[#E8F3F8] px-2 py-0.5 rounded text-[11px] text-[#0A4B6E]">
-                          {z.code}
-                        </span>
-                      </td>
-
-                      {/* Name */}
-                      <td className="py-3 px-4 font-semibold text-[#0A4B6E]">
-                        {z.name}
-                      </td>
-
-                      {/* Description */}
-                      <td className="py-3 px-4 text-[#6D8AA2]">
-                        {z.description || "—"}
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3 px-4 text-center">
-                        {z.isActive ? (
-                          <span className="inline-flex items-center gap-1.5 text-emerald-700 font-semibold text-[11px]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                            Active
+                  paginatedZones.map((z) => {
+                    const isSelected = selectedZone?.id === z.id;
+                    return (
+                      <tr
+                        key={z.id}
+                        onClick={() => setSelectedZone(z)}
+                        className={`transition-colors cursor-pointer ${
+                          isSelected
+                            ? "bg-[#E2EDF3] hover:bg-[#E2EDF3]"
+                            : "hover:bg-[#F8FAFC]"
+                        }`}
+                      >
+                        {/* Code */}
+                        <td className="py-3 px-4 font-bold text-[#0A4B6E]">
+                          <span className="font-mono bg-[#E8F3F8] px-2.5 py-1 rounded text-xs text-[#0A4B6E] font-bold">
+                            {z.code}
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 text-slate-400 font-medium text-[11px]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                            Inactive
-                          </span>
-                        )}
-                      </td>
+                        </td>
 
-                      {/* Actions */}
-                      {canManage && (
+                        {/* Name */}
+                        <td className="py-3 px-4 font-semibold text-[#0A4B6E]">
+                          {z.name}
+                        </td>
+
+                        {/* Description */}
+                        <td className="py-3 px-4 text-[#6D8AA2]">
+                          {z.description || "—"}
+                        </td>
+
+                        {/* Status */}
                         <td className="py-3 px-4 text-center">
+                          <Badge variant={z.isActive ? "active" : "deactivated"}>
+                            {z.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-1">
                             <button
                               type="button"
-                              onClick={() => handleOpenEdit(z)}
-                              title="Edit zone"
+                              onClick={() => setSelectedZone(z)}
+                              title="Inspect zone"
                               className="p-1.5 text-[#0A4B6E] hover:bg-[#E8F3F8] rounded-md transition-colors cursor-pointer"
                             >
-                              <Edit2 size={13} />
+                              <Eye size={14} />
                             </button>
 
-                            <button
-                              type="button"
-                              onClick={() => handleToggleActive(z)}
-                              title={z.isActive ? "Deactivate zone" : "Activate zone"}
-                              className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                                z.isActive
-                                  ? "text-slate-400 hover:text-[#C93B32] hover:bg-rose-50"
-                                  : "text-emerald-700 hover:bg-emerald-50"
-                              }`}
-                            >
-                              {z.isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-                            </button>
+                            {canManage && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEdit(z)}
+                                  title="Edit zone"
+                                  className="p-1.5 text-[#0A4B6E] hover:bg-[#E8F3F8] rounded-md transition-colors cursor-pointer"
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleActive(z)}
+                                  title={z.isActive ? "Deactivate zone" : "Activate zone"}
+                                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                                    z.isActive
+                                      ? "text-slate-400 hover:text-[#C93B32] hover:bg-rose-50"
+                                      : "text-emerald-700 hover:bg-emerald-50"
+                                  }`}
+                                >
+                                  {z.isActive ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
-                      )}
-                    </tr>
-                  ))
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
 
-          <div className="shrink-0 px-4 py-2.5 bg-[#F8FBFC] border-t border-[#E2E8F0] text-xs text-[#6D8AA2] flex justify-between">
-            <span>Showing {filteredZones.length} of {zones.length} delivery zones</span>
-          </div>
+          {/* Standard Pagination Footer */}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={filteredZones.length}
+            limit={limit}
+            onPageChange={setPage}
+            onLimitChange={(newLimit) => {
+              setLimit(newLimit);
+              setPage(1);
+            }}
+            itemLabel="delivery zones"
+          />
         </div>
       </main>
+
+      {/* SideDrawer for Zone Inspection */}
+      <SideDrawer
+        isOpen={Boolean(selectedZone)}
+        onClose={() => setSelectedZone(null)}
+        title={selectedZone ? `${selectedZone.code}: ${selectedZone.name}` : "Service Zone"}
+        subtitle="Geographic Delivery Zone"
+        icon={MapPin}
+        footer={
+          <div className="flex items-center justify-between w-full">
+            {canManage && selectedZone && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenEdit(selectedZone)}
+                >
+                  <Edit2 size={13} className="mr-1" />
+                  Edit
+                </Button>
+                <Button
+                  variant={selectedZone.isActive ? "destructive" : "secondary"}
+                  size="sm"
+                  onClick={() => handleToggleActive(selectedZone)}
+                >
+                  {selectedZone.isActive ? (
+                    <>
+                      <ToggleRight size={13} className="mr-1" />
+                      Deactivate
+                    </>
+                  ) : (
+                    <>
+                      <ToggleLeft size={13} className="mr-1" />
+                      Activate
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setSelectedZone(null)}
+              className="ml-auto px-5 py-2 text-xs font-bold text-[#0A4B6E] bg-[#FFDF2C] hover:bg-[#ebd024] rounded-lg cursor-pointer transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        }
+      >
+        {selectedZone && (
+          <div className="space-y-5 text-xs text-[#0A4B6E]">
+            {/* Header info badge */}
+            <div className="bg-[#E8F3F8] rounded-xl p-4 border border-[#0A4B6E]/15 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-white text-[#0A4B6E] flex items-center justify-center font-mono font-bold text-sm shadow-xs">
+                  {selectedZone.code?.slice(0, 3)}
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-[#0A4B6E]">
+                    {selectedZone.name}
+                  </h3>
+                  <p className="font-mono text-[11px] text-[#6D8AA2]">
+                    Code: {selectedZone.code}
+                  </p>
+                </div>
+              </div>
+              <Badge variant={selectedZone.isActive ? "active" : "deactivated"}>
+                {selectedZone.isActive ? "Active" : "Inactive"}
+              </Badge>
+            </div>
+
+            {/* Description / Coverage Area */}
+            <div className="bg-white border border-[#CBD5E1] rounded-xl p-4 space-y-2">
+              <h4 className="font-bold text-[11px] uppercase tracking-wider text-[#6D8AA2]">
+                Territory Coverage & Notes
+              </h4>
+              <p className="text-xs text-[#0A4B6E] leading-relaxed bg-[#F8FAFC] p-3 rounded-lg border border-slate-100">
+                {selectedZone.description || "No specific territory description provided."}
+              </p>
+            </div>
+
+            {/* Operations Summary */}
+            <div className="bg-white border border-[#CBD5E1] rounded-xl p-4 space-y-3">
+              <h4 className="font-bold text-[11px] uppercase tracking-wider text-[#6D8AA2]">
+                Operational Dispatch Status
+              </h4>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-2.5 rounded-lg bg-[#F8FAFC] border border-slate-100">
+                  <span className="text-[11px] text-[#6D8AA2] block">Dispatch Eligibility</span>
+                  <span className="font-semibold text-[#0A4B6E]">
+                    {selectedZone.isActive ? "Available for Trips" : "Gated (Inactive)"}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-[#F8FAFC] border border-slate-100">
+                  <span className="text-[11px] text-[#6D8AA2] block">Zone Type</span>
+                  <span className="font-semibold text-[#0A4B6E]">
+                    Standard Route
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-[#F8FAFC] border border-slate-100 col-span-2">
+                  <span className="text-[11px] text-[#6D8AA2] block">Zone ID</span>
+                  <span className="font-mono text-[10px] text-slate-500 break-all">
+                    {selectedZone.id}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </SideDrawer>
 
       {/* Add / Edit Zone Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-[#CBD5E1] max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-in">
+          <div className="bg-white rounded-2xl border border-[#CBD5E1] max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-in">
             <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
               <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-[#E8F3F8] text-[#0A4B6E]">

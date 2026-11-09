@@ -5,8 +5,10 @@ import CustomerTable from "../../components/customers/CustomerTable";
 import CustomerDetailPanel from "../../components/customers/CustomerDetailPanel";
 import CustomerModal from "../../components/customers/CustomerModal";
 import DeactivateCustomerModal from "../../components/customers/DeactivateCustomerModal";
-import AdminPasswordModal from "../../components/users/AdminPasswordModal";
 import ToastNotification from "../../components/ui/ToastNotifications";
+import SideDrawer from "../../components/ui/SideDrawer";
+import Badge from "../../components/ui/Badge";
+import { UserRound } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { customersApi } from "../../api/customers.js";
 import { PERMISSIONS } from "../../utils/permissions.js";
@@ -40,14 +42,13 @@ export default function Customers() {
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [customerToDeactivate, setCustomerToDeactivate] = useState(null);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   // Toast Notification State
   const [toast, setToast] = useState(null); // { message: string, type: string }
 
   // Search, Filter, Sort and Server Pagination (Strategy B)
   const [page, setPage] = useState(1);
-  const limit = 20;
+  const [limit, setLimit] = useState(20);
   const [searchTerm, setSearchTerm] = useState("");
   const [committedSearch, setCommittedSearch] = useState("");
   const [paginationMeta, setPaginationMeta] = useState({
@@ -185,6 +186,11 @@ export default function Customers() {
     setPage(newPage);
   };
 
+  const handleLimitChange = (newLimit) => {
+    setLimit(newLimit);
+    setPage(1);
+  };
+
   const handleApplyFilters = (newFilters) => {
     setFilters(newFilters);
     setPage(1); // Auto reset page = 1
@@ -282,22 +288,18 @@ export default function Customers() {
     setCustomerToDeactivate(targetCustomer);
   };
 
-  const handleConfirmDeactivatePrompt = () => {
-    setShowPasswordModal(true);
-  };
+  // Confirm Password and Deactivate Customer (PATCH /api/sales/customers/:id/deactivate)
+  const handleConfirmDeactivate = async (targetCustomer, adminPassword) => {
+    if (!targetCustomer) return;
 
-  // Confirm Admin Password and Deactivate Customer (PATCH /api/sales/customers/:id/deactivate)
-  const handleConfirmAdminPassword = async (adminPassword) => {
-    if (!customerToDeactivate) return;
-
-    const targetId = customerToDeactivate.id;
+    const targetId = targetCustomer.id;
     // Sends { confirmPassword } directly to PATCH /api/sales/customers/:id/deactivate
     const result = await customersApi.deactivateCustomer(targetId, {
       confirmPassword: adminPassword,
     });
 
     const updatedCustomer = result?.customer || {
-      ...customerToDeactivate,
+      ...targetCustomer,
       isActive: false,
       updatedAt: new Date().toISOString(),
     };
@@ -316,7 +318,6 @@ export default function Customers() {
       message: "Customer Successfully Deactivated",
     });
 
-    setShowPasswordModal(false);
     setCustomerToDeactivate(null);
     await loadCustomers();
   };
@@ -353,51 +354,63 @@ export default function Customers() {
         />
       </div>
 
-      {/* Main Content Area (Table + Locked Expanded View on Select) */}
+      {/* Main Content Area: Full-Width Table with Independent SlideDrawer Inspection */}
       {isLoading && customers.length === 0 ? (
         <div className="flex-1 flex items-center justify-center p-12 text-gray-500 font-medium">
           Loading customer records...
         </div>
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col lg:flex-row items-stretch gap-4 lg:gap-6 overflow-hidden min-w-0">
-          {/* Customer Table Container (Scrolls independently) */}
-          <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden transition-all duration-300">
-            <CustomerTable
-              customers={customers}
-              selectedCustomer={selectedCustomer}
-              onSelectCustomer={handleSelectCustomer}
-              sortConfig={sortConfig}
-              onSort={handleSort}
-              pagination={{
-                page,
-                limit,
-                totalItems: paginationMeta.totalItems,
-                totalPages: paginationMeta.totalPages,
-                onPageChange: handlePageChange,
-                isLoading,
-              }}
-            />
-          </div>
+        <div className="flex-1 min-h-0 w-full h-full flex flex-col overflow-hidden">
+          <CustomerTable
+            customers={customers}
+            selectedCustomer={selectedCustomer}
+            onSelectCustomer={handleSelectCustomer}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+            pagination={{
+              page,
+              limit,
+              totalItems: paginationMeta.totalItems,
+              totalPages: paginationMeta.totalPages,
+              onPageChange: handlePageChange,
+              onLimitChange: handleLimitChange,
+              isLoading,
+            }}
+          />
 
-          {/* Locked Expanded Customer Details Panel (Right Side with independent scroll & out-animation) */}
-          {activeDetailCustomer && (
-            <div
-              className={`w-full lg:w-[350px] xl:w-[390px] shrink-0 h-full flex flex-col overflow-hidden transition-all duration-300 ${
-                isClosingPanel
-                  ? "animate-slide-fade-out pointer-events-none"
-                  : "animate-slide-fade-in"
-              }`}
-            >
+          {/* Slide-Over Customer Inspection Drawer */}
+          <SideDrawer
+            isOpen={Boolean(activeDetailCustomer)}
+            onClose={handleCloseDetail}
+            title={activeDetailCustomer?.name || "Customer Profile"}
+            subtitle={activeDetailCustomer?.address || "Customer Account"}
+            icon={UserRound}
+            badge={
+              activeDetailCustomer && (
+                <Badge
+                  variant={activeDetailCustomer.isActive !== false ? "success" : "deactivated"}
+                  className="px-2.5 py-0.5 text-[10px] font-bold"
+                >
+                  {activeDetailCustomer.isActive !== false ? "ACTIVE" : "INACTIVE"}
+                </Badge>
+              )
+            }
+            width="max-w-md sm:max-w-lg"
+          >
+            {activeDetailCustomer && (
               <CustomerDetailPanel
                 customer={activeDetailCustomer}
                 onClose={handleCloseDetail}
-                onEdit={(c) => setEditingCustomer(c)}
+                onEdit={(c) => {
+                  handleCloseDetail();
+                  setEditingCustomer(c);
+                }}
                 onDelete={(c) => handleInitiateDeactivate(c)}
                 onReactivate={(c) => handleReactivateCustomer(c)}
                 canManage={canManage}
               />
-            </div>
-          )}
+            )}
+          </SideDrawer>
         </div>
       )}
 
@@ -412,24 +425,14 @@ export default function Customers() {
         }}
       />
 
-      {/* Deactivation Confirmation Modal */}
-      {customerToDeactivate && !showPasswordModal && (
+      {/* Deactivate Customer Confirmation Modal with Inline Password Authorization */}
+      {customerToDeactivate && (
         <DeactivateCustomerModal
           customer={customerToDeactivate}
           onClose={() => setCustomerToDeactivate(null)}
-          onConfirm={handleConfirmDeactivatePrompt}
+          onConfirm={handleConfirmDeactivate}
         />
       )}
-
-      {/* Security Admin Password Verification Modal */}
-      <AdminPasswordModal
-        isOpen={showPasswordModal}
-        onClose={() => {
-          setShowPasswordModal(false);
-          setCustomerToDeactivate(null);
-        }}
-        onSubmit={handleConfirmAdminPassword}
-      />
 
       {/* Toast Notification */}
       {toast && (

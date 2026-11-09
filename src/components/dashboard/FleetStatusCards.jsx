@@ -61,7 +61,7 @@ export default function FleetStatusCards({
           <div
             key={item.id}
             onClick={() => navigate("/fleet")}
-            className={`group ${item.bg} border p-5 sm:p-6 rounded-3xl flex flex-col justify-between shadow-xs hover:shadow-md hover:-translate-y-1 transition-all duration-200 cursor-pointer min-h-[125px] sm:min-h-[140px]`}
+            className={`group ${item.bg} border p-4 sm:p-5 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer min-h-[115px] sm:min-h-[130px]`}
           >
             {/* Top Row: Category Label + Brand Yellow Icon Badge */}
             <div className="flex items-center justify-between gap-2">

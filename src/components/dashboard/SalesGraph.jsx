@@ -32,16 +32,17 @@ export default function SalesGraph({ salesData }) {
           Sales Overview
         </h3>
 
-        {/* Toggle Pills */}
-        <div className="flex items-center gap-2 text-sm font-semibold">
+        {/* Toggle Buttons */}
+        <div className="flex items-center bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg p-0.5 text-xs font-semibold">
           {["weekly", "monthly", "annually"].map((tf) => (
             <button
               key={tf}
+              type="button"
               onClick={() => setTimeframe(tf)}
-              className={`px-4 py-1.5 rounded-full transition capitalize ${
+              className={`px-3 py-1 rounded-md transition-all cursor-pointer capitalize ${
                 timeframe === tf
-                  ? "bg-[#0A4B6E] text-[#ffffff]"
-                  : "bg-[#F3F4F6] text-[#0F7AB2] hover:bg-gray-50"
+                  ? "bg-[#0A4B6E] text-white shadow-2xs font-bold"
+                  : "text-[#6D8AA2] hover:text-[#0A4B6E]"
               }`}
             >
               {tf}
@@ -51,18 +52,18 @@ export default function SalesGraph({ salesData }) {
       </div>
 
       {/* Custom HTML Legend */}
-      <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-6">
-        <div className="flex items-center gap-2 text-sm text-[#0F7AB2] font-medium">
-          <span className="w-6 h-1.5 bg-[#93B5D0] rounded-full"></span>
-          Butane Canister
+      <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-6 text-xs text-[#0A4B6E] font-medium">
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 bg-[#93B5D0] rounded-xs"></span>
+          <span>Butane Canister</span>
         </div>
-        <div className="flex items-center gap-2 text-sm text-[#0F7AB2] font-medium">
-          <span className="w-6 h-1.5 bg-[#0F7AB2] rounded-full"></span>
-          11 kg LPG
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 bg-[#0F7AB2] rounded-xs"></span>
+          <span>11 kg LPG</span>
         </div>
-        <div className="flex items-center gap-2 text-sm text-[#0F7AB2] font-medium">
-          <span className="w-6 h-1.5 bg-[#FFDF2C] rounded-full"></span>
-          50 kg LPG
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 bg-[#FFDF2C] rounded-xs"></span>
+          <span>22 kg LPG</span>
         </div>
       </div>
 

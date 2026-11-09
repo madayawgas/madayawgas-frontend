@@ -75,7 +75,7 @@ export default function CancelTripModal({
       const depOdo = Number(trip.departureOdometer) || 45000;
       setReason("");
       setError(null);
-      setReturnOdometer(trip.returnOdometer ? String(trip.returnOdometer) : String(depOdo + 15));
+      setReturnOdometer(trip.returnOdometer ? String(trip.returnOdometer) : String(depOdo));
 
       // Default return intake: 100% of on-board loaded cargo returns as FILLED
       const initialCounts = {};
@@ -181,7 +181,7 @@ export default function CancelTripModal({
             </div>
             <div>
               <h3 className="text-base font-bold text-[#0A4B6E]">Abort & Cancel Active Trip</h3>
-              <p className="text-xs text-[#6D8AA2]">
+              <p className="text-xs text-[#3E5C76]">
                 Aborts delivery run mid-way and checks returned stock back into Bunawan yard.
               </p>
             </div>
@@ -189,7 +189,8 @@ export default function CancelTripModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 font-bold p-1 cursor-pointer transition"
+            aria-label="Close dialog"
+            className="text-slate-400 hover:text-slate-700 font-bold p-1 cursor-pointer transition rounded-full hover:bg-slate-100"
           >
             <X size={18} />
           </button>
@@ -210,18 +211,18 @@ export default function CancelTripModal({
               <span>{trip.truckPlate}</span>
               <span className="text-slate-500 font-normal">({trip.truckModel})</span>
             </div>
-            <span className="font-semibold text-slate-700 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+            <span className="font-semibold text-slate-700 bg-white px-2 py-0.5 rounded-full border border-slate-200 text-[11px]">
               Zone: {trip.zoneCode || trip.zoneName}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-slate-600 pt-1 border-t border-slate-200/60">
+          <div className="grid grid-cols-2 gap-2 text-slate-600 pt-1 border-t border-slate-200/60 text-xs">
             <div>
-              <span className="text-[#6D8AA2]">Crew: </span>
+              <span className="text-[#3E5C76]">Crew: </span>
               <strong>{trip.driverName}</strong> · {trip.salesName}
             </div>
             <div className="text-right">
-              <span className="text-[#6D8AA2]">Departed: </span>
+              <span className="text-[#3E5C76]">Departed: </span>
               <strong>{trip.departureTime ? formatPhilippineTime(trip.departureTime) : "Today"}</strong>
             </div>
           </div>
@@ -268,7 +269,7 @@ export default function CancelTripModal({
                 <Gauge size={14} />
                 <span>Return Odometer (KM) <span className="text-rose-500">*</span></span>
               </label>
-              <span className="text-[11px] text-[#6D8AA2]">
+              <span className="text-[11px] text-[#3E5C76]">
                 Departure: <strong>{departureOdometer.toLocaleString()} km</strong>
               </span>
             </div>
@@ -284,7 +285,7 @@ export default function CancelTripModal({
             />
 
             <div className="flex justify-between items-center text-[11px] pt-1 border-t border-slate-200">
-              <span className="text-[#6D8AA2]">Trip Mileage Logged:</span>
+              <span className="text-[#3E5C76]">Trip Mileage Logged:</span>
               <span className={`font-bold ${isOdometerValid ? "text-emerald-700" : "text-rose-600"}`}>
                 +{distanceDriven.toLocaleString()} km driven
               </span>
@@ -298,7 +299,7 @@ export default function CancelTripModal({
                 <h4 className="text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
                   Yard Return Cargo Intake
                 </h4>
-                <p className="text-[11px] text-[#6D8AA2]">
+                <p className="text-[11px] text-[#3E5C76]">
                   Specify physical units unloaded back into Bunawan yard bulk stock.
                 </p>
               </div>
@@ -332,14 +333,14 @@ export default function CancelTripModal({
                   >
                     <div className="flex items-center justify-between font-bold text-[#0A4B6E]">
                       <span>{product?.name || "Product SKU"}</span>
-                      <span className="text-[11px] text-[#6D8AA2] font-semibold">
+                      <span className="text-[11px] text-[#3E5C76] font-semibold">
                         Loaded on truck: <strong>{loadedUnits} units</strong>
                       </span>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <label className="block text-[10px] font-bold text-emerald-800 uppercase tracking-wide mb-1">
+                        <label className="block text-[11px] font-bold text-emerald-800 uppercase tracking-wide mb-1">
                           Full (Unsold)
                         </label>
                         <input
@@ -350,14 +351,14 @@ export default function CancelTripModal({
                           className="w-full bg-white text-slate-800 text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 focus:border-emerald-600 outline-none text-center font-bold"
                         />
                         {isCanister && (
-                          <span className="text-[9px] text-[#6D8AA2] block text-center mt-0.5">
+                          <span className="text-[11px] text-[#3E5C76] block text-center mt-0.5">
                             ({fullCrates} crates)
                           </span>
                         )}
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-bold text-[#0A4B6E] uppercase tracking-wide mb-1">
+                        <label className="block text-[11px] font-bold text-[#0A4B6E] uppercase tracking-wide mb-1">
                           Empty Good
                         </label>
                         <input
@@ -370,7 +371,7 @@ export default function CancelTripModal({
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-bold text-rose-800 uppercase tracking-wide mb-1">
+                        <label className="block text-[11px] font-bold text-rose-800 uppercase tracking-wide mb-1">
                           Defective
                         </label>
                         <input

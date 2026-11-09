@@ -44,14 +44,14 @@ export default function Profile() {
   const [formData, setFormData] = useState(() => {
     const fName = currentUser?.firstName || "";
     const lName = currentUser?.lastName || "";
-    const full = `${fName} ${lName}`.trim() || currentUser?.username || "Alejandro Doe";
+    const full = `${fName} ${lName}`.trim() || currentUser?.username || "";
     return {
       firstName: fName,
       lastName: lName,
       fullName: full,
-      phone: currentUser?.phone || "09999999999",
-      birthdate: currentUser?.birthdate || "1995-05-15",
-      username: currentUser?.username || "adoe_admin",
+      phone: currentUser?.phone || "",
+      birthdate: currentUser?.birthdate || "",
+      username: currentUser?.username || "",
     };
   });
 
@@ -234,10 +234,14 @@ export default function Profile() {
     });
   };
 
-  const displayName = formData.fullName || `${formData.firstName} ${formData.lastName}`.trim() || "Alejandro Doe";
-  const displayPhone = formatPhilippinePhone(formData.phone) || "N/A";
-  const displayBirthday = formatPhilippineDate(formData.birthdate, { fallback: "N/A" });
-  const displayUsername = formData.username || "adoe_admin";
+  const displayName =
+    formData.fullName ||
+    `${formData.firstName} ${formData.lastName}`.trim() ||
+    currentUser?.username ||
+    "User Profile";
+  const displayPhone = formatPhilippinePhone(formData.phone) || "Not set";
+  const displayBirthday = formatPhilippineDate(formData.birthdate, { fallback: "Not set" });
+  const displayUsername = formData.username || currentUser?.username || "—";
   const userRoles = getUserRoleNames(currentUser, "Super Admin");
   const isSuperAdmin = hasUserRole(currentUser, "Super Admin");
 
@@ -285,7 +289,7 @@ export default function Profile() {
         {/* ================= MAIN CONTENT GRID ================= */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           {/* LEFT COLUMN: IDENTITY CARD */}
-          <div className="lg:col-span-4 bg-white border border-[#0A4B6E]/30 rounded-3xl p-6 shadow-sm flex flex-col justify-between items-center text-center relative overflow-hidden h-full">
+          <div className="lg:col-span-4 bg-white border border-[#CBD5E1] rounded-2xl p-6 shadow-2xs flex flex-col justify-between items-center text-center relative overflow-hidden h-full">
             {/* Top decorative gradient banner */}
             <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-[#E8F3F8] to-transparent pointer-events-none" />
 
@@ -377,11 +381,11 @@ export default function Profile() {
           </div>
 
           {/* RIGHT COLUMN: DETAILED SECTIONS */}
-          <div className="lg:col-span-8 bg-white border border-[#0A4B6E]/30 rounded-3xl p-6 md:p-8 shadow-sm flex flex-col justify-between space-y-6 h-full">
+          <div className="lg:col-span-8 bg-white border border-[#CBD5E1] rounded-2xl p-6 md:p-8 shadow-2xs flex flex-col justify-between space-y-6 h-full">
             {/* ================= SECTION 1: PERSONAL INFORMATION ================= */}
             <div>
               <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-8 h-8 rounded-full bg-[#E8F3F8] flex items-center justify-center text-[#0A4B6E] shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-[#E8F3F8] flex items-center justify-center text-[#0A4B6E] shrink-0">
                   <UserRound size={18} />
                 </div>
                 <h3 className="text-base md:text-lg font-bold text-[#1B4B75]">
@@ -391,7 +395,7 @@ export default function Profile() {
 
               {!isEditing ? (
                 // VIEW STATE
-                <div className="bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-2xl p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-xl p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <span className="text-[11px] font-semibold text-[#6D8AA2] uppercase tracking-wider block mb-1">
                       Full Name
@@ -421,7 +425,7 @@ export default function Profile() {
                 </div>
               ) : (
                 // EDIT STATE FORM
-                <div className="bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-2xl p-5 space-y-4">
+                <div className="bg-[#E8F3F8] border border-[#BCE1F1]/60 rounded-xl p-5 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* First Name */}
                     <div>
@@ -433,13 +437,13 @@ export default function Profile() {
                         name="firstName"
                         value={formData.firstName}
                         onChange={handleInputChange}
-                        placeholder="e.g. Alejandro"
-                        className={`w-full bg-white rounded-full px-4 py-2.5 text-sm text-[#0A4B6E] font-medium border ${
+                        placeholder="e.g. Juan"
+                        className={`w-full bg-white rounded-lg px-3.5 py-2 text-sm text-[#0A4B6E] font-medium border ${
                           errors.firstName ? "border-red-500" : "border-[#BCE1F1]"
-                        } focus:border-[#0A4B6E] outline-none transition shadow-2xs`}
+                        } focus:border-[#0A4B6E] focus:outline-hidden transition shadow-2xs`}
                       />
                       {errors.firstName && (
-                        <p className="text-[11px] text-red-500 mt-1 ml-2 font-medium">
+                        <p className="text-[11px] text-red-500 mt-1 ml-1 font-medium">
                           {errors.firstName}
                         </p>
                       )}
@@ -455,13 +459,13 @@ export default function Profile() {
                         name="lastName"
                         value={formData.lastName}
                         onChange={handleInputChange}
-                        placeholder="e.g. Doe"
-                        className={`w-full bg-white rounded-full px-4 py-2.5 text-sm text-[#0A4B6E] font-medium border ${
+                        placeholder="e.g. Dela Cruz"
+                        className={`w-full bg-white rounded-lg px-3.5 py-2 text-sm text-[#0A4B6E] font-medium border ${
                           errors.lastName ? "border-red-500" : "border-[#BCE1F1]"
-                        } focus:border-[#0A4B6E] outline-none transition shadow-2xs`}
+                        } focus:border-[#0A4B6E] focus:outline-hidden transition shadow-2xs`}
                       />
                       {errors.lastName && (
-                        <p className="text-[11px] text-red-500 mt-1 ml-2 font-medium">
+                        <p className="text-[11px] text-red-500 mt-1 ml-1 font-medium">
                           {errors.lastName}
                         </p>
                       )}
@@ -480,7 +484,7 @@ export default function Profile() {
                         value={formData.phone}
                         onChange={handleInputChange}
                         placeholder="e.g. 09171234567"
-                        className="w-full bg-white rounded-full px-4 py-2.5 text-sm text-[#0A4B6E] font-medium border border-[#BCE1F1] focus:border-[#0A4B6E] outline-none transition shadow-2xs"
+                        className="w-full bg-white rounded-lg px-3.5 py-2 text-sm text-[#0A4B6E] font-medium border border-[#BCE1F1] focus:border-[#0A4B6E] focus:outline-hidden transition shadow-2xs"
                       />
                     </div>
 
@@ -494,7 +498,7 @@ export default function Profile() {
                         name="birthdate"
                         value={formData.birthdate}
                         onChange={handleInputChange}
-                        className="w-full bg-white rounded-full px-4 py-2.5 text-sm text-[#0A4B6E] font-medium border border-[#BCE1F1] focus:border-[#0A4B6E] outline-none transition shadow-2xs"
+                        className="w-full bg-white rounded-lg px-3.5 py-2 text-sm text-[#0A4B6E] font-medium border border-[#BCE1F1] focus:border-[#0A4B6E] focus:outline-hidden transition shadow-2xs"
                       />
                     </div>
                   </div>
@@ -573,14 +577,14 @@ export default function Profile() {
                 <button
                   type="button"
                   onClick={handleCancelEdit}
-                  className="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold text-xs md:text-sm px-6 py-2.5 rounded-full uppercase tracking-wider transition cursor-pointer shadow-2xs"
+                  className="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold text-xs md:text-sm px-5 py-2 rounded-lg transition cursor-pointer shadow-2xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveChanges}
-                  className="bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs md:text-sm px-7 py-2.5 rounded-full uppercase tracking-wider shadow-xs transition-all active:scale-95 cursor-pointer"
+                  className="bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs md:text-sm px-6 py-2 rounded-lg shadow-xs transition-all active:scale-95 cursor-pointer uppercase tracking-wider text-[11px]"
                 >
                   Save Changes
                 </button>

@@ -4,7 +4,6 @@ import {
   Package,
   Plus,
   Search,
-  Filter,
   RefreshCw,
   Edit2,
   Trash2,
@@ -13,12 +12,20 @@ import {
   CheckCircle2,
   X,
   AlertCircle,
+  Eye,
+  Info,
+  Calendar,
+  Layers,
 } from "lucide-react";
 import { inventoryApi } from "../../api/inventory.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
 import AdminPasswordModal from "../../components/users/AdminPasswordModal.jsx";
 import ToastNotification from "../../components/ui/ToastNotifications.jsx";
+import Pagination from "../../components/ui/Pagination.jsx";
+import SideDrawer from "../../components/ui/SideDrawer.jsx";
+import Badge from "../../components/ui/Badge.jsx";
+import Button from "../../components/ui/Button.jsx";
 
 const LOCAL_STORAGE_KEY = "app_items_cache";
 
@@ -49,6 +56,13 @@ export default function ProductsCatalog() {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  // SideDrawer selected product
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   // Modal states
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -124,6 +138,19 @@ export default function ProductsCatalog() {
     });
   }, [products, categoryFilter, statusFilter, searchTerm]);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, categoryFilter, statusFilter]);
+
+  // Paginated slice
+  const paginatedProducts = useMemo(() => {
+    const start = (page - 1) * limit;
+    return filteredProducts.slice(start, start + limit);
+  }, [filteredProducts, page, limit]);
+
+  const totalPages = Math.ceil(filteredProducts.length / limit) || 1;
+
   // Open Form Modal for Create
   const handleOpenCreate = () => {
     setEditingProduct(null);
@@ -177,6 +204,16 @@ export default function ProductsCatalog() {
           isActive: formData.isActive,
         });
         showToastMessage("Product updated successfully.");
+        if (selectedProduct?.id === editingProduct.id) {
+          setSelectedProduct((prev) => ({
+            ...prev,
+            name: formData.name.trim(),
+            category: formData.category,
+            containerType: formData.containerType,
+            netWeightKg: Number(formData.netWeightKg),
+            isActive: formData.isActive,
+          }));
+        }
       } else {
         await inventoryApi.createProduct({
           name: formData.name.trim(),
@@ -221,9 +258,15 @@ export default function ProductsCatalog() {
     if (type === "deactivate") {
       await inventoryApi.deactivateProduct(product.id, { confirmPassword: adminPassword });
       showToastMessage(`Product "${product.name}" deactivated.`);
+      if (selectedProduct?.id === product.id) {
+        setSelectedProduct((prev) => ({ ...prev, isActive: false }));
+      }
     } else {
       await inventoryApi.reactivateProduct(product.id, { confirmPassword: adminPassword });
       showToastMessage(`Product "${product.name}" reactivated.`);
+      if (selectedProduct?.id === product.id) {
+        setSelectedProduct((prev) => ({ ...prev, isActive: true }));
+      }
     }
 
     try {
@@ -240,19 +283,19 @@ export default function ProductsCatalog() {
   return (
     <div className="h-full flex flex-col overflow-hidden bg-[#F8FAFC]">
       {/* Top Controls Header */}
-      <header className="shrink-0 bg-white border-b border-[#E2E8F0] px-6 py-3.5">
+      <header className="shrink-0 bg-white border-b border-[#E2E8F0] px-6 py-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Status Tabs */}
-            <div className="flex items-center bg-[#F8FAFC] border border-[#CBD5E1] rounded-full p-0.5 text-xs">
+            <div className="flex items-center bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg p-0.5 text-xs">
               {["ALL", "ACTIVE", "INACTIVE"].map((st) => (
                 <button
                   key={st}
                   type="button"
                   onClick={() => setStatusFilter(st)}
-                  className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
                     statusFilter === st
-                      ? "bg-[#0A4B6E] text-white shadow-2xs"
+                      ? "bg-white text-[#0A4B6E] shadow-2xs font-bold"
                       : "text-[#6D8AA2] hover:text-[#0A4B6E]"
                   }`}
                 >
@@ -265,7 +308,7 @@ export default function ProductsCatalog() {
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-full px-3 py-1.5 text-[#0A4B6E] font-medium"
+              className="text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg px-3 py-1.5 text-[#0A4B6E] font-medium focus:outline-hidden focus:border-[#0A4B6E]"
             >
               {categories.map((c) => (
                 <option key={c} value={c}>
@@ -283,7 +326,7 @@ export default function ProductsCatalog() {
                 placeholder="Search products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-7 py-1.5 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-full text-[#0A4B6E] placeholder-[#6D8AA2]/70 focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white transition-all"
+                className="w-full pl-8 pr-7 py-1.5 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg text-[#0A4B6E] placeholder-[#6D8AA2]/70 focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white transition-all"
               />
               <Search
                 size={13}
@@ -293,7 +336,7 @@ export default function ProductsCatalog() {
                 <button
                   type="button"
                   onClick={() => setSearchTerm("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
                 >
                   ×
                 </button>
@@ -306,7 +349,7 @@ export default function ProductsCatalog() {
               <button
                 type="button"
                 onClick={handleOpenCreate}
-                className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-1.5 rounded-full bg-[#FFDF2C] text-[#0A4B6E] hover:bg-[#ebd024] shadow-2xs transition-all cursor-pointer uppercase tracking-wider text-[11px]"
+                className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-[#FFDF2C] text-[#0A4B6E] hover:bg-[#ebd024] shadow-2xs transition-all cursor-pointer tracking-wider uppercase text-[11px]"
               >
                 <Plus size={14} />
                 <span>Add Product</span>
@@ -318,7 +361,7 @@ export default function ProductsCatalog() {
               onClick={fetchProducts}
               disabled={isLoading}
               title="Refresh products list"
-              className="p-1.5 text-[#6D8AA2] hover:text-[#0A4B6E] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              className="p-2 text-[#6D8AA2] hover:text-[#0A4B6E] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
             >
               <RefreshCw size={15} className={isLoading ? "animate-spin" : ""} />
             </button>
@@ -326,9 +369,9 @@ export default function ProductsCatalog() {
         </div>
       </header>
 
-      {/* Main Table */}
+      {/* Main Table Area */}
       <main className="flex-1 min-h-0 overflow-hidden flex flex-col p-6">
-        <div className="flex-1 min-h-0 bg-white border border-[#0A4B6E]/30 rounded-2xl flex flex-col overflow-hidden shadow-sm">
+        <div className="flex-1 min-h-0 bg-white border border-[#CBD5E1] rounded-2xl flex flex-col overflow-hidden shadow-2xs">
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
             <table className="w-full text-left text-xs border-collapse">
               <thead className="sticky top-0 bg-[#0D4B6E] text-white text-xs md:text-sm z-10 shadow-xs select-none">
@@ -338,20 +381,20 @@ export default function ProductsCatalog() {
                   <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Container Type</th>
                   <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap text-right">Net Weight</th>
                   <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap text-center">Status</th>
-                  {canManage && <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap text-center">Actions</th>}
+                  <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-xs md:text-sm">
                 {isLoading && products.length === 0 ? (
                   <tr>
-                    <td colSpan={canManage ? 6 : 5} className="py-16 text-center text-[#6D8AA2]">
+                    <td colSpan={6} className="py-16 text-center text-[#6D8AA2]">
                       <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-[#0A4B6E]" />
                       Loading products...
                     </td>
                   </tr>
-                ) : filteredProducts.length === 0 ? (
+                ) : paginatedProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={canManage ? 6 : 5} className="py-16 text-center text-[#6D8AA2]">
+                    <td colSpan={6} className="py-16 text-center text-[#6D8AA2]">
                       <Package size={24} className="mx-auto mb-2 text-[#CBD5E1]" />
                       <p className="font-semibold text-[#0A4B6E]">No Products Found</p>
                       <p className="text-[11px] mt-0.5">
@@ -362,15 +405,24 @@ export default function ProductsCatalog() {
                     </td>
                   </tr>
                 ) : (
-                  filteredProducts.map((p) => {
+                  paginatedProducts.map((p) => {
                     const isCylinder = p.containerType === "CYLINDER";
+                    const isSelected = selectedProduct?.id === p.id;
                     return (
-                      <tr key={p.id} className="hover:bg-[#F4F9FC] transition-colors">
+                      <tr
+                        key={p.id}
+                        onClick={() => setSelectedProduct(p)}
+                        className={`transition-colors cursor-pointer ${
+                          isSelected
+                            ? "bg-[#E2EDF3] hover:bg-[#E2EDF3]"
+                            : "hover:bg-[#F4F9FC]"
+                        }`}
+                      >
                         {/* Name */}
                         <td className="py-3 px-4 font-bold text-[#0A4B6E]">
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-md bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
-                              {isCylinder ? <Flame size={13} /> : <Package size={13} />}
+                            <div className="w-7 h-7 rounded-md bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
+                              {isCylinder ? <Flame size={14} /> : <Package size={14} />}
                             </div>
                             <span>{p.name}</span>
                           </div>
@@ -383,7 +435,9 @@ export default function ProductsCatalog() {
 
                         {/* Container Type */}
                         <td className="py-3 px-4 text-[#0A4B6E]">
-                          {isCylinder ? "Cylinder" : "Canister"}
+                          <Badge variant="neutral">
+                            {isCylinder ? "Cylinder" : "Canister"}
+                          </Badge>
                         </td>
 
                         {/* Net Weight */}
@@ -391,56 +445,59 @@ export default function ProductsCatalog() {
                           {p.netWeightKg} kg
                         </td>
 
-                        {/* Status (Clean, subtle presentation - no AI slop) */}
+                        {/* Status */}
                         <td className="py-3 px-4 text-center">
-                          {p.isActive ? (
-                            <span className="inline-flex items-center gap-1.5 text-emerald-700 font-semibold text-[11px]">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                              Active
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 text-slate-400 font-medium text-[11px]">
-                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                              Inactive
-                            </span>
-                          )}
+                          <Badge variant={p.isActive ? "active" : "deactivated"}>
+                            {p.isActive ? "Active" : "Inactive"}
+                          </Badge>
                         </td>
 
                         {/* Actions */}
-                        {canManage && (
-                          <td className="py-3 px-4 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEdit(p)}
-                                title="Edit product"
-                                className="p-1.5 text-[#0A4B6E] hover:bg-[#E8F3F8] rounded-md transition-colors cursor-pointer"
-                              >
-                                <Edit2 size={13} />
-                              </button>
+                        <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedProduct(p)}
+                              title="Inspect product"
+                              className="p-1.5 text-[#0A4B6E] hover:bg-[#E8F3F8] rounded-md transition-colors cursor-pointer"
+                            >
+                              <Eye size={14} />
+                            </button>
 
-                              {p.isActive ? (
+                            {canManage && (
+                              <>
                                 <button
                                   type="button"
-                                  onClick={() => handleTriggerDeactivate(p)}
-                                  title="Deactivate product"
-                                  className="p-1.5 text-[#C93B32] hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
+                                  onClick={() => handleOpenEdit(p)}
+                                  title="Edit product"
+                                  className="p-1.5 text-[#0A4B6E] hover:bg-[#E8F3F8] rounded-md transition-colors cursor-pointer"
                                 >
-                                  <Trash2 size={13} />
+                                  <Edit2 size={13} />
                                 </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleTriggerReactivate(p)}
-                                  title="Reactivate product"
-                                  className="p-1.5 text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors cursor-pointer"
-                                >
-                                  <RotateCcw size={13} />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        )}
+
+                                {p.isActive ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTriggerDeactivate(p)}
+                                    title="Deactivate product"
+                                    className="p-1.5 text-[#C93B32] hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTriggerReactivate(p)}
+                                    title="Reactivate product"
+                                    className="p-1.5 text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors cursor-pointer"
+                                  >
+                                    <RotateCcw size={13} />
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     );
                   })
@@ -449,17 +506,157 @@ export default function ProductsCatalog() {
             </table>
           </div>
 
-          {/* Minimal footer count */}
-          <div className="shrink-0 px-4 py-2.5 bg-[#F8FBFC] border-t border-[#E2E8F0] text-xs text-[#6D8AA2] flex justify-between">
-            <span>Showing {filteredProducts.length} of {products.length} products</span>
-          </div>
+          {/* Standard Pagination Footer */}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={filteredProducts.length}
+            limit={limit}
+            onPageChange={setPage}
+            onLimitChange={(newLimit) => {
+              setLimit(newLimit);
+              setPage(1);
+            }}
+            itemLabel="products"
+          />
         </div>
       </main>
+
+      {/* Universal SideDrawer for Product Inspection */}
+      <SideDrawer
+        isOpen={Boolean(selectedProduct)}
+        onClose={() => setSelectedProduct(null)}
+        title={selectedProduct?.name || "Product Details"}
+        subtitle={selectedProduct?.category || "Inventory Product"}
+        icon={Package}
+        footer={
+          <div className="flex items-center justify-between w-full">
+            {canManage && selectedProduct && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenEdit(selectedProduct)}
+                >
+                  <Edit2 size={13} className="mr-1" />
+                  Edit
+                </Button>
+                {selectedProduct.isActive ? (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleTriggerDeactivate(selectedProduct)}
+                  >
+                    <Trash2 size={13} className="mr-1" />
+                    Deactivate
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleTriggerReactivate(selectedProduct)}
+                  >
+                    <RotateCcw size={13} className="mr-1" />
+                    Reactivate
+                  </Button>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setSelectedProduct(null)}
+              className="ml-auto px-5 py-2 text-xs font-bold text-[#0A4B6E] bg-[#FFDF2C] hover:bg-[#ebd024] rounded-lg cursor-pointer transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        }
+      >
+        {selectedProduct && (
+          <div className="space-y-5 text-xs text-[#0A4B6E]">
+            {/* Header info badge */}
+            <div className="bg-[#E8F3F8] rounded-xl p-4 border border-[#0A4B6E]/15 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-white text-[#0A4B6E] flex items-center justify-center font-bold shadow-xs">
+                  {selectedProduct.containerType === "CYLINDER" ? (
+                    <Flame size={20} />
+                  ) : (
+                    <Package size={20} />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-[#0A4B6E]">
+                    {selectedProduct.name}
+                  </h3>
+                  <p className="text-[11px] text-[#6D8AA2]">
+                    {selectedProduct.category || "Uncategorized"}
+                  </p>
+                </div>
+              </div>
+              <Badge variant={selectedProduct.isActive ? "active" : "deactivated"}>
+                {selectedProduct.isActive ? "Active" : "Inactive"}
+              </Badge>
+            </div>
+
+            {/* Specifications Card */}
+            <div className="bg-white border border-[#CBD5E1] rounded-xl p-4 space-y-3">
+              <h4 className="font-bold text-[11px] uppercase tracking-wider text-[#6D8AA2]">
+                Product Specifications
+              </h4>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-2.5 rounded-lg bg-[#F8FAFC] border border-slate-100">
+                  <span className="text-[11px] text-[#6D8AA2] block">Container Type</span>
+                  <span className="font-semibold text-[#0A4B6E] capitalize">
+                    {selectedProduct.containerType?.toLowerCase() || "—"}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-[#F8FAFC] border border-slate-100">
+                  <span className="text-[11px] text-[#6D8AA2] block">Net Weight</span>
+                  <span className="font-semibold text-[#0A4B6E]">
+                    {selectedProduct.netWeightKg} kg
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-[#F8FAFC] border border-slate-100 col-span-2">
+                  <span className="text-[11px] text-[#6D8AA2] block">System ID</span>
+                  <span className="font-mono text-[10px] text-slate-500 break-all">
+                    {selectedProduct.id}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Timestamps */}
+            {(selectedProduct.createdAt || selectedProduct.updatedAt) && (
+              <div className="bg-white border border-[#CBD5E1] rounded-xl p-4 space-y-2 text-xs">
+                <h4 className="font-bold text-[11px] uppercase tracking-wider text-[#6D8AA2]">
+                  System Metadata
+                </h4>
+                {selectedProduct.createdAt && (
+                  <div className="flex justify-between py-1 text-slate-500">
+                    <span>Created</span>
+                    <span className="font-medium text-[#0A4B6E]">
+                      {new Date(selectedProduct.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+                {selectedProduct.updatedAt && (
+                  <div className="flex justify-between py-1 text-slate-500">
+                    <span>Last Updated</span>
+                    <span className="font-medium text-[#0A4B6E]">
+                      {new Date(selectedProduct.updatedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </SideDrawer>
 
       {/* Single-Step Add/Edit Product Modal */}
       {formModalOpen && (
         <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-[#CBD5E1] max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-in">
+          <div className="bg-white rounded-2xl border border-[#CBD5E1] max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-in">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
               <div className="flex items-center gap-2">

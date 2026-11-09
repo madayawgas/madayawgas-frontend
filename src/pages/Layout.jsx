@@ -1,3 +1,4 @@
+// src/pages/Layout.jsx
 import { useState, useRef, useEffect } from "react";
 import { Outlet, NavLink, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -9,7 +10,6 @@ import {
   Users,
   LogOut,
   UserCircle,
-  Settings,
   Menu,
   Layers,
   History,
@@ -21,6 +21,10 @@ import {
   Tag,
   Briefcase,
   MapPin,
+  ChevronDown,
+  Wrench,
+  Fuel,
+  FileWarning,
 } from "lucide-react";
 import logo from "../assets/logov2.svg";
 import ForceChangePasswordModal from "../components/auth/ForceChangePasswordModal.jsx";
@@ -28,42 +32,29 @@ import EmergencyAlertBanner from "../components/alerts/EmergencyAlertBanner.jsx"
 
 export default function Layout() {
   const [open, setOpen] = useState(false);
-  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  const hoverTimerRef = useRef(null);
-  const settingsMenuRef = useRef(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
 
   const { isAuthenticated, currentUser, can, logout, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleMouseEnter = () => {
-    if (hoverTimerRef.current) {
-      clearTimeout(hoverTimerRef.current);
-      hoverTimerRef.current = null;
-    }
-    setShowSettingsMenu(true);
-  };
-
-  const handleMouseLeave = () => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    hoverTimerRef.current = setTimeout(() => {
-      setShowSettingsMenu(false);
-    }, 280); // 280ms grace delay to ensure frictionless hover transition
-  };
-
-  // Click-outside listener
+  // Close user dropdown on outside click
   useEffect(() => {
     const handleOutsideClick = (e) => {
-      if (settingsMenuRef.current && !settingsMenuRef.current.contains(e.target)) {
-        setShowSettingsMenu(false);
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleOutsideClick);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    };
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
+
+  // Close user dropdown on route change
+  useEffect(() => {
+    setUserMenuOpen(false);
+    setOpen(false);
+  }, [location.pathname]);
 
   const getPageTitle = (pathname) => {
     if (pathname.startsWith("/dashboard")) return "Dashboard";
@@ -73,7 +64,13 @@ export default function Layout() {
     if (pathname.startsWith("/inventory/plant")) return "Plant Warehouse";
     if (pathname.startsWith("/inventory/transfers")) return "Transfer Records";
     if (pathname.startsWith("/inventory/products") || pathname.startsWith("/item-profile")) return "Products Catalog";
-    if (pathname.startsWith("/fleet")) return "Fleet Board";
+    if (pathname.startsWith("/fleet")) {
+      const search = location.search;
+      if (search.includes("tab=fuel")) return "Fuel Monitoring";
+      if (search.includes("tab=apprehensions")) return "Driver Roadside Citations";
+      if (search.includes("tab=work-orders") || search.includes("tab=logs") || search.includes("tab=analytics")) return "Fleet Maintenance Hub";
+      return "Fleet Board";
+    }
     if (pathname.startsWith("/sales-delivery")) return "Sales and Delivery";
     if (pathname.startsWith("/customers") || pathname.startsWith("/customer")) return "Customer Profile";
     if (pathname.startsWith("/users")) return "User Management";
@@ -90,30 +87,31 @@ export default function Layout() {
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-white">
-        <p className="text-[#0F7AB2] font-semibold">Loading session...</p>
+        <p className="text-[#0A4B6E] font-semibold text-sm">Loading session...</p>
       </div>
     );
   }
 
-  // SECURITY Bouncer
+  // Security Bouncer
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   const handleLogout = async () => {
+    setUserMenuOpen(false);
     await logout();
     navigate("/login");
   };
 
   const navClass = ({ isActive }) =>
-    `flex items-center gap-2.5 px-3 py-2 rounded-full mb-1 text-[13px] font-semibold transition-all ${
+    `flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1 text-[13px] font-semibold transition-all ${
       isActive
         ? "bg-[#FFDF2C] text-[#0A4B6E] font-bold shadow-2xs"
         : "text-white/85 hover:text-white hover:bg-white/10"
     }`;
 
   return (
-    <div className="flex h-screen w-full bg-white font-sans overflow-hidden">
+    <div className="flex h-screen w-full bg-[#F8FAFC] font-sans overflow-hidden">
       {/* SIDEBAR */}
       <aside
         className={`fixed md:static z-30 top-0 left-0 h-full w-[225px] max-w-[225px] min-w-[225px] bg-[#0E384E] flex flex-col justify-between text-white transform transition-transform duration-300 shrink-0
@@ -135,7 +133,7 @@ export default function Layout() {
 
           {/* EXACT ROUTE LINKS - SCROLLABLE CONTAINER */}
           <nav
-            className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar px-2 py-2 ${
+            className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar px-2.5 py-2.5 ${
               currentUser?.mustChangePassword
                 ? "pointer-events-none opacity-40 select-none"
                 : ""
@@ -154,7 +152,9 @@ export default function Layout() {
             )}
 
             {/* 2. TRIP OPERATIONS */}
-            {(can(PERMISSIONS.ROUTE_VIEW) || can(PERMISSIONS.ROUTE_MANAGE) || can(PERMISSIONS.ROUTE_VIEW_OWN)) && (
+            {(can(PERMISSIONS.ROUTE_VIEW) ||
+              can(PERMISSIONS.ROUTE_MANAGE) ||
+              can(PERMISSIONS.ROUTE_VIEW_OWN)) && (
               <>
                 <div className="pt-2.5 pb-1 px-3 select-none">
                   <p className="text-[10px] font-bold tracking-wider uppercase text-white/45">
@@ -187,6 +187,15 @@ export default function Layout() {
                 >
                   <Scale size={17} className="shrink-0" />
                   <span>Stock Check-In</span>
+                </NavLink>
+
+                <NavLink
+                  to="/settings/zones"
+                  className={navClass}
+                  onClick={() => setOpen(false)}
+                >
+                  <MapPin size={17} className="shrink-0" />
+                  <span>Delivery Zones</span>
                 </NavLink>
               </>
             )}
@@ -240,11 +249,77 @@ export default function Layout() {
 
                 <NavLink
                   to="/fleet"
-                  className={navClass}
+                  end
+                  className={({ isActive }) => {
+                    const isFleetActive =
+                      isActive &&
+                      (!location.search || location.search.includes("tab=vehicles"));
+                    return `flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1 text-[13px] font-semibold transition-all ${
+                      isFleetActive
+                        ? "bg-[#FFDF2C] text-[#0A4B6E] font-bold shadow-2xs"
+                        : "text-white/85 hover:text-white hover:bg-white/10"
+                    }`;
+                  }}
                   onClick={() => setOpen(false)}
                 >
                   <Truck size={17} className="shrink-0" />
                   <span>Fleet Board</span>
+                </NavLink>
+
+                <NavLink
+                  to="/fleet?tab=work-orders"
+                  className={() => {
+                    const isMaintActive =
+                      location.pathname.startsWith("/fleet") &&
+                      (location.search.includes("tab=work-orders") ||
+                        location.search.includes("tab=logs") ||
+                        location.search.includes("tab=analytics"));
+                    return `flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1 text-[13px] font-semibold transition-all ${
+                      isMaintActive
+                        ? "bg-[#FFDF2C] text-[#0A4B6E] font-bold shadow-2xs"
+                        : "text-white/85 hover:text-white hover:bg-white/10"
+                    }`;
+                  }}
+                  onClick={() => setOpen(false)}
+                >
+                  <Wrench size={17} className="shrink-0" />
+                  <span>Maintenance Hub</span>
+                </NavLink>
+
+                <NavLink
+                  to="/fleet?tab=fuel"
+                  className={() => {
+                    const isFuelActive =
+                      location.pathname.startsWith("/fleet") &&
+                      location.search.includes("tab=fuel");
+                    return `flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1 text-[13px] font-semibold transition-all ${
+                      isFuelActive
+                        ? "bg-[#FFDF2C] text-[#0A4B6E] font-bold shadow-2xs"
+                        : "text-white/85 hover:text-white hover:bg-white/10"
+                    }`;
+                  }}
+                  onClick={() => setOpen(false)}
+                >
+                  <Fuel size={17} className="shrink-0" />
+                  <span>Fuel Monitoring</span>
+                </NavLink>
+
+                <NavLink
+                  to="/fleet?tab=apprehensions"
+                  className={() => {
+                    const isApprehensionActive =
+                      location.pathname.startsWith("/fleet") &&
+                      location.search.includes("tab=apprehensions");
+                    return `flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1 text-[13px] font-semibold transition-all ${
+                      isApprehensionActive
+                        ? "bg-[#FFDF2C] text-[#0A4B6E] font-bold shadow-2xs"
+                        : "text-white/85 hover:text-white hover:bg-white/10"
+                    }`;
+                  }}
+                  onClick={() => setOpen(false)}
+                >
+                  <FileWarning size={17} className="shrink-0" />
+                  <span>Driver Citations</span>
                 </NavLink>
               </>
             )}
@@ -264,7 +339,7 @@ export default function Layout() {
                   onClick={() => setOpen(false)}
                 >
                   <Briefcase size={17} className="shrink-0" />
-                  <span>Sales and Delivery</span>
+                  <span>Sales & Delivery</span>
                 </NavLink>
 
                 <NavLink
@@ -273,7 +348,7 @@ export default function Layout() {
                   onClick={() => setOpen(false)}
                 >
                   <UserRound size={17} className="shrink-0" />
-                  <span>Customer</span>
+                  <span>Customers</span>
                 </NavLink>
               </>
             )}
@@ -313,181 +388,149 @@ export default function Layout() {
           </nav>
         </div>
 
-        {/* BOTTOM ACTIONS: SETTINGS (POPOVER FOR PROFILE, SERVICE ZONES & FAQS) & LOGOUT */}
-        <div className="px-3 py-3.5 flex items-center justify-around border-t border-white/10 relative shrink-0">
-          {/* Settings Trigger & Flyout Popover Container */}
-          <div
-            ref={settingsMenuRef}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            className="relative"
+        {/* BOTTOM SIDEBAR FOOTER: SYSTEM GUIDE */}
+        <div className="px-2.5 py-3 border-t border-white/10 shrink-0">
+          <NavLink
+            to="/faqs"
+            className={({ isActive }) =>
+              `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                isActive
+                  ? "bg-[#FFDF2C] text-[#0A4B6E] font-bold shadow-2xs"
+                  : "text-white/80 hover:text-white hover:bg-white/10"
+              }`
+            }
+            onClick={() => setOpen(false)}
           >
-            {/* Settings Flyout Popover */}
-            {showSettingsMenu && (
-              <div
-                className="absolute bottom-full mb-1 left-0 z-50 w-56 bg-white text-slate-800 rounded-2xl shadow-xl border border-[#BCE1F1] p-1.5 animate-scale-in text-left
-                after:content-[''] after:absolute after:-bottom-3 after:left-0 after:right-0 after:h-4 after:bg-transparent"
-              >
-                <div className="p-2 border-b border-slate-100 mb-1">
-                  <p className="text-[11px] font-bold text-[#0A4B6E] truncate">
-                    {currentUser?.firstName && currentUser?.lastName
-                      ? `${currentUser.firstName} ${currentUser.lastName}`
-                      : "User Account"}
-                  </p>
-                  <p className="text-[10px] text-[#6D8AA2] truncate">
-                    {currentUser?.username || "Signed in"}
-                  </p>
-                </div>
-
-                <NavLink
-                  to="/profile"
-                  onClick={() => {
-                    setShowSettingsMenu(false);
-                    setOpen(false);
-                  }}
-                  className={({ isActive }) =>
-                    `flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                      isActive
-                        ? "bg-[#E8F3F8] text-[#0A4B6E] font-bold"
-                        : "text-slate-700 hover:bg-slate-50 hover:text-[#0A4B6E]"
-                    }`
-                  }
-                >
-                  <div className="w-6 h-6 rounded-lg bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0">
-                    <UserCircle size={14} />
-                  </div>
-                  <div className="min-w-0 text-left">
-                    <p className="leading-tight">Profile</p>
-                    <p className="text-[10px] text-slate-400 font-normal">Account & password</p>
-                  </div>
-                </NavLink>
-
-                {/* Service Delivery Zones in Settings Popover */}
-                {(can(PERMISSIONS.ROUTE_VIEW) || can(PERMISSIONS.ROUTE_MANAGE) || can(PERMISSIONS.ROUTE_VIEW_OWN)) && (
-                  <NavLink
-                    to="/settings/zones"
-                    onClick={() => {
-                      setShowSettingsMenu(false);
-                      setOpen(false);
-                    }}
-                    className={({ isActive }) =>
-                      `flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all mt-0.5 ${
-                        isActive
-                          ? "bg-[#E8F3F8] text-[#0A4B6E] font-bold"
-                          : "text-slate-700 hover:bg-slate-50 hover:text-[#0A4B6E]"
-                      }`
-                    }
-                  >
-                    <div className="w-6 h-6 rounded-lg bg-[#0A4B6E]/10 text-[#0A4B6E] flex items-center justify-center shrink-0">
-                      <MapPin size={14} />
-                    </div>
-                    <div className="min-w-0 text-left">
-                      <p className="leading-tight">Service Delivery Zones</p>
-                      <p className="text-[10px] text-slate-400 font-normal">Route zone coverage</p>
-                    </div>
-                  </NavLink>
-                )}
-
-                <NavLink
-                  to="/faqs"
-                  onClick={() => {
-                    setShowSettingsMenu(false);
-                    setOpen(false);
-                  }}
-                  className={({ isActive }) =>
-                    `flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all mt-0.5 ${
-                      isActive
-                        ? "bg-[#E8F3F8] text-[#0A4B6E] font-bold"
-                        : "text-slate-700 hover:bg-slate-50 hover:text-[#0A4B6E]"
-                    }`
-                  }
-                >
-                  <div className="w-6 h-6 rounded-lg bg-[#FFDF2C]/30 text-[#0A4B6E] flex items-center justify-center shrink-0">
-                    <HelpCircle size={14} />
-                  </div>
-                  <div className="min-w-0 text-left">
-                    <p className="leading-tight">FAQs & Guide</p>
-                    <p className="text-[10px] text-slate-400 font-normal">System operations</p>
-                  </div>
-                </NavLink>
-              </div>
-            )}
-
-            {/* Settings Button */}
-            <button
-              type="button"
-              onClick={() => setShowSettingsMenu((prev) => !prev)}
-              className={`flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer px-2.5 py-1.5 rounded-lg ${
-                location.pathname.startsWith("/profile") ||
-                location.pathname.startsWith("/faqs") ||
-                location.pathname.startsWith("/settings/zones")
-                  ? "text-[#FFDF2C]"
-                  : "text-white/85 hover:text-white"
-              }`}
-            >
-              <Settings size={17} />
-              <span>Settings</span>
-            </button>
-          </div>
-
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 text-xs font-semibold text-white/85 hover:text-white transition cursor-pointer px-2.5 py-1.5 rounded-lg"
-          >
-            <LogOut size={17} />
-            <span>Logout</span>
-          </button>
+            <HelpCircle size={16} className="shrink-0" />
+            <span>FAQs & System Guide</span>
+          </NavLink>
         </div>
       </aside>
 
+      {/* MOBILE BACKDROP */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/30 z-20 md:hidden"
+          className="fixed inset-0 bg-black/40 z-20 md:hidden backdrop-blur-xs"
           onClick={() => setOpen(false)}
         />
       )}
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col h-screen min-w-0 overflow-hidden p-6">
-        {/* Slim, clean white top header with page title */}
-        <header className="h-[60px] bg-white flex items-center justify-between px-4 md:px-8 text-slate-800 shrink-0 border-b border-slate-200/80 shadow-2xs">
-          <div className="flex items-center gap-3">
+      <div className="flex-1 flex flex-col h-screen min-w-0 overflow-hidden bg-[#F8FAFC]">
+        {/* TOP NAVBAR */}
+        <header className="h-[60px] bg-white flex items-center justify-between px-4 md:px-6 text-slate-800 shrink-0 border-b border-slate-200/90 shadow-2xs z-20">
+          <div className="flex items-center gap-3 min-w-0">
             <button
-              className="md:hidden p-1.5 rounded-xl text-[#0A4B6E] hover:bg-[#E8F3F8] transition cursor-pointer"
+              className="md:hidden p-1.5 rounded-lg text-[#0A4B6E] hover:bg-[#E8F3F8] transition cursor-pointer"
               onClick={() => setOpen(true)}
               aria-label="Open navigation menu"
             >
               <Menu size={22} />
             </button>
-            <h1 className="text-xl md:text-2xl font-bold text-[#1B4B75] tracking-tight">
+            <h1 className="text-lg md:text-xl font-bold text-[#1B4B75] tracking-tight truncate">
               {pageTitle}
             </h1>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4 ml-auto">
-            {/* User Profile Container */}
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center shrink-0 border border-[#BCE1F1]">
-                <UserRound size={17} />
+          <div className="flex items-center gap-3 ml-auto relative" ref={userMenuRef}>
+            {/* User Profile Interactive Trigger */}
+            <button
+              type="button"
+              onClick={() => setUserMenuOpen((prev) => !prev)}
+              className="flex items-center gap-2.5 p-1 sm:px-2.5 sm:py-1.5 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer select-none border border-transparent hover:border-slate-200"
+              aria-expanded={userMenuOpen}
+              aria-haspopup="menu"
+            >
+              <div className="w-8 h-8 rounded-full bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 font-bold text-xs shadow-2xs">
+                {currentUser?.firstName?.charAt(0) || <UserRound size={16} />}
               </div>
-              <div className="leading-tight text-left">
-                <p className="text-xs sm:text-[13px] font-bold text-[#0A4B6E] truncate max-w-[120px] sm:max-w-[160px]">
+              <div className="leading-tight text-left hidden sm:block">
+                <p className="text-xs font-bold text-[#0A4B6E] truncate max-w-[140px]">
                   {currentUser?.firstName && currentUser?.lastName
                     ? `${currentUser.firstName} ${currentUser.lastName}`
-                    : "Super Admin"}
+                    : currentUser?.username || "Staff User"}
                 </p>
-                <div className="text-[10px] sm:text-[11px] font-semibold text-[#854D0E] bg-[#FFDF2C] px-2 py-0.2 rounded-full inline-block mt-0.5 truncate max-w-[120px] sm:max-w-[160px]">
-                  {formatUserRoles(currentUser, "Super Admin")}
+                <div className="text-[10px] font-semibold text-[#854D0E] bg-[#FFDF2C] px-2 py-0.2 rounded-full inline-block mt-0.5 truncate max-w-[140px]">
+                  {formatUserRoles(currentUser, "Staff")}
                 </div>
               </div>
-            </div>
+              <ChevronDown
+                size={14}
+                className={`text-[#6D8AA2] transition-transform duration-200 ${
+                  userMenuOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {/* User Profile Dropdown Menu */}
+            {userMenuOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-60 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 animate-scale-in text-left">
+                {/* User Info Header */}
+                <div className="px-3.5 py-2.5 border-b border-slate-100">
+                  <p className="text-xs font-bold text-[#0A4B6E] truncate">
+                    {currentUser?.firstName && currentUser?.lastName
+                      ? `${currentUser.firstName} ${currentUser.lastName}`
+                      : "Staff User"}
+                  </p>
+                  <p className="text-[11px] text-[#6D8AA2] truncate mt-0.5">
+                    @{currentUser?.username || "user"}
+                  </p>
+                </div>
+
+                {/* Menu Items */}
+                <div className="py-1">
+                  <NavLink
+                    to="/profile"
+                    onClick={() => setUserMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold transition-colors ${
+                        isActive
+                          ? "bg-[#E8F3F8] text-[#0A4B6E]"
+                          : "text-slate-700 hover:bg-slate-50 hover:text-[#0A4B6E]"
+                      }`
+                    }
+                  >
+                    <UserCircle size={15} className="text-[#0A4B6E]" />
+                    <span>Account Settings</span>
+                  </NavLink>
+
+                  <NavLink
+                    to="/faqs"
+                    onClick={() => setUserMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold transition-colors ${
+                        isActive
+                          ? "bg-[#E8F3F8] text-[#0A4B6E]"
+                          : "text-slate-700 hover:bg-slate-50 hover:text-[#0A4B6E]"
+                      }`
+                    }
+                  >
+                    <HelpCircle size={15} className="text-[#0A4B6E]" />
+                    <span>FAQs & Guide</span>
+                  </NavLink>
+                </div>
+
+                <div className="border-t border-slate-100 my-1" />
+
+                {/* Logout Button */}
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer text-left"
+                >
+                  <LogOut size={15} />
+                  <span>Log Out</span>
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
         {/* REAL-TIME DRIVER EMERGENCY SOS ALERT BANNER */}
         <EmergencyAlertBanner />
 
-        <main className="flex-1 overflow-y-auto px-4 md:px-8 py-3 md:py-4 animate-fade-in bg-white min-w-0">
+        {/* UNIFIED MAIN VIEWPORT */}
+        <main className="flex-1 min-h-0 overflow-hidden px-4 md:px-6 py-4 animate-fade-in bg-[#F8FAFC] min-w-0 flex flex-col">
           <Outlet />
         </main>
       </div>

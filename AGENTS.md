@@ -127,6 +127,16 @@ madayawgas-frontend/
 - **Slide-out (Left to Right)**: `.animate-slide-fade-out` (`translateX(0)` &rarr; `translateX(100px)` with fade).
 - **Scale/Fade Modal**: `.animate-scale-in`, `.animate-scale-out`, `.animate-fade-in`, `.animate-fade-out`.
 
+### F. Primary UI/UX Design Framework (`ui-ux-pro-max`)
+- **Primary Engine**: All UI/UX design, component creation, page layouts, styling revisions, and accessibility audits must consult the `ui-ux-pro-max` skill ([`.agents/skills/ui-ux-pro-max/SKILL.md`](.agents/skills/ui-ux-pro-max/SKILL.md)).
+- **Query Standard**: Run `python .agents/skills/ui-ux-pro-max/scripts/search.py "<query>" [--domain <domain>] [--stack react|html-tailwind]` for:
+  - Enterprise dashboard patterns (`--domain product`, `--density 8-10`)
+  - Chart & data visualization best practices (`--domain chart`)
+  - Accessibility, keyboard navigation, and focus states (`--domain ux`)
+  - Form validation, inline feedback, and error summaries (`--domain ux`)
+  - Tailwind CSS v4 styling & React component performance (`--stack react`, `--stack html-tailwind`)
+- **Brand Consistency**: Recommendations from `ui-ux-pro-max` must strictly preserve the established MadayawGas palette (Primary Dark Navy `#0A4B6E`, Accent Yellow `#FFDF2C` / `#F6C445`), Poppins typography, Lucide React icons, and independent master-detail scrolling architectures.
+
 ---
 
 ## 4. Modal & Confirmation Wizard Patterns

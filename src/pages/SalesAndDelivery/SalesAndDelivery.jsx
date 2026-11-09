@@ -240,7 +240,7 @@ export default function SalesAndDelivery() {
   };
 
   return (
-    <div className="w-full h-[calc(100vh-112px)] md:h-[calc(100vh-128px)] overflow-hidden flex flex-col pt-1">
+    <div className="w-full h-full overflow-hidden flex flex-col pt-1 min-w-0">
       {/* 1. TOP HEADER & SUB-NAVIGATION */}
       <div className="shrink-0">
         <SalesHeader

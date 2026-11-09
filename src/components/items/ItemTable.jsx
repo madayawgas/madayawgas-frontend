@@ -110,7 +110,7 @@ export default function ItemTable({
                     onClick={() => onSelectItem && onSelectItem(item)}
                     className={`cursor-pointer transition-colors duration-150 ${
                       isSelected
-                        ? "bg-[#E2EDF3] border-l-4 border-l-[#0A4B6E] font-medium"
+                        ? "bg-[#E2EDF3] text-[#0A4B6E] font-semibold"
                         : "hover:bg-[#F4F8FA]"
                     }`}
                   >

@@ -10,6 +10,9 @@ import AdminPasswordModal from "../../components/users/AdminPasswordModal";
 import CreatedCredentialsModal from "../../components/users/CreatedCredentialsModal";
 import UserModal from "../../components/users/UserModal";
 import SavedChangesToast from "../../components/ui/SavedChangesToast";
+import SideDrawer from "../../components/ui/SideDrawer";
+import Badge from "../../components/ui/Badge";
+import { UserRound } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { usersApi } from "../../api/users.js";
 import { PERMISSIONS } from "../../utils/permissions.js";
@@ -44,7 +47,9 @@ export default function Users() {
   // System Roles State
   const [roles, setRoles] = useState([]);
 
-  // Table Filtering and Sorting
+  // Table Filtering, Sorting and Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({ status: "", role: "All Roles" });
   const [sortConfig, setSortConfig] = useState({ key: "firstName", direction: "asc" });
@@ -177,6 +182,13 @@ export default function Users() {
 
     return result;
   }, [users, searchTerm, filters, sortConfig]);
+
+  const totalItems = processedUsers.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+  const paginatedUsers = useMemo(() => {
+    const start = (page - 1) * limit;
+    return processedUsers.slice(start, start + limit);
+  }, [processedUsers, page, limit]);
 
   // Close panel with smooth exit animation (left-to-right off screen)
   const handleCloseDetail = () => {
@@ -327,12 +339,36 @@ export default function Users() {
     }
   };
 
+  // Direct Deactivation with inline password authorization
+  const handleConfirmDeactivateUser = async (targetUser, adminPassword) => {
+    if (!targetUser) return;
+    const targetId = targetUser.id || targetUser.userId;
+    await usersApi.updateUserStatus(targetId, {
+      confirmPassword: adminPassword,
+      adminPassword,
+      isActive: false,
+    });
+    updateUsersState((prev) =>
+      prev.map((u) =>
+        (u.id || u.userId) === targetId
+          ? { ...u, status: "DEACTIVATED", isActive: false }
+          : u
+      )
+    );
+
+    if (activeDetailUser && ((activeDetailUser.id || activeDetailUser.userId) === targetId)) {
+      setActiveDetailUser((prev) => ({ ...prev, status: "DEACTIVATED", isActive: false }));
+      setSelectedUser((prev) => ({ ...prev, status: "DEACTIVATED", isActive: false }));
+    }
+
+    setShowToast(true);
+    setUserToDeactivate(null);
+  };
+
   // Triggers warning confirmation modals first
   const handleInitiateDeactivate = (targetUser) => {
     if (!targetUser || hasUserRole(targetUser, "Super Admin")) return;
     setUserToDeactivate(targetUser);
-    setPendingAction("DEACTIVATE");
-    setShowPasswordModal(false);
   };
 
   const handleInitiateReactivate = (targetUser) => {
@@ -447,53 +483,104 @@ export default function Users() {
       <div className="shrink-0">
         <UsersControls
           searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+          onSearchChange={(val) => {
+            setSearchTerm(val);
+            setPage(1);
+          }}
           activeFilters={filters}
-          onApplyFilters={setFilters}
-          onClearRole={() => setFilters((prev) => ({ ...prev, role: "All Roles" }))}
-          onClearStatus={() => setFilters((prev) => ({ ...prev, status: "" }))}
+          onApplyFilters={(f) => {
+            setFilters(f);
+            setPage(1);
+          }}
+          onClearRole={() => {
+            setFilters((prev) => ({ ...prev, role: "All Roles" }));
+            setPage(1);
+          }}
+          onClearStatus={() => {
+            setFilters((prev) => ({ ...prev, status: "" }));
+            setPage(1);
+          }}
           roles={roles}
         />
       </div>
 
-      {/* Main Content Area (Table + Locked Expanded View on Select) */}
+      {/* Main Content Area: Full-Width Table with Independent SlideDrawer Inspection */}
       {isLoading && users.length === 0 ? (
         <div className="flex-1 flex items-center justify-center p-12 text-gray-500 font-medium">
           Loading user records...
         </div>
       ) : (
-        <div className="flex-1 min-h-0 flex flex-col lg:flex-row items-stretch gap-4 lg:gap-6 overflow-hidden min-w-0">
-          {/* Users Table Container (Scrolls independently) */}
-          <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden transition-all duration-300">
-            <UsersTable
-              users={processedUsers}
-              selectedUser={selectedUser}
-              onSelectUser={handleSelectUser}
-              sortConfig={sortConfig}
-              onSort={handleSort}
-            />
-          </div>
+        <div className="flex-1 min-h-0 w-full h-full flex flex-col overflow-hidden">
+          <UsersTable
+            users={paginatedUsers}
+            selectedUser={selectedUser}
+            onSelectUser={handleSelectUser}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+            pagination={{
+              page,
+              limit,
+              totalItems,
+              totalPages,
+              onPageChange: setPage,
+              onLimitChange: (newLimit) => {
+                setLimit(newLimit);
+                setPage(1);
+              },
+              isLoading,
+            }}
+          />
 
-          {/* Locked Expanded User Details Panel (Right Side with independent scroll & out-animation) */}
-          {activeDetailUser && (
-            <div
-              className={`w-full lg:w-[350px] xl:w-[390px] shrink-0 h-full flex flex-col overflow-hidden transition-all duration-300 ${
-                isClosingPanel
-                  ? "animate-slide-fade-out pointer-events-none"
-                  : "animate-slide-fade-in"
-              }`}
-            >
+          {/* Slide-Over User Inspection Drawer */}
+          <SideDrawer
+            isOpen={Boolean(activeDetailUser)}
+            onClose={handleCloseDetail}
+            title={
+              activeDetailUser
+                ? `${activeDetailUser.firstName || ""} ${activeDetailUser.lastName || ""}`.trim() ||
+                  activeDetailUser.username ||
+                  "User Account"
+                : "User Profile"
+            }
+            subtitle={activeDetailUser?.username ? `@${activeDetailUser.username}` : "Staff Account"}
+            icon={UserRound}
+            badge={
+              activeDetailUser && (
+                <Badge
+                  variant={
+                    activeDetailUser.isBlocked
+                      ? "danger"
+                      : activeDetailUser.isActive === false
+                      ? "deactivated"
+                      : "success"
+                  }
+                  className="px-2.5 py-0.5 text-[10px] font-bold"
+                >
+                  {activeDetailUser.isBlocked
+                    ? "SUSPENDED"
+                    : activeDetailUser.isActive === false
+                    ? "DEACTIVATED"
+                    : "ACTIVE"}
+                </Badge>
+              )
+            }
+            width="max-w-md sm:max-w-lg"
+          >
+            {activeDetailUser && (
               <UserDetailPanel
                 user={activeDetailUser}
                 onClose={handleCloseDetail}
-                onEdit={(u) => setEditingUser(u)}
+                onEdit={(u) => {
+                  handleCloseDetail();
+                  setEditingUser(u);
+                }}
                 onResetPassword={(u) => handleInitiateResetPassword(u)}
                 onDelete={(u) => handleInitiateDeactivate(u)}
                 onReactivate={(u) => handleInitiateReactivate(u)}
                 canManage={canManage}
               />
-            </div>
-          )}
+            )}
+          </SideDrawer>
         </div>
       )}
 
@@ -513,12 +600,12 @@ export default function Users() {
         }}
       />
 
-      {/* Deactivate User Modal */}
-      {userToDeactivate && !showPasswordModal && (
+      {/* Deactivate User Modal with Inline Password Authorization */}
+      {userToDeactivate && (
         <DeactivateUserModal
           user={userToDeactivate}
           onClose={() => setUserToDeactivate(null)}
-          onConfirm={() => setShowPasswordModal(true)}
+          onConfirm={handleConfirmDeactivateUser}
         />
       )}
 

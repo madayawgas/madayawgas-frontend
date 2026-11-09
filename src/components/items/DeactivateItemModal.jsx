@@ -1,48 +1,31 @@
 // src/components/items/DeactivateItemModal.jsx
-import { createPortal } from "react-dom";
-import Button from "../ui/Button";
+import ConfirmationModal from "../ui/ConfirmationModal.jsx";
 
 export default function DeactivateItemModal({ item, onConfirm, onClose }) {
   if (!item) return null;
 
-  const modalNode = (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl text-left animate-scale-in">
-        <h2 className="text-2xl font-bold text-[#0B4A6E] mb-4">
-          Deactivate Item?
-        </h2>
-
-        <p className="text-gray-800 mb-8 leading-relaxed text-[15px]">
+  return (
+    <ConfirmationModal
+      isOpen={Boolean(item)}
+      onClose={onClose}
+      onConfirm={(password) => onConfirm(item, password)}
+      title="Deactivate Item?"
+      confirmText="Deactivate"
+      cancelText="Cancel"
+      variant="danger"
+      requiresPassword={true}
+      passwordLabel="Enter your password to authorize deactivation:"
+      message={
+        <p className="text-gray-800 leading-relaxed text-xs">
           Are you sure you want to deactivate{" "}
-          <span className="font-bold text-[#0B4A6E]">
+          <strong className="text-[#0A4B6E] font-bold">
             {item.name || item.itemName || "this product"}
-          </span>
+          </strong>
           ? This product item will be marked as inactive and will not be available for new sales or inventory movements, while historical records are retained.
         </p>
-
-        <div className="flex flex-col gap-3">
-          <Button
-            type="button"
-            onClick={() => onConfirm(item)}
-            className="w-full py-3 bg-[#CD3E3E] border-none !text-white rounded-full font-semibold uppercase tracking-widest text-sm hover:bg-[#b83737] transition-colors cursor-pointer"
-          >
-            CONTINUE
-          </Button>
-          <Button
-            type="button"
-            onClick={onClose}
-            className="w-full py-3 bg-transparent border-none !text-[#0B4A6E] font-semibold uppercase tracking-widest text-sm hover:bg-gray-50 rounded-full transition-colors cursor-pointer"
-          >
-            CANCEL
-          </Button>
-        </div>
-      </div>
-    </div>
+      }
+    />
   );
-
-  return typeof document !== "undefined"
-    ? createPortal(modalNode, document.body)
-    : modalNode;
 }
 
 

@@ -23,6 +23,9 @@ import IncidentHistoryModal from "../../components/fleet/IncidentHistoryModal";
 import DeleteConfirmationModal from "../../components/fleet/DeleteConfirmationModal";
 import AdminPasswordModal from "../../components/users/AdminPasswordModal";
 import ToastNotification from "../../components/ui/ToastNotifications";
+import SideDrawer from "../../components/ui/SideDrawer";
+import Badge from "../../components/ui/Badge";
+import { Truck } from "lucide-react";
 
 import CreateWorkOrderModal from "../../components/fleet/work-orders/CreateWorkOrderModal";
 import CostApprovalModal from "../../components/fleet/work-orders/CostApprovalModal";
@@ -106,11 +109,13 @@ export default function Fleet() {
   });
 
   // Vehicles View Mode & Sorting States ('grid' | 'table')
+  const [fleetPage, setFleetPage] = useState(1);
+  const [fleetLimit, setFleetLimit] = useState(20);
   const [viewMode, setViewMode] = useState(() => {
     try {
-      return localStorage.getItem("app_fleet_view_mode") || "grid";
+      return localStorage.getItem("app_fleet_view_mode") || "table";
     } catch {
-      return "grid";
+      return "table";
     }
   });
 
@@ -143,46 +148,27 @@ export default function Fleet() {
     []
   );
 
-  const [activeSubTab, setActiveSubTab] = useState(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get("tab");
-      return validTabs.includes(tabParam) ? tabParam : "vehicles";
-    } catch {
-      return "vehicles";
-    }
-  });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const activeSubTab = validTabs.includes(tabParam) ? tabParam : "vehicles";
 
-  // Keep activeSubTab synced with browser back/forward buttons
-  useEffect(() => {
-    const handlePopState = () => {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const tabParam = params.get("tab");
-        const current = validTabs.includes(tabParam) ? tabParam : "vehicles";
-        setActiveSubTab(current);
-      } catch {
-        // ignore
-      }
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, [validTabs]);
-
-  const handleTabChange = (newTab) => {
-    setActiveSubTab(newTab);
-    try {
-      const url = new URL(window.location.href);
-      if (newTab === "vehicles") {
-        url.searchParams.delete("tab");
-      } else {
-        url.searchParams.set("tab", newTab);
-      }
-      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
-    } catch (e) {
-      console.warn("Failed to sync tab to URL:", e);
-    }
-  };
+  const handleTabChange = useCallback(
+    (newTab) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (newTab === "vehicles") {
+            next.delete("tab");
+          } else {
+            next.set("tab", newTab);
+          }
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
 
   // Part 3 Work Orders & Maintenance Logs States
   const [workOrders, setWorkOrders] = useState([]);
@@ -893,20 +879,17 @@ export default function Fleet() {
     setTruckToDelete(truck);
   };
 
-  const handleConfirmDeletePrompt = () => {
-    setShowDeletePasswordModal(true);
-  };
-
-  const handleExecuteDelete = async (adminPassword) => {
-    if (!truckToDelete) return;
-    const targetId = truckToDelete.id;
+  const handleExecuteDelete = async (truck, adminPassword) => {
+    const targetTruck = truck || truckToDelete;
+    if (!targetTruck) return;
+    const targetId = targetTruck.id;
 
     const result = await fleetApi.deactivateTruck(targetId, {
       confirmPassword: adminPassword,
     });
 
     const updated = result?.truck || {
-      ...truckToDelete,
+      ...targetTruck,
       status: "INACTIVE",
       operationalStatus: "INACTIVE",
       isAvailable: false,
@@ -927,12 +910,11 @@ export default function Fleet() {
       setActiveDetailTruck(updated);
     }
 
-    setShowDeletePasswordModal(false);
     setTruckToDelete(null);
     await refreshDrivers();
     setToast({
       type: "success",
-      message: `Vehicle ${truckToDelete.plateNumber || ""} deactivated successfully`,
+      message: `Vehicle ${targetTruck.plateNumber || ""} deactivated successfully`,
     });
   };
 
@@ -1072,6 +1054,13 @@ export default function Fleet() {
     });
   }, [trucks, searchTerm, filters, sortConfig]);
 
+  const totalFleetItems = filteredTrucks.length;
+  const totalFleetPages = Math.max(1, Math.ceil(totalFleetItems / fleetLimit));
+  const paginatedTrucks = useMemo(() => {
+    const start = (fleetPage - 1) * fleetLimit;
+    return filteredTrucks.slice(start, start + fleetLimit);
+  }, [filteredTrucks, fleetPage, fleetLimit]);
+
   // Enrich work orders with corresponding maintenance log data (partsCost, laborCost, totalCost, OR#)
   const enrichedWorkOrders = useMemo(() => {
     if (!Array.isArray(workOrders)) return [];
@@ -1202,46 +1191,47 @@ export default function Fleet() {
             />
           </div>
 
-          {/* Main Content Area (Cards Grid / Table + Right Sliding Detail Panel) */}
+          {/* Main Content Area: Full-Width Table / Cards with SlideDrawer Inspection */}
           {isLoading && trucks.length === 0 ? (
             <div className="flex-1 flex items-center justify-center p-12 text-gray-500 font-medium">
               Loading fleet vehicles...
             </div>
           ) : (
-            <div className="flex-1 min-h-0 flex flex-col lg:flex-row items-stretch gap-4 lg:gap-6 overflow-hidden min-w-0 pt-1">
+            <div className="flex-1 min-h-0 w-full h-full flex flex-col overflow-hidden pt-1">
               {/* Fleet Content: Table View OR Cards Grid Container */}
               {viewMode === "table" ? (
                 <div className="flex-1 min-w-0 h-full overflow-hidden pb-4">
                   <FleetTable
-                    trucks={filteredTrucks}
-                    selectedTruck={
-                      !isClosingPanel ? activeDetailTruck || selectedTruck : null
-                    }
+                    trucks={paginatedTrucks}
+                    selectedTruck={selectedTruck}
                     onSelectTruck={handleSelectTruck}
                     sortConfig={sortConfig}
                     onSort={handleSort}
+                    pagination={{
+                      page: fleetPage,
+                      limit: fleetLimit,
+                      totalItems: totalFleetItems,
+                      totalPages: totalFleetPages,
+                      onPageChange: setFleetPage,
+                      onLimitChange: (l) => {
+                        setFleetLimit(l);
+                        setFleetPage(1);
+                      },
+                      isLoading,
+                    }}
                   />
                 </div>
               ) : (
                 <div className="flex-1 min-w-0 h-full overflow-y-auto custom-scrollbar pr-1 pb-4">
                   {filteredTrucks.length > 0 ? (
-                    <div
-                      className={`grid grid-cols-1 md:grid-cols-2 ${
-                        activeDetailTruck
-                          ? "xl:grid-cols-2 2xl:grid-cols-3"
-                          : "lg:grid-cols-3"
-                      } gap-5 pt-1`}
-                    >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-1">
                       {filteredTrucks.map((truck) => (
                         <TruckCard
                           key={truck.id}
                           truck={truck}
                           isSelected={
-                            !isClosingPanel &&
-                            (activeDetailTruck?.id === truck.id ||
-                              activeDetailTruck?.truckId === truck.id ||
-                              selectedTruck?.id === truck.id ||
-                              selectedTruck?.truckId === truck.id)
+                            selectedTruck?.id === truck.id ||
+                            selectedTruck?.truckId === truck.id
                           }
                           onClick={() => handleSelectTruck(truck)}
                         />
@@ -1260,27 +1250,44 @@ export default function Fleet() {
                 </div>
               )}
 
-              {/* Mobile/Tablet Backdrop Overlay (closes panel on outside tap) */}
-              {activeDetailTruck && (
-                <div
-                  className="fixed inset-0 bg-black/30 z-30 lg:hidden"
-                  onClick={handleCloseDetail}
-                />
-              )}
-
-              {/* Sliding Detail Panel on the right (constrained on small screens) */}
-              {activeDetailTruck && (
-                <div
-                  className={`fixed inset-y-0 right-0 z-40 w-[360px] max-w-[92vw] lg:static lg:w-[380px] xl:w-[420px] lg:max-w-none shrink-0 h-full flex flex-col overflow-hidden shadow-2xl lg:shadow-none transition-all duration-300 bg-white ${
-                    isClosingPanel
-                      ? "animate-slide-fade-out pointer-events-none"
-                      : "animate-slide-fade-in"
-                  }`}
-                >
+              {/* Slide-Over Vehicle Inspection Drawer */}
+              <SideDrawer
+                isOpen={Boolean(activeDetailTruck)}
+                onClose={handleCloseDetail}
+                title={
+                  activeDetailTruck?.plateNumber ||
+                  `Truck #${activeDetailTruck?.truckId || activeDetailTruck?.id}`
+                }
+                subtitle={`${activeDetailTruck?.model || "Vehicle Asset"}${
+                  activeDetailTruck?.yearModel ? ` (${activeDetailTruck.yearModel})` : ""
+                }`}
+                icon={Truck}
+                badge={
+                  activeDetailTruck && (
+                    <Badge
+                      variant={
+                        activeDetailTruck.status === "ACTIVE"
+                          ? "success"
+                          : activeDetailTruck.status === "UNDER_MAINTENANCE"
+                          ? "danger"
+                          : "neutral"
+                      }
+                      className="px-2.5 py-0.5 text-[10px] font-bold"
+                    >
+                      {(activeDetailTruck.status || "").replace("_", " ")}
+                    </Badge>
+                  )
+                }
+                width="max-w-md sm:max-w-lg"
+              >
+                {activeDetailTruck && (
                   <TruckDetailPanel
                     truck={activeDetailTruck}
                     onClose={handleCloseDetail}
-                    onEdit={(t) => setEditingTruck(t)}
+                    onEdit={(t) => {
+                      handleCloseDetail();
+                      setEditingTruck(t);
+                    }}
                     onDelete={(t) => handleInitiateDelete(t)}
                     onReactivate={(t) => handleInitiateReactivate(t)}
                     onAssignDriver={(t) => setTruckForDriverAssignment(t)}
@@ -1315,8 +1322,8 @@ export default function Fleet() {
                     workOrders={workOrders}
                     canManage={canManage}
                   />
-                </div>
-              )}
+                )}
+              </SideDrawer>
             </div>
           )}
         </div>
@@ -1508,24 +1515,14 @@ export default function Fleet() {
         />
       )}
 
-      {/* Delete Confirmation Step 1 */}
-      {truckToDelete && !showDeletePasswordModal && (
+      {/* Delete Confirmation Modal with Inline Password Authorization */}
+      {truckToDelete && (
         <DeleteConfirmationModal
           truck={truckToDelete}
-          onConfirm={handleConfirmDeletePrompt}
+          onConfirm={(truck, password) => handleExecuteDelete(truck, password)}
           onClose={() => setTruckToDelete(null)}
         />
       )}
-
-      {/* Delete Password Verification Step 2 */}
-      <AdminPasswordModal
-        isOpen={showDeletePasswordModal}
-        onClose={() => {
-          setShowDeletePasswordModal(false);
-          setTruckToDelete(null);
-        }}
-        onSubmit={handleExecuteDelete}
-      />
 
       {/* Reactivate Password Verification Modal */}
       <AdminPasswordModal

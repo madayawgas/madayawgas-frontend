@@ -157,7 +157,9 @@ export default function CustomerTable({
           totalItems={pagination.totalItems}
           limit={pagination.limit}
           onPageChange={pagination.onPageChange}
+          onLimitChange={pagination.onLimitChange}
           isLoading={pagination.isLoading}
+          itemLabel="customers"
         />
       )}
     </div>

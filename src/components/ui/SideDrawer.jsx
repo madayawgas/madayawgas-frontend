@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
+// src/components/ui/SideDrawer.jsx
+import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 /**
- * SideDrawer Component
- * Slides in from the right edge with smooth animations (animate-slide-fade-in / animate-slide-fade-out),
- * backdrop blur, sticky header, scrollable body, and pinned footer.
- * Portaled to document.body to ensure it renders above the main layout and top header.
+ * Standardized SideDrawer Component for MadayawGas
+ * Slides in from the right edge with backdrop blur, sticky header, scrollable body,
+ * and pinned action footer. Used for non-destructive inspection across all data tables.
  */
 export default function SideDrawer({
   isOpen,
@@ -15,17 +15,35 @@ export default function SideDrawer({
   subtitle,
   icon: Icon,
   badge,
+  headerActions,
   children,
   footer,
-  width = "max-w-xl lg:max-w-2xl",
+  width = "max-w-md sm:max-w-lg",
+  backdrop = "mobile-only", // "mobile-only" (default) | "always" | "none" | boolean
 }) {
   const [isClosing, setIsClosing] = useState(false);
 
+  // Handle ESC key press
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        handleClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen]);
+
+  // Handle closing animation delay
   useEffect(() => {
     if (!isClosing) return;
     const timer = setTimeout(() => {
       setIsClosing(false);
-      onClose();
+      if (onClose) onClose();
     }, 220);
     return () => clearTimeout(timer);
   }, [isClosing, onClose]);
@@ -34,62 +52,83 @@ export default function SideDrawer({
     setIsClosing(true);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen && !isClosing) return null;
+
+  const isAlwaysBackdrop = backdrop === "always" || backdrop === true;
+  const isNoBackdrop = backdrop === "none" || backdrop === false;
+  const isMobileOnly = !isAlwaysBackdrop && !isNoBackdrop;
 
   const drawerNode = (
-    <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
-      {/* Backdrop */}
-      <div
-        className={`fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity ${
-          isClosing ? "animate-fade-out" : "animate-fade-in"
-        }`}
-        onClick={handleClose}
-      />
+    <div
+      className={`fixed inset-0 z-50 overflow-hidden flex justify-end ${
+        isAlwaysBackdrop ? "pointer-events-auto" : "pointer-events-none"
+      }`}
+    >
+      {/* Backdrop: Visible on mobile, hidden on desktop unless backdrop="always" */}
+      {!isNoBackdrop && (
+        <div
+          className={`fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity pointer-events-auto ${
+            isMobileOnly ? "lg:hidden" : ""
+          } ${isClosing ? "animate-fade-out" : "animate-fade-in"}`}
+          onClick={handleClose}
+          aria-hidden="true"
+        />
+      )}
 
       {/* Drawer Container */}
       <div
-        className={`relative z-10 w-full ${width} bg-white shadow-2xl h-full flex flex-col overflow-hidden text-left border-l border-gray-100 ${
+        className={`relative z-10 w-full ${width} bg-white shadow-2xl h-full flex flex-col overflow-hidden text-left border-l border-slate-200 pointer-events-auto ${
           isClosing
             ? "animate-slide-fade-out pointer-events-none"
             : "animate-slide-fade-in"
         }`}
-        onClick={(e) => e.stopPropagation()}>
-
-        {/* Header */}
-        <div className="px-6 py-4.5 border-b border-gray-100 flex items-center justify-between shrink-0 bg-[#F8FBFC]">
-          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal={isAlwaysBackdrop ? "true" : "false"}
+        aria-label={typeof title === "string" ? title : "Detail Panel"}
+      >
+        {/* Sticky Header */}
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-[#F8FAFC]">
+          <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
             {Icon && (
-              <div className="w-10 h-10 rounded-2xl bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 shadow-xs">
-                <Icon size={20} />
+              <div className="w-9 h-9 rounded-xl bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 shadow-2xs">
+                <Icon size={18} />
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 className="text-lg font-bold text-[#0A4B6E] truncate">{title}</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-bold text-[#0A4B6E] truncate">{title}</h2>
                 {badge}
               </div>
-              {subtitle && <p className="text-xs text-[#6D8AA2] mt-0.5 truncate">{subtitle}</p>}
+              {subtitle && (
+                <p className="text-xs text-[#6D8AA2] mt-0.5 truncate font-medium">
+                  {subtitle}
+                </p>
+              )}
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleClose}
-            aria-label="Close drawer"
-            className="p-1.5 hover:bg-gray-200/70 text-[#6D8AA2] hover:text-[#0A4B6E] rounded-full transition-colors cursor-pointer shrink-0 ml-2"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+            {headerActions}
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Close drawer"
+              className="p-1.5 hover:bg-slate-200 text-[#6D8AA2] hover:text-[#0A4B6E] rounded-lg transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Content Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-6 custom-scrollbar space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5 custom-scrollbar space-y-4">
           {children}
         </div>
 
         {/* Pinned Sticky Footer */}
         {footer && (
-          <div className="shrink-0 px-6 py-4 border-t border-gray-100 bg-white">
+          <div className="shrink-0 px-5 py-3.5 border-t border-slate-200 bg-white">
             {typeof footer === "function" ? footer({ onClose: handleClose }) : footer}
           </div>
         )}
