@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   Plus,
   CheckCircle2,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import Pagination from "../ui/Pagination";
 import { formatPhilippineTime } from "../../utils/date.js";
@@ -27,10 +29,10 @@ export default function TodayDispatchesTable({
 }) {
   const renderSortIndicator = (key) => {
     if (sortConfig.key !== key) return null;
-    return (
-      <span className="ml-1 text-[11px] text-[#FFDF2C]">
-        {sortConfig.direction === "asc" ? "▲" : "▼"}
-      </span>
+    return sortConfig.direction === "asc" ? (
+      <ChevronUp size={12} className="inline ml-1 text-[#FFDF2C]" />
+    ) : (
+      <ChevronDown size={12} className="inline ml-1 text-[#FFDF2C]" />
     );
   };
 
@@ -269,7 +271,7 @@ export default function TodayDispatchesTable({
                                 onDispatch && onDispatch(entry);
                               }}
                               className="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 uppercase tracking-wider shrink-0 active:scale-95"
-                              title="Dispatch truck on distribution route"
+                              title="Dispatch vehicle on distribution route"
                             >
                               <Plus size={12} strokeWidth={2.5} />
                               <span>DISPATCH</span>

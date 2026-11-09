@@ -8,6 +8,7 @@ import {
   Plus,
   X,
   MapPin,
+  Layers,
 } from "lucide-react";
 import SearchBar from "../ui/SearchBar";
 import FilterDropdown from "../ui/FilterDropdown";
@@ -25,6 +26,7 @@ export default function TodayDispatchesControls({
   onViewModeChange,
   canManage = false,
   onOpenDispatchModal,
+  plantInventory = [],
 }) {
   // Format options for Zone FilterDropdown
   const zoneOptions = [
@@ -40,11 +42,18 @@ export default function TodayDispatchesControls({
       ? "All Service Zones"
       : zoneOptions.find((opt) => opt.value === selectedZone)?.label || "Service Zone";
 
+  // Filter top active products for read-only yard stock ticker
+  const yardStockSummary = Array.isArray(plantInventory)
+    ? plantInventory
+        .filter((item) => (Number(item.quantityFilled || item.quantity_filled) || 0) > 0)
+        .slice(0, 4)
+    : [];
+
   return (
-    <div className="shrink-0 space-y-3 pb-3 border-b border-[#D5E3EC]">
-      {/* Top Row: Segmented Status Control Bar & Primary Dispatch Button */}
+    <div className="shrink-0 space-y-2.5 pb-3 border-b border-[#D5E3EC]">
+      {/* Top Row: Segmented Status Control Bar & Primary Dispatch Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Status Filter Tabs (The single clean bar) */}
+        {/* Status Filter Tabs (Clean segmented bar) */}
         <div className="inline-flex items-center p-1 bg-[#EDF3F7] rounded-full border border-[#D5E3EC] shadow-2xs gap-1 overflow-x-auto custom-scrollbar max-w-full">
           {/* ALL TODAY */}
           <button
@@ -130,7 +139,7 @@ export default function TodayDispatchesControls({
           </button>
         </div>
 
-        {/* Primary Action Button: Dispatch Truck */}
+        {/* Primary Action Button: Dispatch Vehicle */}
         {canManage && (
           <button
             type="button"
@@ -138,10 +147,35 @@ export default function TodayDispatchesControls({
             className="self-start sm:self-auto flex items-center gap-1.5 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs px-4 py-2 rounded-full transition-all cursor-pointer shadow-2xs active:scale-95 uppercase tracking-wider shrink-0"
           >
             <Plus size={14} strokeWidth={2.5} />
-            <span>Dispatch Truck</span>
+            <span>Dispatch Vehicle</span>
           </button>
         )}
       </div>
+
+      {/* Subtle Read-Only Yard Stock Situational Awareness Strip (Zero emojis, vector icon) */}
+      {yardStockSummary.length > 0 && (
+        <div className="flex items-center gap-2 py-1 px-3 bg-[#F4F9FC] border border-[#CBD5E1]/60 rounded-xl text-xs overflow-x-auto custom-scrollbar">
+          <div className="flex items-center gap-1.5 text-[#0A4B6E] font-bold text-[11px] shrink-0 uppercase tracking-wider">
+            <Layers size={13} className="text-[#0A4B6E]" />
+            <span>Bunawan Yard Stock:</span>
+          </div>
+
+          <div className="flex items-center gap-3 text-[11px] text-[#3E5C76] font-medium shrink-0">
+            {yardStockSummary.map((item, idx) => (
+              <span key={item.productId || idx} className="inline-flex items-center gap-1">
+                <span className="font-semibold text-slate-800">{item.productName}:</span>
+                <strong className="text-[#0A4B6E]">
+                  {Number(item.quantityFilled || item.quantity_filled || 0).toLocaleString()} units
+                </strong>
+                {item.containerType === "CANISTER" && item.cratesFilled > 0 && (
+                  <span className="text-[#3E5C76]">({item.cratesFilled} crt)</span>
+                )}
+                {idx < yardStockSummary.length - 1 && <span className="text-slate-300 ml-2">·</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Bottom Filtering Row: Search Bar, Service Zone & View Switcher */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-0.5">

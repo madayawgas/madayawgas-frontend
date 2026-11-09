@@ -24,7 +24,7 @@ import TodayDispatchesCards from "../../components/route-dispatch/TodayDispatche
 import TripDetailPanel from "../../components/route-dispatch/TripDetailPanel.jsx";
 import SideDrawer from "../../components/ui/SideDrawer.jsx";
 import Badge from "../../components/ui/Badge.jsx";
-import { Truck } from "lucide-react";
+import { Truck, ArrowRight } from "lucide-react";
 
 import DispatchModal from "../../components/route-dispatch/DispatchModal";
 import MiddayReloadModal from "../../components/route-dispatch/MiddayReloadModal";
@@ -563,12 +563,12 @@ export default function RouteDispatch() {
   const handleDispatchTrip = async (payload) => {
     try {
       await tripsApi.dispatchTrip(payload);
-      showToast("success", "Truck departure dispatched successfully");
+      showToast("success", "Vehicle departure dispatched successfully");
       setShowDispatchModal(false);
       setPrefillScheduleId("");
       loadData();
     } catch (err) {
-      showToast("error", err.message || "Failed to dispatch truck");
+      showToast("error", err.message || "Failed to dispatch vehicle");
       throw err;
     }
   };
@@ -654,6 +654,7 @@ export default function RouteDispatch() {
           setPrefillScheduleId("");
           setShowDispatchModal(true);
         }}
+        plantInventory={plantInventory}
       />
 
       {/* Main Content Area: Switchable High-Density Table vs Modular Cards */}
@@ -773,8 +774,8 @@ export default function RouteDispatch() {
                     }}
                     className="px-4 py-2 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#0E384E] transition-all cursor-pointer shadow-2xs uppercase tracking-wider flex items-center gap-1.5 active:scale-95"
                   >
-                    <span>DISPATCH TRUCK</span>
-                    <span>➔</span>
+                    <span>DISPATCH VEHICLE</span>
+                    <ArrowRight size={13} strokeWidth={2.5} />
                   </button>
                 )}
                 {selectedEntry.operationalStatus === "OUT_ON_ROAD" && canManage && (
@@ -784,7 +785,7 @@ export default function RouteDispatch() {
                     className="px-4 py-2 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#0E384E] transition-all cursor-pointer shadow-2xs uppercase tracking-wider flex items-center gap-1.5 active:scale-95"
                   >
                     <span>RETURN CHECK-IN</span>
-                    <span>➔</span>
+                    <ArrowRight size={13} strokeWidth={2.5} />
                   </button>
                 )}
               </div>
@@ -839,6 +840,8 @@ export default function RouteDispatch() {
         }}
         onDispatch={handleDispatchTrip}
         schedules={availableSchedules}
+        allSchedules={allTodaySchedules}
+        trips={trips}
         vehicles={vehicles}
         drivers={drivers}
         activeDutyDriverIds={activeDutyDriverIds}

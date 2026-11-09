@@ -198,7 +198,7 @@ export default function TodayDispatchesCards({
                 No pending schedules ready to deploy today
               </p>
               <p className="text-[11px] text-[#6D8AA2] mt-0.5">
-                Generate upcoming schedules from the Route Planner or click Dispatch Truck for an ad-hoc run.
+                Generate upcoming schedules from the Route Planner or click Dispatch Vehicle for an ad-hoc run.
               </p>
             </div>
           ) : (
@@ -272,7 +272,7 @@ export default function TodayDispatchesCards({
                           className="w-full py-2 px-3 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] rounded-full text-[11px] font-bold uppercase tracking-widest transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
                         >
                           <Plus size={13} strokeWidth={2.5} />
-                          <span>Dispatch Truck</span>
+                          <span>Dispatch Vehicle</span>
                         </button>
                       </div>
                     )}
