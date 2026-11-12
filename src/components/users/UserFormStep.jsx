@@ -1,5 +1,6 @@
 // src/components/users/UserFormStep.jsx
-import { User, KeyRound, AlertCircle, Phone, Calendar, Shield, Sparkles } from "lucide-react";
+import { useMemo } from "react";
+import { User, KeyRound, AlertCircle, Phone, Calendar, Shield, Sparkles, Check } from "lucide-react";
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
 import { toProperCase } from "../../utils/text.js";
@@ -32,6 +33,133 @@ export default function UserFormStep({
     const sanitized = value.replace(/[^\p{L}\s\-.']/gu, "");
     setFormData((prev) => ({ ...prev, [field]: sanitized }));
     clearFieldError(field);
+  };
+
+  // Normalize system roles list
+  const normalizedRoles = useMemo(() => {
+    if (roles && roles.length > 0) {
+      return roles.map((r, idx) => ({
+        id: typeof r === "object" && r.id ? String(r.id) : `role-${idx}`,
+        name: typeof r === "object" && r.name ? r.name : String(r),
+      }));
+    }
+    return [
+      { id: "admin", name: "Admin" },
+      { id: "driver", name: "Driver" },
+      { id: "sales-person", name: "Sales Person" },
+      { id: "sales-manager", name: "Sales Manager" },
+      { id: "sales-supervisor", name: "Sales Supervisor" },
+      { id: "logistics-supervisor", name: "Logistics Supervisor" },
+      { id: "plant-supervisor", name: "Plant Supervisor" },
+      { id: "fleet-manager", name: "Fleet Manager" },
+    ];
+  }, [roles]);
+
+  // Resolve currently selected role IDs
+  const selectedRoleIds = useMemo(() => {
+    if (Array.isArray(formData.roleIds) && formData.roleIds.length > 0) {
+      return formData.roleIds.map(String);
+    }
+    if (formData.roleId) {
+      return [String(formData.roleId)];
+    }
+    if (formData.role) {
+      const target = String(formData.role).toLowerCase();
+      const match = normalizedRoles.find((r) => r.name.toLowerCase() === target);
+      if (match) return [match.id];
+    }
+    return normalizedRoles[0] ? [normalizedRoles[0].id] : [];
+  }, [formData.roleIds, formData.roleId, formData.role, normalizedRoles]);
+
+  // Resolve effective primary role ID
+  const effectivePrimaryId = useMemo(() => {
+    if (formData.primaryRoleId && selectedRoleIds.includes(String(formData.primaryRoleId))) {
+      return String(formData.primaryRoleId);
+    }
+    if (formData.roleId && selectedRoleIds.includes(String(formData.roleId))) {
+      return String(formData.roleId);
+    }
+    return selectedRoleIds[0] || (normalizedRoles[0] ? normalizedRoles[0].id : "");
+  }, [formData.primaryRoleId, formData.roleId, selectedRoleIds, normalizedRoles]);
+
+  // Selected role objects
+  const selectedRolesList = useMemo(() => {
+    return selectedRoleIds.map((id) => {
+      const match = normalizedRoles.find((r) => r.id === id);
+      return {
+        id,
+        name: match ? match.name : id,
+        isPrimary: id === effectivePrimaryId,
+      };
+    });
+  }, [selectedRoleIds, effectivePrimaryId, normalizedRoles]);
+
+  const handleToggleRole = (role) => {
+    const isSelected = selectedRoleIds.includes(role.id);
+    let nextRoleIds = [];
+    let nextPrimaryId = effectivePrimaryId;
+
+    if (isSelected) {
+      if (selectedRoleIds.length === 1) {
+        if (setErrors) {
+          setErrors((prev) => ({ ...prev, role: "User must have at least one role assigned." }));
+        }
+        return;
+      }
+      nextRoleIds = selectedRoleIds.filter((id) => id !== role.id);
+      if (nextPrimaryId === role.id) {
+        nextPrimaryId = nextRoleIds[0];
+      }
+    } else {
+      nextRoleIds = [...selectedRoleIds, role.id];
+      if (!nextPrimaryId) {
+        nextPrimaryId = role.id;
+      }
+    }
+
+    const selectedObjs = nextRoleIds.map((id) => {
+      const match = normalizedRoles.find((r) => r.id === id);
+      return {
+        id,
+        name: match ? match.name : id,
+        isPrimary: id === nextPrimaryId,
+      };
+    });
+    const selectedNames = selectedObjs.map((r) => r.name);
+    const primaryObj = selectedObjs.find((r) => r.id === nextPrimaryId) || selectedObjs[0];
+
+    setFormData((prev) => ({
+      ...prev,
+      roleIds: nextRoleIds,
+      primaryRoleId: nextPrimaryId,
+      roleId: nextPrimaryId,
+      role: primaryObj?.name || "Driver",
+      roles: selectedObjs,
+      roleNames: selectedNames,
+    }));
+    clearFieldError("role");
+  };
+
+  const handleSetPrimaryRole = (primaryId) => {
+    const selectedObjs = selectedRoleIds.map((id) => {
+      const match = normalizedRoles.find((r) => r.id === id);
+      return {
+        id,
+        name: match ? match.name : id,
+        isPrimary: id === primaryId,
+      };
+    });
+    const selectedNames = selectedObjs.map((r) => r.name);
+    const primaryObj = selectedObjs.find((r) => r.id === primaryId) || selectedObjs[0];
+
+    setFormData((prev) => ({
+      ...prev,
+      primaryRoleId: primaryId,
+      roleId: primaryId,
+      role: primaryRoleObj?.name || prev.role,
+      roles: selectedObjs,
+      roleNames: selectedNames,
+    }));
   };
 
   return (
@@ -184,50 +312,87 @@ export default function UserFormStep({
 
       {/* CARD 2: Role & System Privileges */}
       <div className="bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-2xs space-y-3.5">
-        <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
-          <Shield size={14} />
-          <span>Role & Access Privileges</span>
+        <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
+            <Shield size={14} />
+            <span>Role & Access Privileges</span>
+          </div>
+          <span className="text-[11px] font-semibold text-[#6D8AA2]">
+            {selectedRoleIds.length} {selectedRoleIds.length === 1 ? "role selected" : "roles selected"}
+          </span>
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1">
-            System Role Access <span className="text-[#CD3E3E]">*</span>
-          </label>
-          <select
-            required
-            value={formData.role}
-            onChange={(e) => {
-              setFormData({ ...formData, role: e.target.value });
-              clearFieldError("role");
-            }}
-            className={`w-full bg-white text-slate-800 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all cursor-pointer ${
-              errors.role
-                ? "border-[#CD3E3E] focus:ring-2 focus:ring-red-200"
-                : "border-slate-200 focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10"
-            }`}
-          >
-            {roles && roles.length > 0 ? (
-              roles.map((r, idx) => (
-                <option key={idx} value={typeof r === "string" ? r : r.name}>
-                  {typeof r === "string" ? r : r.name}
-                </option>
-              ))
-            ) : (
-              <>
-                <option value="" disabled>Select a role</option>
-                <option value="Super Admin">Super Admin</option>
-                <option value="System Admin">System Admin</option>
-                <option value="Driver">Driver</option>
-                <option value="Sales Person">Sales Person</option>
-                <option value="Sales Manager">Sales Manager</option>
-              </>
-            )}
-          </select>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider">
+              System Role Access <span className="text-[#CD3E3E]">*</span>
+            </label>
+            <span className="text-[10px] text-slate-400 font-medium">Click to select / unselect</span>
+          </div>
+
+          {/* Interactive Role Chips */}
+          <div className="flex flex-wrap gap-2">
+            {normalizedRoles.map((role) => {
+              const isSelected = selectedRoleIds.includes(role.id);
+              const isPrimary = role.id === effectivePrimaryId;
+
+              return (
+                <button
+                  key={role.id}
+                  type="button"
+                  onClick={() => handleToggleRole(role)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+                    isSelected
+                      ? "bg-[#0A4B6E] text-white border-[#0A4B6E] shadow-2xs font-semibold"
+                      : "bg-[#F3F5F5] text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                  }`}
+                >
+                  {isSelected ? (
+                    <Check size={13} className="text-[#FFDF2C] shrink-0" />
+                  ) : null}
+                  <span>{role.name}</span>
+                  {isSelected && selectedRoleIds.length > 1 && isPrimary && (
+                    <span className="text-[9px] font-bold bg-[#FFDF2C] text-[#0A4B6E] px-1.5 py-0.5 rounded-full uppercase tracking-wider ml-0.5 shadow-2xs">
+                      Primary
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
           {errors.role && (
-            <p className="text-[#CD3E3E] text-[11px] mt-1 font-medium flex items-center gap-1">
+            <p className="text-[#CD3E3E] text-[11px] mt-2 font-medium flex items-center gap-1">
               <AlertCircle size={12} className="shrink-0" />
               <span>{errors.role}</span>
             </p>
+          )}
+
+          {/* Primary Role Designation Selector when multiple roles selected */}
+          {selectedRoleIds.length > 1 && (
+            <div className="mt-3.5 p-3 bg-[#E8F3F8]/70 rounded-xl border border-[#BCE1F1]/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-fade-in">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 shadow-2xs">
+                  <Shield size={12} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-[#0A4B6E]">Primary Role Designation</p>
+                  <p className="text-[11px] text-[#6D8AA2]">Main role used for navigation & default permissions</p>
+                </div>
+              </div>
+
+              <select
+                value={effectivePrimaryId}
+                onChange={(e) => handleSetPrimaryRole(e.target.value)}
+                className="bg-white text-[#0A4B6E] font-semibold text-xs px-3 py-1.5 rounded-lg border border-[#BCE1F1] focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/10 outline-none cursor-pointer shrink-0"
+              >
+                {selectedRolesList.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name} (Primary)
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
 

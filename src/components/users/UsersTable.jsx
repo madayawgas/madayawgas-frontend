@@ -139,15 +139,20 @@ export default function UsersTable({
                     {/* Role Badges */}
                     <td className="py-3.5 px-3 md:px-4">
                       <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                        {userRoles.map((role, idx) => (
-                          <Badge
-                            key={`${user.id || user.userId || "usr"}-role-${idx}`}
-                            variant="roles"
-                            className="text-[10px] px-2 py-0.5 whitespace-nowrap inline-flex items-center"
-                          >
-                            {role}
-                          </Badge>
-                        ))}
+                        {userRoles.map((role, idx) => {
+                          const isPrimary = user.role
+                            ? role.toLowerCase() === user.role.toLowerCase()
+                            : idx === 0;
+                          return (
+                            <Badge
+                              key={`${user.id || user.userId || "usr"}-role-${idx}`}
+                              variant={isPrimary && userRoles.length > 1 ? "info" : "roles"}
+                              className="text-[10px] px-2 py-0.5 whitespace-nowrap inline-flex items-center"
+                            >
+                              {role}
+                            </Badge>
+                          );
+                        })}
                       </div>
                     </td>
 

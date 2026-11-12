@@ -229,19 +229,42 @@ export default function Users() {
   // Create / Update User Handler
   const handleSaveUser = async (formData, userId) => {
     try {
-      // Resolve roleId from roles list
-      const matchedRole = roles.find(
-        (r) =>
-          (typeof r === "string" ? r : r.name).toLowerCase() ===
-          (typeof formData.role === "string"
-            ? formData.role
-            : formData.role?.name || ""
-          ).toLowerCase()
-      );
-      const roleId =
-        matchedRole && typeof matchedRole === "object"
-          ? matchedRole.id
-          : formData.roleId || roles[0]?.id;
+      // Resolve roleIds and primaryRoleId
+      let roleIds = [];
+      if (Array.isArray(formData.roleIds) && formData.roleIds.length > 0) {
+        roleIds = formData.roleIds.map(String);
+      } else if (formData.roleId) {
+        roleIds = [String(formData.roleId)];
+      } else {
+        const matched = roles.find(
+          (r) =>
+            (typeof r === "string" ? r : r.name).toLowerCase() ===
+            (typeof formData.role === "string"
+              ? formData.role
+              : formData.role?.name || ""
+            ).toLowerCase()
+        );
+        roleIds = [matched && typeof matched === "object" ? String(matched.id) : String(roles[0]?.id || "driver")];
+      }
+
+      const primaryRoleId = formData.primaryRoleId
+        ? String(formData.primaryRoleId)
+        : roleIds[0] || (roles[0]?.id ? String(roles[0].id) : "driver");
+
+      const selectedRoleObjects = roleIds.map((id) => {
+        const match = roles.find((r) => String(typeof r === "object" ? r.id : r) === String(id));
+        const name = match && typeof match === "object" ? match.name : match || "Staff";
+        return {
+          id,
+          name,
+          isPrimary: String(id) === String(primaryRoleId),
+        };
+      });
+
+      const roleNames = selectedRoleObjects.map((r) => r.name);
+      const primaryRoleObj = selectedRoleObjects.find((r) => r.isPrimary) || selectedRoleObjects[0];
+      const primaryRoleName =
+        primaryRoleObj?.name || (typeof formData.role === "string" ? formData.role : "Sales Person");
 
       if (userId) {
         const isBlocked = formData.status === "SUSPENDED";
@@ -250,18 +273,14 @@ export default function Users() {
           lastName: formData.lastName,
           phone: formData.contactNo || formData.phone,
           birthdate: formData.birthday || formData.birthdate || null,
-          ...(roleId && { roleId }),
+          roleIds,
+          primaryRoleId,
+          roleId: primaryRoleId,
           isBlocked,
           status: isBlocked ? "SUSPENDED" : "ACTIVE",
         };
 
         const updated = await usersApi.updateUser(userId, payload);
-        const roleName =
-          matchedRole && typeof matchedRole === "object"
-            ? matchedRole.name
-            : typeof formData.role === "string"
-            ? formData.role
-            : "Sales Person";
 
         const updatedUserMerged = {
           ...formData,
@@ -271,7 +290,10 @@ export default function Users() {
           status: isBlocked
             ? "SUSPENDED"
             : "ACTIVE",
-          role: roleName,
+          role: updated?.role || primaryRoleName,
+          roleId: updated?.roleId || primaryRoleId,
+          roles: updated?.roles || selectedRoleObjects,
+          roleNames: updated?.roleNames || roleNames,
         };
 
         updateUsersState((prev) =>
@@ -307,22 +329,21 @@ export default function Users() {
           lastName: formData.lastName,
           phone: formData.contactNo || formData.phone || undefined,
           birthdate: formData.birthday || formData.birthdate || undefined,
-          roleId: roleId || formData.roleId,
+          roleIds,
+          primaryRoleId,
+          roleId: primaryRoleId,
         };
 
         const result = await usersApi.createUser(payload);
-        const roleName =
-          matchedRole && typeof matchedRole === "object"
-            ? matchedRole.name
-            : typeof formData.role === "string"
-            ? formData.role
-            : "Sales Person";
 
         const newUser = result?.user || {
           id: `user-${Date.now()}`,
           userId: Date.now(),
           ...payload,
-          role: roleName,
+          role: primaryRoleName,
+          roleId: primaryRoleId,
+          roles: result?.user?.roles || selectedRoleObjects,
+          roleNames: result?.user?.roleNames || roleNames,
           status: "ACTIVE",
           isActive: true,
           isBlocked: false,

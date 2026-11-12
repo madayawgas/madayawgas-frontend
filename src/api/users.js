@@ -74,21 +74,28 @@ export const usersApi = {
 
   /**
    * Update a user's system role (Admin dangerous operation).
+   * Supports single-role (roleId) or multi-role (roleIds + primaryRoleId).
    * @param {string} id - Target user ID
-   * @param {{ roleId: string, confirmPassword?: string, adminPassword?: string }} payload
+   * @param {{ roleId?: string, roleIds?: string[], primaryRoleId?: string, confirmPassword?: string, adminPassword?: string }} payload
    * @returns {Promise<object>} Updated user object
    */
-  async updateUserRole(id, { roleId, confirmPassword, adminPassword }) {
+  async updateUserRole(id, { roleId, roleIds, primaryRoleId, confirmPassword, adminPassword }) {
     const password = confirmPassword || adminPassword;
+    const body = {
+      confirmPassword: password,
+      adminPassword: password,
+      confirm_password: password,
+      admin_password: password,
+    };
+    if (roleIds && Array.isArray(roleIds) && roleIds.length > 0) {
+      body.roleIds = roleIds;
+      if (primaryRoleId) body.primaryRoleId = primaryRoleId;
+    } else if (roleId) {
+      body.roleId = roleId;
+    }
     const result = await apiClient(`/users/${id}/role`, {
       method: "PATCH",
-      body: {
-        roleId,
-        confirmPassword: password,
-        adminPassword: password,
-        confirm_password: password,
-        admin_password: password,
-      },
+      body,
     });
     return result.data.user;
   },

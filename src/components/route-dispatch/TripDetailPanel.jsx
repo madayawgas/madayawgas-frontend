@@ -27,6 +27,7 @@ export default function TripDetailPanel({
   onClose,
   onDispatch,
   onMiddayReload,
+  onEndTrip,
   onReturnCheckIn,
   onReconciliation,
   onCancelTrip,
@@ -39,6 +40,7 @@ export default function TripDetailPanel({
   const isTrip = Boolean(
     activeEntry.isTrip ||
       activeEntry.operationalStatus === "OUT_ON_ROAD" ||
+      activeEntry.operationalStatus === "RETURNED" ||
       activeEntry.departureTime ||
       activeEntry.tripId
   );
@@ -47,10 +49,11 @@ export default function TripDetailPanel({
 
   // Trip-specific data
   const tripData = isTrip ? (trip || activeEntry) : null;
-  const currentStatus = (tripData?.status || activeEntry?.status || "").toUpperCase();
-  const isSettled = currentStatus === "SETTLED";
-  const isPendingRecon = currentStatus === "AWAITING_SYNC" || currentStatus === "FLAGGED_VARIANCE";
-  const isOnRoute = currentStatus === "IN_PROGRESS" || activeEntry.operationalStatus === "OUT_ON_ROAD";
+  const currentStatus = (tripData?.rawStatus || tripData?.status || activeEntry?.status || "").toUpperCase();
+  const isReturned = currentStatus === "RETURNED" || activeEntry?.operationalStatus === "RETURNED";
+  const isSettled = currentStatus === "SETTLED" || currentStatus === "COMPLETED";
+  const isPendingRecon = isReturned || currentStatus === "AWAITING_SYNC" || currentStatus === "FLAGGED_VARIANCE";
+  const isOnRoute = (currentStatus === "IN_PROGRESS" || activeEntry?.operationalStatus === "OUT_ON_ROAD") && !isReturned;
 
   const departureFormatted = tripData?.departureTime
     ? formatPhilippineTime(tripData.departureTime)
@@ -84,7 +87,7 @@ export default function TripDetailPanel({
               <span>Trip Lifecycle Progress</span>
             </span>
             <span className="text-[11px] text-[#3E5C76] font-medium">
-              {isOnRoute ? "Step 1 of 3: Active Route" : isPendingRecon ? "Step 2 of 3: Return Unload" : "Step 3 of 3: Settled"}
+              {isOnRoute ? "Step 1 of 3: Active Route" : isReturned ? "Step 2 of 3: Yard Return · Stock Check-In Needed" : isPendingRecon ? "Step 2 of 3: Return Unload" : "Step 3 of 3: Settled"}
             </span>
           </div>
 
@@ -130,8 +133,8 @@ export default function TripDetailPanel({
                 )}
               </div>
               <p className="text-[11px] font-bold truncate">2. Return Check-In</p>
-              <p className={`text-[11px] truncate ${isPendingRecon ? "text-amber-100" : isSettled ? "text-emerald-700" : "text-slate-500"}`}>
-                {isPendingRecon ? "Needs Audit" : isSettled ? "Unloaded" : "Pending"}
+              <p className={`text-[11px] truncate ${isReturned ? "text-amber-100 font-bold" : isPendingRecon ? "text-amber-100" : isSettled ? "text-emerald-700" : "text-slate-500"}`}>
+                {isReturned ? "Ready for Dock" : isPendingRecon ? "Needs Audit" : isSettled ? "Unloaded" : "Pending"}
               </p>
             </div>
 
@@ -470,10 +473,10 @@ export default function TripDetailPanel({
 
                 <button
                   type="button"
-                  onClick={() => onReturnCheckIn && onReturnCheckIn(tripData || activeEntry)}
-                  className="w-full py-2.5 px-3 rounded-full text-[11px] font-bold bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 uppercase tracking-widest"
+                  onClick={() => onEndTrip && onEndTrip(tripData || activeEntry)}
+                  className="w-full py-2.5 px-3 rounded-full text-[11px] font-bold bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 uppercase tracking-widest active:scale-95"
                 >
-                  <span>Return Check-In</span>
+                  <span>End Trip</span>
                   <ArrowRight size={13} strokeWidth={2.5} />
                 </button>
               </div>
@@ -489,8 +492,22 @@ export default function TripDetailPanel({
             </div>
           )}
 
-          {/* Settled Trip Actions */}
-          {isTrip && isPendingRecon && (
+          {/* Returned Trip Awaiting Dock Check-In */}
+          {isTrip && isReturned && (
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => onReturnCheckIn && onReturnCheckIn(tripData || activeEntry)}
+                className="w-full py-2.5 px-4 rounded-full text-[11px] font-bold bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 uppercase tracking-widest active:scale-95"
+              >
+                <span>Check-In Stock & Reconcile</span>
+                <ArrowRight size={13} strokeWidth={2.5} />
+              </button>
+            </div>
+          )}
+
+          {/* Settled / Variance Trip Actions */}
+          {isTrip && isPendingRecon && !isReturned && (
             <button
               type="button"
               onClick={() => onReconciliation && onReconciliation(tripData || activeEntry)}

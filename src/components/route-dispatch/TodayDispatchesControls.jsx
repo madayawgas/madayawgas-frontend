@@ -98,6 +98,27 @@ export default function TodayDispatchesControls({
             </span>
           </button>
 
+          {/* RETURNED TO YARD */}
+          <button
+            type="button"
+            onClick={() => onStatusTabChange("RETURNED")}
+            className={`px-3.5 py-1.5 rounded-full text-xs transition-all duration-150 flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              statusTab === "RETURNED"
+                ? "bg-[#0A4B6E] text-[#FFDF2C] shadow-2xs font-bold"
+                : "text-[#3E5C76] hover:text-[#0A4B6E] hover:bg-white/60 font-semibold"
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span>Returned</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold min-w-[18px] text-center ${
+                statusTab === "RETURNED" ? "bg-white/20 text-[#FFDF2C]" : "bg-amber-100 text-amber-900"
+              }`}
+            >
+              {counts.returned || 0}
+            </span>
+          </button>
+
           {/* READY TO DISPATCH */}
           <button
             type="button"

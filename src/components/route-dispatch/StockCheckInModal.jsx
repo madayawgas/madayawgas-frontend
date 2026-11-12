@@ -63,19 +63,8 @@ export default function StockCheckInModal({
       map.set(pId, current);
     });
 
-    const result = Array.from(map.values());
-    // Fallback to default product if no itemized loads were found
-    if (result.length === 0 && products.length > 0) {
-      result.push({
-        productId: products[0].id,
-        productName: products[0].name || "Butane Canister 250g",
-        containerType: products[0].containerType || "CANISTER",
-        netWeightKg: products[0].netWeightKg || 0.25,
-        loadedUnits: 120,
-      });
-    }
-    return result;
-  }, [trip, products]);
+    return Array.from(map.values());
+  }, [trip]);
 
   // Physical counts state map: { [productId]: { returnedFull, returnedEmptyGood, returnedDefective, defectNotes } }
   const [counts, setCounts] = useState({});
@@ -285,6 +274,7 @@ export default function StockCheckInModal({
             type="button"
             variant="primary"
             onClick={handleProceedToConfirm}
+            disabled={loadedProducts.length === 0}
           >
             <span>Review Unloads</span>
             <ArrowRight size={13} strokeWidth={2.5} />
@@ -404,7 +394,22 @@ export default function StockCheckInModal({
                 </thead>
 
                 <tbody className="divide-y divide-slate-100">
-                  {loadedProducts.map((p) => {
+                  {loadedProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-slate-500">
+                        <div className="flex flex-col items-center justify-center gap-1.5">
+                          <PackageCheck size={28} className="text-slate-400" />
+                          <p className="font-semibold text-slate-700 text-xs">
+                            No Dispatched Cargo Found
+                          </p>
+                          <p className="text-[11px] text-slate-500 max-w-sm">
+                            Trip #{trip.tripNumber} has no recorded dispatch loads.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    loadedProducts.map((p) => {
                     const pCounts = counts[p.productId] || {
                       returnedFull: 0,
                       returnedEmptyGood: 0,
@@ -537,7 +542,7 @@ export default function StockCheckInModal({
                         )}
                       </React.Fragment>
                     );
-                  })}
+                  }))}
                 </tbody>
 
                 {/* Table Footer with Totals */}
@@ -679,7 +684,22 @@ export default function StockCheckInModal({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {loadedProducts.map((p) => {
+                  {loadedProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-slate-500">
+                        <div className="flex flex-col items-center justify-center gap-1.5">
+                          <PackageCheck size={28} className="text-slate-400" />
+                          <p className="font-semibold text-slate-700 text-xs">
+                            No Dispatched Cargo Found
+                          </p>
+                          <p className="text-[11px] text-slate-500 max-w-sm">
+                            Trip #{trip.tripNumber} has no recorded dispatch loads.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    loadedProducts.map((p) => {
                     const c = counts[p.productId] || { returnedFull: 0, returnedEmptyGood: 0, returnedDefective: 0 };
                     const tot = (Number(c.returnedFull) || 0) + (Number(c.returnedEmptyGood) || 0) + (Number(c.returnedDefective) || 0);
                     return (
@@ -691,7 +711,7 @@ export default function StockCheckInModal({
                         <td className="py-2 px-3 text-center font-bold text-slate-800">{tot}</td>
                       </tr>
                     );
-                  })}
+                  }))}
                 </tbody>
               </table>
             </div>

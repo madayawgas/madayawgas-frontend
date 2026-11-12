@@ -77,13 +77,18 @@ export default function VehicleSearchDropdown({
         <div className="flex items-center gap-2 min-w-0">
           <Truck size={16} className="text-[#0A4B6E] shrink-0" />
           {selectedTrip ? (
-            <div className="flex items-center gap-2 truncate">
+            <div className="flex items-center gap-1.5 truncate">
               <span className="font-bold text-xs text-[#0A4B6E] truncate">
                 {selectedTrip.truckPlate}
               </span>
               <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-[#E8F3F8] text-[#0A4B6E] shrink-0 border border-[#BCE1F1]">
                 #{selectedTrip.tripNumber}
               </span>
+              {(selectedTrip.rawStatus || selectedTrip.status || "").toUpperCase() === "IN_PROGRESS" && (
+                <span className="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-full shrink-0">
+                  En Route
+                </span>
+              )}
             </div>
           ) : (
             <span className="text-xs font-semibold text-slate-500 truncate">
@@ -144,13 +149,22 @@ export default function VehicleSearchDropdown({
                     }`}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-bold text-xs text-[#0A4B6E]">
                           {trip.truckPlate}
                         </span>
                         <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
                           #{trip.tripNumber}
                         </span>
+                        {(trip.rawStatus || trip.status || "").toUpperCase() === "IN_PROGRESS" ? (
+                          <span className="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.2 rounded-full">
+                            En Route
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded-full">
+                            Returned
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] text-slate-500 truncate mt-0.5">
                         {trip.driverName || "Driver"} {trip.zoneCode ? `· ${trip.zoneCode}` : ""}

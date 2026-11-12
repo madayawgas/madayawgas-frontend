@@ -37,11 +37,18 @@ export default function UserConfirmStep({
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 max-w-[50%]">
-            {userRoles.map((role, idx) => (
-              <Badge key={`confirm-role-${idx}`} variant="roles" className="shrink-0">
-                {role}
-              </Badge>
-            ))}
+            {userRoles.map((role, idx) => {
+              const isPrimary = (formData.role && role === formData.role) || idx === 0;
+              return (
+                <Badge
+                  key={`confirm-role-${idx}`}
+                  variant={isPrimary && userRoles.length > 1 ? "info" : "roles"}
+                  className="shrink-0"
+                >
+                  {role}{isPrimary && userRoles.length > 1 ? " (Primary)" : ""}
+                </Badge>
+              );
+            })}
           </div>
         </div>
 
@@ -69,7 +76,20 @@ export default function UserConfirmStep({
             <span className="text-[#6D8AA2] font-semibold flex items-center gap-1.5">
               <Shield size={13} /> {userRoles.length > 1 ? "Role Privileges" : "Role Privilege"}
             </span>
-            <p className="font-bold text-[#0A4B6E] text-sm">{userRoles.join(", ")}</p>
+            <p className="font-bold text-[#0A4B6E] text-sm">
+              {userRoles
+                .map(
+                  (r, i) =>
+                    `${r}${
+                      (formData.role && r === formData.role) || i === 0
+                        ? userRoles.length > 1
+                          ? " (Primary)"
+                          : ""
+                        : ""
+                    }`
+                )
+                .join(", ")}
+            </p>
           </div>
 
           <div className="bg-white/80 p-3 rounded-xl border border-[#BCE1F1]/40 space-y-1">

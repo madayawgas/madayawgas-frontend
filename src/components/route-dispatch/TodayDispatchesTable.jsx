@@ -23,6 +23,7 @@ export default function TodayDispatchesTable({
   selectedId,
   onSelectEntry,
   onDispatch,
+  onEndTrip,
   onCheckInReturn,
   canManage = false,
   pagination,
@@ -43,6 +44,13 @@ export default function TodayDispatchesTable({
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
             <span>OUT ON ROUTE</span>
+          </span>
+        );
+      case "RETURNED":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 text-[11px] font-bold shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span>RETURNED (AUDIT PENDING)</span>
           </span>
         );
       case "READY":
@@ -133,7 +141,9 @@ export default function TodayDispatchesTable({
           <tbody className="divide-y divide-gray-100 text-xs">
             {entries.length > 0 ? (
               entries.map((entry) => {
-                const isTrip = entry.operationalStatus === "OUT_ON_ROAD";
+                const isOutOnRoad = entry.operationalStatus === "OUT_ON_ROAD";
+                const isReturned = entry.operationalStatus === "RETURNED";
+                const isTrip = isOutOnRoad || isReturned;
                 const isReady = entry.operationalStatus === "READY";
                 const isUnavailable = entry.operationalStatus === "UNAVAILABLE";
                 const isSelected =
@@ -278,16 +288,32 @@ export default function TodayDispatchesTable({
                             </button>
                           )}
 
-                          {/* Out on the Road: 1 Primary Navy Action Button */}
-                          {isTrip && (
+                          {/* Out on the Road: 1 Primary Navy Action Button to End Trip */}
+                          {isOutOnRoad && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEndTrip && onEndTrip(entry);
+                              }}
+                              className="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 uppercase tracking-wider shrink-0 active:scale-95"
+                              title="Record return odometer and end active trip"
+                            >
+                              <span>END TRIP</span>
+                              <ArrowRight size={12} strokeWidth={2.5} />
+                            </button>
+                          )}
+
+                          {/* Returned to Yard: 1 Primary Yellow Action Button to Check In Stock */}
+                          {isReturned && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onCheckInReturn && onCheckInReturn(entry);
                               }}
-                              className="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 uppercase tracking-wider shrink-0 active:scale-95"
-                              title="Check-in return & reconcile stock"
+                              className="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 uppercase tracking-wider shrink-0 active:scale-95"
+                              title="Perform dock physical return check-in & stock reconciliation"
                             >
                               <span>CHECK-IN</span>
                               <ArrowRight size={12} strokeWidth={2.5} />

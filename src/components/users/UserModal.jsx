@@ -42,12 +42,14 @@ export default function UserModal({
       setErrors({});
       setSubmitError("");
 
-      const defaultRole =
+      const defaultRoleObj =
         roles && roles.length > 0
           ? typeof roles[0] === "string"
-            ? roles[0]
-            : roles[0].name
-          : "Driver";
+            ? { id: roles[0].toLowerCase().replace(/\s+/g, "-"), name: roles[0] }
+            : roles[0]
+          : { id: "driver", name: "Driver" };
+      const defaultRole = defaultRoleObj.name || "Driver";
+      const defaultRoleId = defaultRoleObj.id || "driver";
 
       if (user) {
         const isUserBlocked = user.isBlocked === true || user.status === "SUSPENDED";
@@ -61,6 +63,36 @@ export default function UserModal({
           cleanPhone = cleanPhone.slice(1);
         }
 
+        // Resolve existing user roleIds and primaryRoleId
+        let userRoleIds = [];
+        if (Array.isArray(user.roles) && user.roles.length > 0) {
+          userRoleIds = user.roles.map((r) => (typeof r === "object" && r.id ? String(r.id) : String(r)));
+        } else if (Array.isArray(user.roleIds) && user.roleIds.length > 0) {
+          userRoleIds = user.roleIds.map(String);
+        } else if (user.roleId) {
+          userRoleIds = [String(user.roleId)];
+        } else if (user.role) {
+          const match = roles.find((r) => (typeof r === "object" ? r.name : r).toLowerCase() === String(user.role).toLowerCase());
+          userRoleIds = [match && typeof match === "object" ? String(match.id) : defaultRoleId];
+        } else {
+          userRoleIds = [defaultRoleId];
+        }
+
+        let userPrimaryId = "";
+        if (Array.isArray(user.roles)) {
+          const primaryObj = user.roles.find((r) => typeof r === "object" && r.isPrimary);
+          if (primaryObj?.id) userPrimaryId = String(primaryObj.id);
+        }
+        if (!userPrimaryId && user.primaryRoleId) {
+          userPrimaryId = String(user.primaryRoleId);
+        }
+        if (!userPrimaryId && user.roleId) {
+          userPrimaryId = String(user.roleId);
+        }
+        if (!userPrimaryId) {
+          userPrimaryId = userRoleIds[0] || defaultRoleId;
+        }
+
         setFormData({
           firstName: user.firstName || "",
           lastName: user.lastName || "",
@@ -69,8 +101,9 @@ export default function UserModal({
           role: user.role || defaultRole || "",
           roles: user.roles || [],
           roleNames: user.roleNames || [],
-          roleId: user.roleId || "",
-          roleIds: user.roleIds || [],
+          roleId: userPrimaryId,
+          roleIds: userRoleIds,
+          primaryRoleId: userPrimaryId,
           username: user.username || "",
           status: currentStatus,
           isBlocked: isUserBlocked,
@@ -82,10 +115,11 @@ export default function UserModal({
           birthday: "",
           contactNo: "",
           role: defaultRole,
-          roles: [],
-          roleNames: [],
-          roleId: "",
-          roleIds: [],
+          roles: [{ id: defaultRoleId, name: defaultRole, isPrimary: true }],
+          roleNames: [defaultRole],
+          roleId: defaultRoleId,
+          roleIds: [defaultRoleId],
+          primaryRoleId: defaultRoleId,
           username: "",
           status: "ACTIVE",
           isBlocked: false,
@@ -146,8 +180,10 @@ export default function UserModal({
       }
     }
 
-    if (!formData.role || (typeof formData.role === "string" && !formData.role.trim())) {
-      newErrors.role = "Please select a role.";
+    const hasRoles = Array.isArray(formData.roleIds) && formData.roleIds.length > 0;
+    const hasSingleRole = formData.role && (typeof formData.role !== "string" || formData.role.trim());
+    if (!hasRoles && !hasSingleRole) {
+      newErrors.role = "Please select at least one role.";
     }
 
     return newErrors;
