@@ -9,6 +9,7 @@ import {
   X,
   MapPin,
   Layers,
+  PackageCheck,
 } from "lucide-react";
 import SearchBar from "../ui/SearchBar";
 import FilterDropdown from "../ui/FilterDropdown";
@@ -26,6 +27,7 @@ export default function TodayDispatchesControls({
   onViewModeChange,
   canManage = false,
   onOpenDispatchModal,
+  onNavigateCheckIn,
   plantInventory = [],
 }) {
   // Format options for Zone FilterDropdown
@@ -96,6 +98,27 @@ export default function TodayDispatchesControls({
             </span>
           </button>
 
+          {/* RETURNED TO YARD */}
+          <button
+            type="button"
+            onClick={() => onStatusTabChange("RETURNED")}
+            className={`px-3.5 py-1.5 rounded-full text-xs transition-all duration-150 flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              statusTab === "RETURNED"
+                ? "bg-[#0A4B6E] text-[#FFDF2C] shadow-2xs font-bold"
+                : "text-[#3E5C76] hover:text-[#0A4B6E] hover:bg-white/60 font-semibold"
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span>Returned</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold min-w-[18px] text-center ${
+                statusTab === "RETURNED" ? "bg-white/20 text-[#FFDF2C]" : "bg-amber-100 text-amber-900"
+              }`}
+            >
+              {counts.returned || 0}
+            </span>
+          </button>
+
           {/* READY TO DISPATCH */}
           <button
             type="button"
@@ -139,17 +162,31 @@ export default function TodayDispatchesControls({
           </button>
         </div>
 
-        {/* Primary Action Button: Dispatch Vehicle */}
-        {canManage && (
-          <button
-            type="button"
-            onClick={onOpenDispatchModal}
-            className="self-start sm:self-auto flex items-center gap-1.5 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs px-4 py-2 rounded-full transition-all cursor-pointer shadow-2xs active:scale-95 uppercase tracking-wider shrink-0"
-          >
-            <Plus size={14} strokeWidth={2.5} />
-            <span>Dispatch Vehicle</span>
-          </button>
-        )}
+        {/* Action Buttons: Check In Return & Dispatch Vehicle */}
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          {canManage && onNavigateCheckIn && (
+            <button
+              type="button"
+              onClick={onNavigateCheckIn}
+              className="flex items-center gap-1.5 bg-white border border-[#CBD5E1] hover:bg-[#F3F5F5] hover:border-[#94A3B8] text-[#0A4B6E] font-bold text-xs px-3.5 py-2 rounded-full transition-all cursor-pointer shadow-2xs active:scale-95 uppercase tracking-wider"
+              title="Open dock return check-in workspace"
+            >
+              <PackageCheck size={14} className="text-[#0A4B6E]" strokeWidth={2.5} />
+              <span>Check In Return</span>
+            </button>
+          )}
+
+          {canManage && (
+            <button
+              type="button"
+              onClick={onOpenDispatchModal}
+              className="flex items-center gap-1.5 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs px-4 py-2 rounded-full transition-all cursor-pointer shadow-2xs active:scale-95 uppercase tracking-wider"
+            >
+              <Plus size={14} strokeWidth={2.5} />
+              <span>Dispatch Vehicle</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Subtle Read-Only Yard Stock Situational Awareness Strip (Zero emojis, vector icon) */}

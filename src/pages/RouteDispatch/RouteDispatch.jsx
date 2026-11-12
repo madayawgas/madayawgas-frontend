@@ -8,7 +8,6 @@ import { tripsApi } from "../../api/trips.js";
 import { schedulesApi } from "../../api/schedules.js";
 import { fleetApi } from "../../api/fleet.js";
 import { inventoryApi } from "../../api/inventory.js";
-import { attendanceApi } from "../../api/attendance.js";
 import { getScheduleDispatchGating } from "../../utils/fleetGuards.js";
 
 import { isCanisterProduct, getCanisterCrates } from "../../utils/product.js";
@@ -30,6 +29,8 @@ import DispatchModal from "../../components/route-dispatch/DispatchModal";
 import MiddayReloadModal from "../../components/route-dispatch/MiddayReloadModal";
 import CancelTripModal from "../../components/route-dispatch/CancelTripModal";
 import CancelScheduleModal from "../../components/route-dispatch/CancelScheduleModal";
+import SettleTripModal from "../../components/route-dispatch/SettleTripModal.jsx";
+import EndTripModal from "../../components/route-dispatch/EndTripModal.jsx";
 import ToastNotification from "../../components/ui/ToastNotifications";
 import { useRealtimeRefresh } from "../../hooks/useRealtimeRefresh.js";
 
@@ -123,7 +124,6 @@ export default function RouteDispatch() {
 
   const [drivers, setDrivers] = useState([]);
   const [salesUsers, setSalesUsers] = useState([]);
-  const [activeDutyDriverIds, setActiveDutyDriverIds] = useState(() => new Set());
   const [plantInventory, setPlantInventory] = useState([]);
 
   // 2. Filter, View Mode, Sorting, and Pagination States
@@ -182,6 +182,10 @@ export default function RouteDispatch() {
   const [selectedTripToCancel, setSelectedTripToCancel] = useState(null);
   const [showCancelScheduleModal, setShowCancelScheduleModal] = useState(false);
   const [selectedScheduleToCancel, setSelectedScheduleToCancel] = useState(null);
+  const [showSettleModal, setShowSettleModal] = useState(false);
+  const [selectedTripForSettle, setSelectedTripForSettle] = useState(null);
+  const [showEndTripModal, setShowEndTripModal] = useState(false);
+  const [selectedTripToEnd, setSelectedTripToEnd] = useState(null);
 
   const showToast = (type, message) => {
     setToast({ type, message });
@@ -199,7 +203,6 @@ export default function RouteDispatch() {
         prodData,
         driverData,
         salesData,
-        activeAttendance,
         plantInvData,
       ] = await Promise.all([
         tripsApi.getTrips().catch((err) => {
@@ -234,10 +237,6 @@ export default function RouteDispatch() {
           console.warn("Failed to fetch sales persons:", err);
           return [];
         }),
-        attendanceApi.getActivePersonnel().catch((err) => {
-          console.warn("Failed to fetch active personnel attendance:", err);
-          return [];
-        }),
         inventoryApi.getPlantInventory().catch((err) => {
           console.warn("Failed to fetch plant inventory:", err);
           return [];
@@ -254,12 +253,6 @@ export default function RouteDispatch() {
       const parsedDrivers = Array.isArray(driverData) ? driverData : (driverData?.drivers || []);
       setDrivers(parsedDrivers);
       if (Array.isArray(salesData)) setSalesUsers(salesData);
-
-      const activeList = Array.isArray(activeAttendance) ? activeAttendance : [];
-      const activeIds = new Set(
-        activeList.map((rec) => rec.userId || rec.user_id || rec.user?.id).filter(Boolean)
-      );
-      setActiveDutyDriverIds(activeIds);
     } catch (err) {
       console.warn("Failed to refresh today's dispatches:", err);
     }
@@ -268,13 +261,19 @@ export default function RouteDispatch() {
   // Real-Time WebSocket Hook: Auto-refreshes trips, vehicle status, and schedules
   useRealtimeRefresh({
     events: [
+      "TRIP_ENDED",
+      "TRIP_DISPATCHED",
+      "TRIP_COMPLETED",
+      "TRIP_CANCELLED",
+      "TRIP_RECONCILIATION_UPDATED",
       "FLEET_VEHICLE_GROUNDED",
       "FLEET_VEHICLE_RELEASED",
-      "TRIP_RECONCILIATION_UPDATED",
       "SALES_BATCH_SYNCED",
-      "ATTENDANCE_DUTY_UPDATED",
+      "SCHEDULE_CREATED",
+      "SCHEDULE_UPDATED",
+      "SCHEDULE_CANCELLED",
     ],
-    cacheKeysToInvalidate: ["app_fleet_cache", "app_trips_cache"],
+    cacheKeysToInvalidate: ["app_fleet_cache", "app_trips_cache", "app_schedules_cache"],
     onRefresh: loadData,
   });
 
@@ -326,7 +325,12 @@ export default function RouteDispatch() {
     return trips.filter((t) => (t.status || "").toUpperCase() === "IN_PROGRESS");
   }, [trips]);
 
-  // 6b. Today's Scheduled Dispatches (Direct + Template-derived)
+  // 6b. Returned Trips (RETURNED — awaiting dock stock check-in)
+  const returnedTrips = useMemo(() => {
+    return trips.filter((t) => (t.status || "").toUpperCase() === "RETURNED");
+  }, [trips]);
+
+  // 6c. Today's Scheduled Dispatches (Direct + Template-derived)
   const allTodaySchedules = useMemo(() => {
     // 1. Direct operational schedules for today that are SCHEDULED
     const directScheduled = schedules.filter((s) => {
@@ -335,13 +339,20 @@ export default function RouteDispatch() {
       return isSched && schedDate === todayPht;
     });
 
-    // 2. Identify truck IDs already covered today
+    // 2. Identify truck IDs already covered today (dispatched, returned, completed, or scheduled)
     const coveredTruckIds = new Set([
       ...schedules
         .filter((s) => toPhilippineDateInputString(s.scheduledDate) === todayPht)
         .map((s) => s.truckId),
       ...trips
-        .filter((t) => (t.status || "").toUpperCase() === "IN_PROGRESS")
+        .filter((t) => {
+          const st = (t.status || "").toUpperCase();
+          const tripDate = toPhilippineDateInputString(t.departureTime || t.departure_time || t.createdAt);
+          return (
+            ["IN_PROGRESS", "RETURNED", "COMPLETED"].includes(st) &&
+            (tripDate === todayPht || st === "IN_PROGRESS" || st === "RETURNED")
+          );
+        })
         .map((t) => t.truckId),
     ]);
 
@@ -390,12 +401,12 @@ export default function RouteDispatch() {
     return [...directScheduled, ...templateDerived];
   }, [schedules, templates, trips, vehicles, zones, salesUsers, drivers, todayPht]);
 
-  // 6c. Partition schedules into Available vs Unavailable
+  // 6d. Partition schedules into Available vs Unavailable
   const { availableSchedules, unavailableSchedules } = useMemo(() => {
     const available = [];
     const unavailable = [];
     allTodaySchedules.forEach((sched) => {
-      const gating = getScheduleDispatchGating(sched, vehicles, drivers, activeDutyDriverIds);
+      const gating = getScheduleDispatchGating(sched, vehicles, drivers);
       const enriched = { ...sched, gating };
       if (gating.canDispatch) {
         available.push(enriched);
@@ -404,7 +415,7 @@ export default function RouteDispatch() {
       }
     });
     return { availableSchedules: available, unavailableSchedules: unavailable };
-  }, [allTodaySchedules, vehicles, drivers, activeDutyDriverIds]);
+  }, [allTodaySchedules, vehicles, drivers]);
 
   // Counts for Top Status Filter Tabs & Mission-Control KPI Strip
   const counts = useMemo(() => {
@@ -417,20 +428,21 @@ export default function RouteDispatch() {
     });
 
     return {
-      all: activeTrips.length + availableSchedules.length + unavailableSchedules.length,
+      all: activeTrips.length + returnedTrips.length + availableSchedules.length + unavailableSchedules.length,
       outOnRoad: activeTrips.length,
+      returned: returnedTrips.length,
       ready: availableSchedules.length,
       unavailable: unavailableSchedules.length,
       totalUnitsStaged: unitsCount,
       totalCratesStaged: cratesCount,
     };
-  }, [activeTrips, availableSchedules.length, unavailableSchedules.length, getFullCargoBreakdown]);
+  }, [activeTrips, returnedTrips.length, availableSchedules.length, unavailableSchedules.length, getFullCargoBreakdown]);
 
   // 7. Unified Operational Entries Array
   const allOperationalEntries = useMemo(() => {
     const list = [];
 
-    // 1. In-progress trips
+    // 1. In-progress trips (Out on route)
     activeTrips.forEach((trip) => {
       const cargo = getFullCargoBreakdown(trip);
       list.push({
@@ -441,7 +453,18 @@ export default function RouteDispatch() {
       });
     });
 
-    // 2. Ready to dispatch
+    // 2. Returned trips (Arrived at yard, awaiting dock stock check-in)
+    returnedTrips.forEach((trip) => {
+      const cargo = getFullCargoBreakdown(trip);
+      list.push({
+        ...trip,
+        entryType: "TRIP",
+        operationalStatus: "RETURNED",
+        cargo,
+      });
+    });
+
+    // 3. Ready to dispatch
     availableSchedules.forEach((sched) => {
       list.push({
         ...sched,
@@ -450,7 +473,7 @@ export default function RouteDispatch() {
       });
     });
 
-    // 3. Unavailable vehicles
+    // 4. Unavailable vehicles
     unavailableSchedules.forEach((sched) => {
       list.push({
         ...sched,
@@ -460,7 +483,19 @@ export default function RouteDispatch() {
     });
 
     return list;
-  }, [activeTrips, availableSchedules, unavailableSchedules, getFullCargoBreakdown]);
+  }, [activeTrips, returnedTrips, availableSchedules, unavailableSchedules, getFullCargoBreakdown]);
+
+  // Keep active SideDrawer selectedEntry synchronized with live operational updates
+  useEffect(() => {
+    if (!selectedEntry) return;
+    const currentId = selectedEntry.id || selectedEntry.scheduleId || selectedEntry.tripId;
+    const fresh = allOperationalEntries.find(
+      (e) => (e.id && e.id === currentId) || (e.tripId && e.tripId === currentId)
+    );
+    if (fresh && fresh !== selectedEntry) {
+      setSelectedEntry(fresh);
+    }
+  }, [allOperationalEntries]);
 
   // 8. Filter & Sort Unified Entries
   const filteredEntries = useMemo(() => {
@@ -501,7 +536,7 @@ export default function RouteDispatch() {
       let valB = b[sortConfig.key] || "";
 
       if (sortConfig.key === "operationalStatus") {
-        const order = { OUT_ON_ROAD: 1, READY: 2, UNAVAILABLE: 3 };
+        const order = { OUT_ON_ROAD: 1, RETURNED: 2, READY: 3, UNAVAILABLE: 4 };
         valA = order[a.operationalStatus] || 99;
         valB = order[b.operationalStatus] || 99;
         if (valA !== valB) {
@@ -554,12 +589,30 @@ export default function RouteDispatch() {
 
     return {
       activeTrips: activeTrips.filter(filterFn),
+      returnedTrips: returnedTrips.filter(filterFn),
       availableSchedules: availableSchedules.filter(filterFn),
       unavailableSchedules: unavailableSchedules.filter(filterFn),
     };
-  }, [activeTrips, availableSchedules, unavailableSchedules, selectedZone, searchTerm]);
+  }, [activeTrips, returnedTrips, availableSchedules, unavailableSchedules, selectedZone, searchTerm]);
 
   // 11. Modal Action Handlers
+  const handleEndTrip = async (tripId, payload) => {
+    try {
+      await tripsApi.endTrip(tripId, payload);
+      localStorage.removeItem("app_trips_cache");
+      localStorage.removeItem("app_fleet_cache");
+      showToast(
+        "success",
+        "Vehicle gate return logged successfully. Vehicle is ready for dock stock check-in."
+      );
+      setShowEndTripModal(false);
+      setSelectedTripToEnd(null);
+      loadData();
+    } catch (err) {
+      showToast("error", err.message || "Failed to log gate return and end trip");
+      throw err;
+    }
+  };
   const handleDispatchTrip = async (payload) => {
     try {
       await tripsApi.dispatchTrip(payload);
@@ -654,6 +707,7 @@ export default function RouteDispatch() {
           setPrefillScheduleId("");
           setShowDispatchModal(true);
         }}
+        onNavigateCheckIn={() => navigate("/return-checkin")}
         plantInventory={plantInventory}
       />
 
@@ -670,8 +724,12 @@ export default function RouteDispatch() {
               setPrefillScheduleId(sched.id);
               setShowDispatchModal(true);
             }}
+            onEndTrip={(trip) => {
+              setSelectedTripToEnd(trip);
+              setShowEndTripModal(true);
+            }}
             onCheckInReturn={(trip) => {
-              navigate(`/reconciliation?tripId=${trip.id}`);
+              navigate(`/return-checkin?tripId=${trip.id}`);
             }}
             canManage={canManage}
             pagination={{
@@ -691,6 +749,7 @@ export default function RouteDispatch() {
           <TodayDispatchesCards
             statusTab={statusTab}
             activeTrips={filteredCardsData.activeTrips}
+            returnedTrips={filteredCardsData.returnedTrips}
             availableSchedules={filteredCardsData.availableSchedules}
             unavailableSchedules={filteredCardsData.unavailableSchedules}
             selectedId={selectedEntry?.id || selectedEntry?.scheduleId || selectedEntry?.tripId || selectedEntry?.truckPlate}
@@ -707,8 +766,12 @@ export default function RouteDispatch() {
               setSelectedTripForReload(trip);
               setShowMiddayModal(true);
             }}
+            onEndTrip={(trip) => {
+              setSelectedTripToEnd(trip);
+              setShowEndTripModal(true);
+            }}
             onCheckInReturn={(trip) => {
-              navigate(`/reconciliation?tripId=${trip.id}`);
+              navigate(`/return-checkin?tripId=${trip.id}`);
             }}
             onCancelTrip={(trip) => {
               setSelectedTripToCancel(trip);
@@ -738,14 +801,18 @@ export default function RouteDispatch() {
               variant={
                 selectedEntry.operationalStatus === "OUT_ON_ROAD" || selectedEntry.isTrip
                   ? "success"
+                  : selectedEntry.operationalStatus === "RETURNED"
+                  ? "warning"
                   : selectedEntry.operationalStatus === "UNAVAILABLE"
                   ? "danger"
                   : "roles"
               }
               className="px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider"
             >
-              {selectedEntry.operationalStatus === "OUT_ON_ROAD" || selectedEntry.isTrip
+              {selectedEntry.operationalStatus === "OUT_ON_ROAD" || (selectedEntry.isTrip && selectedEntry.status === "IN_PROGRESS")
                 ? "OUT ON ROUTE"
+                : selectedEntry.operationalStatus === "RETURNED"
+                ? "RETURNED TO YARD"
                 : selectedEntry.operationalStatus === "UNAVAILABLE"
                 ? "UNAVAILABLE"
                 : "READY TO DISPATCH"}
@@ -781,10 +848,25 @@ export default function RouteDispatch() {
                 {selectedEntry.operationalStatus === "OUT_ON_ROAD" && canManage && (
                   <button
                     type="button"
-                    onClick={() => navigate(`/reconciliation?tripId=${selectedEntry.id}`)}
+                    onClick={() => {
+                      setSelectedTripToEnd(selectedEntry);
+                      setShowEndTripModal(true);
+                    }}
                     className="px-4 py-2 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#0E384E] transition-all cursor-pointer shadow-2xs uppercase tracking-wider flex items-center gap-1.5 active:scale-95"
                   >
-                    <span>RETURN CHECK-IN</span>
+                    <span>END TRIP</span>
+                    <ArrowRight size={13} strokeWidth={2.5} />
+                  </button>
+                )}
+                {selectedEntry.operationalStatus === "RETURNED" && canManage && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate(`/return-checkin?tripId=${selectedEntry.id}`);
+                    }}
+                    className="px-4 py-2 rounded-full text-xs font-bold bg-[#FFDF2C] text-[#0A4B6E] hover:bg-[#ebd024] transition-all cursor-pointer shadow-2xs uppercase tracking-wider flex items-center gap-1.5 active:scale-95"
+                  >
+                    <span>CHECK-IN STOCK</span>
                     <ArrowRight size={13} strokeWidth={2.5} />
                   </button>
                 )}
@@ -797,12 +879,16 @@ export default function RouteDispatch() {
           <TripDetailPanel
             entry={selectedEntry}
             trip={
-              selectedEntry.operationalStatus === "OUT_ON_ROAD" || selectedEntry.isTrip
+              selectedEntry.operationalStatus === "OUT_ON_ROAD" ||
+              selectedEntry.operationalStatus === "RETURNED" ||
+              selectedEntry.isTrip
                 ? selectedEntry
                 : null
             }
             schedule={
-              selectedEntry.operationalStatus !== "OUT_ON_ROAD" && !selectedEntry.isTrip
+              selectedEntry.operationalStatus !== "OUT_ON_ROAD" &&
+              selectedEntry.operationalStatus !== "RETURNED" &&
+              !selectedEntry.isTrip
                 ? selectedEntry
                 : null
             }
@@ -815,8 +901,16 @@ export default function RouteDispatch() {
               setSelectedTripForReload(trip);
               setShowMiddayModal(true);
             }}
+            onEndTrip={(trip) => {
+              setSelectedTripToEnd(trip);
+              setShowEndTripModal(true);
+            }}
             onReturnCheckIn={(trip) => {
-              navigate(`/reconciliation?tripId=${trip.id}`);
+              navigate(`/return-checkin?tripId=${trip.id}`);
+            }}
+            onReconciliation={(trip) => {
+              setSelectedTripForSettle(trip);
+              setShowSettleModal(true);
             }}
             onCancelTrip={(trip) => {
               setSelectedTripToCancel(trip);
@@ -844,7 +938,6 @@ export default function RouteDispatch() {
         trips={trips}
         vehicles={vehicles}
         drivers={drivers}
-        activeDutyDriverIds={activeDutyDriverIds}
         zones={zones}
         products={products}
         salesUsers={salesUsers}
@@ -882,6 +975,35 @@ export default function RouteDispatch() {
           setSelectedScheduleToCancel(null);
         }}
         onCancelSchedule={handleCancelSchedule}
+      />
+
+      {/* Yard Gate Return & End Trip Modal */}
+      <EndTripModal
+        isOpen={showEndTripModal}
+        onClose={() => {
+          setShowEndTripModal(false);
+          setSelectedTripToEnd(null);
+        }}
+        trip={selectedTripToEnd}
+        onEndTrip={handleEndTrip}
+      />
+
+      {/* Post-Trip Reconciliation Settle Modal */}
+      <SettleTripModal
+        isOpen={showSettleModal}
+        onClose={() => {
+          setShowSettleModal(false);
+          setSelectedTripForSettle(null);
+        }}
+        trip={selectedTripForSettle}
+        onSettleSuccess={(settledRecon) => {
+          showToast(
+            "success",
+            `Trip ${selectedTripForSettle?.tripNumber} reconciliation audit settled and locked.`
+          );
+          setSelectedEntry(null);
+          loadData();
+        }}
       />
     </div>
   );

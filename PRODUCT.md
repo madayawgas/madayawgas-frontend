@@ -7,7 +7,7 @@
 web
 
 ## Users
-- **Logistics Dispatcher / Operations Coordinator (Primary)**: Stationed in the plant dispatch booth/back-office. Responsible for morning truck staging, allocating routes, assigning drivers, loading cargo (canister crates vs cylinders), verifying driver attendance clock-in, monitoring in-progress trips, logging midday reloads, and handling end-of-day trip reconciliation. High-frequency operator where speed, minimal clicks, and keyboard efficiency directly impact departure schedules.
+- **Logistics Dispatcher / Operations Coordinator (Primary)**: Stationed in the plant dispatch booth/back-office. Responsible for morning truck staging, allocating routes, assigning drivers, loading cargo (canister crates vs cylinders), monitoring in-progress trips, logging midday reloads, and handling end-of-day trip reconciliation. High-frequency operator where speed, minimal clicks, and keyboard efficiency directly impact departure schedules.
 - **Plant / Warehouse Supervisor**: Based in the Bunawan LPG refilling plant. Responsible for bulk yard inventory reconciliation (filled units, empty returns, quarantined leakers/defects), supplier intake batches, canister crate conversion, and tracking stock movements against route loads.
 - **Fleet Supervisor / Vehicle Safety Inspector**: Inspects delivery trucks and utility vehicles before departure. Conducts safety checks (brakes, tires, LPG valve seals, fire extinguishers), grounds defective vehicles (`UNDER_MAINTENANCE`), monitors preventive maintenance (5,000 KM threshold), and manages repair work orders with managerial approval gatekeeping (₱5,000 threshold).
 - **System Administrator / Office Manager**: Manages internal user accounts, role-based access control (RBAC), credentials resets, and customer master profiles (commercial, retail, wholesale).
@@ -18,14 +18,14 @@ MadayawGas is the central operational enterprise web application for Madayaw Pet
 ## Positioning
 Unlike generic CRM, ERP, or fleet GPS tracking dashboards, MadayawGas is custom-architected around the physical realities and regulatory constraints of industrial LPG distribution:
 1. **Two-Tier LPG Cargo Modeling**: Explicit differentiation between pressurized cylinders (11kg, 50kg) and 24-unit butane canister crates.
-2. **Safety-First Dispatch Gating**: Hard-blocks vehicle departure if the assigned driver is off-duty (attendance API) or if the truck has failed safety inspection / exceeded PM odometer limits.
+2. **Safety-First Dispatch Gating**: Hard-blocks vehicle departure if the truck has failed safety inspection or exceeded PM odometer limits.
 3. **Bunawan Yard Bulk Stock Integration**: Directly connects truck dispatch staging, midday delivery reloads, and end-of-trip returns to plant warehouse inventory balances.
 
 ## Operating Context
 - **Physical Environment**: High-throughput plant dispatch booths, weighbridges, and administrative back-offices located at the Bunawan LPG refilling terminal.
 - **Hardware & Devices**: Dedicated desktop workstations (1080p+ widescreen monitors, standard keyboards, and mice). Minimal mobile interaction; optimized for dense, multi-panel desktop information architecture.
 - **Daily Operational Rhythm**:
-  - *05:30 – 07:30 AM*: High-density staging rush. Dispatchers inspect schedules, verify driver attendance, configure truck loadout crates/cylinders, and dispatch 10–25 delivery runs.
+  - *05:30 – 07:30 AM*: High-density staging rush. Dispatchers inspect schedules, configure truck loadout crates/cylinders, and dispatch 10–25 delivery runs.
   - *Midday (11:00 AM – 02:00 PM)*: Route tracking, midday canister reload requests, emergency alert / SOS handling, and schedule adjustments.
   - *Late Afternoon (04:00 – 06:30 PM)*: Return trip intake, odometer logging, physical cylinder/crate count audits, and Bunawan yard reconciliation.
 - **Regulatory & Safety Context**: Highly regulated hazardous materials handling (Bureau of Fire Protection, Department of Energy, and DOTr standards). Failed safety inspections or missing driver credentials carry strict operational liability.

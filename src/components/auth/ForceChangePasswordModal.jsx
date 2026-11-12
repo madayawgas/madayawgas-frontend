@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { authApi } from "../../api/auth.js";
@@ -75,9 +76,8 @@ export default function ForceChangePasswordModal() {
 
   const activeAccount = userAccount || currentUser;
 
-  return (
+  const modalNode = (
     <div
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
       className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
       role="dialog"
       aria-modal="true"
@@ -286,4 +286,8 @@ export default function ForceChangePasswordModal() {
       </div>
     </div>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(modalNode, document.body)
+    : modalNode;
 }

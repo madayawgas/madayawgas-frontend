@@ -51,7 +51,8 @@ madayawgas-frontend/
 │   │   ├── fleet/              # FleetHeader, TruckCard, TruckModal, DeleteConfirmationModal, etc.
 │   │   ├── history log/        # HistoryTable, ActionTypePill
 │   │   ├── ui/                 # Reusable atomic UI: Badge, Button, Card, FilterDropdown, Input, Modal, SavedChangesToast, SearchBar, Select, ToastNotifications, UnsavedChangesToast
-│   │   └── users/              # UsersHeader, UsersControls, UsersTable, UserModal (Wizard steps 1-4), AdminPasswordModal, DeactivateUserModal, ReactivateUserModal, FilterRole, etc.
+│   │   ├── users/              # UsersHeader, UsersControls, UsersTable, UserModal (Wizard steps 1-4), AdminPasswordModal, DeactivateUserModal, ReactivateUserModal, FilterRole, etc.
+│   │   └── zones/              # ZoneHeader, ZoneControls, ZoneTable, ZoneDetailPanel, ZoneModal, FilterZone, ZoneActiveFilters
 │   ├── context/
 │   │   └── AuthContext.jsx     # Auth state, session bootstrap, can/canAll/canAny permission helpers
 │   ├── pages/
@@ -299,6 +300,17 @@ The MadayawGas backend API transmits all timestamps and dates in **UTC format** 
   - `Ready to Dispatch`: Displays operational trucks scheduled for today (auto-derived from active weekly route schedules and direct runs) that pass all vehicle operational status and driver account checks. Includes `Dispatch Truck` and `Cancel Run` action (`CancelScheduleModal`) which cancels for today only without affecting recurring weekly route templates.
   - `Unavailable Vehicles`: Dedicated section below Ready to Dispatch displaying scheduled vehicles that cannot be dispatched due to operational or account gating (`UNDER_MAINTENANCE`, `INACTIVE`, `RETIRED`, safety inspection grounding, or suspended/inactive drivers via `getScheduleDispatchGating`). Shows prominent status tags, an inline constraint explanation banner, removes the dispatch option ("Dispatch locked"), and retains `Cancel Run` for today.
   - `Return Check-In & Stock Reconciliation`: Return odometer logging, empty cylinder/canister intake, settlement audit, and graceful display of cancelled trip records.
+
+### 5.1 Service Delivery Zones (`/settings/zones`, `/service-zones`)
+- **Contract**: `docs/api-contracts/schedules/schedules.api.md`
+- **Fields**: `id` (UUID), `code` (String, unique uppercase), `name` (String, unique), `description` (Text), `isActive` (Boolean), `createdAt` (TIMESTAMPTZ), `updatedAt` (TIMESTAMPTZ).
+- **Features**:
+  - Top navbar in `Layout.jsx` serves as the sole source of page title (zero duplicate inner headers).
+  - Sticky top header with live metric summary pills (`Registered Zones`, `Active`, `Inactive`), circular refresh button, and yellow primary CTA button (`+ Add Service Zone`).
+  - Controls bar with standardized `SearchBar` (`h-[30px] rounded-full`), popover `FilterZone` dropdown with status and Philippine date range filters, and active filter chips with individual dismiss buttons.
+  - Master table in `border-[#0A4B6E]/30 rounded-2xl` container with sticky `#0D4B6E` header, sortable columns (`code`, `name`, `createdAt`), code pills, Philippine dates (`formatPhilippineDateShort`), standard status badges (`variant="success"` for ACTIVE, `variant="deactivated"` for INACTIVE), and pinned standard `Pagination`.
+  - Slide-over inspection drawer (`SideDrawer` with `ZoneDetailPanel`) showing territory coverage, dispatch operational eligibility, timestamps, and quick Edit / Toggle status actions.
+  - Create/Edit wizard modal (`ZoneModal`) with code immutability for existing zones, form validation, and responsive action controls.
 
 ### 6. History Log (`/history-log`)
 - **Contract**: `docs/API Contract/history-log.api.md`

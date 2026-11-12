@@ -39,7 +39,6 @@ export default function DispatchModal({
   trips = [],
   vehicles = [],
   drivers = [],
-  activeDutyDriverIds = new Set(),
   zones = [],
   products = [],
   salesUsers = [],
@@ -134,15 +133,6 @@ export default function DispatchModal({
     }
   }, [scheduledOptions, isAdHoc, initialScheduleId, selectedScheduleId]);
 
-  const isDriverOnDuty = (id) => {
-    if (!id || !activeDutyDriverIds) return false;
-    return activeDutyDriverIds instanceof Set
-      ? activeDutyDriverIds.has(id)
-      : Array.isArray(activeDutyDriverIds)
-      ? activeDutyDriverIds.includes(id)
-      : false;
-  };
-
   const selectedSchedule = useMemo(() => {
     if (isAdHoc) return null;
     return scheduledOptions.find((s) => s.id === selectedScheduleId) || null;
@@ -177,9 +167,6 @@ export default function DispatchModal({
     if (!resolvedDriverId) return null;
     return drivers.find((d) => d.id === resolvedDriverId || d.userId === resolvedDriverId) || null;
   }, [resolvedDriverId, drivers]);
-
-  const isResolvedDriverOnDuty = Boolean(resolvedDriverId && isDriverOnDuty(resolvedDriverId));
-  const isResolvedDriverOffDuty = Boolean(resolvedDriverId && !isResolvedDriverOnDuty);
 
   const resolvedSalesUserId = useMemo(() => {
     if (isAdHoc) return salesUserId || null;
@@ -380,13 +367,6 @@ export default function DispatchModal({
           throw new Error("A driver must be assigned to dispatch this vehicle");
         }
 
-        if (!isResolvedDriverOnDuty) {
-          const dName = selDriver?.fullName || selDriver?.username || "Assigned Driver";
-          throw new Error(
-            `Driver '${dName}' has not clocked in yet. Please reassign to an on-duty driver.`
-          );
-        }
-
         if (!resolvedSalesUserId) {
           throw new Error("Please select an assigned sales personnel");
         }
@@ -442,10 +422,6 @@ export default function DispatchModal({
           );
         }
         if (!resolvedDriverId) throw new Error("Please select a driver");
-        if (!isResolvedDriverOnDuty) {
-          const dName = resolvedDriver?.fullName || resolvedDriver?.username || "Driver";
-          throw new Error(`Driver '${dName}' has not clocked in yet. Please select an on-duty driver.`);
-        }
 
         const selTruck = vehicles.find((v) => v.id === truckId);
         const selDriver = resolvedDriver;
@@ -487,8 +463,7 @@ export default function DispatchModal({
     isSubmitting ||
     hasOverAllocatedItems ||
     !resolvedSalesUserId ||
-    isSalesUserBusy ||
-    (!isAdHoc && isResolvedDriverOffDuty);
+    isSalesUserBusy;
 
   const modalNode = (
     <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in font-sans">
@@ -600,7 +575,7 @@ export default function DispatchModal({
                     </span>
                   </div>
 
-                  {/* Driver Row with Duty Status */}
+                  {/* Driver Row */}
                   <div className="flex items-center justify-between pt-1 border-t border-slate-200 text-xs">
                     <div className="flex items-center gap-1.5">
                       <User size={13} className="text-[#3E5C76]" />
@@ -609,47 +584,7 @@ export default function DispatchModal({
                         {resolvedDriver?.fullName || selectedSchedule.driverName || "Juan Driver"}
                       </strong>
                     </div>
-
-                    <span
-                      className={`text-[11px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                        isResolvedDriverOnDuty
-                          ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                          : "bg-amber-50 text-amber-900 border border-amber-300"
-                      }`}
-                    >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${
-                          isResolvedDriverOnDuty ? "bg-emerald-600" : "bg-amber-600"
-                        }`}
-                      />
-                      <span>{isResolvedDriverOnDuty ? "Clocked In" : "Off Duty"}</span>
-                    </span>
                   </div>
-
-                  {/* If driver is off-duty, offer simple 1-click substitute selector */}
-                  {isResolvedDriverOffDuty && (
-                    <div className="pt-2 border-t border-amber-200/80 space-y-1">
-                      <label className="block text-[11px] font-bold text-amber-900 flex items-center gap-1">
-                        <AlertCircle size={12} className="text-amber-700" />
-                        <span>Driver is not clocked in yet. Reassign on-duty driver:</span>
-                      </label>
-                      <select
-                        value={driverId}
-                        onChange={(e) => setDriverId(e.target.value)}
-                        className="w-full bg-white border border-amber-300 rounded-lg p-2 text-xs text-slate-800 focus:outline-[#0A4B6E]"
-                      >
-                        <option value="">Select replacement driver...</option>
-                        {drivers.map((d) => {
-                          const onDuty = isDriverOnDuty(d.id);
-                          return (
-                            <option key={d.id} value={d.id}>
-                              {d.fullName || `${d.firstName || ""} ${d.lastName || ""}`.trim() || d.username} {onDuty ? "(On Duty)" : "(Off Duty)"}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </div>
-                  )}
 
                   {/* Sales Person Row & Assignment */}
                   {!resolvedSalesUserId ? (
@@ -820,7 +755,7 @@ export default function DispatchModal({
                   <option value="">Select driver...</option>
                   {drivers.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.fullName || d.username} {isDriverOnDuty(d.id) ? "(On Duty)" : "(Off Duty)"}
+                      {d.fullName || d.username}
                     </option>
                   ))}
                 </select>

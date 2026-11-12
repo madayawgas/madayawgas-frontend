@@ -11,6 +11,5 @@ export * from "./schedules.js";
 export * from "./trips.js";
 export * from "./media.js";
 export * from "./alerts.js";
-export * from "./attendance.js";
 export * from "./fuel.js";
 export * from "./apprehensions.js";

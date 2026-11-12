@@ -81,11 +81,18 @@ export default function UserDetailPanel({
               <span>Assigned Roles</span>
             </span>
             <div className="flex flex-wrap gap-1 justify-end">
-              {userRoles.map((role) => (
-                <Badge key={role} variant="roles" className="px-2 py-0.5 text-[10px]">
-                  {role}
-                </Badge>
-              ))}
+              {userRoles.map((role) => {
+                const isPrimary = user.role && role.toLowerCase() === user.role.toLowerCase();
+                return (
+                  <Badge
+                    key={role}
+                    variant={isPrimary && userRoles.length > 1 ? "info" : "roles"}
+                    className="px-2 py-0.5 text-[10px]"
+                  >
+                    {role}{isPrimary && userRoles.length > 1 ? " (Primary)" : ""}
+                  </Badge>
+                );
+              })}
             </div>
           </div>
 

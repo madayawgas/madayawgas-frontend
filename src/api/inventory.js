@@ -221,6 +221,36 @@ export const inventoryApi = {
   },
 
   /**
+   * Adjust plant inventory discrete balances (Physical Count Audit, Stock Correction, Scrap Write-off).
+   * Consumes POST /api/inventory/plant/adjust
+   * @param {object} payload - { productId, adjustmentType, targetCondition, deltaQuantity, newQuantity, sourceCondition, supplierInvoiceNumber, reason }
+   */
+  async adjustPlantStock(payload) {
+    const res = await apiClient(`/inventory/plant/adjust`, {
+      method: "POST",
+      body: payload,
+    });
+    return res.data;
+  },
+
+  /**
+   * Retrieve plant stock adjustments audit log.
+   * Consumes GET /api/inventory/plant/adjustments
+   * @param {object} [params] - { productId, adjustmentType, targetCondition, page, limit }
+   */
+  async getPlantAdjustments(params = {}) {
+    const query = new URLSearchParams();
+    if (params.productId) query.append("productId", params.productId);
+    if (params.adjustmentType) query.append("adjustmentType", params.adjustmentType);
+    if (params.targetCondition) query.append("targetCondition", params.targetCondition);
+    if (params.limit) query.append("limit", params.limit);
+    if (params.page) query.append("page", params.page);
+    const qs = query.toString() ? `?${query.toString()}` : "";
+    const res = await apiClient(`/inventory/plant/adjustments${qs}`);
+    return res?.data?.adjustments || (Array.isArray(res?.data) ? res.data : []);
+  },
+
+  /**
    * Calculate suggested equal truck loading split.
    */
   async getSuggestedSplit(productId, activeTripCount = 3) {

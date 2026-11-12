@@ -1,202 +1,264 @@
 // src/pages/ServiceZones/ServiceZones.jsx
-import { useState, useEffect, useMemo, useCallback, useId } from "react";
-import {
-  MapPin,
-  Plus,
-  Search,
-  RefreshCw,
-  Edit2,
-  CheckCircle2,
-  X,
-  AlertCircle,
-  ToggleLeft,
-  ToggleRight,
-  Eye,
-  Info,
-} from "lucide-react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { MapPin } from "lucide-react";
 import { schedulesApi } from "../../api/schedules.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
+import { isPhilippineDateInRange } from "../../utils/date.js";
 import ToastNotification from "../../components/ui/ToastNotifications.jsx";
-import Pagination from "../../components/ui/Pagination.jsx";
 import SideDrawer from "../../components/ui/SideDrawer.jsx";
 import Badge from "../../components/ui/Badge.jsx";
-import Button from "../../components/ui/Button.jsx";
+
+// Modular Zone Components
+import ZoneHeader from "../../components/zones/ZoneHeader.jsx";
+import ZoneControls from "../../components/zones/ZoneControls.jsx";
+import ZoneTable from "../../components/zones/ZoneTable.jsx";
+import ZoneDetailPanel from "../../components/zones/ZoneDetailPanel.jsx";
+import ZoneModal from "../../components/zones/ZoneModal.jsx";
 
 export default function ServiceZones() {
-  const searchInputId = useId();
-  const zoneCodeInputId = useId();
-  const zoneNameInputId = useId();
-  const zoneDescriptionInputId = useId();
   const { can } = useAuth();
   const canManage = can
     ? can(PERMISSIONS?.ROUTE_MANAGE || "route.manage")
     : true;
 
+  // Data & Loading States
   const [zones, setZones] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
 
-  // Pagination state
+  // Search & Filter States
+  const [searchTerm, setSearchTerm] = useState("");
+  const [committedSearch, setCommittedSearch] = useState("");
+  const [activeFilters, setActiveFilters] = useState({
+    status: "ALL",
+    dateFrom: "",
+    dateTo: "",
+  });
+
+  // Sorting State
+  const [sortConfig, setSortConfig] = useState({
+    key: "code",
+    direction: "asc",
+  });
+
+  // Pagination State
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  // SideDrawer selected zone
+  // SideDrawer Inspection State
   const [selectedZone, setSelectedZone] = useState(null);
 
-  // Modal states
+  // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingZone, setEditingZone] = useState(null); // null = creating
-  const [formData, setFormData] = useState({
-    code: "",
-    name: "",
-    description: "",
-    isActive: true,
-  });
-  const [formError, setFormError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Toast state
+  // Toast Notification State
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
   const showToastMessage = useCallback((message, type = "success") => {
     setToast({ show: true, message, type });
   }, []);
 
+  // Fetch Service Delivery Zones
   const fetchZones = useCallback(async () => {
     try {
       setIsLoading(true);
       const res = await schedulesApi.getZones();
-      setZones(Array.isArray(res) ? res : []);
+      const list = Array.isArray(res) ? res : [];
+      setZones(list);
+
+      // Keep selectedZone in sync if already selected
+      if (selectedZone) {
+        const updatedSelected = list.find((z) => z.id === selectedZone.id);
+        if (updatedSelected) {
+          setSelectedZone(updatedSelected);
+        }
+      }
     } catch (err) {
       console.error("Failed to fetch zones:", err);
+      showToastMessage(err?.message || "Failed to load service zones.", "error");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [selectedZone, showToastMessage]);
 
   useEffect(() => {
     fetchZones();
-  }, [fetchZones]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Filtered zones
+  // Compute Live Metrics Summary for Header Pills
+  const summary = useMemo(() => {
+    const total = zones.length;
+    let active = 0;
+    let inactive = 0;
+
+    for (const z of zones) {
+      if (z.isActive) {
+        active++;
+      } else {
+        inactive++;
+      }
+    }
+
+    return { total, active, inactive };
+  }, [zones]);
+
+  // Filtered & Sorted Zones List
   const filteredZones = useMemo(() => {
-    return zones.filter((z) => {
-      if (statusFilter === "ACTIVE" && !z.isActive) return false;
-      if (statusFilter === "INACTIVE" && z.isActive) return false;
-      if (searchTerm.trim()) {
-        const q = searchTerm.toLowerCase();
-        const matchCode = (z.code || "").toLowerCase().includes(q);
-        const matchName = (z.name || "").toLowerCase().includes(q);
-        const matchDesc = (z.description || "").toLowerCase().includes(q);
+    let result = zones.filter((z) => {
+      // Status Filter
+      if (activeFilters.status === "ACTIVE" && !z.isActive) return false;
+      if (activeFilters.status === "INACTIVE" && z.isActive) return false;
+
+      // Date Range Filter (Philippine Time)
+      if (activeFilters.dateFrom || activeFilters.dateTo) {
+        if (!isPhilippineDateInRange(z.createdAt, activeFilters.dateFrom, activeFilters.dateTo)) {
+          return false;
+        }
+      }
+
+      // Search Query Match (Code, Name, or Description)
+      const query = committedSearch.trim().toLowerCase();
+      if (query) {
+        const matchCode = (z.code || "").toLowerCase().includes(query);
+        const matchName = (z.name || "").toLowerCase().includes(query);
+        const matchDesc = (z.description || "").toLowerCase().includes(query);
         if (!matchCode && !matchName && !matchDesc) return false;
       }
+
       return true;
     });
-  }, [zones, statusFilter, searchTerm]);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [searchTerm, statusFilter]);
+    // Sorting
+    result.sort((a, b) => {
+      let valA = a[sortConfig.key] || "";
+      let valB = b[sortConfig.key] || "";
 
-  // Paginated slice
+      if (sortConfig.key === "createdAt") {
+        const timeA = new Date(valA).getTime() || 0;
+        const timeB = new Date(valB).getTime() || 0;
+        return sortConfig.direction === "asc" ? timeA - timeB : timeB - timeA;
+      }
+
+      const cmp = String(valA).localeCompare(String(valB), undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
+
+      return sortConfig.direction === "asc" ? cmp : -cmp;
+    });
+
+    return result;
+  }, [zones, activeFilters, committedSearch, sortConfig]);
+
+  // Total pages based on filtered set
+  const totalPages = Math.ceil(filteredZones.length / limit) || 1;
+
+  // Paginated Slice
   const paginatedZones = useMemo(() => {
     const start = (page - 1) * limit;
     return filteredZones.slice(start, start + limit);
   }, [filteredZones, page, limit]);
 
-  const totalPages = Math.ceil(filteredZones.length / limit) || 1;
+  // Search Handlers
+  const handleSearchSubmit = (query) => {
+    setCommittedSearch(query);
+    setSearchTerm(query);
+    setPage(1);
+  };
 
-  // Open Create
+  const handleClearSearch = () => {
+    setCommittedSearch("");
+    setSearchTerm("");
+    setPage(1);
+  };
+
+  // Filter Handlers
+  const handleApplyFilters = (newFilters) => {
+    setActiveFilters(newFilters);
+    setPage(1);
+  };
+
+  const handleClearStatus = () => {
+    setActiveFilters((prev) => ({ ...prev, status: "ALL" }));
+    setPage(1);
+  };
+
+  const handleClearDate = () => {
+    setActiveFilters((prev) => ({ ...prev, dateFrom: "", dateTo: "" }));
+    setPage(1);
+  };
+
+  // Sort Handler
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return {
+          key,
+          direction: prev.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  // Open Create Modal
   const handleOpenCreate = () => {
     setEditingZone(null);
-    setFormData({
-      code: "",
-      name: "",
-      description: "",
-      isActive: true,
-    });
-    setFormError("");
     setIsModalOpen(true);
   };
 
-  // Open Edit
+  // Open Edit Modal
   const handleOpenEdit = (zone) => {
     setEditingZone(zone);
-    setFormData({
-      code: zone.code || "",
-      name: zone.name || "",
-      description: zone.description || "",
-      isActive: zone.isActive !== false,
-    });
-    setFormError("");
     setIsModalOpen(true);
   };
 
-  // Save Zone
-  const handleSaveZone = async (e) => {
-    e.preventDefault();
-    if (!formData.name.trim()) {
-      setFormError("Zone name is required.");
-      return;
-    }
-    if (!editingZone && !formData.code.trim()) {
-      setFormError("Zone code is required.");
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      setFormError("");
-
-      if (editingZone) {
-        await schedulesApi.updateZone(editingZone.id, {
-          name: formData.name.trim(),
-          description: formData.description?.trim() || null,
-          isActive: formData.isActive,
-        });
-        showToastMessage("Service zone updated successfully.");
-        if (selectedZone?.id === editingZone.id) {
-          setSelectedZone((prev) => ({
-            ...prev,
-            name: formData.name.trim(),
-            description: formData.description?.trim() || null,
-            isActive: formData.isActive,
-          }));
-        }
-      } else {
-        await schedulesApi.createZone({
-          code: formData.code.toUpperCase().trim(),
-          name: formData.name.trim(),
-          description: formData.description?.trim() || null,
-          isActive: formData.isActive,
-        });
-        showToastMessage("New service zone created successfully.");
+  // Save Zone (Create or Update)
+  const handleSaveZone = async (payload) => {
+    if (editingZone) {
+      await schedulesApi.updateZone(editingZone.id, {
+        name: payload.name,
+        description: payload.description,
+        isActive: payload.isActive,
+      });
+      showToastMessage(`Service zone "${payload.name}" updated successfully.`);
+      if (selectedZone?.id === editingZone.id) {
+        setSelectedZone((prev) => ({
+          ...prev,
+          name: payload.name,
+          description: payload.description,
+          isActive: payload.isActive,
+        }));
       }
-
-      setIsModalOpen(false);
-      await fetchZones();
-    } catch (err) {
-      setFormError(err?.message || "Failed to save service zone.");
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      await schedulesApi.createZone({
+        code: payload.code,
+        name: payload.name,
+        description: payload.description,
+        isActive: payload.isActive,
+      });
+      showToastMessage(`New service zone "${payload.code}" created successfully.`);
     }
+
+    setIsModalOpen(false);
+    await fetchZones();
   };
 
-  // Toggle active status directly
+  // Toggle Active / Deactivate Status
   const handleToggleActive = async (zone) => {
     if (!canManage) return;
     try {
+      const nextActive = !zone.isActive;
       await schedulesApi.updateZone(zone.id, {
-        isActive: !zone.isActive,
+        isActive: nextActive,
       });
       showToastMessage(
-        `Zone ${zone.code} ${!zone.isActive ? "activated" : "deactivated"}.`
+        `Zone ${zone.code} ${nextActive ? "activated" : "deactivated"} successfully.`
       );
       if (selectedZone?.id === zone.id) {
-        setSelectedZone((prev) => ({ ...prev, isActive: !zone.isActive }));
+        setSelectedZone((prev) => ({ ...prev, isActive: nextActive }));
       }
       await fetchZones();
     } catch (err) {
@@ -205,447 +267,109 @@ export default function ServiceZones() {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-[#F8FAFC]">
-      {/* Header Banner */}
-      <header className="shrink-0 bg-white border-b border-[#E2E8F0] px-6 py-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xl">📍</span>
-              <h1 className="text-xl font-bold text-[#0A4B6E]">Service Delivery Zones</h1>
-            </div>
-            <p className="text-xs text-[#6D8AA2] mt-0.5">
-              Manage geographic route delivery districts and territory coverage
-            </p>
-          </div>
+    <div className="h-full flex flex-col overflow-hidden min-w-0">
+      {/* 1. Standard Header with Live Metric Summary Pills (Pinned at Top) */}
+      <div className="shrink-0">
+        <ZoneHeader
+          summary={summary}
+          isLoading={isLoading}
+          canManage={canManage}
+          onRefresh={fetchZones}
+          onAddZone={handleOpenCreate}
+        />
+      </div>
 
-          <div className="flex items-center gap-2">
-            {canManage && (
-              <button
-                type="button"
-                onClick={handleOpenCreate}
-                className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-[#FFDF2C] text-[#0A4B6E] hover:bg-[#ebd024] shadow-xs transition-all cursor-pointer uppercase tracking-wider text-[11px]"
-              >
-                <Plus size={14} />
-                <span>Add Zone</span>
-              </button>
-            )}
+      {/* 2. Standard Search & Filter Controls (Pinned at Top) */}
+      <div className="shrink-0">
+        <ZoneControls
+          searchTerm={searchTerm}
+          onSearchChange={(e) => {
+            setSearchTerm(e.target.value);
+            // Reactive search if user clears input completely
+            if (!e.target.value) {
+              setCommittedSearch("");
+              setPage(1);
+            }
+          }}
+          onSearch={handleSearchSubmit}
+          onClearSearch={handleClearSearch}
+          activeFilters={activeFilters}
+          onApplyFilters={handleApplyFilters}
+          onClearStatus={handleClearStatus}
+          onClearDate={handleClearDate}
+        />
+      </div>
 
-            <button
-              type="button"
-              onClick={fetchZones}
-              disabled={isLoading}
-              title="Refresh service zones"
-              className="p-2 text-[#6D8AA2] hover:text-[#0A4B6E] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-            >
-              <RefreshCw size={15} className={isLoading ? "animate-spin" : ""} />
-            </button>
-          </div>
-        </div>
-
-        {/* Filter Controls Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 pt-3 border-t border-[#F1F5F9]">
-          <div className="flex items-center bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg p-0.5 text-xs">
-            {["ALL", "ACTIVE", "INACTIVE"].map((st) => (
-              <button
-                key={st}
-                type="button"
-                onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                  statusFilter === st
-                    ? "bg-white text-[#0A4B6E] shadow-2xs font-bold"
-                    : "text-[#6D8AA2] hover:text-[#0A4B6E]"
-                }`}
-              >
-                {st === "ALL" ? "All" : st === "ACTIVE" ? "Active" : "Inactive"}
-              </button>
-            ))}
-          </div>
-
-          <div className="relative sm:w-64">
-            <label htmlFor={searchInputId} className="sr-only">Search zones by code, name, or description</label>
-            <input
-              id={searchInputId}
-              type="text"
-              placeholder="Search zones..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-7 py-1.5 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg text-[#0A4B6E] placeholder-[#6D8AA2]/70 focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white transition-all"
-            />
-            <Search
-              size={13}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6D8AA2]"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
-              >
-                ×
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Main Table */}
-      <main className="flex-1 min-h-0 overflow-hidden flex flex-col p-6">
-        <div className="flex-1 min-h-0 bg-white border border-[#CBD5E1] rounded-2xl flex flex-col overflow-hidden shadow-2xs">
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left text-xs border-collapse min-w-[700px]">
-              <thead className="sticky top-0 bg-[#0D4B6E] text-white text-xs md:text-sm z-10 shadow-xs select-none">
-                <tr>
-                  <th className="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Zone Code</th>
-                  <th className="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Zone Name</th>
-                  <th className="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Description / Coverage</th>
-                  <th className="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap text-center">Status</th>
-                  <th className="py-3.5 px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#F1F5F9] text-[#0A4B6E] text-xs md:text-sm">
-                {isLoading && zones.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-16 text-center text-[#6D8AA2]">
-                      <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-[#0A4B6E]" />
-                      Loading service delivery zones...
-                    </td>
-                  </tr>
-                ) : paginatedZones.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-16 text-center text-[#6D8AA2]">
-                      <MapPin size={24} className="mx-auto mb-2 text-[#CBD5E1]" />
-                      <p className="font-semibold text-[#0A4B6E]">No Service Zones Found</p>
-                      <p className="text-[11px] mt-0.5">
-                        {searchTerm
-                          ? "No zones match your search query."
-                          : "No delivery zones defined yet."}
-                      </p>
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedZones.map((z) => {
-                    const isSelected = selectedZone?.id === z.id;
-                    return (
-                      <tr
-                        key={z.id}
-                        onClick={() => setSelectedZone(z)}
-                        className={`transition-colors cursor-pointer ${
-                          isSelected
-                            ? "bg-[#E2EDF3] hover:bg-[#E2EDF3]"
-                            : "hover:bg-[#F8FAFC]"
-                        }`}
-                      >
-                        {/* Code */}
-                        <td className="py-3 px-4 font-bold text-[#0A4B6E]">
-                          <span className="font-mono bg-[#E8F3F8] px-2.5 py-1 rounded text-xs text-[#0A4B6E] font-bold">
-                            {z.code}
-                          </span>
-                        </td>
-
-                        {/* Name */}
-                        <td className="py-3 px-4 font-semibold text-[#0A4B6E]">
-                          {z.name}
-                        </td>
-
-                        {/* Description */}
-                        <td className="py-3 px-4 text-[#6D8AA2]">
-                          {z.description || "—"}
-                        </td>
-
-                        {/* Status */}
-                        <td className="py-3 px-4 text-center">
-                          <Badge variant={z.isActive ? "active" : "deactivated"}>
-                            {z.isActive ? "Active" : "Inactive"}
-                          </Badge>
-                        </td>
-
-                        {/* Actions */}
-                        <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedZone(z)}
-                              title="Inspect zone"
-                              className="p-1.5 text-[#0A4B6E] hover:bg-[#E8F3F8] rounded-md transition-colors cursor-pointer"
-                            >
-                              <Eye size={14} />
-                            </button>
-
-                            {canManage && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEdit(z)}
-                                  title="Edit zone"
-                                  className="p-1.5 text-[#0A4B6E] hover:bg-[#E8F3F8] rounded-md transition-colors cursor-pointer"
-                                >
-                                  <Edit2 size={13} />
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleActive(z)}
-                                  title={z.isActive ? "Deactivate zone" : "Activate zone"}
-                                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                                    z.isActive
-                                      ? "text-slate-400 hover:text-[#C93B32] hover:bg-rose-50"
-                                      : "text-emerald-700 hover:bg-emerald-50"
-                                  }`}
-                                >
-                                  {z.isActive ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Standard Pagination Footer */}
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            totalItems={filteredZones.length}
-            limit={limit}
-            onPageChange={setPage}
-            onLimitChange={(newLimit) => {
+      {/* 3. Main Master Table Area with Independent SlideDrawer Inspection */}
+      <div className="flex-1 min-h-0 w-full h-full flex flex-col overflow-hidden">
+        <ZoneTable
+          zones={paginatedZones}
+          selectedZone={selectedZone}
+          onSelectZone={setSelectedZone}
+          sortConfig={sortConfig}
+          onSort={handleSort}
+          pagination={{
+            page,
+            limit,
+            totalItems: filteredZones.length,
+            totalPages,
+            onPageChange: setPage,
+            onLimitChange: (newLimit) => {
               setLimit(newLimit);
               setPage(1);
-            }}
-            itemLabel="delivery zones"
-          />
-        </div>
-      </main>
+            },
+            isLoading,
+          }}
+          onEdit={handleOpenEdit}
+          onToggleActive={handleToggleActive}
+          canManage={canManage}
+          isLoading={isLoading}
+          searchTerm={committedSearch}
+        />
 
-      {/* SideDrawer for Zone Inspection */}
-      <SideDrawer
-        isOpen={Boolean(selectedZone)}
-        onClose={() => setSelectedZone(null)}
-        title={selectedZone ? `${selectedZone.code}: ${selectedZone.name}` : "Service Zone"}
-        subtitle="Geographic Delivery Zone"
-        icon={MapPin}
-        footer={
-          <div className="flex items-center justify-between w-full">
-            {canManage && selectedZone && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleOpenEdit(selectedZone)}
-                >
-                  <Edit2 size={13} className="mr-1" />
-                  Edit
-                </Button>
-                <Button
-                  variant={selectedZone.isActive ? "destructive" : "secondary"}
-                  size="sm"
-                  onClick={() => handleToggleActive(selectedZone)}
-                >
-                  {selectedZone.isActive ? (
-                    <>
-                      <ToggleRight size={13} className="mr-1" />
-                      Deactivate
-                    </>
-                  ) : (
-                    <>
-                      <ToggleLeft size={13} className="mr-1" />
-                      Activate
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => setSelectedZone(null)}
-              className="ml-auto px-5 py-2 text-xs font-bold text-[#0A4B6E] bg-[#FFDF2C] hover:bg-[#ebd024] rounded-lg cursor-pointer transition-colors"
-            >
-              Close
-            </button>
-          </div>
-        }
-      >
-        {selectedZone && (
-          <div className="space-y-5 text-xs text-[#0A4B6E]">
-            {/* Header info badge */}
-            <div className="bg-[#E8F3F8] rounded-xl p-4 border border-[#0A4B6E]/15 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-white text-[#0A4B6E] flex items-center justify-center font-mono font-bold text-sm shadow-xs">
-                  {selectedZone.code?.slice(0, 3)}
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-[#0A4B6E]">
-                    {selectedZone.name}
-                  </h3>
-                  <p className="font-mono text-[11px] text-[#6D8AA2]">
-                    Code: {selectedZone.code}
-                  </p>
-                </div>
-              </div>
-              <Badge variant={selectedZone.isActive ? "active" : "deactivated"}>
-                {selectedZone.isActive ? "Active" : "Inactive"}
-              </Badge>
-            </div>
-
-            {/* Description / Coverage Area */}
-            <div className="bg-white border border-[#CBD5E1] rounded-xl p-4 space-y-2">
-              <h4 className="font-bold text-[11px] uppercase tracking-wider text-[#6D8AA2]">
-                Territory Coverage & Notes
-              </h4>
-              <p className="text-xs text-[#0A4B6E] leading-relaxed bg-[#F8FAFC] p-3 rounded-lg border border-slate-100">
-                {selectedZone.description || "No specific territory description provided."}
-              </p>
-            </div>
-
-            {/* Operations Summary */}
-            <div className="bg-white border border-[#CBD5E1] rounded-xl p-4 space-y-3">
-              <h4 className="font-bold text-[11px] uppercase tracking-wider text-[#6D8AA2]">
-                Operational Dispatch Status
-              </h4>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="p-2.5 rounded-lg bg-[#F8FAFC] border border-slate-100">
-                  <span className="text-[11px] text-[#6D8AA2] block">Dispatch Eligibility</span>
-                  <span className="font-semibold text-[#0A4B6E]">
-                    {selectedZone.isActive ? "Available for Trips" : "Gated (Inactive)"}
-                  </span>
-                </div>
-                <div className="p-2.5 rounded-lg bg-[#F8FAFC] border border-slate-100">
-                  <span className="text-[11px] text-[#6D8AA2] block">Zone Type</span>
-                  <span className="font-semibold text-[#0A4B6E]">
-                    Standard Route
-                  </span>
-                </div>
-                <div className="p-2.5 rounded-lg bg-[#F8FAFC] border border-slate-100 col-span-2">
-                  <span className="text-[11px] text-[#6D8AA2] block">Zone ID</span>
-                  <span className="font-mono text-[10px] text-slate-500 break-all">
-                    {selectedZone.id}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </SideDrawer>
-
-      {/* Add / Edit Zone Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-[#CBD5E1] max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-in">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-[#E8F3F8] text-[#0A4B6E]">
-                  <MapPin size={16} />
-                </div>
-                <h2 className="text-sm font-bold text-[#0A4B6E]">
-                  {editingZone ? `Edit Zone: ${editingZone.code}` : "Add Service Zone"}
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+        {/* Slide-Over Inspection Drawer */}
+        <SideDrawer
+          isOpen={Boolean(selectedZone)}
+          onClose={() => setSelectedZone(null)}
+          title={selectedZone ? `${selectedZone.code}: ${selectedZone.name}` : "Service Zone"}
+          subtitle="Geographic Delivery Zone"
+          icon={MapPin}
+          badge={
+            selectedZone && (
+              <Badge
+                variant={selectedZone.isActive ? "success" : "deactivated"}
+                className="px-2.5 py-0.5 text-[10px] font-bold"
               >
-                <X size={16} />
-              </button>
-            </div>
+                {selectedZone.isActive ? "ACTIVE" : "INACTIVE"}
+              </Badge>
+            )
+          }
+          width="max-w-md sm:max-w-lg"
+        >
+          {selectedZone && (
+            <ZoneDetailPanel
+              zone={selectedZone}
+              onClose={() => setSelectedZone(null)}
+              onEdit={(z) => {
+                setSelectedZone(null);
+                handleOpenEdit(z);
+              }}
+              onToggleActive={handleToggleActive}
+              canManage={canManage}
+            />
+          )}
+        </SideDrawer>
+      </div>
 
-            {formError && (
-              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-[#C93B32] flex items-center gap-2">
-                <AlertCircle size={14} className="shrink-0" />
-                <span>{formError}</span>
-              </div>
-            )}
+      {/* 4. Add / Edit Service Zone Modal */}
+      <ZoneModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveZone}
+        zone={editingZone}
+      />
 
-            <form onSubmit={handleSaveZone} className="space-y-3.5 text-xs">
-              <div>
-                <label htmlFor={zoneCodeInputId} className="block font-semibold text-[#0A4B6E] mb-1">
-                  Zone Code <span className="text-[#C93B32]">*</span>
-                </label>
-                <input
-                  id={zoneCodeInputId}
-                  type="text"
-                  placeholder="e.g. ZN-DVO-01"
-                  value={formData.code}
-                  onChange={(e) =>
-                    setFormData({ ...formData, code: e.target.value.toUpperCase() })
-                  }
-                  disabled={Boolean(editingZone)}
-                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg p-2.5 text-xs text-[#0A4B6E] font-mono focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white disabled:opacity-60"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor={zoneNameInputId} className="block font-semibold text-[#0A4B6E] mb-1">
-                  Zone Name <span className="text-[#C93B32]">*</span>
-                </label>
-                <input
-                  id={zoneNameInputId}
-                  type="text"
-                  placeholder="e.g. Davao Central District"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg p-2.5 text-xs text-[#0A4B6E] focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor={zoneDescriptionInputId} className="block font-semibold text-[#0A4B6E] mb-1">
-                  Description / Coverage
-                </label>
-                <textarea
-                  id={zoneDescriptionInputId}
-                  rows={3}
-                  placeholder="e.g. Downtown commercial clients and restaurants"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg p-2.5 text-xs text-[#0A4B6E] focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white"
-                />
-              </div>
-
-              <div className="pt-1 flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="isActiveZone"
-                  checked={formData.isActive}
-                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                  className="rounded text-[#0A4B6E] focus:ring-[#0A4B6E]"
-                />
-                <label htmlFor="isActiveZone" className="text-xs text-[#0A4B6E] font-medium cursor-pointer">
-                  Zone is active for trip dispatch and route planning
-                </label>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-[#E2E8F0]">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  disabled={isSubmitting}
-                  className="px-4 py-2 text-xs font-semibold text-[#6D8AA2] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2 text-xs font-bold text-[#0A4B6E] bg-[#FFDF2C] hover:bg-[#ebd024] rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  {isSubmitting ? "Saving..." : editingZone ? "Save Changes" : "Create Zone"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Toast Feedback */}
+      {/* 5. Standard Toast Feedback */}
       {toast.show && (
         <ToastNotification
           message={toast.message}

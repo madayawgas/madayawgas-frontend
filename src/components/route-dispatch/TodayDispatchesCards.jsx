@@ -17,6 +17,7 @@ import { formatPhilippineDate, formatPhilippineTime } from "../../utils/date.js"
 export default function TodayDispatchesCards({
   statusTab = "ALL",
   activeTrips = [],
+  returnedTrips = [],
   availableSchedules = [],
   unavailableSchedules = [],
   selectedId,
@@ -24,6 +25,7 @@ export default function TodayDispatchesCards({
   onDispatch,
   onCancelSchedule,
   onMiddayReload,
+  onEndTrip,
   onCheckInReturn,
   onCancelTrip,
   canManage = false,
@@ -31,6 +33,7 @@ export default function TodayDispatchesCards({
   todayPht,
 }) {
   const showOutOnRoad = statusTab === "ALL" || statusTab === "OUT_ON_ROAD";
+  const showReturned = statusTab === "ALL" || statusTab === "RETURNED";
   const showReady = statusTab === "ALL" || statusTab === "READY";
   const showUnavailable = statusTab === "ALL" || statusTab === "UNAVAILABLE";
 
@@ -154,11 +157,142 @@ export default function TodayDispatchesCards({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
+                            onEndTrip && onEndTrip(trip);
+                          }}
+                          className="w-full py-2 px-3 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] rounded-full text-[11px] font-bold uppercase tracking-widest transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 active:scale-95"
+                        >
+                          <span>End Trip</span>
+                          <ArrowRight size={12} strokeWidth={2.5} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SECTION: RETURNED TO YARD (AWAITING CHECK-IN) */}
+      {showReturned && (returnedTrips.length > 0 || statusTab === "RETURNED") && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+              <h3 className="text-sm font-bold text-[#0A4B6E] uppercase tracking-wide">
+                Returned to Yard ({returnedTrips.length})
+              </h3>
+            </div>
+            <span className="text-[11px] text-[#3E5C76]">
+              Gate return logged · Ready for dock stock check-in
+            </span>
+          </div>
+
+          {returnedTrips.length === 0 ? (
+            <div className="bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-2xl p-8 text-center">
+              <Truck size={28} className="mx-auto text-[#3E5C76] mb-2 opacity-50" />
+              <p className="text-xs font-semibold text-[#0A4B6E]">
+                No returned vehicles currently awaiting stock check-in
+              </p>
+              <p className="text-[11px] text-[#3E5C76] mt-0.5">
+                Vehicles arriving back at the gate will appear here after ending trip.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+              {returnedTrips.map((trip) => {
+                const isSelected =
+                  Boolean(selectedId) &&
+                  (selectedId === trip.id || selectedId === trip.truckPlate);
+                const returnFormatted = trip.returnTime
+                  ? formatPhilippineTime(trip.returnTime)
+                  : "Just now";
+                const cargo = getFullCargoBreakdown ? getFullCargoBreakdown(trip) : {};
+
+                return (
+                  <div
+                    key={trip.id}
+                    onClick={() => onSelectEntry && onSelectEntry(trip)}
+                    className={`rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all text-left cursor-pointer border ${
+                      isSelected
+                        ? "border-[#0A4B6E] ring-2 ring-[#0A4B6E]/20 bg-[#F4F9FC]"
+                        : "bg-white border-amber-200 hover:border-amber-400"
+                    }`}
+                  >
+                    <div>
+                      {/* Top: Plate & Zone */}
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-base font-bold text-[#0A4B6E] tracking-tight">
+                              {trip.truckPlate}
+                            </span>
+                            <span className="text-[11px] font-bold text-amber-900 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-full">
+                              RETURNED
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-[#3E5C76] mt-0.5">
+                            <MapPin size={11} className="text-[#0A4B6E]" />
+                            <span>
+                              Zone: <strong className="text-[#0A4B6E]">{trip.zoneCode || trip.zoneName}</strong>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="w-8 h-8 rounded-full bg-amber-100 text-[#0A4B6E] flex items-center justify-center shrink-0 font-bold shadow-2xs">
+                          <Truck size={15} />
+                        </div>
+                      </div>
+
+                      {/* Middle Meta Details */}
+                      <div className="bg-[#FFFBEB] rounded-xl p-2.5 border border-amber-200/80 space-y-1 text-xs mb-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#3E5C76]">Crew:</span>
+                          <span className="font-medium text-slate-800 truncate max-w-[170px] text-right">
+                            {trip.driverName} · {trip.salesName}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#3E5C76] flex items-center gap-1">
+                            <Clock size={11} /> Returned:
+                          </span>
+                          <span className="font-semibold text-slate-700">{returnFormatted}</span>
+                        </div>
+
+                        {trip.returnOdometer && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-[#3E5C76]">Return Odo:</span>
+                            <span className="font-mono font-semibold text-[#0A4B6E]">
+                              {Number(trip.returnOdometer).toLocaleString()} km
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-center pt-1 border-t border-amber-200/60">
+                          <span className="text-[#3E5C76] flex items-center gap-1">
+                            <Layers size={11} /> Dispatched:
+                          </span>
+                          <span className="font-bold text-[#0A4B6E] text-right">
+                            {cargo.totalUnits || 0} units
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    {canManage && (
+                      <div className="pt-2 border-t border-amber-200">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             onCheckInReturn && onCheckInReturn(trip);
                           }}
-                          className="w-full py-2 px-3 bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] rounded-full text-[11px] font-bold uppercase tracking-widest transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
+                          className="w-full py-2 px-3 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] rounded-full text-[11px] font-bold uppercase tracking-widest transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 active:scale-95"
                         >
-                          <span>Check-In Return</span>
+                          <span>Check-In Stock</span>
                           <ArrowRight size={12} strokeWidth={2.5} />
                         </button>
                       </div>

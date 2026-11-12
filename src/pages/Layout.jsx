@@ -25,6 +25,7 @@ import {
   Wrench,
   Fuel,
   FileWarning,
+  PackageCheck,
 } from "lucide-react";
 import logo from "../assets/logov2.svg";
 import ForceChangePasswordModal from "../components/auth/ForceChangePasswordModal.jsx";
@@ -59,8 +60,8 @@ export default function Layout() {
   const getPageTitle = (pathname) => {
     if (pathname.startsWith("/dashboard")) return "Dashboard";
     if (pathname.startsWith("/route-planner")) return "Route Planner";
-    if (pathname.startsWith("/route-dispatch")) return "Today's Dispatches";
-    if (pathname.startsWith("/reconciliation")) return "Stock Check-In & Settlement";
+    if (pathname.startsWith("/return-checkin") || pathname.startsWith("/route-dispatch/check-in")) return "Return Stock Check-In";
+    if (pathname.startsWith("/route-dispatch") || pathname.startsWith("/reconciliation")) return "Today's Dispatches";
     if (pathname.startsWith("/inventory/plant")) return "Plant Warehouse";
     if (pathname.startsWith("/inventory/transfers")) return "Transfer Records";
     if (pathname.startsWith("/inventory/products") || pathname.startsWith("/item-profile")) return "Products Catalog";
@@ -173,6 +174,7 @@ export default function Layout() {
 
                 <NavLink
                   to="/route-dispatch"
+                  end
                   className={navClass}
                   onClick={() => setOpen(false)}
                 >
@@ -181,12 +183,12 @@ export default function Layout() {
                 </NavLink>
 
                 <NavLink
-                  to="/reconciliation"
+                  to="/return-checkin"
                   className={navClass}
                   onClick={() => setOpen(false)}
                 >
-                  <Scale size={17} className="shrink-0" />
-                  <span>Stock Check-In</span>
+                  <PackageCheck size={17} className="shrink-0" />
+                  <span>Return Stock Check-In</span>
                 </NavLink>
 
                 <NavLink

@@ -41,11 +41,18 @@ export default function UserSuccessStep({
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 max-w-[50%]">
-            {userRoles.map((role, idx) => (
-              <Badge key={`success-role-${idx}`} variant="roles" className="shrink-0">
-                {role}
-              </Badge>
-            ))}
+            {userRoles.map((role, idx) => {
+              const isPrimary = (formData.role && role === formData.role) || idx === 0;
+              return (
+                <Badge
+                  key={`success-role-${idx}`}
+                  variant={isPrimary && userRoles.length > 1 ? "info" : "roles"}
+                  className="shrink-0"
+                >
+                  {role}{isPrimary && userRoles.length > 1 ? " (Primary)" : ""}
+                </Badge>
+              );
+            })}
           </div>
         </div>
 

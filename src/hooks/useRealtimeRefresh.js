@@ -1,6 +1,6 @@
 // src/hooks/useRealtimeRefresh.js
 import { useEffect, useRef } from "react";
-import { getSocket, subscribeToReconnect } from "../services/socket.js";
+import { getSocket, connectSocket, subscribeToReconnect } from "../services/socket.js";
 
 /**
  * Custom React hook connecting real-time Socket.IO events to existing component fetch/refresh logic.
@@ -35,8 +35,9 @@ export function useRealtimeRefresh({
   const cacheKeysKey = Array.isArray(cacheKeysToInvalidate) ? cacheKeysToInvalidate.join(",") : "";
 
   useEffect(() => {
-    const socket = getSocket();
-    if (!socket || !eventsKey) return;
+    if (!eventsKey) return;
+    const socket = getSocket() || (typeof window !== "undefined" ? connectSocket() : null);
+    if (!socket) return;
 
     const eventList = eventsKey.split(",").filter(Boolean);
     const cacheList = cacheKeysKey.split(",").filter(Boolean);

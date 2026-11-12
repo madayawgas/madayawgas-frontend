@@ -24,7 +24,7 @@ import Fleet from "./pages/Fleet/Fleet";
 import Users from "./pages/Users/Users";
 import RoutePlanner from "./pages/RoutePlanner/RoutePlanner";
 import RouteDispatch from "./pages/RouteDispatch/RouteDispatch";
-import StockReconciliation from "./pages/StockReconciliation/StockReconciliation";
+import StockCheckInPage from "./pages/RouteDispatch/StockCheckInPage";
 import PlantWarehouse from "./pages/Inventory/PlantWarehouse";
 import TransferRecords from "./pages/Inventory/TransferRecords";
 import ProductsCatalog from "./pages/Inventory/ProductsCatalog";
@@ -112,7 +112,7 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: "reconciliation",
+        path: "return-checkin",
         element: (
           <ProtectedRoute
             permission={[
@@ -121,9 +121,17 @@ const router = createBrowserRouter([
               PERMISSIONS.ROUTE_VIEW_OWN,
             ]}
           >
-            <StockReconciliation />
+            <StockCheckInPage />
           </ProtectedRoute>
         ),
+      },
+      {
+        path: "route-dispatch/check-in",
+        element: <Navigate to="/return-checkin" replace />,
+      },
+      {
+        path: "reconciliation",
+        element: <Navigate to="/return-checkin" replace />,
       },
       {
         path: "inventory/plant",

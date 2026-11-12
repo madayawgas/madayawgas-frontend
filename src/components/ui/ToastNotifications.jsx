@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Info, CheckCircle2, AlertTriangle, XCircle, X } from "lucide-react";
 
 export default function ToastNotification({
+  show = true,
   type = "info", // "info" | "success" | "warning" | "error"
   title,
   message,
@@ -11,14 +12,16 @@ export default function ToastNotification({
   className = "",
 }) {
   useEffect(() => {
-    if (!onClose || duration <= 0) return;
+    if (!show || !onClose || duration <= 0) return;
 
     const timer = setTimeout(() => {
       onClose();
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [onClose, duration]);
+  }, [show, onClose, duration]);
+
+  if (show === false) return null;
 
   const configs = {
     info: {

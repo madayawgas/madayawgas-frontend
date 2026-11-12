@@ -73,6 +73,7 @@ export function normalizeTrip(raw) {
     zoneId: raw.zoneId || raw.zone_id,
     zoneCode: raw.zoneCode || raw.zone_code || "",
     zoneName: raw.zoneName || raw.zone_name || "",
+    rawStatus: rawStatus || (raw.status || "").toUpperCase(),
     status: effectiveStatus,
     departureTime: raw.departureTime || raw.departure_time,
     returnTime: raw.returnTime || raw.return_time || null,
@@ -196,14 +197,32 @@ export const tripsApi = {
   },
 
   /**
-   * Complete yard return check-in with return odometer reading and return unloads.
+   * Driver ends an active delivery trip and logs mandatory return odometer reading.
    */
-  async completeTripReturn(tripId, payload) {
-    const res = await apiClient(`/trips/${tripId}/complete`, {
+  async endTrip(tripId, payload) {
+    const res = await apiClient(`/trips/${tripId}/end`, {
       method: "POST",
       body: payload,
     });
     return res.data;
+  },
+
+  /**
+   * Post-trip physical count reconciliation and stock variance settlement.
+   */
+  async reconcileTrip(tripId, payload) {
+    const res = await apiClient(`/trips/${tripId}/reconcile`, {
+      method: "POST",
+      body: payload,
+    });
+    return res.data;
+  },
+
+  /**
+   * Complete yard return check-in with return unloads and reconciliation.
+   */
+  async completeTripReturn(tripId, payload) {
+    return this.reconcileTrip(tripId, payload);
   },
 
   /**
