@@ -1,5 +1,6 @@
 // src/pages/Inventory/ProductsCatalog.jsx
 import { useState, useEffect, useMemo, useCallback, useId } from "react";
+import { createPortal } from "react-dom";
 import {
   Package,
   Plus,
@@ -83,6 +84,18 @@ export default function ProductsCatalog() {
 
   // Toast feedback
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  // Escape key listener for product modal
+  useEffect(() => {
+    if (!formModalOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !isSubmitting) {
+        setFormModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [formModalOpen, isSubmitting]);
 
   const showToastMessage = useCallback((message, type = "success") => {
     setToast({ show: true, message, type });
@@ -654,7 +667,7 @@ export default function ProductsCatalog() {
       </SideDrawer>
 
       {/* Single-Step Add/Edit Product Modal */}
-      {formModalOpen && (
+      {formModalOpen && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-[#CBD5E1] max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-in">
             {/* Modal Header */}
@@ -784,7 +797,8 @@ export default function ProductsCatalog() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Admin Password Modal for Deactivate / Reactivate */}

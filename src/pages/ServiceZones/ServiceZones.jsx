@@ -1,5 +1,6 @@
 // src/pages/ServiceZones/ServiceZones.jsx
 import { useState, useEffect, useMemo, useCallback, useId } from "react";
+import { createPortal } from "react-dom";
 import {
   MapPin,
   Plus,
@@ -59,6 +60,18 @@ export default function ServiceZones() {
 
   // Toast state
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  // Escape key listener for zone modal
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !isSubmitting) {
+        setIsModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isModalOpen, isSubmitting]);
 
   const showToastMessage = useCallback((message, type = "success") => {
     setToast({ show: true, message, type });
@@ -534,7 +547,7 @@ export default function ServiceZones() {
       </SideDrawer>
 
       {/* Add / Edit Zone Modal */}
-      {isModalOpen && (
+      {isModalOpen && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-[#CBD5E1] max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-in">
             <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
@@ -642,7 +655,8 @@ export default function ServiceZones() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Toast Feedback */}

@@ -244,11 +244,11 @@ export default function TripDetailPanel({
         </div>
       </div>
 
-      {/* 3. ASSIGNED CREW & ATTENDANCE */}
+      {/* 3. ASSIGNED CREW */}
       <div className="bg-[#F8FAFC] border border-slate-200 rounded-xl p-4 space-y-3 shadow-2xs">
         <h3 className="text-xs font-bold uppercase tracking-wider text-[#0A4B6E] flex items-center gap-1.5 pb-2 border-b border-slate-200">
           <User size={14} className="text-[#0A4B6E]" />
-          <span>Assigned Crew & Attendance</span>
+          <span>Assigned Crew</span>
         </h3>
 
         <div className="space-y-2.5 text-xs">

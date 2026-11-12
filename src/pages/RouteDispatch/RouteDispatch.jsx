@@ -8,7 +8,6 @@ import { tripsApi } from "../../api/trips.js";
 import { schedulesApi } from "../../api/schedules.js";
 import { fleetApi } from "../../api/fleet.js";
 import { inventoryApi } from "../../api/inventory.js";
-import { attendanceApi } from "../../api/attendance.js";
 import { getScheduleDispatchGating } from "../../utils/fleetGuards.js";
 
 import { isCanisterProduct, getCanisterCrates } from "../../utils/product.js";
@@ -30,6 +29,7 @@ import DispatchModal from "../../components/route-dispatch/DispatchModal";
 import MiddayReloadModal from "../../components/route-dispatch/MiddayReloadModal";
 import CancelTripModal from "../../components/route-dispatch/CancelTripModal";
 import CancelScheduleModal from "../../components/route-dispatch/CancelScheduleModal";
+import SettleTripModal from "../../components/route-dispatch/SettleTripModal.jsx";
 import ToastNotification from "../../components/ui/ToastNotifications";
 import { useRealtimeRefresh } from "../../hooks/useRealtimeRefresh.js";
 
@@ -123,7 +123,6 @@ export default function RouteDispatch() {
 
   const [drivers, setDrivers] = useState([]);
   const [salesUsers, setSalesUsers] = useState([]);
-  const [activeDutyDriverIds, setActiveDutyDriverIds] = useState(() => new Set());
   const [plantInventory, setPlantInventory] = useState([]);
 
   // 2. Filter, View Mode, Sorting, and Pagination States
@@ -182,6 +181,8 @@ export default function RouteDispatch() {
   const [selectedTripToCancel, setSelectedTripToCancel] = useState(null);
   const [showCancelScheduleModal, setShowCancelScheduleModal] = useState(false);
   const [selectedScheduleToCancel, setSelectedScheduleToCancel] = useState(null);
+  const [showSettleModal, setShowSettleModal] = useState(false);
+  const [selectedTripForSettle, setSelectedTripForSettle] = useState(null);
 
   const showToast = (type, message) => {
     setToast({ type, message });
@@ -199,7 +200,6 @@ export default function RouteDispatch() {
         prodData,
         driverData,
         salesData,
-        activeAttendance,
         plantInvData,
       ] = await Promise.all([
         tripsApi.getTrips().catch((err) => {
@@ -234,10 +234,6 @@ export default function RouteDispatch() {
           console.warn("Failed to fetch sales persons:", err);
           return [];
         }),
-        attendanceApi.getActivePersonnel().catch((err) => {
-          console.warn("Failed to fetch active personnel attendance:", err);
-          return [];
-        }),
         inventoryApi.getPlantInventory().catch((err) => {
           console.warn("Failed to fetch plant inventory:", err);
           return [];
@@ -254,12 +250,6 @@ export default function RouteDispatch() {
       const parsedDrivers = Array.isArray(driverData) ? driverData : (driverData?.drivers || []);
       setDrivers(parsedDrivers);
       if (Array.isArray(salesData)) setSalesUsers(salesData);
-
-      const activeList = Array.isArray(activeAttendance) ? activeAttendance : [];
-      const activeIds = new Set(
-        activeList.map((rec) => rec.userId || rec.user_id || rec.user?.id).filter(Boolean)
-      );
-      setActiveDutyDriverIds(activeIds);
     } catch (err) {
       console.warn("Failed to refresh today's dispatches:", err);
     }
@@ -272,7 +262,6 @@ export default function RouteDispatch() {
       "FLEET_VEHICLE_RELEASED",
       "TRIP_RECONCILIATION_UPDATED",
       "SALES_BATCH_SYNCED",
-      "ATTENDANCE_DUTY_UPDATED",
     ],
     cacheKeysToInvalidate: ["app_fleet_cache", "app_trips_cache"],
     onRefresh: loadData,
@@ -395,7 +384,7 @@ export default function RouteDispatch() {
     const available = [];
     const unavailable = [];
     allTodaySchedules.forEach((sched) => {
-      const gating = getScheduleDispatchGating(sched, vehicles, drivers, activeDutyDriverIds);
+      const gating = getScheduleDispatchGating(sched, vehicles, drivers);
       const enriched = { ...sched, gating };
       if (gating.canDispatch) {
         available.push(enriched);
@@ -404,7 +393,7 @@ export default function RouteDispatch() {
       }
     });
     return { availableSchedules: available, unavailableSchedules: unavailable };
-  }, [allTodaySchedules, vehicles, drivers, activeDutyDriverIds]);
+  }, [allTodaySchedules, vehicles, drivers]);
 
   // Counts for Top Status Filter Tabs & Mission-Control KPI Strip
   const counts = useMemo(() => {
@@ -654,6 +643,7 @@ export default function RouteDispatch() {
           setPrefillScheduleId("");
           setShowDispatchModal(true);
         }}
+        onNavigateCheckIn={() => navigate("/return-checkin")}
         plantInventory={plantInventory}
       />
 
@@ -671,7 +661,7 @@ export default function RouteDispatch() {
               setShowDispatchModal(true);
             }}
             onCheckInReturn={(trip) => {
-              navigate(`/reconciliation?tripId=${trip.id}`);
+              navigate(`/return-checkin?tripId=${trip.id}`);
             }}
             canManage={canManage}
             pagination={{
@@ -708,7 +698,7 @@ export default function RouteDispatch() {
               setShowMiddayModal(true);
             }}
             onCheckInReturn={(trip) => {
-              navigate(`/reconciliation?tripId=${trip.id}`);
+              navigate(`/return-checkin?tripId=${trip.id}`);
             }}
             onCancelTrip={(trip) => {
               setSelectedTripToCancel(trip);
@@ -781,7 +771,9 @@ export default function RouteDispatch() {
                 {selectedEntry.operationalStatus === "OUT_ON_ROAD" && canManage && (
                   <button
                     type="button"
-                    onClick={() => navigate(`/reconciliation?tripId=${selectedEntry.id}`)}
+                    onClick={() => {
+                      navigate(`/return-checkin?tripId=${selectedEntry.id}`);
+                    }}
                     className="px-4 py-2 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#0E384E] transition-all cursor-pointer shadow-2xs uppercase tracking-wider flex items-center gap-1.5 active:scale-95"
                   >
                     <span>RETURN CHECK-IN</span>
@@ -816,7 +808,11 @@ export default function RouteDispatch() {
               setShowMiddayModal(true);
             }}
             onReturnCheckIn={(trip) => {
-              navigate(`/reconciliation?tripId=${trip.id}`);
+              navigate(`/return-checkin?tripId=${trip.id}`);
+            }}
+            onReconciliation={(trip) => {
+              setSelectedTripForSettle(trip);
+              setShowSettleModal(true);
             }}
             onCancelTrip={(trip) => {
               setSelectedTripToCancel(trip);
@@ -844,7 +840,6 @@ export default function RouteDispatch() {
         trips={trips}
         vehicles={vehicles}
         drivers={drivers}
-        activeDutyDriverIds={activeDutyDriverIds}
         zones={zones}
         products={products}
         salesUsers={salesUsers}
@@ -882,6 +877,24 @@ export default function RouteDispatch() {
           setSelectedScheduleToCancel(null);
         }}
         onCancelSchedule={handleCancelSchedule}
+      />
+
+      {/* Post-Trip Reconciliation Settle Modal */}
+      <SettleTripModal
+        isOpen={showSettleModal}
+        onClose={() => {
+          setShowSettleModal(false);
+          setSelectedTripForSettle(null);
+        }}
+        trip={selectedTripForSettle}
+        onSettleSuccess={(settledRecon) => {
+          showToast(
+            "success",
+            `Trip ${selectedTripForSettle?.tripNumber} reconciliation audit settled and locked.`
+          );
+          setSelectedEntry(null);
+          loadData();
+        }}
       />
     </div>
   );

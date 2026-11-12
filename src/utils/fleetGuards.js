@@ -107,7 +107,6 @@ export function checkActiveWorkOrder(truck, workOrders = []) {
  * @param {object} sched - Schedule or template-derived run object
  * @param {Array} [vehicles] - Current vehicles collection from fleetApi
  * @param {Array} [drivers] - Current drivers / staff collection
- * @param {Set<string>|Array<string>|null} [activeDutyDriverIds] - Currently clocked-in driver user IDs
  * @returns {{
  *   canDispatch: boolean,
  *   reasonTag: string,
@@ -118,8 +117,7 @@ export function checkActiveWorkOrder(truck, workOrders = []) {
 export function getScheduleDispatchGating(
   sched,
   vehicles = [],
-  drivers = [],
-  activeDutyDriverIds = null
+  drivers = []
 ) {
   if (!sched) {
     return {
@@ -170,7 +168,7 @@ export function getScheduleDispatchGating(
     };
   }
 
-  // Driver account & attendance status
+  // Driver account status
   const driverId = sched.truckDriverId || sched.driverId || vehicle?.driverId;
   if (!driverId) {
     return {
@@ -199,29 +197,6 @@ export function getScheduleDispatchGating(
           reasonText: "Assigned driver account is deactivated",
           variant: "inactive",
         };
-      }
-
-      // Attendance Verification: Driver must be actively clocked in on duty
-      if (activeDutyDriverIds) {
-        const isDutySet = activeDutyDriverIds instanceof Set;
-        const isOnDuty = isDutySet
-          ? activeDutyDriverIds.has(driverId)
-          : Array.isArray(activeDutyDriverIds)
-          ? activeDutyDriverIds.includes(driverId)
-          : false;
-
-        if (!isOnDuty) {
-          const driverName =
-            driverUser.fullName ||
-            `${driverUser.firstName || ""} ${driverUser.lastName || ""}`.trim() ||
-            driverUser.username;
-          return {
-            canDispatch: false,
-            reasonTag: "DRIVER OFF-DUTY",
-            reasonText: `Assigned driver '${driverName}' has not clocked in yet. Driver must be on active duty to dispatch.`,
-            variant: "maintenance",
-          };
-        }
       }
     }
   }

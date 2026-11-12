@@ -1,5 +1,6 @@
 // src/components/alerts/EmergencyAlertBanner.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useSocket } from "../../context/SocketContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
@@ -31,6 +32,18 @@ export default function EmergencyAlertBanner() {
   const [resolvingAlertId, setResolvingAlertId] = useState(null);
   const [resolutionNotes, setResolutionNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Escape key listener for resolution modal
+  useEffect(() => {
+    if (!resolvingAlertId) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !isSubmitting) {
+        setResolvingAlertId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [resolvingAlertId, isSubmitting]);
 
   if (!activeAlerts || activeAlerts.length === 0) {
     return null;
@@ -194,7 +207,7 @@ export default function EmergencyAlertBanner() {
       </div>
 
       {/* RESOLUTION MODAL */}
-      {resolvingAlertId && (
+      {resolvingAlertId && typeof document !== "undefined" && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl text-slate-800 animate-scale-in">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -243,7 +256,8 @@ export default function EmergencyAlertBanner() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
