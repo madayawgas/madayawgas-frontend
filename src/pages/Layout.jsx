@@ -29,12 +29,16 @@ import {
 } from "lucide-react";
 import logo from "../assets/logov2.svg";
 import Avatar from "../components/ui/Avatar.jsx";
+import Modal from "../components/ui/Modal.jsx";
+import Button from "../components/ui/Button.jsx";
 import ForceChangePasswordModal from "../components/auth/ForceChangePasswordModal.jsx";
 import EmergencyAlertBanner from "../components/alerts/EmergencyAlertBanner.jsx";
 
 export default function Layout() {
   const [open, setOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const userMenuRef = useRef(null);
 
   const { isAuthenticated, currentUser, can, logout, loading } = useAuth();
@@ -99,10 +103,20 @@ export default function Layout() {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     setUserMenuOpen(false);
-    await logout();
-    navigate("/login");
+    setLogoutModalOpen(true);
+  };
+
+  const handleConfirmLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      setLogoutModalOpen(false);
+      navigate("/login");
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const navClass = ({ isActive }) =>
@@ -551,6 +565,39 @@ export default function Layout() {
 
       {/* FORCE CHANGE PASSWORD INESCAPABLE MODAL */}
       {currentUser?.mustChangePassword && <ForceChangePasswordModal />}
+
+      {/* LOGOUT CONFIRMATION MODAL */}
+      <Modal
+        isOpen={logoutModalOpen}
+        onClose={isLoggingOut ? undefined : () => setLogoutModalOpen(false)}
+        title="Log Out"
+        icon={LogOut}
+        maxWidth="max-w-sm"
+        footer={
+          <div className="flex items-center justify-end gap-2 w-full">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setLogoutModalOpen(false)}
+              disabled={isLoggingOut}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmLogout}
+              isLoading={isLoggingOut}
+            >
+              {isLoggingOut ? "Logging Out..." : "Log Out"}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+          Are you sure you want to log out?
+        </p>
+      </Modal>
     </div>
   );
 }

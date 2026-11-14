@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, X } from "lucide-react";
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export default function Modal({
   isOpen,
@@ -18,6 +21,9 @@ export default function Modal({
 }) {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+  const titleId = useId();
+  const dialogRef = useRef(null);
+  const previousFocusRef = useRef(null);
 
   useEffect(() => {
     let timer;
@@ -42,12 +48,60 @@ export default function Modal({
     }
   }, [isOpen]);
 
-  // Escape key listener
+  // Focus management: save & restore trigger focus, and move initial focus into dialog
+  useEffect(() => {
+    if (isOpen) {
+      if (typeof document !== "undefined") {
+        previousFocusRef.current = document.activeElement;
+      }
+      const frame = requestAnimationFrame(() => {
+        const dialog = dialogRef.current;
+        if (dialog && typeof document !== "undefined" && !dialog.contains(document.activeElement)) {
+          dialog.focus();
+        }
+      });
+      return () => cancelAnimationFrame(frame);
+    } else if (previousFocusRef.current) {
+      const prev = previousFocusRef.current;
+      previousFocusRef.current = null;
+      if (typeof prev.focus === "function" && prev.isConnected) {
+        prev.focus();
+      }
+    }
+  }, [isOpen]);
+
+  // Escape key & Tab focus trap listener
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
       if (e.key === "Escape" && onClose) {
         onClose();
+        return;
+      }
+
+      if (e.key === "Tab" && dialogRef.current) {
+        const focusable = Array.from(
+          dialogRef.current.querySelectorAll(FOCUSABLE_SELECTOR)
+        ).filter((el) => el.offsetParent !== null);
+
+        if (focusable.length === 0) {
+          e.preventDefault();
+          dialogRef.current.focus();
+          return;
+        }
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first || !dialogRef.current.contains(document.activeElement)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else if (document.activeElement === last || !dialogRef.current.contains(document.activeElement)) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -66,8 +120,13 @@ export default function Modal({
       }`}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white rounded-2xl w-full shadow-2xl relative flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden ${maxWidth} ${
+        className={`bg-white rounded-2xl w-full shadow-2xl relative flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden outline-none ${maxWidth} ${
           isAnimatingOut ? "animate-scale-out" : "animate-scale-in"
         }`}
       >
@@ -82,7 +141,7 @@ export default function Modal({
               )}
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-[#0A4B6E] text-base sm:text-lg font-bold truncate">
+                  <h2 id={titleId} className="text-[#0A4B6E] text-base sm:text-lg font-bold truncate">
                     {title}
                   </h2>
                   {badge}
@@ -100,7 +159,7 @@ export default function Modal({
                 <button
                   type="button"
                   onClick={onBack}
-                  className="text-[#0A4B6E] hover:bg-[#E8F3F8] p-1.5 rounded-lg transition cursor-pointer"
+                  className="text-[#0A4B6E] hover:bg-[#E8F3F8] p-1.5 rounded-lg transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0A4B6E]/40"
                   title="Go back"
                 >
                   <ArrowLeft size={18} />
@@ -110,7 +169,7 @@ export default function Modal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-1.5 rounded-lg transition cursor-pointer"
+                  className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-1.5 rounded-lg transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0A4B6E]/40"
                   title="Close modal"
                 >
                   <X size={18} />
