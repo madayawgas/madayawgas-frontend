@@ -1,5 +1,4 @@
 // src/components/dashboard/SalesGraph.jsx
-import { useState } from "react";
 import {
   BarChart,
   Bar,
@@ -10,9 +9,18 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import Card from "../ui/Card";
-export default function SalesGraph({ salesData }) {
-  const [timeframe, setTimeframe] = useState("monthly");
 
+const TIMEFRAME_LABELS = {
+  weekly: "Weekly",
+  monthly: "Monthly",
+  annually: "Annually",
+};
+
+export default function SalesGraph({
+  salesData,
+  timeframe = "monthly",
+  isLoading = false,
+}) {
   const weeklySales = salesData?.weekly || [];
   const monthlySales = salesData?.monthly || [];
   const annualSales = salesData?.annually || [];
@@ -27,50 +35,40 @@ export default function SalesGraph({ salesData }) {
   return (
     <Card className="flex-1 flex p-4 md:p-5 flex-col min-h-[280px]">
       {/* Header Info */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+      <div className="flex items-center justify-between mb-6 gap-4 shrink-0">
         <h3 className="text-[16px] md:text-[18px] font-semibold text-gray-800">
           Sales Overview
         </h3>
 
-        {/* Toggle Buttons */}
-        <div className="flex items-center bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg p-0.5 text-xs font-semibold">
-          {["weekly", "monthly", "annually"].map((tf) => (
-            <button
-              key={tf}
-              type="button"
-              onClick={() => setTimeframe(tf)}
-              className={`px-3 py-1 rounded-md transition-all cursor-pointer capitalize ${
-                timeframe === tf
-                  ? "bg-[#0A4B6E] text-white shadow-2xs font-bold"
-                  : "text-[#6D8AA2] hover:text-[#0A4B6E]"
-              }`}
-            >
-              {tf}
-            </button>
-          ))}
-        </div>
+        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#F8FAFC] text-[#0A4B6E] border border-[#CBD5E1]">
+          {TIMEFRAME_LABELS[timeframe] || "Monthly"}
+        </span>
       </div>
 
       {/* Custom HTML Legend */}
-      <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-6 text-xs text-[#0A4B6E] font-medium">
+      <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-6 text-xs text-[#0A4B6E] font-medium shrink-0">
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 bg-[#93B5D0] rounded-xs"></span>
+          <span className="w-3 h-3 bg-[#93B5D0] rounded-xs" aria-hidden="true" />
           <span>Butane Canister</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 bg-[#0F7AB2] rounded-xs"></span>
+          <span className="w-3 h-3 bg-[#0F7AB2] rounded-xs" aria-hidden="true" />
           <span>11 kg LPG</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 bg-[#FFDF2C] rounded-xs"></span>
-          <span>22 kg LPG</span>
+          <span className="w-3 h-3 bg-[#FFDF2C] rounded-xs" aria-hidden="true" />
+          <span>50 kg LPG</span>
         </div>
       </div>
 
       {/* Chart Area */}
-      <div className="w-full border border-gray-300 rounded-xl h-[190px] md:h-[190px] flex items-center justify-center">
-        {activeData.length === 0 ? (
-          <p className="text-xs text-gray-400 font-medium">No sales data available for this timeframe</p>
+      <div className="w-full flex-1 min-h-[190px] border border-gray-300 rounded-xl flex items-center justify-center">
+        {isLoading && activeData.length === 0 ? (
+          <p className="text-xs text-gray-400 font-medium">Loading sales data...</p>
+        ) : activeData.length === 0 ? (
+          <p className="text-xs text-gray-400 font-medium">
+            No sales data available for this timeframe
+          </p>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
@@ -95,6 +93,7 @@ export default function SalesGraph({ salesData }) {
               <YAxis axisLine={false} tickLine={false} tick={false} />
 
               <Tooltip
+                cursor={{ fill: "#E8F3F8", opacity: 0.5 }}
                 contentStyle={{
                   borderRadius: "8px",
                   border: "none",
