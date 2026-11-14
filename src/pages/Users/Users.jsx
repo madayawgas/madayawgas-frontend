@@ -598,6 +598,16 @@ export default function Users() {
                 onResetPassword={(u) => handleInitiateResetPassword(u)}
                 onDelete={(u) => handleInitiateDeactivate(u)}
                 onReactivate={(u) => handleInitiateReactivate(u)}
+                onAvatarUpdate={(userId, newAvatarData) => {
+                  setUsers((prev) => {
+                    const updated = prev.map((u) => (u.id === userId ? { ...u, ...newAvatarData } : u));
+                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+                    return updated;
+                  });
+                  setActiveDetailUser((prev) =>
+                    prev && prev.id === userId ? { ...prev, ...newAvatarData } : prev
+                  );
+                }}
                 canManage={canManage}
               />
             )}

@@ -1,5 +1,5 @@
 // src/components/users/UserDetailPanel.jsx
-import React from "react";
+import React, { useState, useRef } from "react";
 import {
   Pencil,
   Trash2,
@@ -10,9 +10,16 @@ import {
   Calendar,
   ShieldCheck,
   AtSign,
+  Camera,
+  Crop,
 } from "lucide-react";
 import Badge from "../ui/Badge";
 import Button from "../ui/Button";
+import Avatar from "../ui/Avatar";
+import AvatarCropModal from "../ui/AvatarCropModal";
+import ConfirmationModal from "../ui/ConfirmationModal";
+import { usersApi } from "../../api/users.js";
+import { resolveMediaUrl } from "../../utils/media.js";
 import { formatPhilippinePhone } from "../../utils/phone.js";
 import { getUserRoleNames } from "../../utils/userRoles.js";
 import { formatPhilippineDate } from "../../utils/date.js";
@@ -24,9 +31,68 @@ export default function UserDetailPanel({
   onResetPassword,
   onDelete,
   onReactivate,
+  onAvatarUpdate,
   canManage = true,
 }) {
   if (!user) return null;
+
+  const [cropImageSource, setCropImageSource] = useState(null);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [showRemoveAvatarModal, setShowRemoveAvatarModal] = useState(false);
+  const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const fullName =
+    `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+    user.username ||
+    "User Account";
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        e.target.value = "";
+        return;
+      }
+      setCropImageSource(file);
+      setIsCropModalOpen(true);
+    }
+    e.target.value = "";
+  };
+
+  const handleEditExistingAvatar = () => {
+    const existing = user.avatarUrl || resolveMediaUrl(user.avatarMediaKey);
+    if (existing) {
+      setCropImageSource(existing);
+      setIsCropModalOpen(true);
+    }
+  };
+
+  const handleSaveCroppedAvatar = async (croppedFile) => {
+    const result = await usersApi.uploadUserAvatar(user.id, croppedFile);
+    if (onAvatarUpdate) {
+      onAvatarUpdate(user.id, {
+        avatarMediaKey: result.avatarMediaKey,
+        avatarUrl: result.avatarUrl,
+      });
+    }
+  };
+
+  const handleConfirmRemoveAvatar = async () => {
+    setIsRemovingAvatar(true);
+    try {
+      await usersApi.deleteUserAvatar(user.id);
+      if (onAvatarUpdate) {
+        onAvatarUpdate(user.id, {
+          avatarMediaKey: null,
+          avatarUrl: null,
+        });
+      }
+      setShowRemoveAvatarModal(false);
+    } finally {
+      setIsRemovingAvatar(false);
+    }
+  };
 
   const getStatus = (u) => {
     if (u.isBlocked) return "SUSPENDED";
@@ -57,6 +123,74 @@ export default function UserDetailPanel({
 
   return (
     <div className="flex flex-col gap-4 text-left font-sans">
+      {/* IDENTITY & AVATAR BLOCK */}
+      <div className="bg-[#F8FAFC] border border-slate-200 rounded-xl p-4 flex items-center gap-4 shadow-2xs">
+        <div className="relative shrink-0">
+          <Avatar
+            src={user.avatarUrl}
+            storageKey={user.avatarMediaKey}
+            name={fullName}
+            size="xl"
+            className="border-2 border-white shadow-sm"
+          />
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute -bottom-1 -right-1 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] p-1.5 rounded-full shadow-xs transition active:scale-95 cursor-pointer"
+              title="Upload or change photo"
+            >
+              <Camera size={12} />
+            </button>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <h3 className="font-bold text-sm text-[#0A4B6E] truncate">{fullName}</h3>
+          <p className="text-xs text-[#6D8AA2] truncate">@{user.username || "user"}</p>
+          
+          {canManage && (
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileSelect}
+                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-[11px] font-semibold text-[#0A4B6E] hover:underline cursor-pointer"
+              >
+                {user.avatarUrl || user.avatarMediaKey ? "Change photo" : "Upload photo"}
+              </button>
+
+              {(user.avatarUrl || user.avatarMediaKey) && (
+                <>
+                  <span className="text-slate-300 text-xs">•</span>
+                  <button
+                    type="button"
+                    onClick={handleEditExistingAvatar}
+                    className="text-[11px] font-semibold text-[#0A4B6E] hover:underline cursor-pointer"
+                  >
+                    Adjust
+                  </button>
+                  <span className="text-slate-300 text-xs">•</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowRemoveAvatarModal(true)}
+                    className="text-[11px] font-semibold text-red-600 hover:underline cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* SECTION 1: ACCOUNT & RBAC ROLE */}
       <div className="bg-[#F8FAFC] border border-slate-200 rounded-xl p-4 space-y-3 shadow-2xs">
         <h3 className="text-xs font-bold uppercase tracking-wider text-[#0A4B6E] flex items-center gap-1.5 pb-2 border-b border-slate-200">
@@ -196,6 +330,29 @@ export default function UserDetailPanel({
           </Button>
         </div>
       )}
+
+      {/* AVATAR CROP MODAL */}
+      <AvatarCropModal
+        isOpen={isCropModalOpen}
+        imageSource={cropImageSource}
+        onClose={() => {
+          setIsCropModalOpen(false);
+          setCropImageSource(null);
+        }}
+        onSave={handleSaveCroppedAvatar}
+      />
+
+      {/* REMOVE AVATAR CONFIRMATION MODAL */}
+      <ConfirmationModal
+        isOpen={showRemoveAvatarModal}
+        onClose={() => setShowRemoveAvatarModal(false)}
+        onConfirm={handleConfirmRemoveAvatar}
+        title="Remove User Photo"
+        message={`Are you sure you want to remove the profile photo for ${fullName}?`}
+        confirmText="Remove Photo"
+        variant="danger"
+        isLoading={isRemovingAvatar}
+      />
     </div>
   );
 }

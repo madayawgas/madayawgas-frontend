@@ -247,9 +247,15 @@ The MadayawGas backend API transmits all timestamps and dates in **UTC format** 
   - Detail panel on right with customer avatar, address, type badge, status badge, timestamps, edit/delete actions, and bottom CLOSE button.
   - Multi-step Create/Edit wizard and password-guarded deactivation flow.
 
-### 2. User Management (`/users`)
-- **Contract**: `docs/API Contract/user-management.api.md`
-- **Fields**: `id`, `username`, `firstName`, `lastName`, `phone`, `birthdate`, `role`, `roleId`, `isActive`, `isBlocked`, `mustChangePassword`, `createdAt`.
+### 2. User Management & Profile (`/users`, `/profile`)
+- **Contract**: `docs/api-contracts/users/management.api.md`, `docs/api-contracts/users/profile.api.md`
+- **Fields**: `id`, `username`, `firstName`, `lastName`, `phone`, `birthdate`, `role`, `roleId`, `avatarMediaKey`, `avatarUrl`, `isActive`, `isBlocked`, `mustChangePassword`, `createdAt`.
+- **Profile Photo & Avatar Subsystem**:
+  - **Self-Service Avatar (`/profile`)**: Supports uploading, re-cropping/adjusting, and removing avatars using `usersApi.uploadMyAvatar` (`POST /api/users/me/avatar`) and `usersApi.deleteMyAvatar` (`DELETE /api/users/me/avatar`). Automatically syncs `AuthContext` state without page refreshes.
+  - **In-Browser Interactive Cropper (`AvatarCropModal.jsx`)**: Zero-dependency HTML5 Canvas cropper featuring a circular viewport guide, pointer pan/drag, zoom slider (1x–3x), 90° clockwise rotation, and automated JPEG compression via `compressAndPrepareImage` (max 1024px, <= 5 MB).
+  - **Universal Avatar Component (`Avatar.jsx`)**: Consistent multi-size (`xs`, `sm`, `md`, `lg`, `xl`, `2xl`, `3xl`) display with automatic canonical URL resolution (`resolveMediaUrl`), image load animation, and initials fallback (`#0A4B6E` background, `#FFDF2C` text).
+  - **Admin Avatar Management (`UserDetailPanel.jsx`)**: Admins with `users.manage` can upload, crop, or remove profile photos for any target user (`POST /api/users/:id/avatar`, `DELETE /api/users/:id/avatar`).
+  - **Navbar & Table Integration**: Displays avatars in the top header navbar and dropdown (`Layout.jsx`) and user directory master rows (`UsersTable.jsx`).
 - **Status Distinction**:
   - **Suspend (`isBlocked = true`)**: Temporary login restriction without deleting or deactivating account. User remains active in table (`isActive = true`) with a red `"SUSPENDED"` badge. Can be toggled in the Edit modal or status endpoint.
   - **Deactivate (`isActive = false`)**: Soft-deletes user account. Deactivated accounts show a gray `"DEACTIVATED"` badge, sort to the bottom, and can be reactivated via the `RotateCcw` action button or status endpoint with admin password confirmation.

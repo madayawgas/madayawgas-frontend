@@ -28,6 +28,7 @@ import {
   PackageCheck,
 } from "lucide-react";
 import logo from "../assets/logov2.svg";
+import Avatar from "../components/ui/Avatar.jsx";
 import ForceChangePasswordModal from "../components/auth/ForceChangePasswordModal.jsx";
 import EmergencyAlertBanner from "../components/alerts/EmergencyAlertBanner.jsx";
 
@@ -443,9 +444,12 @@ export default function Layout() {
               aria-expanded={userMenuOpen}
               aria-haspopup="menu"
             >
-              <div className="w-8 h-8 rounded-full bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 font-bold text-xs shadow-2xs">
-                {currentUser?.firstName?.charAt(0) || <UserRound size={16} />}
-              </div>
+              <Avatar
+                src={currentUser?.avatarUrl}
+                storageKey={currentUser?.avatarMediaKey}
+                name={`${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim() || currentUser?.username}
+                size="sm"
+              />
               <div className="leading-tight text-left hidden sm:block">
                 <p className="text-xs font-bold text-[#0A4B6E] truncate max-w-[140px]">
                   {currentUser?.firstName && currentUser?.lastName
@@ -466,17 +470,25 @@ export default function Layout() {
 
             {/* User Profile Dropdown Menu */}
             {userMenuOpen && (
-              <div className="absolute right-0 top-full mt-1.5 w-60 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 animate-scale-in text-left">
+              <div className="absolute right-0 top-full mt-1.5 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 animate-scale-in text-left">
                 {/* User Info Header */}
-                <div className="px-3.5 py-2.5 border-b border-slate-100">
-                  <p className="text-xs font-bold text-[#0A4B6E] truncate">
-                    {currentUser?.firstName && currentUser?.lastName
-                      ? `${currentUser.firstName} ${currentUser.lastName}`
-                      : "Staff User"}
-                  </p>
-                  <p className="text-[11px] text-[#6D8AA2] truncate mt-0.5">
-                    @{currentUser?.username || "user"}
-                  </p>
+                <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center gap-2.5">
+                  <Avatar
+                    src={currentUser?.avatarUrl}
+                    storageKey={currentUser?.avatarMediaKey}
+                    name={`${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim() || currentUser?.username}
+                    size="md"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-[#0A4B6E] truncate">
+                      {currentUser?.firstName && currentUser?.lastName
+                        ? `${currentUser.firstName} ${currentUser.lastName}`
+                        : "Staff User"}
+                    </p>
+                    <p className="text-[11px] text-[#6D8AA2] truncate mt-0.5">
+                      @{currentUser?.username || "user"}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Menu Items */}

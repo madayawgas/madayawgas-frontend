@@ -1,4 +1,5 @@
 import { UserRound, Phone, Calendar } from "lucide-react";
+import Avatar from "../ui/Avatar";
 import { formatPhilippinePhone } from "../../utils/phone.js";
 import { getUserRoleNames } from "../../utils/userRoles.js";
 import Badge from "../ui/Badge";
@@ -120,9 +121,12 @@ export default function UsersTable({
                     {/* User Account with Avatar, Full Name & Username handle */}
                     <td className="py-3.5 px-3 md:px-4">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-[#0A4B6E] text-[#FFDF2C] flex items-center justify-center shrink-0 font-bold text-xs shadow-xs">
-                          {initials || <UserRound size={14} />}
-                        </div>
+                        <Avatar
+                          src={user.avatarUrl}
+                          storageKey={user.avatarMediaKey}
+                          name={fullName}
+                          size="sm"
+                        />
                         <div className="min-w-0 flex-1">
                           <div className="font-bold text-[#0A4B6E] truncate text-xs md:text-sm">
                             {fullName}
