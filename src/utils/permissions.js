@@ -35,6 +35,8 @@ export const PERMISSIONS = {
   APPREHENSIONS_VIEW_OWN: "apprehensions.view_own",
   APPREHENSIONS_CREATE: "apprehensions.create",
   APPREHENSIONS_MANAGE: "apprehensions.manage",
+  SETTINGS_VIEW: "settings.view",
+  SETTINGS_MANAGE: "settings.manage",
 };
 
 

@@ -19,6 +19,10 @@ import {
   broadcastLogout,
   setupCrossTabSessionSync,
 } from "../utils/sessionEvents.js";
+import {
+  syncProfileAvatarCache,
+  clearProfileAvatarCache,
+} from "../utils/avatarCache.js";
 
 const AuthContext = createContext(null);
 
@@ -36,6 +40,24 @@ export const AuthProvider = ({ children }) => {
       wasAuthenticatedRef.current = true;
     }
   }, [user]);
+
+  const userId = user?.id ?? null;
+  const userAvatarUrl = user?.avatarUrl ?? null;
+  const userAvatarMediaKey = user?.avatarMediaKey ?? null;
+
+  // Synchronize profile avatar cache and evict stale entries on change or logout
+  useEffect(() => {
+    if (loading) return;
+    if (userId || userAvatarUrl || userAvatarMediaKey) {
+      syncProfileAvatarCache({
+        id: userId,
+        avatarUrl: userAvatarUrl,
+        avatarMediaKey: userAvatarMediaKey,
+      });
+    } else {
+      clearProfileAvatarCache();
+    }
+  }, [loading, userId, userAvatarUrl, userAvatarMediaKey]);
 
   // Check active session on initial load / refresh
   const checkSession = useCallback(async () => {
