@@ -13,3 +13,4 @@ export * from "./media.js";
 export * from "./alerts.js";
 export * from "./fuel.js";
 export * from "./apprehensions.js";
+export * from "./settings.js";

@@ -22,7 +22,7 @@ import { isPhilippineDateInRange } from "../../utils/date.js";
 const LOCAL_STORAGE_KEY = "app_users_cache";
 
 export default function Users() {
-  const { can } = useAuth();
+  const { can, currentUser, updateUser } = useAuth();
 
   // Users Cache & Data State
   const [users, setUsers] = useState(() => {
@@ -607,6 +607,9 @@ export default function Users() {
                   setActiveDetailUser((prev) =>
                     prev && prev.id === userId ? { ...prev, ...newAvatarData } : prev
                   );
+                  if (currentUser?.id && userId === currentUser.id) {
+                    updateUser(newAvatarData);
+                  }
                 }}
                 canManage={canManage}
               />

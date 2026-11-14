@@ -1,7 +1,12 @@
 // src/components/ui/Avatar.jsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { UserRound } from "lucide-react";
 import { resolveMediaUrl } from "../../utils/media.js";
+import {
+  getMemoryCachedAvatarUrl,
+  getOrCacheAvatarUrl,
+  evictAvatarCache,
+} from "../../utils/avatarCache.js";
 
 const SIZE_MAP = {
   xs: {
@@ -57,8 +62,9 @@ export default function Avatar({
   className = "",
   alt,
 }) {
-  const [imageError, setImageError] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [errorForSrc, setErrorForSrc] = useState(null);
+  const [loadedForSrc, setLoadedForSrc] = useState(null);
+  const [cachedEntry, setCachedEntry] = useState({ forUrl: null, src: null });
 
   // Canonical or direct image resolution
   const resolvedUrl = useMemo(() => {
@@ -67,11 +73,38 @@ export default function Avatar({
     return resolveMediaUrl(raw);
   }, [src, storageKey]);
 
-  // Reset error state when source changes
+  const memoryHit = getMemoryCachedAvatarUrl(resolvedUrl);
+  const activeAsyncSrc = cachedEntry.forUrl === resolvedUrl ? cachedEntry.src : null;
+  const displaySrc = memoryHit || activeAsyncSrc || resolvedUrl;
+
+  const imageError = Boolean(displaySrc && errorForSrc === displaySrc);
+  const imageLoaded = Boolean(displaySrc && loadedForSrc === displaySrc);
+
+  // Populate CacheStorage / in-memory Object URL when resolvedUrl changes
   useEffect(() => {
-    setImageError(false);
-    setImageLoaded(false);
-  }, [resolvedUrl]);
+    if (!resolvedUrl || memoryHit) return;
+
+    let cancelled = false;
+    getOrCacheAvatarUrl(resolvedUrl).then((cachedUrl) => {
+      if (!cancelled && cachedUrl && cachedUrl !== resolvedUrl) {
+        setCachedEntry({ forUrl: resolvedUrl, src: cachedUrl });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedUrl, memoryHit]);
+
+  // Immediately reveal cached images whose browser `complete` flag is already true on mount
+  const handleImgRef = useCallback(
+    (img) => {
+      if (img && img.complete && img.naturalWidth > 0 && displaySrc) {
+        setLoadedForSrc((prev) => (prev === displaySrc ? prev : displaySrc));
+      }
+    },
+    [displaySrc]
+  );
 
   // Extract initials
   const initials = useMemo(() => {
@@ -92,7 +125,16 @@ export default function Avatar({
   const shapeClass = shape === "circle" ? "rounded-full" : "rounded-2xl";
   const accessibleAlt = alt || (name ? `${name}'s avatar` : "User profile avatar");
 
-  const hasValidImage = Boolean(resolvedUrl && !imageError);
+  const hasValidImage = Boolean(displaySrc && !imageError);
+
+  const handleImageError = () => {
+    if (displaySrc && displaySrc !== resolvedUrl && displaySrc.startsWith("blob:")) {
+      evictAvatarCache(resolvedUrl);
+      setCachedEntry({ forUrl: resolvedUrl, src: resolvedUrl });
+      return;
+    }
+    setErrorForSrc(displaySrc);
+  };
 
   return (
     <div
@@ -109,10 +151,12 @@ export default function Avatar({
       {/* Actual Avatar Image */}
       {hasValidImage && (
         <img
-          src={resolvedUrl}
+          ref={handleImgRef}
+          key={displaySrc}
+          src={displaySrc}
           alt={accessibleAlt}
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setImageError(true)}
+          onLoad={() => setLoadedForSrc(displaySrc)}
+          onError={handleImageError}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${
             imageLoaded ? "opacity-100" : "opacity-0"
           }`}

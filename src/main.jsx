@@ -32,6 +32,7 @@ import ServiceZones from "./pages/ServiceZones/ServiceZones";
 import SalesAndDelivery from "./pages/SalesAndDelivery/SalesAndDelivery";
 import HistoryLog from "./pages/HistoryLog/HistoryLog";
 import Profile from "./pages/Profile/Profile";
+import SystemSettings from "./pages/SystemSettings/SystemSettings";
 import Customers from "./pages/Customers/Customers";
 import FAQs from "./pages/FAQs/FAQs";
 
@@ -224,6 +225,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "system-settings",
+        element: (
+          <ProtectedRoute permission={[PERMISSIONS.SETTINGS_VIEW, PERMISSIONS.SETTINGS_MANAGE]}>
+            <SystemSettings />
           </ProtectedRoute>
         ),
       },

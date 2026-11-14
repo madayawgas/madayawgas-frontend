@@ -26,6 +26,7 @@ import {
   Fuel,
   FileWarning,
   PackageCheck,
+  SlidersHorizontal,
 } from "lucide-react";
 import logo from "../assets/logov2.svg";
 import Avatar from "../components/ui/Avatar.jsx";
@@ -82,6 +83,7 @@ export default function Layout() {
     if (pathname.startsWith("/users")) return "User Management";
     if (pathname.startsWith("/history-log")) return "History Log";
     if (pathname.startsWith("/settings/zones") || pathname.startsWith("/service-zones")) return "Service Delivery Zones";
+    if (pathname.startsWith("/system-settings")) return "System Settings";
     if (pathname.startsWith("/profile")) return "Account Settings";
     if (pathname.startsWith("/faqs") || pathname.startsWith("/help")) return "System FAQs & Guide";
     return "Madayaw Gas";
@@ -404,24 +406,6 @@ export default function Layout() {
             )}
           </nav>
         </div>
-
-        {/* BOTTOM SIDEBAR FOOTER: SYSTEM GUIDE */}
-        <div className="px-2.5 py-3 border-t border-white/10 shrink-0">
-          <NavLink
-            to="/faqs"
-            className={({ isActive }) =>
-              `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                isActive
-                  ? "bg-[#FFDF2C] text-[#0A4B6E] font-bold shadow-2xs"
-                  : "text-white/80 hover:text-white hover:bg-white/10"
-              }`
-            }
-            onClick={() => setOpen(false)}
-          >
-            <HelpCircle size={16} className="shrink-0" />
-            <span>FAQs & System Guide</span>
-          </NavLink>
-        </div>
       </aside>
 
       {/* MOBILE BACKDROP */}
@@ -521,6 +505,23 @@ export default function Layout() {
                     <UserCircle size={15} className="text-[#0A4B6E]" />
                     <span>Account Settings</span>
                   </NavLink>
+
+                  {(can(PERMISSIONS.SETTINGS_VIEW) || can(PERMISSIONS.SETTINGS_MANAGE)) && (
+                    <NavLink
+                      to="/system-settings"
+                      onClick={() => setUserMenuOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold transition-colors ${
+                          isActive
+                            ? "bg-[#E8F3F8] text-[#0A4B6E]"
+                            : "text-slate-700 hover:bg-slate-50 hover:text-[#0A4B6E]"
+                        }`
+                      }
+                    >
+                      <SlidersHorizontal size={15} className="text-[#0A4B6E]" />
+                      <span>System Settings</span>
+                    </NavLink>
+                  )}
 
                   <NavLink
                     to="/faqs"
