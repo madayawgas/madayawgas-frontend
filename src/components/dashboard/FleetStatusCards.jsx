@@ -20,6 +20,7 @@ export default function FleetStatusCards({
       label: "Available",
       count: available,
       icon: Truck,
+      route: "/fleet",
       bg: "bg-[#FFF9D6] border-[#FFE866]/60 hover:border-[#FFE866]",
       textColor: "text-[#0A4B6E]",
       iconBg: "bg-[#FFE866] text-[#0A4B6E]",
@@ -29,6 +30,7 @@ export default function FleetStatusCards({
       label: "In Use",
       count: inUse,
       icon: Truck,
+      route: "/route-dispatch",
       bg: "bg-[#E6F4FA] border-[#BCE1F1]/80 hover:border-[#0A4B6E]/30",
       textColor: "text-[#0A4B6E]",
       iconBg: "bg-[#FFE866] text-[#0A4B6E]",
@@ -38,6 +40,7 @@ export default function FleetStatusCards({
       label: "Maintenance",
       count: maintenance,
       icon: Wrench,
+      route: "/fleet",
       bg: "bg-[#E6F4FA] border-[#BCE1F1]/80 hover:border-[#0A4B6E]/30",
       textColor: "text-[#0A4B6E]",
       iconBg: "bg-[#FFE866] text-[#0A4B6E]",
@@ -47,6 +50,7 @@ export default function FleetStatusCards({
       label: "Under Repair",
       count: underRepair,
       icon: Wrench,
+      route: "/fleet",
       bg: "bg-[#FFF9D6] border-[#FFE866]/60 hover:border-[#FFE866]",
       textColor: "text-[#0A4B6E]",
       iconBg: "bg-[#FFE866] text-[#0A4B6E]",
@@ -58,18 +62,22 @@ export default function FleetStatusCards({
       {cards.map((item) => {
         const Icon = item.icon;
         return (
-          <div
+          <button
             key={item.id}
-            onClick={() => navigate("/fleet")}
-            className={`group ${item.bg} border p-4 sm:p-5 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer min-h-[115px] sm:min-h-[130px]`}
+            type="button"
+            onClick={() => navigate(item.route)}
+            className={`group text-left ${item.bg} border p-4 sm:p-5 rounded-2xl flex flex-col justify-between shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer min-h-[115px] sm:min-h-[130px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0A4B6E] focus-visible:ring-offset-2`}
           >
             {/* Top Row: Category Label + Brand Yellow Icon Badge */}
-            <div className="flex items-center justify-between gap-2">
-              <span className={`text-xs sm:text-sm font-bold uppercase tracking-wider ${item.textColor} truncate`}>
+            <div className="flex items-center justify-between gap-2 w-full">
+              <span
+                className={`text-xs sm:text-sm font-bold uppercase tracking-wider ${item.textColor} truncate`}
+              >
                 {item.label}
               </span>
               <div
                 className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl ${item.iconBg} flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform`}
+                aria-hidden="true"
               >
                 <Icon className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />
               </div>
@@ -77,11 +85,13 @@ export default function FleetStatusCards({
 
             {/* Bottom Row: Big Bold Metric Number */}
             <div className="mt-3">
-              <span className={`text-3xl sm:text-4xl lg:text-5xl font-extrabold font-mono ${item.textColor} tracking-tight leading-none`}>
+              <span
+                className={`text-3xl sm:text-4xl lg:text-5xl font-extrabold font-mono tabular-nums ${item.textColor} tracking-tight leading-none`}
+              >
                 {item.count}
               </span>
             </div>
-          </div>
+          </button>
         );
       })}
     </div>
