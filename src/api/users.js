@@ -187,4 +187,58 @@ export const usersApi = {
     });
     return result.data.role;
   },
+
+  /**
+   * Upload or replace currently authenticated user's profile avatar.
+   * @param {File | Blob} file - Compressed image binary
+   * @returns {Promise<{ user: object, avatarUrl: string, avatarMediaKey: string }>}
+   */
+  async uploadMyAvatar(file) {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    const result = await apiClient("/users/me/avatar", {
+      method: "POST",
+      body: formData,
+    });
+    return result.data;
+  },
+
+  /**
+   * Remove currently authenticated user's profile avatar.
+   * @returns {Promise<{ user: object }>}
+   */
+  async deleteMyAvatar() {
+    const result = await apiClient("/users/me/avatar", {
+      method: "DELETE",
+    });
+    return result.data;
+  },
+
+  /**
+   * Admin upload/replace avatar for target user.
+   * @param {string} userId
+   * @param {File | Blob} file
+   * @returns {Promise<{ user: object, avatarUrl: string, avatarMediaKey: string }>}
+   */
+  async uploadUserAvatar(userId, file) {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    const result = await apiClient(`/users/${userId}/avatar`, {
+      method: "POST",
+      body: formData,
+    });
+    return result.data;
+  },
+
+  /**
+   * Admin remove avatar for target user.
+   * @param {string} userId
+   * @returns {Promise<{ user: object }>}
+   */
+  async deleteUserAvatar(userId) {
+    const result = await apiClient(`/users/${userId}/avatar`, {
+      method: "DELETE",
+    });
+    return result.data;
+  },
 };

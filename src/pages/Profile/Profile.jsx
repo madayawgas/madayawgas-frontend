@@ -17,6 +17,8 @@ import {
   Pencil,
   Camera,
   X,
+  Crop,
+  Trash2,
   Lock,
   Mail,
   Phone,
@@ -25,6 +27,9 @@ import {
   Loader2,
 } from "lucide-react";
 import Modal from "../../components/ui/Modal";
+import Avatar from "../../components/ui/Avatar";
+import AvatarCropModal from "../../components/ui/AvatarCropModal";
+import ConfirmationModal from "../../components/ui/ConfirmationModal";
 import { uploadMediaFile } from "../../api/media.js";
 import { resolveMediaUrl } from "../../utils/media.js";
 import Badge from "../../components/ui/Badge";
@@ -79,33 +84,88 @@ export default function Profile() {
     message: "Saved Changes",
   });
 
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  // Avatar Modal & Crop States
+  const [cropImageSource, setCropImageSource] = useState(null);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [showRemoveAvatarModal, setShowRemoveAvatarModal] = useState(false);
+  const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
 
-  // Handle Profile Picture selection
-  const handleImageChange = async (e) => {
+  // Handle Profile Picture selection from file input
+  const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      try {
-        setIsUploadingAvatar(true);
-        const result = await uploadMediaFile(file, "users/avatars");
-        setProfileImage(result.storageKey || result.url);
-      } catch (err) {
-        console.error("Failed to upload avatar photo:", err);
+      if (!file.type.startsWith("image/")) {
         setToast({
           show: true,
           type: "error",
-          message: err?.message || "Failed to upload avatar photo",
+          message: "Please select a valid image file (JPEG, PNG, or WebP).",
         });
-      } finally {
-        setIsUploadingAvatar(false);
+        e.target.value = "";
+        return;
       }
+      setCropImageSource(file);
+      setIsCropModalOpen(true);
+    }
+    e.target.value = "";
+  };
+
+  // Open cropper for existing avatar photo
+  const handleEditExistingAvatar = () => {
+    const existing = currentUser?.avatarUrl || resolveMediaUrl(currentUser?.avatarMediaKey);
+    if (existing) {
+      setCropImageSource(existing);
+      setIsCropModalOpen(true);
     }
   };
 
-  const handleRemoveImage = () => {
-    setProfileImage(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+  // Save Cropped Avatar to backend
+  const handleSaveCroppedAvatar = async (croppedFile) => {
+    try {
+      const result = await usersApi.uploadMyAvatar(croppedFile);
+      updateUser({
+        avatarMediaKey: result.avatarMediaKey,
+        avatarUrl: result.avatarUrl,
+      });
+      setToast({
+        show: true,
+        type: "success",
+        message: "Profile photo updated successfully",
+      });
+    } catch (err) {
+      console.error("Failed to upload avatar photo:", err);
+      setToast({
+        show: true,
+        type: "error",
+        message: err?.message || "Failed to upload avatar photo. Please try again.",
+      });
+      throw err;
+    }
+  };
+
+  // Confirm Remove Avatar
+  const handleConfirmRemoveAvatar = async () => {
+    setIsRemovingAvatar(true);
+    try {
+      await usersApi.deleteMyAvatar();
+      updateUser({
+        avatarMediaKey: null,
+        avatarUrl: null,
+      });
+      setShowRemoveAvatarModal(false);
+      setToast({
+        show: true,
+        type: "success",
+        message: "Profile photo removed",
+      });
+    } catch (err) {
+      console.error("Failed to remove avatar photo:", err);
+      setToast({
+        show: true,
+        type: "error",
+        message: err?.message || "Failed to remove avatar photo. Please try again.",
+      });
+    } finally {
+      setIsRemovingAvatar(false);
     }
   };
 
@@ -296,51 +356,56 @@ export default function Profile() {
             {/* Top Identity Block */}
             <div className="flex flex-col items-center w-full relative z-10">
               {/* Avatar */}
-              <div className="w-24 h-24 rounded-full bg-[#0A4B6E] flex items-center justify-center text-white border-4 border-white shadow-md overflow-hidden mt-2">
-                {profileImage ? (
-                  <img
-                    src={resolveMediaUrl(profileImage)}
-                    alt="Profile Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <UserRound size={48} className="text-[#FFDF2C]" />
-                )}
+              <div className="relative mt-2">
+                <Avatar
+                  src={currentUser?.avatarUrl}
+                  storageKey={currentUser?.avatarMediaKey}
+                  name={displayName}
+                  size="2xl"
+                  className="border-4 border-white shadow-md"
+                />
               </div>
 
-              {/* Avatar Change Actions */}
-              <div className="mt-3 flex items-center gap-2">
+              {/* Avatar Actions */}
+              <div className="mt-3 flex items-center justify-center gap-1.5 flex-wrap">
                 <input
                   type="file"
                   ref={fileInputRef}
-                  onChange={handleImageChange}
-                  accept="image/*"
-                  disabled={isUploadingAvatar}
+                  onChange={handleFileSelect}
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                   className="hidden"
                 />
+                
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploadingAvatar}
-                  className="inline-flex items-center gap-1.5 bg-[#E8F3F8] hover:bg-[#BCE1F1] text-[#0A4B6E] font-bold text-[11px] px-3.5 py-1.5 rounded-full uppercase tracking-wider transition cursor-pointer shadow-2xs disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 bg-[#E8F3F8] hover:bg-[#BCE1F1] text-[#0A4B6E] font-bold text-[11px] px-3.5 py-1.5 rounded-full uppercase tracking-wider transition cursor-pointer shadow-2xs active:scale-95"
                 >
-                  {isUploadingAvatar ? (
-                    <Loader2 size={13} className="animate-spin text-[#0A4B6E]" />
-                  ) : (
-                    <Camera size={13} />
-                  )}
-                  <span>{isUploadingAvatar ? "Uploading..." : "Change Photo"}</span>
+                  <Camera size={13} />
+                  <span>{currentUser?.avatarUrl || currentUser?.avatarMediaKey ? "Change Photo" : "Upload Photo"}</span>
                 </button>
 
-                {profileImage && (
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
-                    className="text-xs text-slate-500 hover:text-red-600 cursor-pointer font-medium p-1 transition"
-                    title="Remove Photo"
-                  >
-                    <X size={16} />
-                  </button>
+                {(currentUser?.avatarUrl || currentUser?.avatarMediaKey) && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleEditExistingAvatar}
+                      className="inline-flex items-center gap-1 bg-white hover:bg-slate-50 border border-slate-300 text-[#0A4B6E] font-semibold text-[11px] px-2.5 py-1.5 rounded-full transition cursor-pointer shadow-2xs active:scale-95"
+                      title="Adjust / Crop Current Photo"
+                    >
+                      <Crop size={12} />
+                      <span>Adjust</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowRemoveAvatarModal(true)}
+                      className="text-slate-400 hover:text-red-600 p-1.5 rounded-full hover:bg-red-50 transition cursor-pointer"
+                      title="Remove Photo"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </>
                 )}
               </div>
 
@@ -766,6 +831,29 @@ export default function Profile() {
           )}
         </Modal>
       )}
+
+      {/* ================= AVATAR CROP / EDIT MODAL ================= */}
+      <AvatarCropModal
+        isOpen={isCropModalOpen}
+        imageSource={cropImageSource}
+        onClose={() => {
+          setIsCropModalOpen(false);
+          setCropImageSource(null);
+        }}
+        onSave={handleSaveCroppedAvatar}
+      />
+
+      {/* ================= REMOVE AVATAR CONFIRMATION MODAL ================= */}
+      <ConfirmationModal
+        isOpen={showRemoveAvatarModal}
+        onClose={() => setShowRemoveAvatarModal(false)}
+        onConfirm={handleConfirmRemoveAvatar}
+        title="Remove Profile Photo"
+        message="Are you sure you want to remove your profile photo? Your account will revert to displaying your initials."
+        confirmText="Remove Photo"
+        variant="danger"
+        isLoading={isRemovingAvatar}
+      />
 
       {/* ================= TOAST NOTIFICATION ================= */}
       {toast.show && (
