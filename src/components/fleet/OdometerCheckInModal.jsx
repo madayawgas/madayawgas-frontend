@@ -5,8 +5,7 @@ import Modal from "../ui/Modal";
 import Input from "../ui/Input";
 import Button from "../ui/Button";
 import Badge from "../ui/Badge";
-
-const MAX_ODOMETER = 999999;
+import { useSettings } from "../../context/SettingsContext.jsx";
 
 export default function OdometerCheckInModal({
   isOpen,
@@ -14,6 +13,8 @@ export default function OdometerCheckInModal({
   onClose,
   onSubmit,
 }) {
+  const { pmThresholdKm, maxOdometerKm } = useSettings();
+  const MAX_ODOMETER = maxOdometerKm;
   const [odometerReading, setOdometerReading] = useState("");
   const [source, setSource] = useState("POST_DISPATCH_RETURN");
   const [notes, setNotes] = useState("");
@@ -46,7 +47,7 @@ export default function OdometerCheckInModal({
         newDistanceSincePm: currentDistanceSincePm,
         isMonotonicValid: false,
         isCeilingValid: true,
-        willBePmDue: currentDistanceSincePm >= 5000,
+        willBePmDue: currentDistanceSincePm >= pmThresholdKm,
       };
     }
 
@@ -58,7 +59,7 @@ export default function OdometerCheckInModal({
         newDistanceSincePm: currentDistanceSincePm,
         isMonotonicValid: false,
         isCeilingValid: true,
-        willBePmDue: currentDistanceSincePm >= 5000,
+        willBePmDue: currentDistanceSincePm >= pmThresholdKm,
       };
     }
 
@@ -66,7 +67,7 @@ export default function OdometerCheckInModal({
     const ceiling = val <= MAX_ODOMETER;
     const diff = monotonic ? val - currentOdo : 0;
     const sincePm = val - lastPmOdo;
-    const pmDue = sincePm >= 5000;
+    const pmDue = sincePm >= pmThresholdKm;
 
     return {
       newOdoNum: val,
@@ -241,9 +242,9 @@ export default function OdometerCheckInModal({
             </div>
 
             <div className="flex items-center justify-between text-[#1B5E20] pt-1 text-[11.5px]">
-              <span>PM Interval (5,000 KM):</span>
+              <span>PM Interval ({pmThresholdKm.toLocaleString()} KM):</span>
               <span className="font-bold">
-                {newDistanceSincePm.toLocaleString()} / 5,000 KM ({Math.min(100, Math.round((newDistanceSincePm / 5000) * 100))}%)
+                {newDistanceSincePm.toLocaleString()} / {pmThresholdKm.toLocaleString()} KM ({Math.min(100, Math.round((newDistanceSincePm / pmThresholdKm) * 100))}%)
               </span>
             </div>
 
@@ -251,12 +252,12 @@ export default function OdometerCheckInModal({
               <div className="bg-red-100/80 text-red-800 border border-red-300 rounded-lg p-2 text-[11px] flex items-center gap-2 mt-1">
                 <AlertTriangle size={14} className="shrink-0 text-red-700" />
                 <span>
-                  <strong>PM Due:</strong> Reading reached or exceeded the 5,000 KM threshold.
+                  <strong>PM Due:</strong> Reading reached or exceeded the {pmThresholdKm.toLocaleString()} KM threshold.
                 </span>
               </div>
             ) : (
               <div className="text-[11px] text-[#2E7D32]">
-                {Math.max(0, 5000 - newDistanceSincePm).toLocaleString()} KM until next scheduled PM service.
+                {Math.max(0, pmThresholdKm - newDistanceSincePm).toLocaleString()} KM until next scheduled PM service.
               </div>
             )}
           </div>

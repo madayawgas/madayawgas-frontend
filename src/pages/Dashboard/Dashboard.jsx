@@ -10,6 +10,35 @@ import { fuelApi } from "../../api/fuel.js";
 import { tripsApi } from "../../api/trips.js";
 import { useRealtimeRefresh } from "../../hooks/useRealtimeRefresh.js";
 
+const DASHBOARD_CACHE_KEY = "app_dashboard_cache_v1";
+
+function readDashboardCache() {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeDashboardCache(updater) {
+  try {
+    const current = readDashboardCache();
+    const next = typeof updater === "function" ? updater(current) : updater;
+    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(next));
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+const EMPTY_SALES_DATA = {
+  summary: {},
+  salesTrends: [],
+  weekly: [],
+  monthly: [],
+  annually: [],
+};
+
 const TIMEFRAME_OPTIONS = [
   { key: "weekly", label: "Weekly" },
   { key: "monthly", label: "Monthly" },
@@ -62,17 +91,22 @@ export default function Dashboard() {
     : false;
 
   const [timeframe, setTimeframe] = useState("monthly");
-  const [isLoadingMetrics, setIsLoadingMetrics] = useState(true);
+  const initialCache = readDashboardCache();
+  const initialTfCache = initialCache[timeframe] || null;
 
-  const [salesData, setSalesData] = useState({
-    summary: {},
-    weekly: [],
-    monthly: [],
-    annually: [],
-  });
-  const [fuelCost, setFuelCost] = useState(0);
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState(!initialTfCache);
+
+  const [salesData, setSalesData] = useState(
+    () => initialTfCache?.salesData || EMPTY_SALES_DATA
+  );
+  const [fuelCost, setFuelCost] = useState(
+    () => initialTfCache?.fuelCost ?? 0
+  );
 
   const [truckCounts, setTruckCounts] = useState(() => {
+    if (initialCache.truckCounts) {
+      return initialCache.truckCounts;
+    }
     try {
       const cached = localStorage.getItem("app_fleet_cache");
       if (cached) {
@@ -101,8 +135,23 @@ export default function Dashboard() {
     };
   });
 
+  const handleTimeframeChange = (nextTf) => {
+    setTimeframe(nextTf);
+    const cachedTf = readDashboardCache()[nextTf];
+    if (cachedTf) {
+      setSalesData(cachedTf.salesData || EMPTY_SALES_DATA);
+      setFuelCost(cachedTf.fuelCost ?? 0);
+      setIsLoadingMetrics(false);
+    } else {
+      setIsLoadingMetrics(true);
+    }
+  };
+
   const loadDashboardData = useCallback(async () => {
-    setIsLoadingMetrics(true);
+    const cachedTf = readDashboardCache()[timeframe];
+    if (!cachedTf) {
+      setIsLoadingMetrics(true);
+    }
     try {
       const { startDate, endDate } = getTimeframeBounds(timeframe);
 
@@ -134,15 +183,20 @@ export default function Dashboard() {
         tripsPromise,
       ]);
 
+      let nextSalesData = null;
       if (salesRes.status === "fulfilled" && salesRes.value) {
+        nextSalesData = salesRes.value;
         setSalesData(salesRes.value);
       }
 
+      let nextFuelCost = null;
       if (fuelRes.status === "fulfilled" && fuelRes.value) {
         const totals = fuelRes.value?.fleetTotals || fuelRes.value || {};
         const cost = Number(totals.totalFuelCost ?? totals.fuelCost) || 0;
+        nextFuelCost = cost;
         setFuelCost(cost);
       } else if (fuelRes.status === "fulfilled" && fuelRes.value === null) {
+        nextFuelCost = 0;
         setFuelCost(0);
       }
 
@@ -155,6 +209,7 @@ export default function Dashboard() {
           ? tripsRes.value
           : [];
 
+      let nextTruckCounts = null;
       if (trucks) {
         const dispatchedTruckIds = new Set(
           inProgressTrips.map((t) => t.truckId).filter(Boolean)
@@ -171,13 +226,23 @@ export default function Dashboard() {
           (t) => (t.status || "").toUpperCase() === "UNDER_MAINTENANCE"
         ).length;
 
-        setTruckCounts({
+        nextTruckCounts = {
           available: availableCount,
           inUse: inUseCount,
           maintenance: maintenanceCount,
           underRepair: 0,
-        });
+        };
+        setTruckCounts(nextTruckCounts);
       }
+
+      writeDashboardCache((prev) => ({
+        ...prev,
+        ...(nextTruckCounts ? { truckCounts: nextTruckCounts } : {}),
+        [timeframe]: {
+          salesData: nextSalesData ?? prev[timeframe]?.salesData ?? EMPTY_SALES_DATA,
+          fuelCost: nextFuelCost ?? prev[timeframe]?.fuelCost ?? 0,
+        },
+      }));
     } catch {
       // Retain existing state on network failure
     } finally {
@@ -189,7 +254,9 @@ export default function Dashboard() {
     events: [
       "FLEET_VEHICLE_GROUNDED",
       "FLEET_VEHICLE_RELEASED",
+      "VEHICLE_STATUS_UPDATED",
       "SALES_BATCH_SYNCED",
+      "SALES_INVOICE_VERIFIED",
       "SALES_TRANSACTION_CANCELLED",
       "TRIP_DISPATCHED",
       "TRIP_ENDED",
@@ -197,7 +264,7 @@ export default function Dashboard() {
       "TRIP_CANCELLED",
       "FUEL_LOGGED",
     ],
-    cacheKeysToInvalidate: ["app_fleet_cache"],
+    cacheKeysToInvalidate: ["app_fleet_cache", DASHBOARD_CACHE_KEY],
     onRefresh: loadDashboardData,
   });
 
@@ -242,7 +309,7 @@ export default function Dashboard() {
                 <button
                   key={opt.key}
                   type="button"
-                  onClick={() => setTimeframe(opt.key)}
+                  onClick={() => handleTimeframeChange(opt.key)}
                   aria-pressed={isActive}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
                     isActive

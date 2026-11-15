@@ -19,7 +19,8 @@ import {
   Scale,
   ClipboardList,
   Tag,
-  Briefcase,
+  BarChart3,
+  Receipt,
   MapPin,
   ChevronDown,
   Wrench,
@@ -78,7 +79,10 @@ export default function Layout() {
       if (search.includes("tab=work-orders") || search.includes("tab=logs") || search.includes("tab=analytics")) return "Fleet Maintenance Hub";
       return "Fleet Board";
     }
-    if (pathname.startsWith("/sales-delivery")) return "Sales and Delivery";
+    if (pathname.startsWith("/sales/overview")) return "Sales Overview";
+    if (pathname.startsWith("/sales/trips")) return "Trip Remittances";
+    if (pathname.startsWith("/sales/transactions")) return "Transactions & Invoices";
+    if (pathname.startsWith("/sales-delivery")) return "Sales Overview";
     if (pathname.startsWith("/customers") || pathname.startsWith("/customer")) return "Customer Profile";
     if (pathname.startsWith("/users")) return "User Management";
     if (pathname.startsWith("/history-log")) return "History Log";
@@ -353,12 +357,30 @@ export default function Layout() {
                 </div>
 
                 <NavLink
-                  to="/sales-delivery"
+                  to="/sales/overview"
                   className={navClass}
                   onClick={() => setOpen(false)}
                 >
-                  <Briefcase size={17} className="shrink-0" />
-                  <span>Sales & Delivery</span>
+                  <BarChart3 size={17} className="shrink-0" />
+                  <span>Sales Overview</span>
+                </NavLink>
+
+                <NavLink
+                  to="/sales/trips"
+                  className={navClass}
+                  onClick={() => setOpen(false)}
+                >
+                  <Truck size={17} className="shrink-0" />
+                  <span>Trip Remittances</span>
+                </NavLink>
+
+                <NavLink
+                  to="/sales/transactions"
+                  className={navClass}
+                  onClick={() => setOpen(false)}
+                >
+                  <Receipt size={17} className="shrink-0" />
+                  <span>Transactions & Invoices</span>
                 </NavLink>
 
                 <NavLink

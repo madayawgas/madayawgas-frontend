@@ -1,5 +1,6 @@
 // src/components/ui/AvatarCropModal.jsx
 import { useState, useRef, useEffect, useCallback } from "react";
+import { SYSTEM_CONFIG } from "../../config/systemConfig";
 import {
   Camera,
   ZoomIn,
@@ -241,7 +242,7 @@ export default function AvatarCropModal({
       const rawFile = new File([blob], "avatar.jpg", { type: "image/jpeg" });
       const preparedFile = await compressAndPrepareImage(rawFile, {
         maxDimension: 1024,
-        maxSizeBytes: 5 * 1024 * 1024,
+        maxSizeBytes: SYSTEM_CONFIG.media.maxUploadFileSizeBytes,
         quality: 0.88,
       });
 

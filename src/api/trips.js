@@ -1,5 +1,9 @@
 // src/api/trips.js
 import { apiClient } from "./client.js";
+import { BUSINESS_SETTING_DEFAULTS } from "../config/systemConfig.js";
+
+const DEFAULT_CANISTERS_PER_CRATE =
+  BUSINESS_SETTING_DEFAULTS["inventory.canisters_per_crate"];
 
 export function normalizeTrip(raw) {
   if (!raw) return null;
@@ -84,7 +88,7 @@ export function normalizeTrip(raw) {
     reconciliation: normalizedRecon,
     onBoardSummary: raw.onBoardSummary || {
       totalUnits,
-      canisterCrates: Math.floor(canisterUnits / 24),
+      canisterCrates: Math.floor(canisterUnits / DEFAULT_CANISTERS_PER_CRATE),
       cylinders: cylinderUnits,
     },
     notes: raw.notes || null,

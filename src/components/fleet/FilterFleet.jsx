@@ -3,6 +3,7 @@ import { Funnel } from "lucide-react";
 import Button from "../ui/Button";
 import DateFilterGroup from "../users/DateFilterGroup";
 import DriverFilterGroup from "./DriverFilterGroup";
+import { useSettings } from "../../context/SettingsContext.jsx";
 
 export default function FilterFleet({
   label = "Filter Trucks",
@@ -11,6 +12,7 @@ export default function FilterFleet({
   className = "",
   driversList = [],
 }) {
+  const { pmThresholdKm } = useSettings();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(activeFilters.status || "");
   const [selectedDriver, setSelectedDriver] = useState(activeFilters.driver || "All Drivers");
@@ -177,10 +179,10 @@ export default function FilterFleet({
           </div>
         </div>
 
-        {/* 5,000-km PM Health Filter Group */}
+        {/* Dynamic PM Health Filter Group */}
         <div className="mb-3 text-left">
           <label className="block text-[11px] font-bold text-[#0A4B6E] mb-1.5 uppercase tracking-wide">
-            5,000-KM Maintenance Condition:
+            {pmThresholdKm.toLocaleString()}-KM Maintenance Condition:
           </label>
           <div className="flex flex-wrap gap-1.5">
             <button
@@ -194,7 +196,7 @@ export default function FilterFleet({
                   : "bg-rose-50 text-rose-700 border-rose-200 opacity-80 hover:opacity-100"
               }`}
             >
-              PM Due (≥ 5k KM)
+              PM Due (≥ {pmThresholdKm.toLocaleString()} KM)
             </button>
             <button
               type="button"
@@ -207,7 +209,7 @@ export default function FilterFleet({
                   : "bg-emerald-50 text-emerald-700 border-emerald-200 opacity-80 hover:opacity-100"
               }`}
             >
-              Normal (&lt; 5k KM)
+              Normal (&lt; {pmThresholdKm.toLocaleString()} KM)
             </button>
           </div>
         </div>

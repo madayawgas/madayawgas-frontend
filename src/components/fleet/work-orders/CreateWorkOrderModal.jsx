@@ -5,6 +5,7 @@ import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import Badge from "../../ui/Badge";
 import { getPhilippineTodayString } from "../../../utils/date.js";
+import { useSettings } from "../../../context/SettingsContext.jsx";
 
 const getDriverDisplay = (t) => {
   if (!t) return "No Assigned";
@@ -32,6 +33,7 @@ export default function CreateWorkOrderModal({
   onClose,
   onSubmit,
 }) {
+  const { workOrderApprovalThreshold } = useSettings();
   const todayStr = getPhilippineTodayString();
   const [selectedTruckId, setSelectedTruckId] = useState(truck?.id || "");
   const [maintenanceTypes, setMaintenanceTypes] = useState([]);
@@ -84,7 +86,7 @@ export default function CreateWorkOrderModal({
 
   const currentTruck = truck || trucks.find((t) => t.id === selectedTruckId) || null;
   const numCost = Number(estimatedCost) || 0;
-  const requiresApproval = numCost >= 5000.0;
+  const requiresApproval = numCost >= workOrderApprovalThreshold;
 
   const driverDisplay = getDriverDisplay(currentTruck);
 
@@ -353,7 +355,7 @@ export default function CreateWorkOrderModal({
             <div className="space-y-0.5">
               <p className="font-bold">Approval Required</p>
               <p className="text-[11px] text-amber-800 leading-relaxed">
-                Estimated cost is ₱5,000.00 or higher. Requires admin approval before proceeding.
+                Estimated cost is ₱{workOrderApprovalThreshold.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} or higher. Requires admin approval before proceeding.
               </p>
             </div>
           </div>

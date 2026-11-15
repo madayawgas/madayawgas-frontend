@@ -5,7 +5,10 @@
  * - LPG cylinders are counted strictly as single items (units/cylinders). Cylinders have NO crates.
  */
 
-export const UNITS_PER_CANISTER_CRATE = 24;
+import { BUSINESS_SETTING_DEFAULTS } from "../config/systemConfig.js";
+
+export const UNITS_PER_CANISTER_CRATE =
+  BUSINESS_SETTING_DEFAULTS["inventory.canisters_per_crate"];
 
 /**
  * Checks if a product is a butane canister based on containerType, category, or name.
@@ -34,11 +37,12 @@ export function isCanisterProduct(product) {
  * @param {number} quantityUnits
  * @returns {{ crates: number, remainder: number }}
  */
-export function getCanisterCrates(quantityUnits) {
+export function getCanisterCrates(quantityUnits, unitsPerCrate = UNITS_PER_CANISTER_CRATE) {
   const units = Math.max(0, Number(quantityUnits) || 0);
+  const perCrate = Math.max(1, Number(unitsPerCrate) || UNITS_PER_CANISTER_CRATE);
   return {
-    crates: Math.floor(units / UNITS_PER_CANISTER_CRATE),
-    remainder: units % UNITS_PER_CANISTER_CRATE,
+    crates: Math.floor(units / perCrate),
+    remainder: units % perCrate,
   };
 }
 
@@ -48,12 +52,13 @@ export function getCanisterCrates(quantityUnits) {
  * - Cylinder: "25 cylinders" (strictly no crates)
  * @param {object|string} product
  * @param {number} quantityUnits
+ * @param {number} [unitsPerCrate]
  * @returns {string}
  */
-export function formatProductQuantity(product, quantityUnits) {
+export function formatProductQuantity(product, quantityUnits, unitsPerCrate = UNITS_PER_CANISTER_CRATE) {
   const units = Number(quantityUnits) || 0;
   if (isCanisterProduct(product)) {
-    const { crates, remainder } = getCanisterCrates(units);
+    const { crates, remainder } = getCanisterCrates(units, unitsPerCrate);
     if (crates === 0 && remainder === 0) return "0 cans";
     if (crates > 0 && remainder > 0) {
       return `${units.toLocaleString()} cans (${crates} crt + ${remainder} loose)`;

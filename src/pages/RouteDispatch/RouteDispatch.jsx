@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { useSettings } from "../../context/SettingsContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
 
 import { tripsApi } from "../../api/trips.js";
@@ -44,6 +45,7 @@ export default function RouteDispatch() {
   const todayPht = useMemo(() => getPhilippineTodayString(), []);
 
   // 1. Core Data States (Initialized from cache when available)
+  const { canistersPerCrate } = useSettings();
   const [trips, setTrips] = useState(() => {
     try {
       const cached = localStorage.getItem("app_trips_cache");
@@ -309,7 +311,7 @@ export default function RouteDispatch() {
       }
     });
 
-    const { crates: canisterCrates, remainder: canisterRemainder } = getCanisterCrates(canisterUnits);
+    const { crates: canisterCrates, remainder: canisterRemainder } = getCanisterCrates(canisterUnits, canistersPerCrate);
     return {
       totalUnits: canisterUnits + cylinderUnits,
       canisterUnits,
@@ -317,7 +319,7 @@ export default function RouteDispatch() {
       canisterRemainder,
       cylinderUnits,
     };
-  }, []);
+  }, [canistersPerCrate]);
 
   // 6. Partition Entities
   // 6a. Active Trips (IN_PROGRESS)

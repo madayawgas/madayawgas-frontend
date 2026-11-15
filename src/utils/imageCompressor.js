@@ -1,3 +1,5 @@
+import { SYSTEM_CONFIG } from "../config/systemConfig.js";
+
 /**
  * src/utils/imageCompressor.js
  *
@@ -94,7 +96,7 @@ export async function compressAndPrepareImage(file, options = {}) {
 
   const {
     maxDimension = 1920,
-    maxSizeBytes = 5 * 1024 * 1024, // 5 MB
+    maxSizeBytes = SYSTEM_CONFIG.media.maxUploadFileSizeBytes,
     quality = 0.82,
   } = options;
 
