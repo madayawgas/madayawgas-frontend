@@ -19,6 +19,7 @@ import CameraCaptureModal from "../../ui/CameraCaptureModal";
 import { uploadMediaFile } from "../../../api/media.js";
 import { getReceiptFileUrl, isImageFile, isPdfFile } from "../../../utils/media.js";
 import { toPhilippineDateInputString, getPhilippineTodayString } from "../../../utils/date.js";
+import { useSettings } from "../../../context/SettingsContext.jsx";
 
 const DRAFT_KEY_PREFIX = "madayaw_finalize_wo_draft_";
 const ACTIVE_WO_KEY = "madayaw_active_finalize_wo_id";
@@ -49,6 +50,7 @@ export default function FinalizeMaintenanceModal({
   onClose,
   onFinalize,
 }) {
+  const { maxOdometerKm, maxUploadFileSizeBytes } = useSettings();
   const [stagedReceipts, setStagedReceipts] = useState([]);
   const [severity, setSeverity] = useState("MEDIUM");
   const [dateStarted, setDateStarted] = useState("");
@@ -238,11 +240,11 @@ export default function FinalizeMaintenanceModal({
     if (!file) return;
     setError("");
 
-    // 1. Enforce 5 MB hard limit ceiling
-    const MAX_SIZE_BYTES = 5 * 1024 * 1024;
-    if (file.size > MAX_SIZE_BYTES) {
+    // 1. Enforce configured hard limit ceiling
+    if (file.size > maxUploadFileSizeBytes) {
       const mb = (file.size / (1024 * 1024)).toFixed(1);
-      setError(`Selected file (${mb} MB) exceeds maximum allowed limit of 5 MB.`);
+      const maxMb = Math.round(maxUploadFileSizeBytes / (1024 * 1024));
+      setError(`Selected file (${mb} MB) exceeds maximum allowed limit of ${maxMb} MB.`);
       return;
     }
 
@@ -327,8 +329,8 @@ export default function FinalizeMaintenanceModal({
       return;
     }
 
-    if (odo > 999999) {
-      setError("Odometer at service cannot exceed 999,999 km.");
+    if (odo > maxOdometerKm) {
+      setError(`Odometer at service cannot exceed ${maxOdometerKm.toLocaleString()} km.`);
       return;
     }
 
@@ -661,7 +663,7 @@ export default function FinalizeMaintenanceModal({
                   type="number"
                   required
                   min={currentOdometer || 0}
-                  max={999999}
+                  max={maxOdometerKm}
                   value={odometerAtService}
                   onChange={(e) => {
                     const val = e.target.value;

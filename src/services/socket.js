@@ -1,6 +1,7 @@
 // src/services/socket.js
 import { io } from "socket.io-client";
 import { API_BASE_URL } from "../api/client.js";
+import { SYSTEM_CONFIG } from "../config/systemConfig.js";
 
 let socket = null;
 let wasDisconnected = false;
@@ -45,10 +46,10 @@ export function connectSocket(explicitToken = null) {
       cb(activeToken ? { token: activeToken } : {});
     },
     ...(token ? { extraHeaders: { Authorization: `Bearer ${token}` } } : {}),
-    reconnection: true,
-    reconnectionAttempts: 15,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
+    reconnection: SYSTEM_CONFIG.socket.reconnection,
+    reconnectionAttempts: SYSTEM_CONFIG.socket.reconnectionAttempts,
+    reconnectionDelay: SYSTEM_CONFIG.socket.reconnectionDelay,
+    reconnectionDelayMax: SYSTEM_CONFIG.socket.reconnectionDelayMax,
     randomizationFactor: 0.5,
     autoConnect: true,
   });

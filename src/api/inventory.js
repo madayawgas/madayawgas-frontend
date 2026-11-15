@@ -1,5 +1,9 @@
 // src/api/inventory.js
 import { apiClient } from "./client.js";
+import { BUSINESS_SETTING_DEFAULTS } from "../config/systemConfig.js";
+
+const DEFAULT_CANISTERS_PER_CRATE =
+  BUSINESS_SETTING_DEFAULTS["inventory.canisters_per_crate"];
 import { authApi } from "./auth.js";
 
 /**
@@ -159,9 +163,9 @@ export const inventoryApi = {
             quantityFilled: item.quantityFilled !== undefined ? item.quantityFilled : Number(item.quantity_filled) || 0,
             quantityEmptyGood: item.quantityEmptyGood !== undefined ? item.quantityEmptyGood : Number(item.quantity_empty_good) || 0,
             quantityDefective: item.quantityDefective !== undefined ? item.quantityDefective : Number(item.quantity_defective) || 0,
-            cratesFilled: item.cratesFilled !== undefined ? item.cratesFilled : (item.container_type === 'CANISTER' ? Math.floor(Number(item.quantity_filled) / 24) : null),
-            cratesEmptyGood: item.cratesEmptyGood !== undefined ? item.cratesEmptyGood : (item.container_type === 'CANISTER' ? Math.floor(Number(item.quantity_empty_good) / 24) : null),
-            cratesDefective: item.cratesDefective !== undefined ? item.cratesDefective : (item.container_type === 'CANISTER' ? Math.floor(Number(item.quantity_defective) / 24) : null),
+            cratesFilled: item.cratesFilled !== undefined ? item.cratesFilled : (item.container_type === 'CANISTER' ? Math.floor(Number(item.quantity_filled) / DEFAULT_CANISTERS_PER_CRATE) : null),
+            cratesEmptyGood: item.cratesEmptyGood !== undefined ? item.cratesEmptyGood : (item.container_type === 'CANISTER' ? Math.floor(Number(item.quantity_empty_good) / DEFAULT_CANISTERS_PER_CRATE) : null),
+            cratesDefective: item.cratesDefective !== undefined ? item.cratesDefective : (item.container_type === 'CANISTER' ? Math.floor(Number(item.quantity_defective) / DEFAULT_CANISTERS_PER_CRATE) : null),
           }))
         : [];
 

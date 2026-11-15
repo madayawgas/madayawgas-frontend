@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Info, Loader2, RotateCcw, Save, AlertCircle } from "lucide-react";
 import { settingsApi } from "../../api/settings.js";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { useSettings } from "../../context/SettingsContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
 import ToastNotification from "../../components/ui/ToastNotifications.jsx";
 
@@ -132,6 +133,7 @@ function InfoTooltip({ label, description }) {
 
 export default function SystemSettings() {
   const { can } = useAuth();
+  const { applySettingUpdate, refreshSettings } = useSettings();
   const canManage = can(PERMISSIONS.SETTINGS_MANAGE);
 
   const [settings, setSettings] = useState([]);
@@ -277,9 +279,18 @@ export default function SystemSettings() {
           const next = { ...prev };
           for (const [k, updated] of updatedByKey.entries()) {
             next[k] = toInputValue(updated);
+            applySettingUpdate(k, updated.value);
+            if (String(k).startsWith("fleet.")) {
+              try {
+                localStorage.removeItem("app_fleet_cache");
+              } catch {
+                // ignore storage errors
+              }
+            }
           }
           return next;
         });
+        refreshSettings();
       }
 
       if (failedKeys.length > 0) {

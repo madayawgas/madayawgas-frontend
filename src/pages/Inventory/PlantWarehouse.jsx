@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Package, Flame } from "lucide-react";
 import { inventoryApi } from "../../api/inventory.js";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { useSettings } from "../../context/SettingsContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
 import { useRealtimeRefresh } from "../../hooks/useRealtimeRefresh.js";
 
@@ -32,6 +33,7 @@ const VIEW_MODE_CACHE_KEY = "app_plant_view_mode";
  */
 export default function PlantWarehouse() {
   const { can } = useAuth();
+  const { canistersPerCrate } = useSettings();
   const canManage = can
     ? (can(PERMISSIONS?.INVENTORY_MANAGE || "inventory.manage"))
     : false;
@@ -147,8 +149,8 @@ export default function PlantWarehouse() {
       totalDefective += qD;
 
       if (isCanister) {
-        cratesFilled += Math.floor(qF / 24);
-        cratesEmpty += Math.floor(qE / 24);
+        cratesFilled += Math.floor(qF / canistersPerCrate);
+        cratesEmpty += Math.floor(qE / canistersPerCrate);
       }
     });
 
@@ -160,7 +162,7 @@ export default function PlantWarehouse() {
       cratesFilled,
       cratesEmpty,
     };
-  }, [plantStock]);
+  }, [plantStock, canistersPerCrate]);
 
   // Filtered product stock based on search, container type, and stock level
   const filteredStock = useMemo(() => {

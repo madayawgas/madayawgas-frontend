@@ -5,6 +5,7 @@ import Badge from "../ui/Badge";
 import Pagination from "../ui/Pagination";
 import { fleetApi } from "../../api/fleet.js";
 import { formatPhilippineDateTime } from "../../utils/date.js";
+import { useSettings } from "../../context/SettingsContext.jsx";
 
 /**
  * OdometerHistoryModal
@@ -17,6 +18,7 @@ export default function OdometerHistoryModal({
   onClose,
   onOpenCheckIn,
 }) {
+  const { pmThresholdKm } = useSettings();
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -118,7 +120,7 @@ export default function OdometerHistoryModal({
       : truck.lastPMOdometer || 0
   );
   const distanceSinceLastPm = Math.max(0, currentOdo - lastPmOdo);
-  const isPmDue = distanceSinceLastPm >= 5000;
+  const isPmDue = distanceSinceLastPm >= pmThresholdKm;
 
   const formatDateTime = (isoString) => formatPhilippineDateTime(isoString, { fallback: "-" });
 
@@ -198,7 +200,7 @@ export default function OdometerHistoryModal({
                   isPmDue ? "text-[#C93B32]" : "text-[#0A4B6E]"
                 }`}
               >
-                {distanceSinceLastPm.toLocaleString()} / 5,000 KM
+                {distanceSinceLastPm.toLocaleString()} / {pmThresholdKm.toLocaleString()} KM
               </span>
             </div>
             {isPmDue && (

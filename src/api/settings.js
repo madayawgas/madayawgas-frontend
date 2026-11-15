@@ -3,6 +3,15 @@ import { apiClient } from "./client.js";
 
 export const settingsApi = {
   /**
+   * Fetch effective operational settings and system bounds for any authenticated user.
+   * @returns {Promise<{ settings: object, system: object }>}
+   */
+  async getEffectiveConfig() {
+    const res = await apiClient("/settings/effective");
+    return res?.data || res || { settings: {}, system: {} };
+  },
+
+  /**
    * Fetch all organization business system settings, optionally filtered by category.
    * @param {string} [category]
    * @returns {Promise<Array>}

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { fleetApi } from "../../api/fleet.js";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { useSettings } from "../../context/SettingsContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
 import { checkActiveWorkOrder } from "../../utils/fleetGuards.js";
 import { isPhilippineDateInRange } from "../../utils/date.js";
@@ -44,6 +45,7 @@ const LOCAL_STORAGE_KEY = "app_fleet_cache";
 
 export default function Fleet() {
   const { can } = useAuth();
+  const { pmThresholdKm } = useSettings();
 
   // RBAC Permission Guard
   const canManage = can
@@ -369,11 +371,7 @@ export default function Fleet() {
     const pmDueTotal = trucks.filter((t) => {
       const cur = Number(t.currentOdometer) || 0;
       const last = Number(t.lastPmOdometer !== undefined ? t.lastPmOdometer : t.lastPMOdometer || 0);
-      return t.pmDueFlag !== undefined
-        ? Boolean(t.pmDueFlag)
-        : t.isPmDue !== undefined
-        ? Boolean(t.isPmDue)
-        : cur - last >= 5000;
+      return cur - last >= pmThresholdKm;
     }).length;
     const underMaintenanceVehicles = trucks.filter(
       (t) => t.status === "UNDER_MAINTENANCE"
@@ -385,7 +383,7 @@ export default function Fleet() {
       pmDueTotal,
       underMaintenanceVehicles,
     };
-  }, [trucks]);
+  }, [trucks, pmThresholdKm]);
 
   const handleTogglePmDueFilter = () => {
     setFilters((prev) => ({
@@ -976,12 +974,7 @@ export default function Fleet() {
       if (filters.pmStatus) {
         const cur = Number(truck.currentOdometer) || 0;
         const last = Number(truck.lastPmOdometer !== undefined ? truck.lastPmOdometer : truck.lastPMOdometer || 0);
-        const isDue =
-          truck.pmDueFlag !== undefined
-            ? Boolean(truck.pmDueFlag)
-            : truck.isPmDue !== undefined
-            ? Boolean(truck.isPmDue)
-            : cur - last >= 5000;
+        const isDue = cur - last >= pmThresholdKm;
 
         if (filters.pmStatus === "PM_DUE") {
           matchesPm = isDue;

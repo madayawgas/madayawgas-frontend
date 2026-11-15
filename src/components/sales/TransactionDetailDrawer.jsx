@@ -1,168 +1,231 @@
 // src/components/sales/TransactionDetailDrawer.jsx
 import { useEffect, useState } from "react";
 import {
-  X,
   Receipt,
-  User,
   MapPin,
-  Calendar,
   Banknote,
   CreditCard,
-  CheckCircle2,
-  Clock,
-  Layers,
-  FileText,
   AlertTriangle,
   ExternalLink,
+  ShieldCheck,
 } from "lucide-react";
 import { salesApi } from "../../api/sales.js";
 import { formatPhilippineDateTime } from "../../utils/date.js";
+import SideDrawer from "../ui/SideDrawer";
+import Badge from "../ui/Badge";
+import InfoTooltip from "../ui/InfoTooltip";
 import DocumentViewerModal from "../ui/DocumentViewerModal";
+
+const ORDER_STATUS_META = {
+  COMPLETED: { label: "Completed", variant: "success" },
+  CANCELLED: { label: "Cancelled", variant: "danger" },
+};
+
+const PAYMENT_STATUS_META = {
+  VERIFIED: { label: "Verified", variant: "success" },
+  PAID_UNVERIFIED: { label: "Pending Review", variant: "warning" },
+};
 
 export default function TransactionDetailDrawer({
   transaction,
+  isOpen = false,
   onClose,
-  isClosing = false,
+  canVerify = false,
+  onRequestVerify,
 }) {
-  const [details, setDetails] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [detailsState, setDetailsState] = useState({ id: null, data: null });
+  const [loadedId, setLoadedId] = useState(null);
   const [selectedProofKey, setSelectedProofKey] = useState(null);
 
   useEffect(() => {
-    if (!transaction?.id) return;
+    if (!isOpen || !transaction?.id) return;
     let isMounted = true;
-    setIsLoading(true);
+    const targetId = transaction.id;
 
     salesApi
-      .getTransactionById(transaction.id)
+      .getTransactionById(targetId)
       .then((data) => {
-        if (isMounted) setDetails(data);
+        if (isMounted) setDetailsState({ id: targetId, data });
       })
       .catch((err) => {
         console.error("Failed to load transaction details:", err);
       })
       .finally(() => {
-        if (isMounted) setIsLoading(false);
+        if (isMounted) setLoadedId(targetId);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [transaction?.id]);
+  }, [isOpen, transaction?.id]);
 
-  if (!transaction) return null;
+  const details =
+    detailsState.id === transaction?.id ? detailsState.data : null;
+  const isLoading = Boolean(isOpen && transaction?.id && loadedId !== transaction.id);
 
-  const tx = details || transaction;
+  const tx = details || transaction || {};
   const items = tx.items || [];
   const invoice = tx.invoice || null;
-  const isCancelled = (tx.status || "").toUpperCase() === "CANCELLED";
+  const orderStatus = (tx.status || "COMPLETED").toUpperCase();
+  const isCancelled = orderStatus === "CANCELLED";
+  const orderBadge = ORDER_STATUS_META[orderStatus] || {
+    label: orderStatus.replace(/_/g, " "),
+    variant: "neutral",
+  };
+
+  const invoicePaymentStatus = (
+    invoice?.payment_status ||
+    invoice?.paymentStatus ||
+    tx.payment_status ||
+    tx.paymentStatus ||
+    ""
+  ).toUpperCase();
+  const isUnverifiedGcash =
+    invoice &&
+    (invoice.payment_method || invoice.paymentMethod || "").toUpperCase() === "GCASH" &&
+    invoicePaymentStatus === "PAID_UNVERIFIED";
+
+  const paymentBadge = PAYMENT_STATUS_META[invoicePaymentStatus] || {
+    label: invoicePaymentStatus ? invoicePaymentStatus.replace(/_/g, " ") : "Recorded",
+    variant: "neutral",
+  };
+
+  const proofTarget =
+    invoice?.payment_proof_url ||
+    invoice?.paymentProofUrl ||
+    invoice?.payment_proof_key ||
+    invoice?.paymentProofKey ||
+    null;
+
+  const footer = (
+    <div className="flex items-center gap-2.5">
+      {isUnverifiedGcash && canVerify && typeof onRequestVerify === "function" && (
+        <button
+          type="button"
+          onClick={() =>
+            onRequestVerify({
+              ...invoice,
+              customer_name: tx.customer_name || tx.customerName,
+            })
+          }
+          className="flex-1 inline-flex items-center justify-center gap-1.5 bg-[#0A4B6E] hover:bg-[#083b57] text-[#FFDF2C] font-bold text-xs uppercase tracking-wider py-2.5 rounded-full shadow-2xs transition-all cursor-pointer"
+        >
+          <ShieldCheck size={14} />
+          <span>Verify GCash</span>
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onClose}
+        className="flex-1 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs uppercase tracking-wider py-2.5 rounded-full shadow-2xs transition-all cursor-pointer"
+      >
+        Close
+      </button>
+    </div>
+  );
 
   return (
     <>
-      <div
-        className={`w-full lg:w-[450px] xl:w-[490px] shrink-0 h-full flex flex-col bg-white border-l border-[#BCE1F1]/60 shadow-xl z-20 ${
-          isClosing ? "animate-slide-fade-out" : "animate-slide-fade-in"
-        }`}
+      <SideDrawer
+        isOpen={isOpen && Boolean(transaction)}
+        onClose={onClose}
+        title={tx.transaction_no || tx.transactionNo || "Transaction Details"}
+        subtitle={
+          tx.recorded_by_name || tx.recordedByName
+            ? `Recorded by ${tx.recorded_by_name || tx.recordedByName}`
+            : "Sales Transaction Record"
+        }
+        icon={Receipt}
+        badge={<Badge variant={orderBadge.variant}>{orderBadge.label}</Badge>}
+        footer={footer}
+        width="max-w-md sm:max-w-lg"
       >
-        {/* Top Header */}
-        <div className="shrink-0 p-4 border-b border-slate-200 flex items-center justify-between bg-[#F8FBFC]">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#6D8AA2]">
-              Sales Transaction Record
-            </span>
-            <h2 className="text-base font-bold text-[#0A4B6E] flex items-center gap-2">
-              <span>{tx.transaction_no || tx.transactionNo}</span>
-              <span
-                className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                  isCancelled
-                    ? "bg-rose-50 text-rose-700 border border-rose-200"
-                    : "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                }`}
-              >
-                {tx.status}
+        <div className="flex flex-col gap-4 text-xs">
+          {/* 1. Timestamps */}
+          <div className="bg-[#E8F3F8]/40 p-3.5 rounded-xl border border-[#BCE1F1]/60 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[#6D8AA2] font-medium flex items-center gap-1">
+                <span>Transacted</span>
+                <InfoTooltip
+                  align="left"
+                  position="bottom"
+                  text="Device time recorded when the mobile crew completed the stop (even if offline)."
+                  label="About transacted time"
+                />
               </span>
-            </h2>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Scrollable Content */}
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-4 text-xs">
-          {/* 1. Timestamps & Agent Attribution */}
-          <div className="bg-[#E8F3F8]/40 p-3 rounded-xl border border-[#BCE1F1]/50 flex flex-col gap-1.5">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-[#6D8AA2]">Wall-Clock Transacted:</span>
               <span className="font-semibold text-slate-800">
                 {formatPhilippineDateTime(tx.transacted_at || tx.transactedAt)}
               </span>
             </div>
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-[#6D8AA2]">Server Sync Ingest:</span>
+            <div className="flex items-center justify-between">
+              <span className="text-[#6D8AA2] font-medium flex items-center gap-1">
+                <span>Synced</span>
+                <InfoTooltip
+                  align="left"
+                  position="bottom"
+                  text="Server timestamp when the field device uploaded this record to the plant database."
+                  label="About sync time"
+                />
+              </span>
               <span className="font-semibold text-slate-800">
                 {formatPhilippineDateTime(tx.synced_at || tx.syncedAt)}
               </span>
             </div>
-            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-[#BCE1F1]/40">
-              <span className="text-[#6D8AA2]">Recorded By Sales Agent:</span>
-              <span className="font-semibold text-[#0A4B6E]">
-                {tx.recorded_by_name || tx.recordedByName || tx.recorded_by_username || "Sales Agent"}
-              </span>
-            </div>
           </div>
 
-          {/* 2. Customer Profile Section */}
+          {/* 2. Customer Profile */}
           <div className="border border-slate-200 rounded-xl p-3.5 bg-white flex flex-col gap-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#6D8AA2]">
-              Customer Information
-            </span>
+            <span className="text-xs font-bold text-[#6D8AA2]">Customer</span>
             <div className="text-sm font-bold text-[#0A4B6E]">
               {tx.customer_name || tx.customerName || "Customer"}
             </div>
             {tx.customer_business_name && (
-              <div className="text-[11px] font-semibold text-slate-700">
+              <div className="text-xs font-semibold text-slate-700">
                 {tx.customer_business_name}
               </div>
             )}
-            <div className="text-[11px] text-slate-600 flex items-start gap-1.5 mt-1">
-              <MapPin size={12} className="shrink-0 mt-0.5 text-[#6D8AA2]" />
-              <span>{tx.customer_delivery_address || tx.customer_address || "Delivery Address on File"}</span>
+            <div className="text-xs text-slate-600 flex items-start gap-1.5 mt-0.5">
+              <MapPin size={13} className="shrink-0 mt-0.5 text-[#6D8AA2]" />
+              <span>
+                {tx.customer_delivery_address ||
+                  tx.customer_address ||
+                  "Delivery address on file"}
+              </span>
             </div>
             {tx.customer_contact_number && (
-              <div className="text-[11px] text-slate-600 mt-0.5">
-                Contact: <span className="font-semibold text-slate-800">{tx.customer_contact_number}</span>
+              <div className="text-xs text-slate-600">
+                Contact:{" "}
+                <span className="font-semibold text-slate-800">
+                  {tx.customer_contact_number}
+                </span>
               </div>
             )}
           </div>
 
           {/* 3. Itemized Order Lines */}
           <div className="border border-slate-200 rounded-xl p-3.5 bg-white flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#6D8AA2]">
-                Order Items ({items.length})
-              </span>
-            </div>
+            <span className="text-xs font-bold text-[#0A4B6E]">
+              Order Items ({items.length})
+            </span>
 
             {isLoading ? (
-              <div className="py-6 text-center text-slate-400">Loading order items...</div>
+              <div className="py-6 text-center text-slate-500">
+                Loading order items...
+              </div>
             ) : items.length === 0 ? (
-              <div className="py-4 text-center text-slate-400">Zero-sale pickup stop (no products sold)</div>
+              <div className="py-4 text-center text-slate-500">
+                Zero-sale pickup stop (no products sold)
+              </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-[11px]">
+                <table className="w-full text-left text-xs">
                   <thead className="bg-[#E8F3F8]/50 text-[#0A4B6E] font-bold border-b border-[#BCE1F1]">
                     <tr>
-                      <th className="py-1.5 px-2">SKU</th>
-                      <th className="py-1.5 px-2 text-right">Sold</th>
-                      <th className="py-1.5 px-2 text-right">Unit Price</th>
-                      <th className="py-1.5 px-2 text-right">Subtotal</th>
-                      <th className="py-1.5 px-2 text-right">Empties</th>
+                      <th className="py-2 px-2">Product</th>
+                      <th className="py-2 px-2 text-right">Sold</th>
+                      <th className="py-2 px-2 text-right">Price</th>
+                      <th className="py-2 px-2 text-right">Subtotal</th>
+                      <th className="py-2 px-2 text-right">Empties</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -171,16 +234,22 @@ export default function TransactionDetailDrawer({
                         <td className="py-2 px-2 font-medium text-slate-800">
                           {item.product_name || item.productName}
                         </td>
-                        <td className="py-2 px-2 text-right font-bold text-slate-700">
+                        <td className="py-2 px-2 text-right font-bold text-slate-700 tabular-nums">
                           {item.quantity_sold || item.quantitySold}
                         </td>
-                        <td className="py-2 px-2 text-right text-slate-600">
-                          ₱{Number(item.unit_price_at_sale || item.unitPriceAtSale || 0).toFixed(2)}
+                        <td className="py-2 px-2 text-right text-slate-600 tabular-nums">
+                          ₱
+                          {Number(
+                            item.unit_price_at_sale || item.unitPriceAtSale || 0
+                          ).toFixed(2)}
                         </td>
-                        <td className="py-2 px-2 text-right font-bold text-[#0A4B6E]">
-                          ₱{Number(item.subtotal_amount || item.subtotalAmount || 0).toFixed(2)}
+                        <td className="py-2 px-2 text-right font-bold text-[#0A4B6E] tabular-nums">
+                          ₱
+                          {Number(
+                            item.subtotal_amount || item.subtotalAmount || 0
+                          ).toFixed(2)}
                         </td>
-                        <td className="py-2 px-2 text-right text-emerald-700 font-semibold">
+                        <td className="py-2 px-2 text-right text-emerald-700 font-semibold tabular-nums">
                           {item.empties_returned || item.emptiesReturned || 0}
                         </td>
                       </tr>
@@ -191,122 +260,121 @@ export default function TransactionDetailDrawer({
             )}
           </div>
 
-          {/* 4. Payment Settlement & Invoice Card */}
+          {/* 4. Payment Settlement & Invoice */}
           {invoice && (
-            <div className="border border-slate-200 rounded-xl p-3.5 bg-white flex flex-col gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#6D8AA2]">
-                Payment Settlement & Invoice
+            <div className="border border-slate-200 rounded-xl p-3.5 bg-white flex flex-col gap-2.5">
+              <span className="text-xs font-bold text-[#0A4B6E]">
+                Invoice & Payment
               </span>
 
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <span className="text-[#6D8AA2] block">Invoice Series</span>
-                  <span className="font-bold text-slate-800">{invoice.invoice_number || invoice.invoiceNumber}</span>
+                  <span className="text-[#6D8AA2] block">Invoice No.</span>
+                  <span className="font-bold text-slate-800">
+                    {invoice.invoice_number || invoice.invoiceNumber}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-[#6D8AA2] block">Declaration Slip</span>
-                  <span className="font-semibold text-slate-800">{invoice.declaration_number || invoice.declarationNumber || "N/A"}</span>
+                  <span className="text-[#6D8AA2] flex items-center gap-1">
+                    <span>Declaration Slip</span>
+                    <InfoTooltip
+                      align="right"
+                      text="Field paper receipt or trip declaration number issued on delivery."
+                      label="About declaration slip"
+                    />
+                  </span>
+                  <span className="font-semibold text-slate-800">
+                    {invoice.declaration_number ||
+                      invoice.declarationNumber ||
+                      "N/A"}
+                  </span>
                 </div>
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                <span className="text-xs font-semibold text-slate-600">Total Invoice Amount:</span>
-                <span className="text-base font-bold text-[#0A4B6E]">
-                  ₱{Number(invoice.total_amount || invoice.totalAmount || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <span className="font-semibold text-slate-600">Total Amount</span>
+                <span className="text-base font-bold text-[#0A4B6E] tabular-nums">
+                  ₱
+                  {Number(
+                    invoice.total_amount || invoice.totalAmount || 0
+                  ).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-[#6D8AA2]">Payment Method:</span>
-                <span className="font-bold text-slate-800 flex items-center gap-1">
-                  {invoice.payment_method === "CASH" ? (
+              <div className="flex items-center justify-between">
+                <span className="text-[#6D8AA2]">Method</span>
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                  {(invoice.payment_method || invoice.paymentMethod) === "CASH" ? (
                     <>
-                      <Banknote size={13} className="text-emerald-600" />
+                      <Banknote size={14} className="text-emerald-600" />
                       <span>Cash on Delivery</span>
                     </>
                   ) : (
                     <>
-                      <CreditCard size={13} className="text-sky-600" />
+                      <CreditCard size={14} className="text-[#0F7AB2]" />
                       <span>GCash Transfer</span>
                     </>
                   )}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-[#6D8AA2]">Payment Status:</span>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                    invoice.payment_status === "VERIFIED"
-                      ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                      : "bg-amber-50 text-amber-800 border border-amber-200"
-                  }`}
-                >
-                  {invoice.payment_status}
-                </span>
+              <div className="flex items-center justify-between">
+                <span className="text-[#6D8AA2]">Verification</span>
+                <Badge variant={paymentBadge.variant}>
+                  {paymentBadge.label}
+                </Badge>
               </div>
 
-              {invoice.payment_reference_number && (
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-[#6D8AA2]">GCash Reference No:</span>
+              {(invoice.payment_reference_number ||
+                invoice.paymentReferenceNumber) && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[#6D8AA2]">GCash Reference</span>
                   <span className="font-mono font-bold text-slate-800">
-                    {invoice.payment_reference_number}
+                    {invoice.payment_reference_number ||
+                      invoice.paymentReferenceNumber}
                   </span>
                 </div>
               )}
 
-              {(invoice.payment_proof_url || invoice.paymentProofUrl || invoice.payment_proof_key || invoice.paymentProofKey) && (
+              {proofTarget && (
                 <button
                   type="button"
-                  onClick={() =>
-                    setSelectedProofKey(
-                      invoice.payment_proof_url ||
-                        invoice.paymentProofUrl ||
-                        invoice.payment_proof_key ||
-                        invoice.paymentProofKey
-                    )
-                  }
-                  className="mt-1 text-xs text-[#0F7AB2] hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                  onClick={() => setSelectedProofKey(proofTarget)}
+                  className="mt-1 text-xs text-[#0F7AB2] hover:underline flex items-center gap-1.5 font-semibold cursor-pointer"
                 >
-                  <ExternalLink size={12} />
-                  <span>View Uploaded Payment Receipt Proof</span>
+                  <ExternalLink size={13} />
+                  <span>View Receipt Screenshot</span>
                 </button>
               )}
             </div>
           )}
 
-          {/* 5. Cancellation Audit Trail (if cancelled) */}
+          {/* 5. Cancellation Audit Trail */}
           {isCancelled && (
-            <div className="border border-rose-200 rounded-xl p-3.5 bg-rose-50/50 flex flex-col gap-1 text-[11px]">
-              <span className="font-bold text-rose-800 flex items-center gap-1">
-                <AlertTriangle size={13} />
-                <span>Voided / Cancelled Transaction</span>
+            <div className="border border-rose-200 rounded-xl p-3.5 bg-rose-50/60 flex flex-col gap-1">
+              <span className="font-bold text-rose-800 flex items-center gap-1.5">
+                <AlertTriangle size={14} />
+                <span>Cancelled Transaction</span>
               </span>
               <p className="text-rose-900 mt-1">
-                Reason: {tx.cancellation_reason || tx.cancellationReason || "No cancellation reason recorded."}
+                {tx.cancellation_reason ||
+                  tx.cancellationReason ||
+                  "No cancellation reason recorded."}
               </p>
               {tx.cancelled_by_name && (
-                <span className="text-rose-700 text-[10px]">
-                  Voided by {tx.cancelled_by_name} on {formatPhilippineDateTime(tx.cancelled_at)}
+                <span className="text-rose-700">
+                  Voided by {tx.cancelled_by_name} on{" "}
+                  {formatPhilippineDateTime(tx.cancelled_at)}
                 </span>
               )}
             </div>
           )}
         </div>
+      </SideDrawer>
 
-        {/* Pinned Bottom Close Button */}
-        <div className="shrink-0 p-4 border-t border-slate-200 bg-[#F8FBFC]">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs uppercase tracking-wider py-2.5 rounded-full shadow-2xs transition-all cursor-pointer"
-          >
-            Close Details
-          </button>
-        </div>
-      </div>
-
-      {/* Proof Modal */}
       {selectedProofKey && (
         <DocumentViewerModal
           isOpen={Boolean(selectedProofKey)}

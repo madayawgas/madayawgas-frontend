@@ -1,12 +1,15 @@
 // src/components/fleet/TruckCard.jsx
 import { AlertTriangle, ChevronRight, Truck, UserRound } from "lucide-react";
 import Badge from "../ui/Badge";
+import { useSettings } from "../../context/SettingsContext.jsx";
 
 export default function TruckCard({
   truck,
   isSelected = false,
   onClick,
 }) {
+  const { pmThresholdKm, pmApproachingRatio } = useSettings();
+  const pmApproachingKm = pmThresholdKm * pmApproachingRatio;
   const normalizedStatus = (truck.status || truck.operationalStatus || "").toUpperCase().replace("_", " ");
 
   const getStatusVariant = (status) => {
@@ -37,13 +40,8 @@ export default function TruckCard({
       : truck.lastPMOdometer || 0
   );
   const distanceSinceLastPm = Math.max(0, currentOdo - lastPmOdo);
-  const isPmDue =
-    truck.pmDueFlag !== undefined
-      ? Boolean(truck.pmDueFlag)
-      : truck.isPmDue !== undefined
-      ? Boolean(truck.isPmDue)
-      : distanceSinceLastPm >= 5000;
-  const pmPercent = Math.min(100, Math.round((distanceSinceLastPm / 5000) * 100));
+  const isPmDue = distanceSinceLastPm >= pmThresholdKm;
+  const pmPercent = Math.min(100, Math.round((distanceSinceLastPm / pmThresholdKm) * 100));
 
   // Safety Inspection Advisory Derivation
   const latestInspection = truck.latestInspection || null;
@@ -112,7 +110,7 @@ export default function TruckCard({
               <Badge variant="danger" className="px-2 py-0.5 text-[10px] font-bold shrink-0">
                 PM DUE
               </Badge>
-            ) : distanceSinceLastPm >= 4000 ? (
+            ) : distanceSinceLastPm >= pmApproachingKm ? (
               <Badge variant="warning" className="px-2 py-0.5 text-[10px] font-bold shrink-0">
                 NEAR
               </Badge>
@@ -153,12 +151,12 @@ export default function TruckCard({
                 className={`font-semibold text-[11px] truncate text-right ${
                   isPmDue
                     ? "text-[#C93B32]"
-                    : distanceSinceLastPm >= 4000
+                    : distanceSinceLastPm >= pmApproachingKm
                     ? "text-amber-800"
                     : "text-[#0A4B6E]"
                 }`}
               >
-                {distanceSinceLastPm.toLocaleString()} / 5,000 KM ({pmPercent}%)
+                {distanceSinceLastPm.toLocaleString()} / {pmThresholdKm.toLocaleString()} KM ({pmPercent}%)
               </span>
             </div>
 
@@ -167,7 +165,7 @@ export default function TruckCard({
                 className={`h-full rounded-full transition-all duration-300 ${
                   isPmDue
                     ? "bg-[#CD3E3E]"
-                    : distanceSinceLastPm >= 4000
+                    : distanceSinceLastPm >= pmApproachingKm
                     ? "bg-[#F6C445]"
                     : "bg-[#0A4B6E]"
                 }`}

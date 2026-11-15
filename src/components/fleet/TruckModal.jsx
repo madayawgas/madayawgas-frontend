@@ -22,6 +22,7 @@ import {
   ACTIVE_RESTRICTED_TOOLTIP,
   ACTIVE_RESTRICTED_ERROR,
 } from "../../utils/fleetGuards.js";
+import { useSettings } from "../../context/SettingsContext.jsx";
 
 const getStatusVariant = (status) => {
   const normalized = (status || "").toUpperCase().replace("_", " ");
@@ -156,6 +157,8 @@ export default function TruckModal({
   onCreateWorkOrder,
   onOpenWorkOrderDetail,
 }) {
+  const { pmThresholdKm, pmApproachingRatio, maxOdometerKm } = useSettings();
+  const pmApproachingKm = pmThresholdKm * pmApproachingRatio;
   const [isEditing, setIsEditing] = useState(isAdding || isEditingProp || false);
   const [step, setStep] = useState(1);
   const [errors, setErrors] = useState({});
@@ -278,8 +281,8 @@ export default function TruckModal({
       const curOdo = Number(formData.currentOdometer) || 0;
       if (isNaN(newOdo) || newOdo < 0) {
         newErrors.inputOdometer = "Odometer reading must be a valid non-negative number";
-      } else if (newOdo > 999999) {
-        newErrors.inputOdometer = "Odometer reading cannot exceed 999,999 km";
+      } else if (newOdo > maxOdometerKm) {
+        newErrors.inputOdometer = `Odometer reading cannot exceed ${maxOdometerKm.toLocaleString()} km`;
       } else if (newOdo < curOdo) {
         newErrors.inputOdometer = `New odometer (${newOdo.toLocaleString()} km) cannot be less than current odometer (${curOdo.toLocaleString()} km)`;
       }
@@ -287,8 +290,8 @@ export default function TruckModal({
 
     if (formData.lastPmOdometer !== "" && formData.lastPmOdometer !== undefined) {
       const lastPm = Number(formData.lastPmOdometer);
-      if (!isNaN(lastPm) && lastPm > 999999) {
-        newErrors.lastPmOdometer = "Last PM odometer cannot exceed 999,999 km";
+      if (!isNaN(lastPm) && lastPm > maxOdometerKm) {
+        newErrors.lastPmOdometer = `Last PM odometer cannot exceed ${maxOdometerKm.toLocaleString()} km`;
       }
     }
 
@@ -542,13 +545,10 @@ export default function TruckModal({
         : displayTruck.lastPMOdometer || 0
     );
     const distanceSinceLastPm = Math.max(0, currentOdo - lastPmOdo);
-    const isPmDue =
-      displayTruck.isPmDue !== undefined
-        ? Boolean(displayTruck.isPmDue)
-        : distanceSinceLastPm >= 5000;
+    const isPmDue = distanceSinceLastPm >= pmThresholdKm;
     const pmPercent = Math.min(
       100,
-      Math.round((distanceSinceLastPm / 5000) * 100)
+      Math.round((distanceSinceLastPm / pmThresholdKm) * 100)
     );
 
     const isDeactivated =
@@ -721,7 +721,7 @@ export default function TruckModal({
             <div className="bg-[#E8F3F8] rounded-2xl p-4 md:p-5 border border-[#BCE1F1]/60 space-y-2.5 text-xs shadow-2xs">
               <div className="flex items-center gap-1.5 text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1">
                 <Wrench size={14} />
-                <span>PM Health (5,000-KM)</span>
+                <span>PM Health ({pmThresholdKm.toLocaleString()}-KM)</span>
               </div>
 
               <div className="flex items-center justify-between text-xs mb-1">
@@ -731,7 +731,7 @@ export default function TruckModal({
                     isPmDue ? "text-[#C93B32]" : "text-[#0A4B6E]"
                   }`}
                 >
-                  {distanceSinceLastPm.toLocaleString()} / 5,000 KM ({pmPercent}%)
+                  {distanceSinceLastPm.toLocaleString()} / {pmThresholdKm.toLocaleString()} KM ({pmPercent}%)
                 </span>
               </div>
 
@@ -740,7 +740,7 @@ export default function TruckModal({
                   className={`h-full rounded-full transition-all duration-300 ${
                     isPmDue
                       ? "bg-[#CD3E3E]"
-                      : distanceSinceLastPm >= 4000
+                      : distanceSinceLastPm >= pmApproachingKm
                       ? "bg-[#F6C445]"
                       : "bg-[#0A4B6E]"
                   }`}
@@ -756,7 +756,7 @@ export default function TruckModal({
               ) : (
                 <p className="text-[11.5px] text-[#6D8AA2] leading-relaxed">
                   <strong className="text-[#0A4B6E]">
-                    {Math.max(0, 5000 - distanceSinceLastPm).toLocaleString()} KM
+                    {Math.max(0, pmThresholdKm - distanceSinceLastPm).toLocaleString()} KM
                   </strong>{" "}
                   remaining before next PM service.
                 </p>
@@ -1321,9 +1321,9 @@ export default function TruckModal({
               <input
                 type="number"
                 min="0"
-                max="999999"
+                max={maxOdometerKm}
                 name="inputOdometer"
-                placeholder="Enter KM reading (max 999,999)"
+                placeholder={`Enter KM reading (max ${maxOdometerKm.toLocaleString()})`}
                 value={formData.inputOdometer || ""}
                 onChange={handleInputChange}
                 className={`w-full bg-white text-slate-800 font-mono text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border outline-none transition-all placeholder:text-slate-400 ${
@@ -1346,9 +1346,9 @@ export default function TruckModal({
               <input
                 type="number"
                 min="0"
-                max="999999"
+                max={maxOdometerKm}
                 name="lastPmOdometer"
-                placeholder="e.g. 40000 (max 999,999)"
+                placeholder={`e.g. 40000 (max ${maxOdometerKm.toLocaleString()})`}
                 value={
                   formData.lastPmOdometer !== undefined
                     ? formData.lastPmOdometer

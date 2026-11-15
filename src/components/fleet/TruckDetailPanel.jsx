@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Badge from "../ui/Badge";
 import { checkActiveWorkOrder } from "../../utils/fleetGuards.js";
+import { useSettings } from "../../context/SettingsContext.jsx";
 
 const getStatusVariant = (status) => {
   const normalized = (status || "").toUpperCase().replace("_", " ");
@@ -56,16 +57,13 @@ export default function TruckDetailPanel({
       ? truck.lastPmOdometer
       : truck.lastPMOdometer || 0
   );
+  const { pmThresholdKm, pmApproachingRatio } = useSettings();
+  const pmApproachingKm = pmThresholdKm * pmApproachingRatio;
   const distanceSinceLastPm = Math.max(0, currentOdo - lastPmOdo);
-  const isPmDue =
-    truck.pmDueFlag !== undefined
-      ? Boolean(truck.pmDueFlag)
-      : truck.isPmDue !== undefined
-      ? Boolean(truck.isPmDue)
-      : distanceSinceLastPm >= 5000;
+  const isPmDue = distanceSinceLastPm >= pmThresholdKm;
   const pmPercent = Math.min(
     100,
-    Math.round((distanceSinceLastPm / 5000) * 100)
+    Math.round((distanceSinceLastPm / pmThresholdKm) * 100)
   );
 
   const isDeactivated =
@@ -327,15 +325,15 @@ export default function TruckDetailPanel({
           <div className="flex items-center justify-between gap-2">
             <span className="text-slate-500">Next PM Target</span>
             <span className="font-mono font-medium text-slate-700">
-              {(lastPmOdo + 5000).toLocaleString()} KM
+              {(lastPmOdo + pmThresholdKm).toLocaleString()} KM
             </span>
           </div>
 
           <div className="pt-2 border-t border-slate-100 space-y-1">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-500 font-medium">5,000-KM Interval:</span>
+              <span className="text-slate-500 font-medium">{pmThresholdKm.toLocaleString()}-KM Interval:</span>
               <span className={`font-bold text-xs ${isPmDue ? "text-[#C93B32]" : "text-[#0A4B6E]"}`}>
-                {distanceSinceLastPm.toLocaleString()} / 5,000 KM ({pmPercent}%)
+                {distanceSinceLastPm.toLocaleString()} / {pmThresholdKm.toLocaleString()} KM ({pmPercent}%)
               </span>
             </div>
 
@@ -344,7 +342,7 @@ export default function TruckDetailPanel({
                 className={`h-full rounded-full transition-all duration-300 ${
                   isPmDue
                     ? "bg-[#CD3E3E]"
-                    : distanceSinceLastPm >= 4000
+                    : distanceSinceLastPm >= pmApproachingKm
                     ? "bg-[#F6C445]"
                     : "bg-[#0A4B6E]"
                 }`}
@@ -355,16 +353,16 @@ export default function TruckDetailPanel({
             {isPmDue ? (
               <p className="text-[#CD3E3E] font-bold text-[11px] flex items-center gap-1 mt-1">
                 <AlertTriangle size={11} className="shrink-0" />
-                <span>PM overdue by {(distanceSinceLastPm - 5000).toLocaleString()} KM. Service required.</span>
+                <span>PM overdue by {(distanceSinceLastPm - pmThresholdKm).toLocaleString()} KM. Service required.</span>
               </p>
-            ) : distanceSinceLastPm >= 4000 ? (
+            ) : distanceSinceLastPm >= pmApproachingKm ? (
               <p className="text-amber-800 font-medium text-[11px] flex items-center gap-1 mt-1">
                 <AlertTriangle size={11} className="shrink-0" />
-                <span>PM approaching: {(5000 - distanceSinceLastPm).toLocaleString()} KM remaining.</span>
+                <span>PM approaching: {(pmThresholdKm - distanceSinceLastPm).toLocaleString()} KM remaining.</span>
               </p>
             ) : (
               <p className="text-emerald-700 font-medium text-[11px] mt-1">
-                PM healthy: {(5000 - distanceSinceLastPm).toLocaleString()} KM remaining before scheduled service.
+                PM healthy: {(pmThresholdKm - distanceSinceLastPm).toLocaleString()} KM remaining before scheduled service.
               </p>
             )}
           </div>

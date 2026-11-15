@@ -9,6 +9,7 @@ import {
 
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { SocketProvider } from "./context/SocketContext.jsx";
+import { SettingsProvider } from "./context/SettingsContext.jsx";
 import { Analytics } from "@vercel/analytics/react";
 import { PERMISSIONS } from "./utils/permissions.js";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
@@ -29,7 +30,9 @@ import PlantWarehouse from "./pages/Inventory/PlantWarehouse";
 import TransferRecords from "./pages/Inventory/TransferRecords";
 import ProductsCatalog from "./pages/Inventory/ProductsCatalog";
 import ServiceZones from "./pages/ServiceZones/ServiceZones";
-import SalesAndDelivery from "./pages/SalesAndDelivery/SalesAndDelivery";
+import SalesOverviewPage from "./pages/SalesAndDelivery/SalesOverviewPage";
+import TripRemittancesPage from "./pages/SalesAndDelivery/TripRemittancesPage";
+import TransactionsInvoicesPage from "./pages/SalesAndDelivery/TransactionsInvoicesPage";
 import HistoryLog from "./pages/HistoryLog/HistoryLog";
 import Profile from "./pages/Profile/Profile";
 import SystemSettings from "./pages/SystemSettings/SystemSettings";
@@ -181,14 +184,38 @@ const router = createBrowserRouter([
         element: <Navigate to="/settings/zones" replace />,
       },
       {
-        path: "sales-delivery",
+        path: "sales/overview",
         element: (
           <ProtectedRoute
             permission={[PERMISSIONS.SALES_VIEW, PERMISSIONS.SALES_VIEW_OWN]}
           >
-            <SalesAndDelivery />
+            <SalesOverviewPage />
           </ProtectedRoute>
         ),
+      },
+      {
+        path: "sales/trips",
+        element: (
+          <ProtectedRoute
+            permission={[PERMISSIONS.SALES_VIEW, PERMISSIONS.SALES_VIEW_OWN]}
+          >
+            <TripRemittancesPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "sales/transactions",
+        element: (
+          <ProtectedRoute
+            permission={[PERMISSIONS.SALES_VIEW, PERMISSIONS.SALES_VIEW_OWN]}
+          >
+            <TransactionsInvoicesPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "sales-delivery",
+        element: <Navigate to="/sales/overview" replace />,
       },
       {
         path: "customers",
@@ -273,8 +300,10 @@ createRoot(document.getElementById("root")).render(
   <StrictMode>
     <AuthProvider>
       <SocketProvider>
-        <RouterProvider router={router} />
-        <Analytics />
+        <SettingsProvider>
+          <RouterProvider router={router} />
+          <Analytics />
+        </SettingsProvider>
       </SocketProvider>
     </AuthProvider>
   </StrictMode>

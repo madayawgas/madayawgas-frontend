@@ -13,9 +13,7 @@ import {
 import Modal from "../ui/Modal.jsx";
 import Button from "../ui/Button.jsx";
 import { formatPhilippineTime, getPhilippineTodayString } from "../../utils/date.js";
-
-const MAX_ODOMETER = 999999;
-const PM_INTERVAL_KM = 5000;
+import { useSettings } from "../../context/SettingsContext.jsx";
 
 /**
  * EndTripModal — Yard gate return & return odometer check-in modal.
@@ -30,6 +28,7 @@ export default function EndTripModal({
   trip,
   onEndTrip,
 }) {
+  const { pmThresholdKm: PM_INTERVAL_KM, maxOdometerKm: MAX_ODOMETER } = useSettings();
   const [odometerReading, setOdometerReading] = useState("");
   const [returnNotes, setReturnNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -271,7 +270,7 @@ export default function EndTripModal({
           <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 flex items-start gap-2">
             <AlertTriangle size={15} className="shrink-0 text-amber-700 mt-0.5" />
             <div className="text-[11px] leading-relaxed">
-              <strong>5,000-km PM Threshold Exceeded:</strong> This vehicle has reached its preventive maintenance interval. Ending this trip will flag the asset for PM inspection in Fleet Management.
+              <strong>{PM_INTERVAL_KM.toLocaleString()}-km PM Threshold Exceeded:</strong> This vehicle has reached its preventive maintenance interval. Ending this trip will flag the asset for PM inspection in Fleet Management.
             </div>
           </div>
         )}

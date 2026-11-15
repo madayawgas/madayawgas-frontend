@@ -25,6 +25,7 @@ import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import ReceiptAttachmentManager from "./ReceiptAttachmentManager.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
+import { useSettings } from "../../../context/SettingsContext.jsx";
 import { PERMISSIONS } from "../../../utils/permissions.js";
 import { canApproveWorkOrderCost } from "../../../utils/fleetGuards.js";
 import { fleetApi } from "../../../api/fleet.js";
@@ -93,6 +94,7 @@ export default function WorkOrderDetailModal({
   onAdvanceStatus,
 }) {
   const { currentUser, can } = useAuth();
+  const { workOrderApprovalThreshold } = useSettings();
   const [isAdvancing, setIsAdvancing] = useState(false);
 
   // Sequential multi-approvals states
@@ -297,7 +299,7 @@ export default function WorkOrderDetailModal({
           : estimatedCost);
 
   const displayCost = isFinalized ? settledTotalCost : estimatedCost;
-  const requiresApproval = estimatedCost >= 5000.0;
+  const requiresApproval = estimatedCost >= workOrderApprovalThreshold;
 
   const downtimeDays =
     workOrder.downtimeDays ||
@@ -718,12 +720,12 @@ export default function WorkOrderDetailModal({
               {requiresApproval ? (
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
                   <AlertTriangle size={12} />
-                  <span>Requires ₱5,000+ Sign-off</span>
+                  <span>Requires ₱{workOrderApprovalThreshold.toLocaleString()}+ Sign-off</span>
                 </span>
               ) : (
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
                   <CheckCircle2 size={12} />
-                  <span>Auto-Authorized (&lt; ₱5,000)</span>
+                  <span>Auto-Authorized (&lt; ₱{workOrderApprovalThreshold.toLocaleString()})</span>
                 </span>
               )}
             </div>

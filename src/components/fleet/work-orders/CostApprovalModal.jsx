@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { CheckCircle2, XCircle, AlertTriangle, Building2, Truck, FileText, UserCheck } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext.jsx";
+import { useSettings } from "../../../context/SettingsContext.jsx";
 import { PERMISSIONS } from "../../../utils/permissions.js";
 import { canApproveWorkOrderCost } from "../../../utils/fleetGuards.js";
 import Modal from "../../ui/Modal";
@@ -19,6 +20,7 @@ export default function CostApprovalModal({
   onDecide,
 }) {
   const { currentUser, can } = useAuth();
+  const { workOrderApprovalThreshold } = useSettings();
   const [remarks, setRemarks] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -106,7 +108,7 @@ export default function CostApprovalModal({
             ₱{estimatedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <span className="text-[11px] text-[#854D0E] font-medium block mt-1">
-            Exceeds ₱5,000.00 managerial threshold • Awaiting Executive Decision
+            Exceeds ₱{workOrderApprovalThreshold.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} managerial threshold • Awaiting Executive Decision
           </span>
         </div>
 
@@ -157,7 +159,7 @@ export default function CostApprovalModal({
           <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-xs text-amber-900">
             <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              <strong>Managerial Authorization Required:</strong> This expenditure exceeds the ₱5,000.00 threshold and is awaiting executive review. Only authorized administrators (Admin or Super Admin) can approve or reject this work order.
+              <strong>Managerial Authorization Required:</strong> This expenditure exceeds the ₱{workOrderApprovalThreshold.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} threshold and is awaiting executive review. Only authorized administrators (Admin or Super Admin) can approve or reject this work order.
             </p>
           </div>
         )}
