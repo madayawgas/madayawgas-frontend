@@ -108,7 +108,7 @@ export default function PlantWarehouse() {
 
   // Real-time WebSocket synchronization
   useRealtimeRefresh({
-    events: ["PLANT_STOCK_UPDATED", "TRIP_RECONCILIATION_UPDATED"],
+    events: ["PLANT_STOCK_UPDATED", "TRIP_RECONCILIATION_UPDATED", "PRODUCT_CATALOG_UPDATED"],
     cacheKeysToInvalidate: [PLANT_CACHE_KEY],
     onRefresh: fetchStock,
   });

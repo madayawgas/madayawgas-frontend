@@ -7,10 +7,15 @@ export default function FilterItem({
   label = "Filter Items",
   onApply,
   activeFilters,
+  categories: customCategories,
   className = "",
 }) {
+  const normalizeStatus = (st) => (!st || st === "ALL" || st === "All" ? "" : st);
+
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState(activeFilters?.status || "");
+  const [selectedStatus, setSelectedStatus] = useState(
+    normalizeStatus(activeFilters?.status)
+  );
   const [selectedCategory, setSelectedCategory] = useState(
     activeFilters?.category || "All Categories"
   );
@@ -20,11 +25,10 @@ export default function FilterItem({
 
   const dropdownRef = useRef(null);
 
-  const categories = [
-    "All Categories",
-    "LPG Cylinder",
-    "Canister",
-  ];
+  const categories =
+    Array.isArray(customCategories) && customCategories.length > 0
+      ? customCategories
+      : ["All Categories", "LPG Cylinder", "Canister"];
 
   const containerTypes = [
     { key: "All", label: "All" },
@@ -41,7 +45,7 @@ export default function FilterItem({
     setIsOpen((prev) => {
       const next = !prev;
       if (next && activeFilters) {
-        setSelectedStatus(activeFilters.status || "");
+        setSelectedStatus(normalizeStatus(activeFilters.status));
         setSelectedCategory(activeFilters.category || "All Categories");
         setSelectedContainerType(activeFilters.containerType || "All");
       }

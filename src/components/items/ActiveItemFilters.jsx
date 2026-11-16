@@ -56,7 +56,7 @@ export default function ActiveItemFilters({
       )}
 
       {/* Active Status Filter Chip */}
-      {selectedStatus && selectedStatus !== "All" && (
+      {selectedStatus && selectedStatus !== "All" && selectedStatus !== "ALL" && (
         <span className="inline-flex items-center gap-1.5 h-[26px] px-2.5 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] text-[11px] font-medium transition-all shadow-2xs">
           <Funnel size={11} className="text-[#0A4B6E]/70 shrink-0" />
           <span>Status:</span>
