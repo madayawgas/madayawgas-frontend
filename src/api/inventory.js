@@ -6,6 +6,17 @@ const DEFAULT_CANISTERS_PER_CRATE =
   BUSINESS_SETTING_DEFAULTS["inventory.canisters_per_crate"];
 import { authApi } from "./auth.js";
 
+const normalizeProduct = (item) => {
+  if (!item || typeof item !== "object") return item;
+  const rawPrice = item.unitPrice !== undefined ? item.unitPrice : item.unit_price;
+  const rawWeight = item.netWeightKg !== undefined ? item.netWeightKg : item.net_weight_kg;
+  return {
+    ...item,
+    netWeightKg: rawWeight !== undefined && rawWeight !== null ? Number(rawWeight) : item.netWeightKg,
+    unitPrice: rawPrice !== undefined && rawPrice !== null ? Number(rawPrice) : 0,
+  };
+};
+
 /**
  * Inventory / Product API Service
  * Interacts with /api/inventory/products and /api/inventory/plant endpoints
@@ -47,9 +58,10 @@ export const inventoryApi = {
     const queryString = query.toString() ? `?${query.toString()}` : "";
     const result = await apiClient(`/inventory/products${queryString}`);
     if (Array.isArray(result?.data)) {
-      return result.data;
+      return result.data.map(normalizeProduct);
     }
-    return result?.data?.products || (Array.isArray(result) ? result : []);
+    const list = result?.data?.products || (Array.isArray(result) ? result : []);
+    return Array.isArray(list) ? list.map(normalizeProduct) : [];
   },
 
   /**
@@ -59,12 +71,12 @@ export const inventoryApi = {
    */
   async getInventoryItemById(id) {
     const result = await apiClient(`/inventory/products/${id}`);
-    return result?.data?.product || result?.data || result;
+    return normalizeProduct(result?.data?.product || result?.data || result);
   },
 
   /**
    * Register Item / Product.
-   * @param {{ name: string, category: string, containerType: string, netWeightKg: number, isActive?: boolean }} productData
+   * @param {{ name: string, category: string, containerType: string, netWeightKg: number, unitPrice: number, isActive?: boolean }} productData
    * @returns {Promise<{ product: object }>} Created product response
    */
   async createProduct(productData) {
@@ -74,9 +86,14 @@ export const inventoryApi = {
       throw err;
     }
 
+    const payload = {
+      ...productData,
+      ...(productData.unitPrice !== undefined && { unitPrice: Number(productData.unitPrice) }),
+    };
+
     const result = await apiClient("/inventory/products", {
       method: "POST",
-      body: productData,
+      body: payload,
     });
     return result.data;
   },
@@ -84,7 +101,7 @@ export const inventoryApi = {
   /**
    * Update Item Profile.
    * @param {string} id - Product UUID
-   * @param {object} productData - Fields to update
+   * @param {object} productData - Fields to update (name, category, containerType, netWeightKg, unitPrice, isActive)
    * @returns {Promise<{ product: object }>} Updated product response
    */
   async updateProduct(id, productData) {
@@ -94,11 +111,53 @@ export const inventoryApi = {
       throw err;
     }
 
+    const payload = {
+      ...productData,
+      ...(productData.unitPrice !== undefined && { unitPrice: Number(productData.unitPrice) }),
+    };
+
     const result = await apiClient(`/inventory/products/${id}`, {
       method: "PATCH",
-      body: productData,
+      body: payload,
     });
     return result.data;
+  },
+
+  /**
+   * Update only a product's unit selling price.
+   * @param {string} id - Product UUID
+   * @param {number} unitPrice - Non-negative unit price in PHP
+   * @returns {Promise<{ product: object }>} Updated product response
+   */
+  async updateProductPrice(id, unitPrice) {
+    const numericPrice = Number(unitPrice);
+    if (Number.isNaN(numericPrice) || numericPrice < 0 || numericPrice > 99999999.99) {
+      const err = new Error("Unit price must be between 0.00 and 99,999,999.99.");
+      err.status = 400;
+      throw err;
+    }
+
+    const result = await apiClient(`/inventory/products/${id}`, {
+      method: "PATCH",
+      body: { unitPrice: numericPrice },
+    });
+    return result.data;
+  },
+
+  /**
+   * Activate Item (Re-activate a deactivated product).
+   * @param {string} id - Product UUID
+   * @returns {Promise<{ product: object }>} Updated activated product
+   */
+  async activateProduct(id) {
+    const result = await apiClient(`/inventory/products/${id}/activate`, {
+      method: "PATCH",
+    });
+    return result.data;
+  },
+
+  async reactivateProduct(id) {
+    return this.activateProduct(id);
   },
 
   /**

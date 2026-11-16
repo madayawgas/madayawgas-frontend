@@ -4,37 +4,48 @@ import { createPortal } from "react-dom";
 import {
   Package,
   Plus,
-  Search,
   RefreshCw,
   Edit2,
   Trash2,
   RotateCcw,
   Flame,
-  CheckCircle2,
   X,
   AlertCircle,
   Eye,
-  Info,
-  Calendar,
-  Layers,
+  Tag,
 } from "lucide-react";
 import { inventoryApi } from "../../api/inventory.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
+import { useRealtimeRefresh } from "../../hooks/useRealtimeRefresh.js";
 import AdminPasswordModal from "../../components/users/AdminPasswordModal.jsx";
 import ToastNotification from "../../components/ui/ToastNotifications.jsx";
 import Pagination from "../../components/ui/Pagination.jsx";
 import SideDrawer from "../../components/ui/SideDrawer.jsx";
 import Badge from "../../components/ui/Badge.jsx";
 import Button from "../../components/ui/Button.jsx";
+import SearchBar from "../../components/ui/SearchBar.jsx";
+import FilterItem from "../../components/items/FilterItem.jsx";
+import ActiveItemFilters from "../../components/items/ActiveItemFilters.jsx";
 
 const LOCAL_STORAGE_KEY = "app_items_cache";
 
+const formatPhpPrice = (value) => {
+  const num = Number(value);
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number.isNaN(num) ? 0 : num);
+};
+
 export default function ProductsCatalog() {
-  const searchInputId = useId();
   const productNameInputId = useId();
   const categoryInputId = useId();
   const netWeightInputId = useId();
+  const unitPriceInputId = useId();
+  const adjustPriceInputId = useId();
   const { can } = useAuth();
   const canManage = can
     ? can(PERMISSIONS?.INVENTORY_MANAGE || "inventory.manage")
@@ -55,8 +66,9 @@ export default function ProductsCatalog() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [categoryFilter, setCategoryFilter] = useState("All Categories");
+  const [containerTypeFilter, setContainerTypeFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("");
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -73,29 +85,37 @@ export default function ProductsCatalog() {
     category: "LPG Cylinder",
     containerType: "CYLINDER",
     netWeightKg: 11.0,
+    unitPrice: 0,
     isActive: true,
   });
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Deactivate / Reactivate with admin password
-  const [pendingAction, setPendingAction] = useState(null); // { type: 'deactivate'|'reactivate', product }
+  // Quick Adjust Price Modal state
+  const [priceModalProduct, setPriceModalProduct] = useState(null);
+  const [newPrice, setNewPrice] = useState("");
+  const [priceError, setPriceError] = useState("");
+  const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
+
+  // Deactivate with admin password
+  const [pendingAction, setPendingAction] = useState(null); // { type: 'deactivate', product }
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   // Toast feedback
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
-  // Escape key listener for product modal
+  // Escape key listener for product & price modals
   useEffect(() => {
-    if (!formModalOpen) return;
+    if (!formModalOpen && !priceModalProduct) return;
     const handleKeyDown = (e) => {
-      if (e.key === "Escape" && !isSubmitting) {
-        setFormModalOpen(false);
+      if (e.key === "Escape") {
+        if (formModalOpen && !isSubmitting) setFormModalOpen(false);
+        if (priceModalProduct && !isUpdatingPrice) setPriceModalProduct(null);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [formModalOpen, isSubmitting]);
+  }, [formModalOpen, isSubmitting, priceModalProduct, isUpdatingPrice]);
 
   const showToastMessage = useCallback((message, type = "success") => {
     setToast({ show: true, message, type });
@@ -121,23 +141,52 @@ export default function ProductsCatalog() {
     }
   }, []);
 
+  useRealtimeRefresh({
+    events: ["PRODUCT_CATALOG_UPDATED"],
+    cacheKeysToInvalidate: [LOCAL_STORAGE_KEY, "app_plant_stock_cache"],
+    onRefresh: fetchProducts,
+  });
+
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
+  // Keep selectedProduct synchronized with fresh data from real-time updates
+  useEffect(() => {
+    if (!selectedProduct?.id) return;
+    const fresh = products.find((p) => p.id === selectedProduct.id);
+    if (fresh) {
+      setSelectedProduct(fresh);
+    }
+  }, [products, selectedProduct?.id]);
+
   // Unique categories for filter
   const categories = useMemo(() => {
-    const set = new Set();
+    const set = new Set(["LPG Cylinder", "Canister"]);
     products.forEach((p) => {
       if (p.category) set.add(p.category);
     });
-    return ["All", ...Array.from(set)];
+    return ["All Categories", ...Array.from(set)];
   }, [products]);
 
   // Filtered products list
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
-      if (categoryFilter !== "All" && p.category !== categoryFilter) return false;
+      if (
+        categoryFilter &&
+        categoryFilter !== "All Categories" &&
+        categoryFilter !== "All" &&
+        p.category !== categoryFilter
+      ) {
+        return false;
+      }
+      if (
+        containerTypeFilter &&
+        containerTypeFilter !== "All" &&
+        p.containerType !== containerTypeFilter
+      ) {
+        return false;
+      }
       if (statusFilter === "ACTIVE" && !p.isActive) return false;
       if (statusFilter === "INACTIVE" && p.isActive) return false;
       if (searchTerm.trim()) {
@@ -149,12 +198,12 @@ export default function ProductsCatalog() {
       }
       return true;
     });
-  }, [products, categoryFilter, statusFilter, searchTerm]);
+  }, [products, categoryFilter, containerTypeFilter, statusFilter, searchTerm]);
 
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, categoryFilter, statusFilter]);
+  }, [searchTerm, categoryFilter, containerTypeFilter, statusFilter]);
 
   // Paginated slice
   const paginatedProducts = useMemo(() => {
@@ -172,6 +221,7 @@ export default function ProductsCatalog() {
       category: "LPG Cylinder",
       containerType: "CYLINDER",
       netWeightKg: 11.0,
+      unitPrice: 0,
       isActive: true,
     });
     setFormError("");
@@ -186,10 +236,59 @@ export default function ProductsCatalog() {
       category: p.category || "LPG Cylinder",
       containerType: p.containerType || "CYLINDER",
       netWeightKg: p.netWeightKg !== undefined ? p.netWeightKg : 11.0,
+      unitPrice: p.unitPrice !== undefined && p.unitPrice !== null ? p.unitPrice : 0,
       isActive: p.isActive !== undefined ? p.isActive : true,
     });
     setFormError("");
     setFormModalOpen(true);
+  };
+
+  // Open Quick Adjust Price Modal
+  const handleOpenAdjustPrice = (p) => {
+    setPriceModalProduct(p);
+    setNewPrice(
+      p.unitPrice !== undefined && p.unitPrice !== null ? String(p.unitPrice) : "0"
+    );
+    setPriceError("");
+  };
+
+  // Submit Quick Adjust Price
+  const handleSavePrice = async (e) => {
+    e.preventDefault();
+    if (!priceModalProduct) return;
+
+    const numericPrice = Number(newPrice);
+    if (newPrice === "" || Number.isNaN(numericPrice) || numericPrice < 0) {
+      setPriceError("Unit price must be a non-negative number (0.00 or higher).");
+      return;
+    }
+    if (numericPrice > 99999999.99) {
+      setPriceError("Unit price cannot exceed ₱99,999,999.99.");
+      return;
+    }
+
+    try {
+      setIsUpdatingPrice(true);
+      setPriceError("");
+      await inventoryApi.updateProductPrice(priceModalProduct.id, numericPrice);
+      showToastMessage(
+        `Updated price for "${priceModalProduct.name}" to ${formatPhpPrice(numericPrice)}.`
+      );
+      if (selectedProduct?.id === priceModalProduct.id) {
+        setSelectedProduct((prev) => ({ ...prev, unitPrice: numericPrice }));
+      }
+      setPriceModalProduct(null);
+      try {
+        localStorage.removeItem("app_plant_stock_cache");
+      } catch {
+        // ignore
+      }
+      await fetchProducts();
+    } catch (err) {
+      setPriceError(err?.message || "Failed to update product price.");
+    } finally {
+      setIsUpdatingPrice(false);
+    }
   };
 
   // Submit Product Form (Create or Edit)
@@ -203,6 +302,11 @@ export default function ProductsCatalog() {
       setFormError("Net weight must be greater than zero.");
       return;
     }
+    const numericPrice = Number(formData.unitPrice);
+    if (formData.unitPrice === "" || Number.isNaN(numericPrice) || numericPrice < 0) {
+      setFormError("Unit price must be a non-negative number.");
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -214,6 +318,7 @@ export default function ProductsCatalog() {
           category: formData.category,
           containerType: formData.containerType,
           netWeightKg: Number(formData.netWeightKg),
+          unitPrice: numericPrice,
           isActive: formData.isActive,
         });
         showToastMessage("Product updated successfully.");
@@ -224,6 +329,7 @@ export default function ProductsCatalog() {
             category: formData.category,
             containerType: formData.containerType,
             netWeightKg: Number(formData.netWeightKg),
+            unitPrice: numericPrice,
             isActive: formData.isActive,
           }));
         }
@@ -233,6 +339,7 @@ export default function ProductsCatalog() {
           category: formData.category,
           containerType: formData.containerType,
           netWeightKg: Number(formData.netWeightKg),
+          unitPrice: numericPrice,
           isActive: formData.isActive,
         });
         showToastMessage("New product created successfully.");
@@ -252,34 +359,39 @@ export default function ProductsCatalog() {
     }
   };
 
-  // Deactivate / Reactivate Trigger
+  // Deactivate / Reactivate Triggers
   const handleTriggerDeactivate = (product) => {
     setPendingAction({ type: "deactivate", product });
     setShowPasswordModal(true);
   };
 
-  const handleTriggerReactivate = (product) => {
-    setPendingAction({ type: "reactivate", product });
-    setShowPasswordModal(true);
-  };
-
-  // Execute Password Confirmation
-  const handleConfirmPassword = async (adminPassword) => {
-    if (!pendingAction) return;
-    const { type, product } = pendingAction;
-
-    if (type === "deactivate") {
-      await inventoryApi.deactivateProduct(product.id, { confirmPassword: adminPassword });
-      showToastMessage(`Product "${product.name}" deactivated.`);
-      if (selectedProduct?.id === product.id) {
-        setSelectedProduct((prev) => ({ ...prev, isActive: false }));
-      }
-    } else {
-      await inventoryApi.reactivateProduct(product.id, { confirmPassword: adminPassword });
+  const handleTriggerReactivate = async (product) => {
+    try {
+      await inventoryApi.activateProduct(product.id);
       showToastMessage(`Product "${product.name}" reactivated.`);
       if (selectedProduct?.id === product.id) {
         setSelectedProduct((prev) => ({ ...prev, isActive: true }));
       }
+      try {
+        localStorage.removeItem("app_plant_stock_cache");
+      } catch {
+        // ignore
+      }
+      await fetchProducts();
+    } catch (err) {
+      showToastMessage(err?.message || "Failed to reactivate product.", "error");
+    }
+  };
+
+  // Execute Password Confirmation for Deactivate
+  const handleConfirmPassword = async (adminPassword) => {
+    if (!pendingAction) return;
+    const { product } = pendingAction;
+
+    await inventoryApi.deactivateProduct(product.id, { confirmPassword: adminPassword });
+    showToastMessage(`Product "${product.name}" deactivated.`);
+    if (selectedProduct?.id === product.id) {
+      setSelectedProduct((prev) => ({ ...prev, isActive: false }));
     }
 
     try {
@@ -297,72 +409,47 @@ export default function ProductsCatalog() {
     <div className="h-full flex flex-col overflow-hidden bg-[#F8FAFC]">
       {/* Top Controls Header */}
       <header className="shrink-0 bg-white border-b border-[#E2E8F0] px-6 py-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Status Tabs */}
-            <div className="flex items-center bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg p-0.5 text-xs">
-              {["ALL", "ACTIVE", "INACTIVE"].map((st) => (
-                <button
-                  key={st}
-                  type="button"
-                  onClick={() => setStatusFilter(st)}
-                  className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                    statusFilter === st
-                      ? "bg-white text-[#0A4B6E] shadow-2xs font-bold"
-                      : "text-[#6D8AA2] hover:text-[#0A4B6E]"
-                  }`}
-                >
-                  {st === "ALL" ? "All" : st === "ACTIVE" ? "Active" : "Inactive"}
-                </button>
-              ))}
-            </div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          {/* Left: Standard Search Bar */}
+          <SearchBar
+            placeholder="Search products by name, container, or category..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onClear={() => setSearchTerm("")}
+            className="w-full sm:w-64 md:w-72"
+          />
 
-            {/* Category Select */}
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg px-3 py-1.5 text-[#0A4B6E] font-medium focus:outline-hidden focus:border-[#0A4B6E]"
-            >
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c === "All" ? "All Categories" : c}
-                </option>
-              ))}
-            </select>
+          {/* Right: Active Filter Chips, Filter Dropdown, Add Product, Refresh */}
+          <div className="flex items-center gap-2.5 justify-end flex-wrap">
+            <ActiveItemFilters
+              selectedCategory={categoryFilter}
+              selectedContainerType={containerTypeFilter}
+              selectedStatus={statusFilter}
+              onClearCategory={() => setCategoryFilter("All Categories")}
+              onClearContainerType={() => setContainerTypeFilter("All")}
+              onClearStatus={() => setStatusFilter("")}
+            />
 
-            {/* Search Box */}
-            <div className="relative sm:w-60">
-              <label htmlFor={searchInputId} className="sr-only">Search products by name or category</label>
-              <input
-                id={searchInputId}
-                type="text"
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-7 py-1.5 text-xs bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg text-[#0A4B6E] placeholder-[#6D8AA2]/70 focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white transition-all"
-              />
-              <Search
-                size={13}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6D8AA2]"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          </div>
+            <FilterItem
+              label="Filter Products"
+              activeFilters={{
+                status: statusFilter,
+                category: categoryFilter,
+                containerType: containerTypeFilter,
+              }}
+              categories={categories}
+              onApply={({ status, category, containerType }) => {
+                setStatusFilter(status || "");
+                setCategoryFilter(category || "All Categories");
+                setContainerTypeFilter(containerType || "All");
+              }}
+            />
 
-          <div className="flex items-center gap-2">
             {canManage && (
               <button
                 type="button"
                 onClick={handleOpenCreate}
-                className="inline-flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-lg bg-[#FFDF2C] text-[#0A4B6E] hover:bg-[#ebd024] shadow-2xs transition-all cursor-pointer tracking-wider uppercase text-[11px]"
+                className="inline-flex items-center gap-1.5 font-bold px-4 py-1.5 rounded-full bg-[#FFDF2C] text-[#0A4B6E] hover:bg-[#ebd024] shadow-2xs transition-all cursor-pointer tracking-wider uppercase text-[11px] h-[30px]"
               >
                 <Plus size={14} />
                 <span>Add Product</span>
@@ -393,6 +480,7 @@ export default function ProductsCatalog() {
                   <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Category</th>
                   <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">Container Type</th>
                   <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap text-right">Net Weight</th>
+                  <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap text-right">Unit Price</th>
                   <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap text-center">Status</th>
                   <th className="py-3.5 px-3 md:px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap text-center">Actions</th>
                 </tr>
@@ -400,14 +488,14 @@ export default function ProductsCatalog() {
               <tbody className="divide-y divide-gray-100 text-xs md:text-sm">
                 {isLoading && products.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-16 text-center text-[#6D8AA2]">
+                    <td colSpan={7} className="py-16 text-center text-[#6D8AA2]">
                       <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-[#0A4B6E]" />
                       Loading products...
                     </td>
                   </tr>
                 ) : paginatedProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-16 text-center text-[#6D8AA2]">
+                    <td colSpan={7} className="py-16 text-center text-[#6D8AA2]">
                       <Package size={24} className="mx-auto mb-2 text-[#CBD5E1]" />
                       <p className="font-semibold text-[#0A4B6E]">No Products Found</p>
                       <p className="text-[11px] mt-0.5">
@@ -458,6 +546,11 @@ export default function ProductsCatalog() {
                           {p.netWeightKg} kg
                         </td>
 
+                        {/* Unit Price */}
+                        <td className="py-3 px-4 text-right font-bold text-[#0A4B6E] whitespace-nowrap">
+                          {formatPhpPrice(p.unitPrice)}
+                        </td>
+
                         {/* Status */}
                         <td className="py-3 px-4 text-center">
                           <Badge variant={p.isActive ? "active" : "deactivated"}>
@@ -479,6 +572,15 @@ export default function ProductsCatalog() {
 
                             {canManage && (
                               <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenAdjustPrice(p)}
+                                  title="Adjust price"
+                                  className="p-1.5 text-[#0A4B6E] hover:bg-[#E8F3F8] rounded-md transition-colors cursor-pointer"
+                                >
+                                  <Tag size={13} />
+                                </button>
+
                                 <button
                                   type="button"
                                   onClick={() => handleOpenEdit(p)}
@@ -546,6 +648,14 @@ export default function ProductsCatalog() {
           <div className="flex items-center justify-between w-full">
             {canManage && selectedProduct && (
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenAdjustPrice(selectedProduct)}
+                >
+                  <Tag size={13} className="mr-1" />
+                  Adjust Price
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -628,6 +738,24 @@ export default function ProductsCatalog() {
                   <span className="font-semibold text-[#0A4B6E]">
                     {selectedProduct.netWeightKg} kg
                   </span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-[#E8F3F8]/60 border border-[#0A4B6E]/15 col-span-2 flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] text-[#6D8AA2] block">Unit Selling Price</span>
+                    <span className="font-bold text-sm text-[#0A4B6E]">
+                      {formatPhpPrice(selectedProduct.unitPrice)}
+                    </span>
+                  </div>
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAdjustPrice(selectedProduct)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white text-[#0A4B6E] border border-[#0A4B6E]/25 hover:bg-[#0A4B6E] hover:text-white transition-colors cursor-pointer"
+                    >
+                      <Tag size={11} />
+                      <span>Adjust Price</span>
+                    </button>
+                  )}
                 </div>
                 <div className="p-2.5 rounded-lg bg-[#F8FAFC] border border-slate-100 col-span-2">
                   <span className="text-[11px] text-[#6D8AA2] block">System ID</span>
@@ -746,20 +874,39 @@ export default function ProductsCatalog() {
                 </div>
               </div>
 
-              <div>
-                <label htmlFor={netWeightInputId} className="block font-semibold text-[#0A4B6E] mb-1">
-                  Net Weight (kg) <span className="text-[#C93B32]">*</span>
-                </label>
-                <input
-                  id={netWeightInputId}
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={formData.netWeightKg}
-                  onChange={(e) => setFormData({ ...formData, netWeightKg: e.target.value })}
-                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg p-2.5 text-xs text-[#0A4B6E] focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white"
-                  required
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor={netWeightInputId} className="block font-semibold text-[#0A4B6E] mb-1">
+                    Net Weight (kg) <span className="text-[#C93B32]">*</span>
+                  </label>
+                  <input
+                    id={netWeightInputId}
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={formData.netWeightKg}
+                    onChange={(e) => setFormData({ ...formData, netWeightKg: e.target.value })}
+                    className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg p-2.5 text-xs text-[#0A4B6E] focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor={unitPriceInputId} className="block font-semibold text-[#0A4B6E] mb-1">
+                    Unit Price (₱) <span className="text-[#C93B32]">*</span>
+                  </label>
+                  <input
+                    id={unitPriceInputId}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="99999999.99"
+                    value={formData.unitPrice}
+                    onChange={(e) => setFormData({ ...formData, unitPrice: e.target.value })}
+                    className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg p-2.5 text-xs text-[#0A4B6E] focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white"
+                    required
+                  />
+                </div>
               </div>
 
               {editingProduct && (
@@ -793,6 +940,85 @@ export default function ProductsCatalog() {
                   className="px-5 py-2 text-xs font-bold text-[#0A4B6E] bg-[#FFDF2C] hover:bg-[#ebd024] rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? "Saving..." : editingProduct ? "Save Changes" : "Create Product"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Quick Adjust Product Price Modal */}
+      {priceModalProduct && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 bg-[#0E384E]/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-[#CBD5E1] max-w-sm w-full p-6 shadow-2xl space-y-4 animate-scale-in">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-[#E8F3F8] text-[#0A4B6E]">
+                  <Tag size={16} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-[#0A4B6E]">Adjust Product Price</h2>
+                  <p className="text-[11px] text-[#6D8AA2]">{priceModalProduct.name}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isUpdatingPrice && setPriceModalProduct(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {priceError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-[#C93B32] flex items-center gap-2">
+                <AlertCircle size={14} className="shrink-0" />
+                <span>{priceError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSavePrice} className="space-y-4 text-xs">
+              <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-between">
+                <span className="text-[#6D8AA2] font-medium">Current Unit Price</span>
+                <span className="font-bold text-[#0A4B6E]">
+                  {formatPhpPrice(priceModalProduct.unitPrice)}
+                </span>
+              </div>
+
+              <div>
+                <label htmlFor={adjustPriceInputId} className="block font-semibold text-[#0A4B6E] mb-1">
+                  New Unit Price (₱) <span className="text-[#C93B32]">*</span>
+                </label>
+                <input
+                  id={adjustPriceInputId}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="99999999.99"
+                  value={newPrice}
+                  onChange={(e) => setNewPrice(e.target.value)}
+                  className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg p-2.5 text-sm font-bold text-[#0A4B6E] focus:outline-hidden focus:border-[#0A4B6E] focus:bg-white"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E2E8F0]">
+                <button
+                  type="button"
+                  onClick={() => setPriceModalProduct(null)}
+                  disabled={isUpdatingPrice}
+                  className="px-4 py-2 text-xs font-semibold text-[#6D8AA2] hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingPrice}
+                  className="px-5 py-2 text-xs font-bold text-[#0A4B6E] bg-[#FFDF2C] hover:bg-[#ebd024] rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {isUpdatingPrice ? "Updating..." : "Update Price"}
                 </button>
               </div>
             </form>
