@@ -44,7 +44,11 @@ export default function RouteDispatch() {
     ? (can(PERMISSIONS.ROUTE_MANAGE || "route.manage") ||
        can(PERMISSIONS.INVENTORY_VEHICLE_MANAGE || "inventory.vehicle.manage"))
     : false;
-  const canFleetView = can ? can(PERMISSIONS.FLEET_VIEW || "fleet.view") : false;
+  const canViewAllVehicles = can
+    ? can(PERMISSIONS.FLEET_VIEW || "fleet.view") ||
+      can(PERMISSIONS.ROUTE_VIEW || "route.view") ||
+      can(PERMISSIONS.ROUTE_MANAGE || "route.manage")
+    : false;
 
   const todayPht = useMemo(() => getPhilippineTodayString(), []);
 
@@ -223,7 +227,7 @@ export default function RouteDispatch() {
           console.warn("Failed to fetch templates:", err);
           return [];
         }),
-        (canFleetView
+        (canViewAllVehicles
           ? fleetApi.getVehicles()
           : fleetApi.getFleetAvailability().then((res) => res?.vehicles || [])
         ).catch((err) => {
@@ -265,7 +269,7 @@ export default function RouteDispatch() {
     } catch (err) {
       console.warn("Failed to refresh today's dispatches:", err);
     }
-  }, [todayPht, canFleetView]);
+  }, [todayPht, canViewAllVehicles]);
 
   // Real-Time WebSocket Hook: Auto-refreshes trips, vehicle status, and schedules
   useRealtimeRefresh({

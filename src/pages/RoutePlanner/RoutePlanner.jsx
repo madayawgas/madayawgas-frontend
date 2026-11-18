@@ -14,7 +14,11 @@ import ToastNotification from "../../components/ui/ToastNotifications";
 export default function RoutePlanner() {
   const { can } = useAuth();
   const canManage = can ? can(PERMISSIONS.ROUTE_MANAGE || "route.manage") : false;
-  const canFleetView = can ? can(PERMISSIONS.FLEET_VIEW || "fleet.view") : false;
+  const canViewAllVehicles = can
+    ? can(PERMISSIONS.FLEET_VIEW || "fleet.view") ||
+      can(PERMISSIONS.ROUTE_VIEW || "route.view") ||
+      can(PERMISSIONS.ROUTE_MANAGE || "route.manage")
+    : false;
 
   const [templates, setTemplates] = useState(() => {
     try {
@@ -79,7 +83,7 @@ export default function RoutePlanner() {
           console.warn("Error fetching templates:", err);
           return [];
         }),
-        (canFleetView
+        (canViewAllVehicles
           ? fleetApi.getVehicles()
           : fleetApi.getFleetAvailability().then((res) => res?.vehicles || [])
         ).catch((err) => {
@@ -105,7 +109,7 @@ export default function RoutePlanner() {
     } finally {
       setIsLoading(false);
     }
-  }, [canFleetView]);
+  }, [canViewAllVehicles]);
 
   useEffect(() => {
     loadData();
