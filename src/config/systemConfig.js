@@ -33,4 +33,13 @@ export const SYSTEM_CONFIG = {
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
   },
+  appDownload: {
+    url:
+      import.meta.env?.VITE_MOBILE_APP_DOWNLOAD_URL ||
+      "https://drive.google.com/drive/folders/1a1Zg527mdE0z6lz6P_zBycrNa_YRb9xl?usp=sharing",
+    appName: "MadayawGas Mobile",
+    platformLabel: "Android APK",
+    version: "v1.0.0",
+    fileName: "MadayawGas-Mobile.apk",
+  },
 };

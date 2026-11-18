@@ -1,5 +1,5 @@
 import "./index.css";
-import { StrictMode } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import {
   createBrowserRouter,
@@ -21,6 +21,8 @@ import { onSessionExpired } from "./utils/sessionEvents.js";
 import Layout from "./pages/Layout";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Login from "./pages/Login/Login";
+// eslint-disable-next-line react-refresh/only-export-components
+const DownloadApp = lazy(() => import("./pages/Login/DownloadApp"));
 import Fleet from "./pages/Fleet/Fleet";
 import Users from "./pages/Users/Users";
 import RoutePlanner from "./pages/RoutePlanner/RoutePlanner";
@@ -44,6 +46,14 @@ const router = createBrowserRouter([
   {
     path: "/login",
     element: <Login />,
+  },
+  {
+    path: "/download-app",
+    element: (
+      <Suspense fallback={<div className="min-h-screen bg-[#0A4B6E]/10" />}>
+        <DownloadApp />
+      </Suspense>
+    ),
   },
   {
     path: "/",

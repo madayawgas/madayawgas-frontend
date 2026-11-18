@@ -1,9 +1,9 @@
 // src/pages/Login/Login.jsx
 import { useState } from "react";
-import { useNavigate, useLocation, Navigate } from "react-router-dom";
+import { useNavigate, useLocation, Navigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { getDefaultRoute } from "../../utils/permissions.js";
-import { AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Smartphone } from "lucide-react";
 
 import logo from "../../assets/logov2.svg";
 import bgLeftCard from "../../assets/BG-Madayaw8.png";
@@ -76,7 +76,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8 relative font-sans overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center p-4 pb-16 sm:p-6 sm:pb-8 md:p-8 relative font-sans overflow-hidden">
   <div
     className="absolute inset-0 bg-cover bg-center bg-no-repeat blur-md scale-105"
     style={{ backgroundImage: `url(${bgScreen})` }}
@@ -212,10 +212,19 @@ export default function Login() {
       </div>
 
       <p className="text-[11px] text-gray-400 text-center mt-5">
-        Madayaw Gas Fleet System © 2026
+        Madayaw Gas Fleet & Management System © 2026
       </p>
     </div>
   </div>
+
+  {/* Minimal floating app download button in lower-right corner */}
+  <Link
+    to="/download-app"
+    className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-20 inline-flex items-center gap-2 rounded-full bg-white/85 hover:bg-white backdrop-blur-md text-[#0A4B6E] border border-white/60 px-3.5 py-2 text-xs font-medium shadow-sm hover:shadow transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFDF2C]"
+  >
+    <Smartphone size={14} aria-hidden="true" />
+    <span>Get Mobile App</span>
+  </Link>
 </div>
   );
 }
