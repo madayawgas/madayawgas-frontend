@@ -119,6 +119,27 @@ export default function TodayDispatchesControls({
             </span>
           </button>
 
+          {/* COMPLETED / RECONCILED */}
+          <button
+            type="button"
+            onClick={() => onStatusTabChange("COMPLETED")}
+            className={`px-3.5 py-1.5 rounded-full text-xs transition-all duration-150 flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              statusTab === "COMPLETED"
+                ? "bg-[#0A4B6E] text-[#FFDF2C] shadow-2xs font-bold"
+                : "text-[#3E5C76] hover:text-[#0A4B6E] hover:bg-white/60 font-semibold"
+            }`}
+          >
+            <PackageCheck size={12} className={statusTab === "COMPLETED" ? "text-[#FFDF2C]" : "text-emerald-700"} />
+            <span>Completed</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[11px] font-bold min-w-[18px] text-center ${
+                statusTab === "COMPLETED" ? "bg-white/20 text-[#FFDF2C]" : "bg-emerald-100 text-emerald-800"
+              }`}
+            >
+              {counts.completed || 0}
+            </span>
+          </button>
+
           {/* READY TO DISPATCH */}
           <button
             type="button"

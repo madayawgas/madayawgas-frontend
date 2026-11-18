@@ -19,11 +19,13 @@ export default function TodayDispatchesCards({
   statusTab = "ALL",
   activeTrips = [],
   returnedTrips = [],
+  completedTrips = [],
   availableSchedules = [],
   unavailableSchedules = [],
   selectedId,
   onSelectEntry,
   onDispatch,
+  onDispatchAgain,
   onCancelSchedule,
   onMiddayReload,
   onEndTrip,
@@ -35,6 +37,7 @@ export default function TodayDispatchesCards({
 }) {
   const showOutOnRoad = statusTab === "ALL" || statusTab === "OUT_ON_ROAD";
   const showReturned = statusTab === "ALL" || statusTab === "RETURNED";
+  const showCompleted = statusTab === "ALL" || statusTab === "COMPLETED";
   const showReady = statusTab === "ALL" || statusTab === "READY";
   const showUnavailable = statusTab === "ALL" || statusTab === "UNAVAILABLE";
 
@@ -297,6 +300,121 @@ export default function TodayDispatchesCards({
                           <ArrowRight size={12} strokeWidth={2.5} />
                         </button>
                       </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SECTION 2B: COMPLETED & RECONCILED */}
+      {showCompleted && (completedTrips.length > 0 || statusTab === "COMPLETED") && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#0A4B6E]" />
+              <h3 className="text-sm font-bold text-[#0A4B6E] uppercase tracking-wide">
+                Completed & Reconciled ({completedTrips.length})
+              </h3>
+            </div>
+            <span className="text-[11px] text-[#3E5C76]">
+              Settled runs and flagged variances
+            </span>
+          </div>
+
+          {completedTrips.length === 0 ? (
+            <div className="bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-2xl p-8 text-center">
+              <CheckCircle2 size={28} className="mx-auto text-[#3E5C76] mb-2 opacity-50" />
+              <p className="text-xs font-semibold text-[#0A4B6E]">No completed trips yet today</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {completedTrips.map((trip) => {
+                const recon = trip.reconciliation || {};
+                const reconSt = (recon.status || trip.status || "AWAITING_SYNC").toUpperCase();
+                const isFlagged = reconSt === "FLAGGED_VARIANCE";
+                const isAwaiting = reconSt === "AWAITING_SYNC";
+                const fDiff = Number(recon.fullDiscrepancy) || 0;
+                const eDiff = Number(recon.emptyDiscrepancy) || 0;
+                const isSelected = Boolean(selectedId) && (selectedId === trip.id || selectedId === trip.truckPlate);
+
+                return (
+                  <div
+                    key={trip.id}
+                    onClick={() => onSelectEntry && onSelectEntry(trip)}
+                    className={`rounded-2xl border p-4 shadow-2xs transition-all cursor-pointer flex flex-col justify-between ${
+                      isSelected
+                        ? "bg-[#E2EDF3] border-[#0A4B6E] ring-2 ring-[#0A4B6E]/20"
+                        : isFlagged
+                        ? "bg-white border-rose-300 hover:border-rose-500"
+                        : isAwaiting
+                        ? "bg-white border-amber-300 hover:border-amber-500"
+                        : "bg-white border-emerald-200 hover:border-emerald-400"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-base font-bold text-[#0A4B6E] tracking-tight">
+                              {trip.truckPlate}
+                            </span>
+                            <span
+                              className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                                isFlagged
+                                  ? "bg-rose-50 text-rose-800 border-rose-300"
+                                  : isAwaiting
+                                  ? "bg-amber-50 text-amber-900 border-amber-300"
+                                  : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              }`}
+                            >
+                              {isFlagged ? "Variance" : isAwaiting ? "Pending Sales" : "Settled"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-[#3E5C76] mt-0.5">
+                            <MapPin size={11} className="text-[#0A4B6E]" />
+                            <span>{trip.zoneCode || trip.zoneName}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#F8FAFC] rounded-xl p-2.5 border border-slate-200 space-y-1 text-xs mb-3">
+                        <div className="flex justify-between">
+                          <span className="text-[#3E5C76]">Dispatched / Sold:</span>
+                          <span className="font-bold text-[#0A4B6E]">
+                            {recon.totalLoadedFull ?? 0} / {isAwaiting ? "Pending" : recon.totalSoldFull ?? 0}
+                          </span>
+                        </div>
+                        {isFlagged && (
+                          <div className="flex justify-between text-rose-700 font-bold">
+                            <span>Variance:</span>
+                            <span>
+                              {[
+                                fDiff !== 0 ? `${Math.abs(fDiff)} ${fDiff > 0 ? "Missing" : "Extra"}` : null,
+                                eDiff !== 0 ? `${Math.abs(eDiff)} Empty ${eDiff > 0 ? "Missing" : "Extra"}` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {canManage && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDispatchAgain && onDispatchAgain(trip);
+                        }}
+                        className="w-full py-2 px-3 rounded-full text-[11px] font-bold uppercase tracking-widest transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 active:scale-95 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E]"
+                      >
+                        <Plus size={12} strokeWidth={2.5} />
+                        <span>Dispatch Again</span>
+                      </button>
                     )}
                   </div>
                 );

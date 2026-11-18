@@ -1,5 +1,6 @@
 // src/pages/Inventory/TransferRecords.jsx
 import { useState, useEffect, useCallback, useId } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FileText,
   Search,
@@ -17,9 +18,11 @@ import {
   Download,
 } from "lucide-react";
 import { inventoryApi } from "../../api/inventory.js";
+import { tripsApi } from "../../api/trips.js";
 import { formatPhilippineDateTime } from "../../utils/date.js";
 import Pagination from "../../components/ui/Pagination.jsx";
 import SideDrawer from "../../components/ui/SideDrawer.jsx";
+import TripReconciliationLedger from "../../components/route-dispatch/TripReconciliationLedger.jsx";
 
 const TRANSFER_TYPES = [
   { value: "ALL", label: "All Movements" },
@@ -65,6 +68,7 @@ function getTransferTypeMeta(type) {
 }
 
 export default function TransferRecords() {
+  const navigate = useNavigate();
   const searchInputId = useId();
   const [transfers, setTransfers] = useState([]);
   const [meta, setMeta] = useState({
@@ -80,8 +84,34 @@ export default function TransferRecords() {
   const [activeSearch, setActiveSearch] = useState("");
   const [transferType, setTransferType] = useState("ALL");
 
-  // Selected slip for SideDrawer
+  // Selected slip for SideDrawer + parent trip audit ledger
   const [selectedSlip, setSelectedSlip] = useState(null);
+  const [selectedSlipTrip, setSelectedSlipTrip] = useState(null);
+  const [isLoadingTrip, setIsLoadingTrip] = useState(false);
+
+  useEffect(() => {
+    const tripId = selectedSlip?.trip?.id;
+    if (!tripId) {
+      setSelectedSlipTrip(null);
+      return;
+    }
+    let active = true;
+    setIsLoadingTrip(true);
+    tripsApi
+      .getTripById(tripId)
+      .then((trip) => {
+        if (active) setSelectedSlipTrip(trip || null);
+      })
+      .catch(() => {
+        if (active) setSelectedSlipTrip(null);
+      })
+      .finally(() => {
+        if (active) setIsLoadingTrip(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedSlip?.trip?.id]);
 
   const fetchTransfers = useCallback(
     async (pageToFetch = 1, limitToFetch = meta.limit) => {
@@ -476,6 +506,25 @@ export default function TransferRecords() {
                 </table>
               </div>
             </div>
+
+            {/* Parent Trip Loaded vs. Returned & Reconciliation Audit */}
+            {selectedSlip.trip?.id && (
+              <div className="pt-2 border-t border-[#E2E8F0]">
+                {isLoadingTrip ? (
+                  <div className="py-4 text-center text-xs text-[#6D8AA2]">
+                    Loading parent trip reconciliation summary...
+                  </div>
+                ) : selectedSlipTrip ? (
+                  <TripReconciliationLedger
+                    trip={selectedSlipTrip}
+                    onReviewReconcile={(trip) => {
+                      setSelectedSlip(null);
+                      navigate(`/return-checkin?tripId=${trip.id}`);
+                    }}
+                  />
+                ) : null}
+              </div>
+            )}
           </div>
         )}
       </SideDrawer>

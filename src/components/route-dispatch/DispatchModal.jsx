@@ -44,17 +44,22 @@ export default function DispatchModal({
   salesUsers = [],
   plantInventory = [],
   initialScheduleId = "",
+  initialTruckId = "",
 }) {
   const [isAdHoc, setIsAdHoc] = useState(false);
   const [selectedScheduleId, setSelectedScheduleId] = useState(initialScheduleId || "");
 
-  // Reset or synchronize initial schedule
+  // Reset or synchronize initial schedule or pre-selected truck for re-dispatch
   useEffect(() => {
     if (initialScheduleId) {
       setSelectedScheduleId(initialScheduleId);
       setIsAdHoc(false);
+    } else if (initialTruckId && isOpen) {
+      setSelectedScheduleId("");
+      setIsAdHoc(true);
+      setTruckId(initialTruckId);
     }
-  }, [initialScheduleId, isOpen]);
+  }, [initialScheduleId, initialTruckId, isOpen]);
 
   // Reset error whenever modal opens
   useEffect(() => {

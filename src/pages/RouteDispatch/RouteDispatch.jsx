@@ -185,6 +185,7 @@ export default function RouteDispatch() {
   // 3. Operational Modals States
   const [showDispatchModal, setShowDispatchModal] = useState(false);
   const [prefillScheduleId, setPrefillScheduleId] = useState("");
+  const [prefillTruckId, setPrefillTruckId] = useState("");
   const [showMiddayModal, setShowMiddayModal] = useState(false);
   const [selectedTripForReload, setSelectedTripForReload] = useState(null);
   const [showCancelTripModal, setShowCancelTripModal] = useState(false);
@@ -354,8 +355,19 @@ export default function RouteDispatch() {
 
   // 6b. Returned Trips (RETURNED — awaiting dock stock check-in)
   const returnedTrips = useMemo(() => {
-    return trips.filter((t) => (t.status || "").toUpperCase() === "RETURNED");
+    return trips.filter((t) => (t.rawStatus || t.status || "").toUpperCase() === "RETURNED");
   }, [trips]);
+
+  // 6b-2. Completed Trips (Today's settled trips + any unresolved FLAGGED_VARIANCE / AWAITING_SYNC trips)
+  const completedTodayTrips = useMemo(() => {
+    return trips.filter((t) => {
+      const raw = (t.rawStatus || "").toUpperCase();
+      if (raw !== "COMPLETED") return false;
+      const reconSt = (t.reconciliation?.status || t.status || "").toUpperCase();
+      const tripDate = toPhilippineDateInputString(t.departureTime || t.departure_time || t.createdAt);
+      return tripDate === todayPht || reconSt === "FLAGGED_VARIANCE" || reconSt === "AWAITING_SYNC";
+    });
+  }, [trips, todayPht]);
 
   // 6c. Today's Scheduled & Re-Dispatchable Dispatches (Direct + Template-derived + Reconciled)
   const allTodaySchedules = useMemo(() => {
@@ -398,15 +410,21 @@ export default function RouteDispatch() {
     });
 
     return {
-      all: activeTrips.length + returnedTrips.length + availableSchedules.length + unavailableSchedules.length,
+      all:
+        activeTrips.length +
+        returnedTrips.length +
+        completedTodayTrips.length +
+        availableSchedules.length +
+        unavailableSchedules.length,
       outOnRoad: activeTrips.length,
       returned: returnedTrips.length,
+      completed: completedTodayTrips.length,
       ready: availableSchedules.length,
       unavailable: unavailableSchedules.length,
       totalUnitsStaged: unitsCount,
       totalCratesStaged: cratesCount,
     };
-  }, [activeTrips, returnedTrips.length, availableSchedules.length, unavailableSchedules.length, getFullCargoBreakdown]);
+  }, [activeTrips, returnedTrips.length, completedTodayTrips.length, availableSchedules.length, unavailableSchedules.length, getFullCargoBreakdown]);
 
   // 7. Unified Operational Entries Array
   const allOperationalEntries = useMemo(() => {
@@ -434,7 +452,19 @@ export default function RouteDispatch() {
       });
     });
 
-    // 3. Ready to dispatch
+    // 3. Completed trips (Settled, Flagged Variance, Pending Sales)
+    completedTodayTrips.forEach((trip) => {
+      const cargo = getFullCargoBreakdown(trip);
+      const reconSt = (trip.reconciliation?.status || trip.status || "AWAITING_SYNC").toUpperCase();
+      list.push({
+        ...trip,
+        entryType: "TRIP",
+        operationalStatus: reconSt,
+        cargo,
+      });
+    });
+
+    // 4. Ready to dispatch
     availableSchedules.forEach((sched) => {
       list.push({
         ...sched,
@@ -443,7 +473,7 @@ export default function RouteDispatch() {
       });
     });
 
-    // 4. Unavailable vehicles
+    // 5. Unavailable vehicles
     unavailableSchedules.forEach((sched) => {
       list.push({
         ...sched,
@@ -453,7 +483,7 @@ export default function RouteDispatch() {
     });
 
     return list;
-  }, [activeTrips, returnedTrips, availableSchedules, unavailableSchedules, getFullCargoBreakdown]);
+  }, [activeTrips, returnedTrips, completedTodayTrips, availableSchedules, unavailableSchedules, getFullCargoBreakdown]);
 
   // Keep active SideDrawer selectedEntry synchronized with live operational updates
   useEffect(() => {
@@ -473,7 +503,13 @@ export default function RouteDispatch() {
 
     // Filter by Status Tab
     if (statusTab !== "ALL") {
-      result = result.filter((entry) => entry.operationalStatus === statusTab);
+      if (statusTab === "COMPLETED") {
+        result = result.filter((entry) =>
+          ["SETTLED", "FLAGGED_VARIANCE", "AWAITING_SYNC"].includes(entry.operationalStatus)
+        );
+      } else {
+        result = result.filter((entry) => entry.operationalStatus === statusTab);
+      }
     }
 
     // Filter by Service Zone
@@ -506,7 +542,15 @@ export default function RouteDispatch() {
       let valB = b[sortConfig.key] || "";
 
       if (sortConfig.key === "operationalStatus") {
-        const order = { OUT_ON_ROAD: 1, RETURNED: 2, READY: 3, UNAVAILABLE: 4 };
+        const order = {
+          OUT_ON_ROAD: 1,
+          RETURNED: 2,
+          FLAGGED_VARIANCE: 3,
+          AWAITING_SYNC: 4,
+          READY: 5,
+          SETTLED: 6,
+          UNAVAILABLE: 7,
+        };
         valA = order[a.operationalStatus] || 99;
         valB = order[b.operationalStatus] || 99;
         if (valA !== valB) {
@@ -560,10 +604,11 @@ export default function RouteDispatch() {
     return {
       activeTrips: activeTrips.filter(filterFn),
       returnedTrips: returnedTrips.filter(filterFn),
+      completedTrips: completedTodayTrips.filter(filterFn),
       availableSchedules: availableSchedules.filter(filterFn),
       unavailableSchedules: unavailableSchedules.filter(filterFn),
     };
-  }, [activeTrips, returnedTrips, availableSchedules, unavailableSchedules, selectedZone, searchTerm]);
+  }, [activeTrips, returnedTrips, completedTodayTrips, availableSchedules, unavailableSchedules, selectedZone, searchTerm]);
 
   // 11. Modal Action Handlers
   const handleEndTrip = async (tripId, payload) => {
@@ -675,6 +720,7 @@ export default function RouteDispatch() {
         canManage={canManage}
         onOpenDispatchModal={() => {
           setPrefillScheduleId("");
+          setPrefillTruckId("");
           setShowDispatchModal(true);
         }}
         onNavigateCheckIn={() => navigate("/return-checkin")}
@@ -691,7 +737,13 @@ export default function RouteDispatch() {
             selectedId={selectedEntry?.id || selectedEntry?.scheduleId || selectedEntry?.tripId || selectedEntry?.truckPlate}
             onSelectEntry={(entry) => setSelectedEntry(entry)}
             onDispatch={(sched) => {
+              setPrefillTruckId("");
               setPrefillScheduleId(sched.id);
+              setShowDispatchModal(true);
+            }}
+            onDispatchAgain={(trip) => {
+              setPrefillScheduleId("");
+              setPrefillTruckId(trip.truckId || "");
               setShowDispatchModal(true);
             }}
             onEndTrip={(trip) => {
@@ -720,12 +772,19 @@ export default function RouteDispatch() {
             statusTab={statusTab}
             activeTrips={filteredCardsData.activeTrips}
             returnedTrips={filteredCardsData.returnedTrips}
+            completedTrips={filteredCardsData.completedTrips}
             availableSchedules={filteredCardsData.availableSchedules}
             unavailableSchedules={filteredCardsData.unavailableSchedules}
             selectedId={selectedEntry?.id || selectedEntry?.scheduleId || selectedEntry?.tripId || selectedEntry?.truckPlate}
             onSelectEntry={(entry) => setSelectedEntry(entry)}
             onDispatch={(sched) => {
+              setPrefillTruckId("");
               setPrefillScheduleId(sched.id);
+              setShowDispatchModal(true);
+            }}
+            onDispatchAgain={(trip) => {
+              setPrefillScheduleId("");
+              setPrefillTruckId(trip.truckId || "");
               setShowDispatchModal(true);
             }}
             onCancelSchedule={(sched) => {
@@ -769,20 +828,26 @@ export default function RouteDispatch() {
           selectedEntry && (
             <Badge
               variant={
-                selectedEntry.operationalStatus === "OUT_ON_ROAD" || selectedEntry.isTrip
+                selectedEntry.operationalStatus === "OUT_ON_ROAD" || selectedEntry.operationalStatus === "SETTLED"
                   ? "success"
-                  : selectedEntry.operationalStatus === "RETURNED"
+                  : selectedEntry.operationalStatus === "RETURNED" || selectedEntry.operationalStatus === "AWAITING_SYNC"
                   ? "warning"
-                  : selectedEntry.operationalStatus === "UNAVAILABLE"
+                  : selectedEntry.operationalStatus === "UNAVAILABLE" || selectedEntry.operationalStatus === "FLAGGED_VARIANCE"
                   ? "danger"
                   : "roles"
               }
               className="px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider"
             >
-              {selectedEntry.operationalStatus === "OUT_ON_ROAD" || (selectedEntry.isTrip && selectedEntry.status === "IN_PROGRESS")
+              {selectedEntry.operationalStatus === "OUT_ON_ROAD"
                 ? "OUT ON ROUTE"
                 : selectedEntry.operationalStatus === "RETURNED"
                 ? "RETURNED TO YARD"
+                : selectedEntry.operationalStatus === "FLAGGED_VARIANCE"
+                ? "VARIANCE"
+                : selectedEntry.operationalStatus === "AWAITING_SYNC"
+                ? "PENDING SALES"
+                : selectedEntry.operationalStatus === "SETTLED"
+                ? "SETTLED"
                 : selectedEntry.operationalStatus === "UNAVAILABLE"
                 ? "UNAVAILABLE"
                 : "READY TO DISPATCH"}
@@ -806,6 +871,7 @@ export default function RouteDispatch() {
                   <button
                     type="button"
                     onClick={() => {
+                      setPrefillTruckId("");
                       setPrefillScheduleId(selectedEntry.id);
                       setShowDispatchModal(true);
                     }}
@@ -849,6 +915,34 @@ export default function RouteDispatch() {
                     <ArrowRight size={13} strokeWidth={2.5} />
                   </button>
                 )}
+                {(selectedEntry.operationalStatus === "SETTLED" ||
+                  selectedEntry.operationalStatus === "FLAGGED_VARIANCE" ||
+                  selectedEntry.operationalStatus === "AWAITING_SYNC") &&
+                  canManage && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigate(`/return-checkin?tripId=${selectedEntry.id}`);
+                        }}
+                        className="px-3.5 py-2 rounded-full text-xs font-bold bg-white border border-slate-300 text-[#0A4B6E] hover:bg-slate-50 transition-all cursor-pointer shadow-2xs uppercase tracking-wider active:scale-95"
+                      >
+                        RE-RECONCILE
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPrefillScheduleId("");
+                          setPrefillTruckId(selectedEntry.truckId || "");
+                          setShowDispatchModal(true);
+                        }}
+                        className="px-4 py-2 rounded-full text-xs font-bold bg-[#FFDF2C] text-[#0A4B6E] hover:bg-[#ebd024] transition-all cursor-pointer shadow-2xs uppercase tracking-wider flex items-center gap-1.5 active:scale-95"
+                      >
+                        <span>DISPATCH AGAIN</span>
+                        <ArrowRight size={13} strokeWidth={2.5} />
+                      </button>
+                    </>
+                  )}
               </div>
             </div>
           )
@@ -873,7 +967,13 @@ export default function RouteDispatch() {
             }
             onClose={handleCloseDetail}
             onDispatch={(sched) => {
+              setPrefillTruckId("");
               setPrefillScheduleId(sched.id);
+              setShowDispatchModal(true);
+            }}
+            onDispatchAgain={(trip) => {
+              setPrefillScheduleId("");
+              setPrefillTruckId(trip.truckId || "");
               setShowDispatchModal(true);
             }}
             onMiddayReload={(trip) => {
@@ -910,6 +1010,7 @@ export default function RouteDispatch() {
         onClose={() => {
           setShowDispatchModal(false);
           setPrefillScheduleId("");
+          setPrefillTruckId("");
         }}
         onDispatch={handleDispatchTrip}
         schedules={availableSchedules}
@@ -922,6 +1023,7 @@ export default function RouteDispatch() {
         salesUsers={salesUsers}
         plantInventory={plantInventory}
         initialScheduleId={prefillScheduleId}
+        initialTruckId={prefillTruckId}
       />
 
       <MiddayReloadModal

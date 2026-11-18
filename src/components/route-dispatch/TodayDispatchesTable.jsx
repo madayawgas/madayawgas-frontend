@@ -24,6 +24,7 @@ export default function TodayDispatchesTable({
   selectedId,
   onSelectEntry,
   onDispatch,
+  onDispatchAgain,
   onEndTrip,
   onCheckInReturn,
   canManage = false,
@@ -52,6 +53,38 @@ export default function TodayDispatchesTable({
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 text-[11px] font-bold shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
             <span>RETURNED (AUDIT PENDING)</span>
+          </span>
+        );
+      case "SETTLED":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold shrink-0">
+            <CheckCircle2 size={11} className="text-emerald-600" />
+            <span>Settled</span>
+          </span>
+        );
+      case "FLAGGED_VARIANCE": {
+        const rec = entry.reconciliation || {};
+        const fDiff = Number(rec.fullDiscrepancy) || 0;
+        const eDiff = Number(rec.emptyDiscrepancy) || 0;
+        const mainDiff = fDiff !== 0 ? fDiff : eDiff;
+        const label =
+          mainDiff > 0
+            ? `${mainDiff} Missing`
+            : mainDiff < 0
+            ? `+${Math.abs(mainDiff)} Extra`
+            : "Variance";
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-300 text-[11px] font-bold shrink-0">
+            <AlertTriangle size={11} className="text-rose-600" />
+            <span>{label}</span>
+          </span>
+        );
+      }
+      case "AWAITING_SYNC":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 text-[11px] font-bold shrink-0">
+            <Clock size={11} className="text-amber-700" />
+            <span>Pending Sales</span>
           </span>
         );
       case "READY":
@@ -144,7 +177,10 @@ export default function TodayDispatchesTable({
               entries.map((entry) => {
                 const isOutOnRoad = entry.operationalStatus === "OUT_ON_ROAD";
                 const isReturned = entry.operationalStatus === "RETURNED";
-                const isTrip = isOutOnRoad || isReturned;
+                const isSettled = entry.operationalStatus === "SETTLED";
+                const isFlagged = entry.operationalStatus === "FLAGGED_VARIANCE";
+                const isAwaitingSync = entry.operationalStatus === "AWAITING_SYNC";
+                const isTrip = isOutOnRoad || isReturned || isSettled || isFlagged || isAwaitingSync;
                 const isReady = entry.operationalStatus === "READY";
                 const isUnavailable = entry.operationalStatus === "UNAVAILABLE";
                 const isSelected =
@@ -334,6 +370,22 @@ export default function TodayDispatchesTable({
                             >
                               <span>CHECK-IN</span>
                               <ArrowRight size={12} strokeWidth={2.5} />
+                            </button>
+                          )}
+
+                          {/* Completed Trip (Settled / Variance / Pending Sales): Dispatch Again */}
+                          {(isFlagged || isAwaitingSync || isSettled) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDispatchAgain && onDispatchAgain(entry);
+                              }}
+                              className="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 uppercase tracking-wider shrink-0 active:scale-95"
+                              title="Dispatch this vehicle for another route"
+                            >
+                              <Plus size={12} strokeWidth={2.5} />
+                              <span>DISPATCH AGAIN</span>
                             </button>
                           )}
 
