@@ -156,6 +156,8 @@ export const tripsApi = {
     if (params.status) query.append("status", params.status);
     if (params.truckId) query.append("truckId", params.truckId);
     if (params.zoneId) query.append("zoneId", params.zoneId);
+    if (params.startDate) query.append("startDate", params.startDate);
+    if (params.endDate) query.append("endDate", params.endDate);
     if (params.page) query.append("page", params.page);
     if (params.limit) query.append("limit", params.limit);
 

@@ -205,7 +205,8 @@ export default function RouteDispatch() {
   const loadData = useCallback(async () => {
     try {
       const [
-        tripsData,
+        activeAndReturnedTrips,
+        todayTrips,
         schedData,
         tplData,
         vData,
@@ -215,8 +216,13 @@ export default function RouteDispatch() {
         salesData,
         plantInvData,
       ] = await Promise.all([
-        tripsApi.getTrips().catch((err) => {
-          console.warn("Failed to fetch trips:", err);
+        tripsApi.getTrips({ status: "IN_PROGRESS,RETURNED" }).catch((err) => {
+          console.warn("Failed to fetch active/returned trips:", err);
+          showToast("error", err?.message || "Failed to load active trips");
+          return null;
+        }),
+        tripsApi.getTrips({ startDate: `${todayPht}T00:00:00+08:00` }).catch((err) => {
+          console.warn("Failed to fetch today's trips:", err);
           return [];
         }),
         schedulesApi.getSchedules({ date: todayPht }).catch((err) => {
@@ -256,7 +262,16 @@ export default function RouteDispatch() {
         }),
       ]);
 
-      if (Array.isArray(tripsData)) setTrips(tripsData);
+      if (Array.isArray(activeAndReturnedTrips) || Array.isArray(todayTrips)) {
+        const mergedMap = new Map();
+        (Array.isArray(activeAndReturnedTrips) ? activeAndReturnedTrips : []).forEach((t) => {
+          if (t?.id) mergedMap.set(t.id, t);
+        });
+        (Array.isArray(todayTrips) ? todayTrips : []).forEach((t) => {
+          if (t?.id && !mergedMap.has(t.id)) mergedMap.set(t.id, t);
+        });
+        setTrips(Array.from(mergedMap.values()));
+      }
       if (Array.isArray(schedData)) setSchedules(schedData);
       if (Array.isArray(tplData)) setTemplates(tplData);
       if (Array.isArray(vData)) setVehicles(vData);
