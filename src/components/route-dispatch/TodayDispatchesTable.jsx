@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   ChevronUp,
   ChevronDown,
+  RotateCcw,
 } from "lucide-react";
 import Pagination from "../ui/Pagination";
 import { formatPhilippineTime } from "../../utils/date.js";
@@ -247,10 +248,18 @@ export default function TodayDispatchesTable({
                         <div className="space-y-0.5">
                           <div className="text-[11px] font-bold text-emerald-800 flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                            <span>Cleared for gate departure</span>
+                            <span>
+                              {entry.isRedispatch
+                                ? `Reconciled · ${entry.completedTripsTodayCount || 1} trip${
+                                    (entry.completedTripsTodayCount || 1) > 1 ? "s" : ""
+                                  } done`
+                                : "Cleared for gate departure"}
+                            </span>
                           </div>
                           <div className="text-[11px] text-[#3E5C76]">
-                            Safety inspections & driver duty OK
+                            {entry.isRedispatch
+                              ? "Cleared for another run today"
+                              : "Safety inspections & driver duty OK"}
                           </div>
                         </div>
                       ) : isUnavailable ? (
@@ -281,10 +290,18 @@ export default function TodayDispatchesTable({
                                 onDispatch && onDispatch(entry);
                               }}
                               className="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 uppercase tracking-wider shrink-0 active:scale-95"
-                              title="Dispatch vehicle on distribution route"
+                              title={
+                                entry.isRedispatch
+                                  ? "Dispatch this reconciled vehicle again today"
+                                  : "Dispatch vehicle on distribution route"
+                              }
                             >
-                              <Plus size={12} strokeWidth={2.5} />
-                              <span>DISPATCH</span>
+                              {entry.isRedispatch ? (
+                                <RotateCcw size={12} strokeWidth={2.5} />
+                              ) : (
+                                <Plus size={12} strokeWidth={2.5} />
+                              )}
+                              <span>{entry.isRedispatch ? "DISPATCH AGAIN" : "DISPATCH"}</span>
                             </button>
                           )}
 

@@ -476,8 +476,14 @@ export default function DispatchModal({
               <Truck size={17} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-[#0A4B6E]">Dispatch Vehicle</h3>
-              <p className="text-[11px] text-[#3E5C76]">Assign cargo loads and confirm vehicle departure</p>
+              <h3 className="text-sm font-bold text-[#0A4B6E]">
+                {selectedSchedule?.isRedispatch ? "Dispatch Vehicle Again" : "Dispatch Vehicle"}
+              </h3>
+              <p className="text-[11px] text-[#3E5C76]">
+                {selectedSchedule?.isRedispatch
+                  ? "Assign fresh cargo loads for another run today"
+                  : "Assign cargo loads and confirm vehicle departure"}
+              </p>
             </div>
           </div>
           <button

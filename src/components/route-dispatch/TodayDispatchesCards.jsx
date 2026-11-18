@@ -11,6 +11,7 @@ import {
   Calendar,
   CalendarX,
   AlertOctagon,
+  RotateCcw,
 } from "lucide-react";
 import { formatPhilippineDate, formatPhilippineTime } from "../../utils/date.js";
 
@@ -359,9 +360,15 @@ export default function TodayDispatchesCards({
                             <span className="text-base font-bold text-[#0A4B6E] tracking-tight">
                               {sched.truckPlate}
                             </span>
-                            <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full">
-                              SCHEDULED
-                            </span>
+                            {sched.isRedispatch ? (
+                              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                RECONCILED
+                              </span>
+                            ) : (
+                              <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full">
+                                SCHEDULED
+                              </span>
+                            )}
                           </div>
                           <p className="text-[11px] text-[#3E5C76]">{sched.truckModel}</p>
                         </div>
@@ -387,9 +394,15 @@ export default function TodayDispatchesCards({
                         </div>
 
                         <div className="flex justify-between items-center pt-1 border-t border-[#E2E8F0]">
-                          <span className="text-[#3E5C76]">Scheduled Date:</span>
+                          <span className="text-[#3E5C76]">
+                            {sched.isRedispatch ? "Completed Today:" : "Scheduled Date:"}
+                          </span>
                           <span className="font-bold text-[#0A4B6E]">
-                            {formatPhilippineDate(sched.scheduledDate)}
+                            {sched.isRedispatch
+                              ? `${sched.completedTripsTodayCount || 1} trip${
+                                  (sched.completedTripsTodayCount || 1) > 1 ? "s" : ""
+                                }`
+                              : formatPhilippineDate(sched.scheduledDate)}
                           </span>
                         </div>
                       </div>
@@ -405,8 +418,12 @@ export default function TodayDispatchesCards({
                           }}
                           className="w-full py-2 px-3 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] rounded-full text-[11px] font-bold uppercase tracking-widest transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
                         >
-                          <Plus size={13} strokeWidth={2.5} />
-                          <span>Dispatch Vehicle</span>
+                          {sched.isRedispatch ? (
+                            <RotateCcw size={13} strokeWidth={2.5} />
+                          ) : (
+                            <Plus size={13} strokeWidth={2.5} />
+                          )}
+                          <span>{sched.isRedispatch ? "Dispatch Again" : "Dispatch Vehicle"}</span>
                         </button>
                       </div>
                     )}

@@ -12,10 +12,9 @@ import { inventoryApi } from "../../api/inventory.js";
 import { getScheduleDispatchGating } from "../../utils/fleetGuards.js";
 
 import { isCanisterProduct, getCanisterCrates } from "../../utils/product.js";
+import { buildTodaySchedules } from "../../utils/dispatchSchedules.js";
 import {
   getPhilippineTodayString,
-  getPhilippineDayOfWeek,
-  toPhilippineDateInputString,
 } from "../../utils/date.js";
 
 import TodayDispatchesControls from "../../components/route-dispatch/TodayDispatchesControls.jsx";
@@ -24,7 +23,7 @@ import TodayDispatchesCards from "../../components/route-dispatch/TodayDispatche
 import TripDetailPanel from "../../components/route-dispatch/TripDetailPanel.jsx";
 import SideDrawer from "../../components/ui/SideDrawer.jsx";
 import Badge from "../../components/ui/Badge.jsx";
-import { Truck, ArrowRight } from "lucide-react";
+import { Truck, ArrowRight, RotateCcw } from "lucide-react";
 
 import DispatchModal from "../../components/route-dispatch/DispatchModal";
 import MiddayReloadModal from "../../components/route-dispatch/MiddayReloadModal";
@@ -358,75 +357,18 @@ export default function RouteDispatch() {
     return trips.filter((t) => (t.status || "").toUpperCase() === "RETURNED");
   }, [trips]);
 
-  // 6c. Today's Scheduled Dispatches (Direct + Template-derived)
+  // 6c. Today's Scheduled & Re-Dispatchable Dispatches (Direct + Template-derived + Reconciled)
   const allTodaySchedules = useMemo(() => {
-    // 1. Direct operational schedules for today that are SCHEDULED
-    const directScheduled = schedules.filter((s) => {
-      const isSched = (s.status || "").toUpperCase() === "SCHEDULED";
-      const schedDate = toPhilippineDateInputString(s.scheduledDate);
-      return isSched && schedDate === todayPht;
+    return buildTodaySchedules({
+      schedules,
+      templates,
+      trips,
+      vehicles,
+      zones,
+      salesUsers,
+      drivers,
+      todayPht,
     });
-
-    // 2. Identify truck IDs already covered today (dispatched, returned, completed, or scheduled)
-    const coveredTruckIds = new Set([
-      ...schedules
-        .filter((s) => toPhilippineDateInputString(s.scheduledDate) === todayPht)
-        .map((s) => s.truckId),
-      ...trips
-        .filter((t) => {
-          const st = (t.status || "").toUpperCase();
-          const tripDate = toPhilippineDateInputString(t.departureTime || t.departure_time || t.createdAt);
-          return (
-            ["IN_PROGRESS", "RETURNED", "COMPLETED"].includes(st) &&
-            (tripDate === todayPht || st === "IN_PROGRESS" || st === "RETURNED")
-          );
-        })
-        .map((t) => t.truckId),
-    ]);
-
-    // 3. Current Philippine day of week (1=Monday ... 7=Sunday)
-    const currentIsoDay = getPhilippineDayOfWeek(todayPht);
-
-    // 4. Find active templates for TODAY whose vehicle isn't already covered
-    const templateDerived = templates
-      .filter((t) => {
-        const isToday = Number(t.dayOfWeek) === Number(currentIsoDay);
-        const isActive = t.isActive !== false;
-        const notCovered = !coveredTruckIds.has(t.truckId);
-        return isToday && isActive && notCovered;
-      })
-      .map((t) => {
-        const vehicle = vehicles.find((v) => v.id === t.truckId);
-        const zone = zones.find((z) => z.id === t.zoneId);
-        const salesUser = salesUsers.find((u) => u.id === t.defaultSalesUserId);
-        const driverUser = drivers.find((d) => d.id === vehicle?.driverId);
-
-        return {
-          id: `tpl-${t.id}`,
-          templateId: t.id,
-          scheduledDate: todayPht,
-          truckId: t.truckId,
-          truckPlate: t.truckPlate || vehicle?.plateNumber || "No Plate",
-          truckModel: t.truckModel || vehicle?.model || "Delivery Vehicle",
-          truckStatus: vehicle?.status || "ACTIVE",
-          truckDriverId: vehicle?.driverId || null,
-          driverName: driverUser
-            ? (driverUser.fullName || `${driverUser.firstName || ""} ${driverUser.lastName || ""}`.trim() || driverUser.username)
-            : (vehicle?.driver ? `${vehicle.driver.firstName || ""} ${vehicle.driver.lastName || ""}`.trim() : "Unassigned"),
-          salesUserId: t.defaultSalesUserId || null,
-          salesName: salesUser
-            ? (salesUser.fullName || `${salesUser.firstName || ""} ${salesUser.lastName || ""}`.trim() || salesUser.username)
-            : (t.salesName || "Unassigned"),
-          zoneId: t.zoneId,
-          zoneCode: t.zoneCode || zone?.code || "",
-          zoneName: t.zoneName || zone?.name || "",
-          status: "SCHEDULED",
-          notes: `Weekly route schedule (Day ${currentIsoDay})`,
-          isTemplateDerived: true,
-        };
-      });
-
-    return [...directScheduled, ...templateDerived];
   }, [schedules, templates, trips, vehicles, zones, salesUsers, drivers, todayPht]);
 
   // 6d. Partition schedules into Available vs Unavailable
@@ -869,8 +811,17 @@ export default function RouteDispatch() {
                     }}
                     className="px-4 py-2 rounded-full text-xs font-bold bg-[#0A4B6E] text-[#FFDF2C] hover:bg-[#0E384E] transition-all cursor-pointer shadow-2xs uppercase tracking-wider flex items-center gap-1.5 active:scale-95"
                   >
-                    <span>DISPATCH VEHICLE</span>
-                    <ArrowRight size={13} strokeWidth={2.5} />
+                    {selectedEntry.isRedispatch ? (
+                      <>
+                        <RotateCcw size={13} strokeWidth={2.5} />
+                        <span>DISPATCH AGAIN</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>DISPATCH VEHICLE</span>
+                        <ArrowRight size={13} strokeWidth={2.5} />
+                      </>
+                    )}
                   </button>
                 )}
                 {selectedEntry.operationalStatus === "OUT_ON_ROAD" && canManage && (

@@ -443,18 +443,24 @@ export default function TripDetailPanel({
                 disabled={isUnavailable}
                 className="w-full py-2.5 px-4 rounded-full text-[11px] font-bold bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Plus size={14} strokeWidth={2.5} />
-                <span>Dispatch Vehicle</span>
+                {activeEntry.isRedispatch ? (
+                  <RotateCcw size={14} strokeWidth={2.5} />
+                ) : (
+                  <Plus size={14} strokeWidth={2.5} />
+                )}
+                <span>{activeEntry.isRedispatch ? "Dispatch Again" : "Dispatch Vehicle"}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => onCancelSchedule && onCancelSchedule(activeEntry)}
-                className="w-full py-2 px-4 rounded-full text-[11px] font-bold bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 text-slate-600 hover:text-rose-700 transition-all cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-widest"
-              >
-                <CalendarX size={13} />
-                <span>Cancel Scheduled Run</span>
-              </button>
+              {!activeEntry.isRedispatch && (
+                <button
+                  type="button"
+                  onClick={() => onCancelSchedule && onCancelSchedule(activeEntry)}
+                  className="w-full py-2 px-4 rounded-full text-[11px] font-bold bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 text-slate-600 hover:text-rose-700 transition-all cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-widest"
+                >
+                  <CalendarX size={13} />
+                  <span>Cancel Scheduled Run</span>
+                </button>
+              )}
             </div>
           )}
 
