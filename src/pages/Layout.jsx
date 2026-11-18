@@ -176,7 +176,9 @@ export default function Layout() {
             {/* 2. TRIP OPERATIONS */}
             {(can(PERMISSIONS.ROUTE_VIEW) ||
               can(PERMISSIONS.ROUTE_MANAGE) ||
-              can(PERMISSIONS.ROUTE_VIEW_OWN)) && (
+              can(PERMISSIONS.ROUTE_VIEW_OWN) ||
+              can(PERMISSIONS.INVENTORY_VEHICLE_MANAGE) ||
+              can(PERMISSIONS.INVENTORY_PLANT_MANAGE)) && (
               <>
                 <div className="pt-2.5 pb-1 px-3 select-none">
                   <p className="text-[10px] font-bold tracking-wider uppercase text-white/45">
@@ -184,24 +186,30 @@ export default function Layout() {
                   </p>
                 </div>
 
-                <NavLink
-                  to="/route-planner"
-                  className={navClass}
-                  onClick={() => setOpen(false)}
-                >
-                  <Calendar size={17} className="shrink-0" />
-                  <span>Route Planner</span>
-                </NavLink>
+                {(can(PERMISSIONS.ROUTE_VIEW) ||
+                  can(PERMISSIONS.ROUTE_MANAGE) ||
+                  can(PERMISSIONS.ROUTE_VIEW_OWN)) && (
+                  <>
+                    <NavLink
+                      to="/route-planner"
+                      className={navClass}
+                      onClick={() => setOpen(false)}
+                    >
+                      <Calendar size={17} className="shrink-0" />
+                      <span>Route Planner</span>
+                    </NavLink>
 
-                <NavLink
-                  to="/route-dispatch"
-                  end
-                  className={navClass}
-                  onClick={() => setOpen(false)}
-                >
-                  <Truck size={17} className="shrink-0" />
-                  <span>Today's Dispatches</span>
-                </NavLink>
+                    <NavLink
+                      to="/route-dispatch"
+                      end
+                      className={navClass}
+                      onClick={() => setOpen(false)}
+                    >
+                      <Truck size={17} className="shrink-0" />
+                      <span>Today's Dispatches</span>
+                    </NavLink>
+                  </>
+                )}
 
                 <NavLink
                   to="/return-checkin"
@@ -212,14 +220,18 @@ export default function Layout() {
                   <span>Return Stock Check-In</span>
                 </NavLink>
 
-                <NavLink
-                  to="/settings/zones"
-                  className={navClass}
-                  onClick={() => setOpen(false)}
-                >
-                  <MapPin size={17} className="shrink-0" />
-                  <span>Delivery Zones</span>
-                </NavLink>
+                {(can(PERMISSIONS.ROUTE_VIEW) ||
+                  can(PERMISSIONS.ROUTE_MANAGE) ||
+                  can(PERMISSIONS.ROUTE_VIEW_OWN)) && (
+                  <NavLink
+                    to="/settings/zones"
+                    className={navClass}
+                    onClick={() => setOpen(false)}
+                  >
+                    <MapPin size={17} className="shrink-0" />
+                    <span>Delivery Zones</span>
+                  </NavLink>
+                )}
               </>
             )}
 

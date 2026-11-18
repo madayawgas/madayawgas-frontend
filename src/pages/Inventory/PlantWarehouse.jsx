@@ -35,7 +35,7 @@ export default function PlantWarehouse() {
   const { can } = useAuth();
   const { canistersPerCrate } = useSettings();
   const canManage = can
-    ? (can(PERMISSIONS?.INVENTORY_MANAGE || "inventory.manage"))
+    ? can(PERMISSIONS?.INVENTORY_PLANT_MANAGE || "inventory.plant.manage")
     : false;
 
   // Yard stock list state (initialized from localStorage cache)

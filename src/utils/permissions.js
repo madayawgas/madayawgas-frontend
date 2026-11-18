@@ -6,12 +6,16 @@
 export const PERMISSIONS = {
   DASHBOARD_VIEW: "dashboard.view",
   FLEET_VIEW: "fleet.view",
+  FLEET_VIEW_OWN: "fleet.view_own",
   FLEET_MANAGE: "fleet.manage",
   ROUTE_VIEW: "route.view",
   ROUTE_VIEW_OWN: "route.view_own",
+  ROUTE_END_OWN: "route.end_own",
   ROUTE_MANAGE: "route.manage",
   INVENTORY_VIEW: "inventory.view",
   INVENTORY_MANAGE: "inventory.manage",
+  INVENTORY_PLANT_MANAGE: "inventory.plant.manage",
+  INVENTORY_VEHICLE_MANAGE: "inventory.vehicle.manage",
   SALES_VIEW: "sales.view",
   SALES_VIEW_OWN: "sales.view_own",
   SALES_CREATE: "sales.create",
@@ -89,8 +93,7 @@ export function getDefaultRoute(user) {
   const roleName = (user.role || (Array.isArray(user.roleNames) ? user.roleNames.join(" ") : "")).toLowerCase();
   if (
     roleName.includes("plant") ||
-    (can(user, PERMISSIONS.INVENTORY_MANAGE) &&
-      !can(user, PERMISSIONS.ROUTE_VIEW) &&
+    ((can(user, PERMISSIONS.INVENTORY_MANAGE) || can(user, PERMISSIONS.INVENTORY_PLANT_MANAGE)) &&
       !can(user, PERMISSIONS.ROUTE_MANAGE) &&
       !can(user, PERMISSIONS.FLEET_VIEW) &&
       !can(user, PERMISSIONS.SALES_VIEW))

@@ -86,13 +86,18 @@ madayawgas-frontend/
 1. **Session Handling**: Uses HTTP-Only cookie `mg_sid`. `apiClient` in `src/api/client.js` always sets `credentials: "include"`.
 2. **Permission Keys** (`src/utils/permissions.js`):
    - `dashboard.view`
-   - `fleet.view`, `fleet.manage`
-   - `route.view`, `route.view_own`, `route.manage`
-   - `inventory.view`, `inventory.manage`
+   - `fleet.view`, `fleet.view_own`, `fleet.manage`
+   - `route.view`, `route.view_own`, `route.end_own`, `route.manage`
+   - `inventory.view`, `inventory.manage`, `inventory.plant.manage`, `inventory.vehicle.manage`
    - `sales.view`, `sales.view_own`, `sales.create`, `sales.update`, `sales.delete`
    - `delivery.view`, `delivery.view_own`, `delivery.update`, `delivery.update_own`
+   - `apprehensions.view`, `apprehensions.view_own`, `apprehensions.create`, `apprehensions.manage`
+   - `fuel.view`, `fuel.view_own`, `fuel.create`, `fuel.manage`
+   - `alerts.view`, `alerts.view_own`, `alerts.trigger`, `alerts.manage`
    - `users.view`, `users.manage`
    - `history.view`, `history.manage`
+   - `settings.view`, `settings.manage`
+   - **Role Scope (Migration 026)**: `Logistics Supervisor` is strictly scoped to Fleet & Maintenance (`fleet.*`, `fuel.*`, `apprehensions.*`, `alerts.*`, `history.view`). `Sales Supervisor` handles Trip Operations (`route.view`, `route.manage`), Vehicle Stock & Reconciliation (`inventory.view`, `inventory.vehicle.manage`), and Sales & Delivery (`sales.*`, `delivery.*`, `history.view`). `Plant Supervisor` manages the Bunawan yard (`inventory.view`, `inventory.manage`, `inventory.plant.manage`, `route.view`, `history.view`).
 3. **Permission Evaluation**:
    - `useAuth()` provides `can(permission)`, `canAll(permissionsList)`, `canAny(permissionsList)`, `currentUser`, `isAuthenticated`.
    - Use `<ProtectedRoute permission={[PERMISSIONS.SALES_VIEW, PERMISSIONS.SALES_VIEW_OWN]}>` to wrap routes in `main.jsx`.

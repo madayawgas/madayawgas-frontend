@@ -39,7 +39,11 @@ export default function StockCheckInPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { can } = useAuth();
-  const canManage = can ? can(PERMISSIONS.ROUTE_MANAGE || "route.manage") : false;
+  const canManage = can
+    ? (can(PERMISSIONS.ROUTE_MANAGE || "route.manage") ||
+       can(PERMISSIONS.INVENTORY_VEHICLE_MANAGE || "inventory.vehicle.manage") ||
+       can(PERMISSIONS.INVENTORY_PLANT_MANAGE || "inventory.plant.manage"))
+    : false;
 
   const currentTripIdFromUrl = searchParams.get("tripId") || "";
 

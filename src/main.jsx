@@ -133,6 +133,8 @@ const router = createBrowserRouter([
               PERMISSIONS.ROUTE_VIEW,
               PERMISSIONS.ROUTE_MANAGE,
               PERMISSIONS.ROUTE_VIEW_OWN,
+              PERMISSIONS.INVENTORY_VEHICLE_MANAGE,
+              PERMISSIONS.INVENTORY_PLANT_MANAGE,
             ]}
           >
             <StockCheckInPage />
