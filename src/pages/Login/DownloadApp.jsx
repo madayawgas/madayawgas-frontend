@@ -49,7 +49,7 @@ export default function DownloadApp() {
       <div className="relative z-10 w-full max-w-3xl lg:max-w-4xl bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-5 sm:p-7 md:p-9 grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 items-stretch animate-scale-in">
         {/* Left Branded Visual Card */}
         <div
-          className="md:col-span-5 rounded-2xl sm:rounded-3xl p-6 sm:p-8 flex flex-col justify-between bg-cover bg-center relative overflow-hidden min-h-[220px] md:min-h-[380px] shadow-2xs"
+          className="md:col-span-5 rounded-2xl sm:rounded-3xl p-6 sm:p-8 flex flex-col justify-start bg-cover bg-center relative overflow-hidden min-h-[220px] md:min-h-[380px] shadow-2xs"
           style={{ backgroundImage: `url(${bgLeftCard})` }}
         >
           <div>
@@ -66,11 +66,6 @@ export default function DownloadApp() {
               with you
             </h2>
           </div>
-
-          <p className="text-xs text-white/90 font-medium leading-relaxed mt-6">
-            Scan the QR code with your phone camera or download the installer
-            directly on your mobile device.
-          </p>
         </div>
 
         {/* Right Download & QR Content */}
