@@ -1,7 +1,6 @@
 export default function StatusFilterGroup({ selectedStatus, onChange }) {
   const statuses = [
     { key: "ACTIVE", label: "ACTIVE", activeBg: "bg-emerald-600 text-white border-emerald-600", inactiveBg: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-    { key: "SUSPENDED", label: "SUSPENDED", activeBg: "bg-rose-600 text-white border-rose-600", inactiveBg: "bg-rose-50 text-rose-700 border-rose-200" },
     { key: "DEACTIVATED", label: "DEACTIVATED", activeBg: "bg-gray-600 text-white border-gray-600", inactiveBg: "bg-gray-100 text-gray-600 border-gray-200" },
   ];
 

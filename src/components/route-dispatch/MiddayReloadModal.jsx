@@ -58,7 +58,7 @@ export default function MiddayReloadModal({
       }
 
       await onAddLoad(trip.id, {
-        transferType: "MIDDAY_RELOAD",
+        transferType: "DISPATCH_LOAD",
         remarks,
         items: validLoads.map((i) => ({
           productId: i.productId,

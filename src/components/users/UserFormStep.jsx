@@ -1,7 +1,6 @@
 // src/components/users/UserFormStep.jsx
 import { useMemo } from "react";
-import { User, KeyRound, AlertCircle, Phone, Calendar, Shield, Sparkles, Check } from "lucide-react";
-import Badge from "../ui/Badge";
+import { User, KeyRound, UserX, AlertCircle, Phone, Calendar, Shield, Sparkles, Check } from "lucide-react";
 import Button from "../ui/Button";
 import { toProperCase } from "../../utils/text.js";
 
@@ -10,13 +9,13 @@ export default function UserFormStep({
   setFormData,
   roles,
   user,
-  statuses,
   errors = {},
   setErrors,
   submitError = "",
   setSubmitError,
   isSubmitting = false,
   onResetPassword,
+  onDeactivate,
   onSubmit,
   onClose,
 }) {
@@ -428,44 +427,22 @@ export default function UserFormStep({
               </button>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-[#0A4B6E] uppercase tracking-wider mb-1.5">
-                Operational Status
-              </label>
-              <div className="flex items-center gap-2">
-                {statuses.map((s) => {
-                  const isSelected = formData.status === s.value;
-                  return (
-                    <label key={s.value} className="cursor-pointer relative flex items-center">
-                      <input
-                        type="radio"
-                        name="status"
-                        value={s.value}
-                        checked={isSelected}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            status: e.target.value,
-                            isBlocked: e.target.value === "SUSPENDED",
-                          })
-                        }
-                        className="sr-only"
-                      />
-                      <Badge
-                        variant={s.variant}
-                        className={`px-4 py-1.5 text-xs transition-all duration-150 ${
-                          isSelected
-                            ? "ring-2 ring-offset-1 ring-[#0A4B6E] font-bold shadow-xs scale-102"
-                            : "opacity-50 hover:opacity-80"
-                        }`}
-                      >
-                        {s.label}
-                      </Badge>
-                    </label>
-                  );
-                })}
+            {user.isActive !== false && (user.status || "").toUpperCase() !== "DEACTIVATED" && (
+              <div className="p-3 bg-rose-50/70 rounded-xl flex items-center justify-between gap-3 border border-rose-200/80">
+                <div>
+                  <p className="text-xs font-bold text-[#C93B32]">Deactivate Account</p>
+                  <p className="text-[11px] text-rose-700/80">Disable login access for this user</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onDeactivate && onDeactivate(user)}
+                  className="bg-[#C93B32] hover:bg-[#b0322a] text-white text-xs font-bold uppercase tracking-wider px-3.5 py-2 rounded-full flex items-center gap-1.5 transition cursor-pointer shadow-xs shrink-0"
+                >
+                  <UserX size={13} />
+                  <span>Deactivate</span>
+                </button>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>

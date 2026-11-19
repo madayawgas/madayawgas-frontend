@@ -10,6 +10,7 @@ export default function SalesPageHeader({
   pills = [],
   dateRangePreset,
   onDateRangeChange,
+  dateRangeOptions = SALES_DATE_PRESETS,
   onRefresh,
   isRefreshing = false,
   actions = null,
@@ -70,7 +71,7 @@ export default function SalesPageHeader({
               onChange={(e) => onDateRangeChange(e.target.value)}
               className="bg-transparent text-xs font-semibold text-[#0A4B6E] focus:outline-none cursor-pointer pr-1"
             >
-              {SALES_DATE_PRESETS.map((preset) => (
+              {dateRangeOptions.map((preset) => (
                 <option key={preset.value} value={preset.value}>
                   {preset.label}
                 </option>

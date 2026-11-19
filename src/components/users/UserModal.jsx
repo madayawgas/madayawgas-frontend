@@ -14,6 +14,7 @@ export default function UserModal({
   onClose,
   user,
   onResetPassword,
+  onDeactivate,
 }) {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -130,11 +131,6 @@ export default function UserModal({
 
   if (!isOpen || hasUserRole(user, "Super Admin")) return null;
 
-  const statuses = [
-    { value: "ACTIVE", label: "ACTIVE", variant: "success" },
-    { value: "SUSPENDED", label: "SUSPEND", variant: "danger" },
-  ];
-
   const safeRole =
     typeof formData.role === "string" ? formData.role : formData.role?.name || "Driver";
 
@@ -202,7 +198,7 @@ export default function UserModal({
 
     const cleanFirstName = toProperCase(formData.firstName);
     const cleanLastName = toProperCase(formData.lastName);
-    const isBlocked = formData.status === "SUSPENDED";
+    const isBlocked = Boolean(formData.isBlocked);
     const formattedContactNo = `+63${formData.contactNo}`;
 
     const cleanedData = {
@@ -211,7 +207,7 @@ export default function UserModal({
       lastName: cleanLastName,
       contactNo: formattedContactNo,
       isBlocked,
-      status: isBlocked ? "SUSPENDED" : "ACTIVE",
+      status: formData.status || (isBlocked ? "SUSPENDED" : "ACTIVE"),
     };
     setFormData((prev) => ({ ...prev, contactNo: formData.contactNo }));
 
@@ -321,13 +317,13 @@ export default function UserModal({
             setFormData={setFormData}
             roles={roles}
             user={user}
-            statuses={statuses}
             errors={errors}
             setErrors={setErrors}
             submitError={submitError}
             setSubmitError={setSubmitError}
             isSubmitting={isSubmitting}
             onResetPassword={onResetPassword}
+            onDeactivate={onDeactivate}
             onSubmit={handleSubmit}
             onClose={onClose}
           />
