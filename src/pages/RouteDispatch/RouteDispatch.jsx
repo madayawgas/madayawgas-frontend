@@ -966,31 +966,9 @@ export default function RouteDispatch() {
                 ? selectedEntry
                 : null
             }
-            onClose={handleCloseDetail}
-            onDispatch={(sched) => {
-              setPrefillTruckId("");
-              setPrefillScheduleId(sched.id);
-              setShowDispatchModal(true);
-            }}
-            onDispatchAgain={(trip) => {
-              setPrefillScheduleId("");
-              setPrefillTruckId(trip.truckId || "");
-              setShowDispatchModal(true);
-            }}
             onMiddayReload={(trip) => {
               setSelectedTripForReload(trip);
               setShowMiddayModal(true);
-            }}
-            onEndTrip={(trip) => {
-              setSelectedTripToEnd(trip);
-              setShowEndTripModal(true);
-            }}
-            onReturnCheckIn={(trip) => {
-              navigate(`/return-checkin?tripId=${trip.id}`);
-            }}
-            onReconciliation={(trip) => {
-              setSelectedTripForSettle(trip);
-              setShowSettleModal(true);
             }}
             onCancelTrip={(trip) => {
               setSelectedTripToCancel(trip);
