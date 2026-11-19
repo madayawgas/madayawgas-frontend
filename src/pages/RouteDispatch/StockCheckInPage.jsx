@@ -136,16 +136,7 @@ export default function StockCheckInPage() {
     });
   }, [trips]);
 
-  // 3b. Completed Trips needing Variance Review or Sync Re-Reconciliation
-  const reviewTrips = useMemo(() => {
-    return trips.filter((t) => {
-      const raw = (t.rawStatus || "").toUpperCase();
-      const reconSt = (t.reconciliation?.status || t.status || "").toUpperCase();
-      return raw === "COMPLETED" && (reconSt === "FLAGGED_VARIANCE" || reconSt === "AWAITING_SYNC");
-    });
-  }, [trips]);
-
-  // 3c. Active In-Progress Trips (out on the road)
+  // 3b. Active In-Progress Trips (out on the road)
   const inProgressTrips = useMemo(() => {
     return trips.filter((t) => {
       const s = (t.rawStatus || t.status || "").toUpperCase();
@@ -153,19 +144,19 @@ export default function StockCheckInPage() {
     });
   }, [trips]);
 
-  // Combined list for dropdown search (Returned first, then Review, then In-Progress)
+  // Combined list for dropdown search (Returned first, then In-Progress)
   const dropdownTrips = useMemo(() => {
-    return [...endedTrips, ...reviewTrips, ...inProgressTrips];
-  }, [endedTrips, reviewTrips, inProgressTrips]);
+    return [...endedTrips, ...inProgressTrips];
+  }, [endedTrips, inProgressTrips]);
 
-  // Target trip selected by URL ID or defaulted to first eligible
+  // Target trip selected by URL ID (for explicit Re-Reconcile links) or defaulted to first eligible
   const targetTrip = useMemo(() => {
     if (currentTripIdFromUrl) {
       const found = trips.find((t) => t.id === currentTripIdFromUrl);
       if (found) return found;
     }
-    return endedTrips[0] || reviewTrips[0] || inProgressTrips[0] || null;
-  }, [trips, endedTrips, reviewTrips, inProgressTrips, currentTripIdFromUrl]);
+    return endedTrips[0] || inProgressTrips[0] || null;
+  }, [trips, endedTrips, inProgressTrips, currentTripIdFromUrl]);
 
   // Evaluate whether target trip is still out on route (IN_PROGRESS)
   const isTargetTripInProgress = useMemo(() => {
@@ -482,6 +473,9 @@ export default function StockCheckInPage() {
             ? `Trip #${selectedTrip.tripNumber} saved with variance and supervisor notes.`
             : `Trip #${selectedTrip.tripNumber} (${selectedTrip.truckPlate}) stock check-in saved. Bunawan yard stock updated!`,
       });
+
+      // Clear tripId from URL so the just-reconciled trip is removed from Check-In view
+      setSearchParams({}, { replace: true });
 
       // Reload trips to reflect completed status
       await loadData();
