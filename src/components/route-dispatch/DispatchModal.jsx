@@ -212,10 +212,12 @@ export default function DispatchModal({
     return map;
   }, [trips]);
 
-  // Map of other today's schedules by assigned sales user ID
+  // Map of other today's genuinely dispatchable schedules by assigned sales user ID
   const assignedOtherScheduleMap = useMemo(() => {
     const map = new Map();
     totalSchedules.forEach((s) => {
+      if (s.isRedispatch) return;
+      if (s.gating && s.gating.canDispatch === false) return;
       const isSched = (s.status || "").toUpperCase() === "SCHEDULED";
       // Exclude current schedule when in scheduled mode so pre-assigned sales rep can remain selected
       const isOther = isAdHoc ? true : (!selectedScheduleId || s.id !== selectedScheduleId);
@@ -245,26 +247,29 @@ export default function DispatchModal({
     preassignedTripConflict || preassignedScheduleConflict
   );
 
-  // Filtered list of Sales Persons who are genuinely available for dispatch
-  const availableSalesUsers = useMemo(() => {
+  // Sales Persons eligible for Ad-Hoc runs (allows scheduled reps, blocks only active IN_PROGRESS trips)
+  const adHocSalesUsers = useMemo(() => {
     return salesUsers.filter((u) => {
-      // 1. Must be active and not blocked
       if (u.isActive === false || u.isBlocked === true) return false;
-
-      // 2. Must not be on an active trip in progress
       if (activeTripBySalesUserId.has(u.id)) return false;
-
-      // 3. Must not be assigned to another scheduled vehicle today
-      if (assignedOtherScheduleSalesUserIds.has(u.id)) return false;
-
       return true;
     });
-  }, [salesUsers, activeTripBySalesUserId, assignedOtherScheduleSalesUserIds]);
+  }, [salesUsers, activeTripBySalesUserId]);
+
+  // Filtered list of Sales Persons who are genuinely unscheduled and available for scheduled reassignment
+  const availableSalesUsers = useMemo(() => {
+    return adHocSalesUsers.filter((u) => !assignedOtherScheduleSalesUserIds.has(u.id));
+  }, [adHocSalesUsers, assignedOtherScheduleSalesUserIds]);
+
+  const adHocScheduledConflict = useMemo(() => {
+    if (!isAdHoc || !resolvedSalesUserId) return null;
+    return assignedOtherScheduleMap.get(resolvedSalesUserId) || null;
+  }, [isAdHoc, resolvedSalesUserId, assignedOtherScheduleMap]);
 
   const isSalesUserBusy = Boolean(
     resolvedSalesUserId &&
       (activeTripBySalesUserId.has(resolvedSalesUserId) ||
-        assignedOtherScheduleSalesUserIds.has(resolvedSalesUserId))
+        (!isAdHoc && assignedOtherScheduleSalesUserIds.has(resolvedSalesUserId)))
   );
 
   // Helper: Computes live stock availability and remaining count for a given item row
@@ -418,12 +423,6 @@ export default function DispatchModal({
           const trip = activeTripBySalesUserId.get(resolvedSalesUserId);
           throw new Error(
             `Sales representative '${resolvedSalesPersonName}' already has an ongoing trip (#${trip.tripNumber || "active"}) in progress. Please select an available sales person.`
-          );
-        }
-        if (assignedOtherScheduleSalesUserIds.has(resolvedSalesUserId)) {
-          const oSched = assignedOtherScheduleMap.get(resolvedSalesUserId);
-          throw new Error(
-            `Sales representative '${resolvedSalesPersonName}' is already assigned to a scheduled vehicle (${oSched?.truckPlate || "today"}). Please select an available sales person.`
           );
         }
         if (!resolvedDriverId) throw new Error("Please select a driver");
@@ -783,19 +782,34 @@ export default function DispatchModal({
                   required
                 >
                   <option value="">
-                    {availableSalesUsers.length > 0
+                    {adHocSalesUsers.length > 0
                       ? "Select sales..."
                       : "No available sales personnel"}
                   </option>
-                  {availableSalesUsers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.fullName || `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username}
-                    </option>
-                  ))}
+                  {adHocSalesUsers.map((u) => {
+                    const displayName =
+                      u.fullName ||
+                      `${u.firstName || ""} ${u.lastName || ""}`.trim() ||
+                      u.username;
+                    const isScheduled = assignedOtherScheduleMap.has(u.id);
+                    return (
+                      <option key={u.id} value={u.id}>
+                        {isScheduled ? `${displayName} (scheduled)` : displayName}
+                      </option>
+                    );
+                  })}
                 </select>
-                {availableSalesUsers.length === 0 && (
+                {adHocSalesUsers.length === 0 && (
                   <p className="text-[10px] text-amber-700 font-medium mt-1">
-                    No sales personnel available (all on active trips or scheduled today).
+                    No sales personnel available (all are currently on active trips).
+                  </p>
+                )}
+                {adHocScheduledConflict && (
+                  <p className="text-[10px] text-amber-700 font-medium mt-1 flex items-center gap-1">
+                    <AlertCircle size={12} className="shrink-0" />
+                    <span>
+                      Assigned to scheduled vehicle {adHocScheduledConflict.truckPlate || "today"} — ad-hoc dispatch is allowed.
+                    </span>
                   </p>
                 )}
               </div>

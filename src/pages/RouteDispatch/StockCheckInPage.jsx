@@ -505,7 +505,10 @@ export default function StockCheckInPage() {
         type: reconStatus === "FLAGGED_VARIANCE" ? "warning" : "success",
         message:
           reconStatus === "FLAGGED_VARIANCE"
-            ? `Trip #${selectedTrip.tripNumber} saved with stock mismatch note.`
+            ? `Trip #${selectedTrip.tripNumber} saved with stock mismatch (${formatCheckStatusLabel(
+                result?.fullDiscrepancy ?? 0,
+                result?.emptyDiscrepancy ?? 0
+              )}).`
             : `Trip #${selectedTrip.tripNumber} (${selectedTrip.truckPlate}) stock check-in saved. Bunawan yard stock updated!`,
       });
 
