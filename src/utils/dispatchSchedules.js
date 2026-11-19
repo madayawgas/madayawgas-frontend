@@ -121,23 +121,31 @@ export function buildTodaySchedules({
   drivers = [],
   todayPht,
 }) {
-  // 1. Direct operational schedules for today that are still SCHEDULED
-  const directScheduled = schedules.filter((s) => {
-    const isSched = (s.status || "").toUpperCase() === "SCHEDULED";
-    const schedDate = toPhilippineDateInputString(s.scheduledDate);
-    return isSched && schedDate === todayPht;
-  });
-
-  const directScheduledTruckIds = new Set(
-    directScheduled.map((s) => s.truckId).filter(Boolean)
-  );
-
-  // 2. Trucks currently out on route or awaiting dock check-in
+  // 1. Trucks currently out on route or awaiting dock check-in
   const activeOrReturnedTruckIds = new Set(
     trips
       .filter(isTripActiveOrReturned)
       .map((t) => t.truckId)
       .filter(Boolean)
+  );
+
+  // 2. Direct operational schedules for today that are still SCHEDULED
+  //    (exclude trucks already out on route/returned and deduplicate by truckId)
+  const seenDirectTruckIds = new Set();
+  const directScheduled = schedules.filter((s) => {
+    const isSched = (s.status || "").toUpperCase() === "SCHEDULED";
+    const schedDate = toPhilippineDateInputString(s.scheduledDate);
+    if (!isSched || schedDate !== todayPht) return false;
+    if (s.truckId && activeOrReturnedTruckIds.has(s.truckId)) return false;
+    if (s.truckId) {
+      if (seenDirectTruckIds.has(s.truckId)) return false;
+      seenDirectTruckIds.add(s.truckId);
+    }
+    return true;
+  });
+
+  const directScheduledTruckIds = new Set(
+    directScheduled.map((s) => s.truckId).filter(Boolean)
   );
 
   // 3. Trips completed/reconciled today, grouped by truckId

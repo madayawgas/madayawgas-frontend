@@ -20,11 +20,16 @@ export function normalizeTemplate(t) {
   if (!t) return null;
   const rawDay = t.dayOfWeek !== undefined ? t.dayOfWeek : t.day_of_week;
   const dayNum = Number(rawDay);
+  const firstName = t.default_sales_first_name || t.sales_first_name || "";
+  const lastName = t.default_sales_last_name || t.sales_last_name || "";
+  const fullName = `${firstName} ${lastName}`.trim();
   const salesName =
     t.salesName ||
-    (t.sales_first_name
-      ? `${t.sales_first_name} ${t.sales_last_name}`.trim()
-      : t.sales_username || "Unassigned");
+    t.defaultSalesName ||
+    fullName ||
+    t.default_sales_username ||
+    t.sales_username ||
+    "Unassigned";
 
   return {
     ...t,

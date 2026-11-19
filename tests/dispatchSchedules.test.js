@@ -253,6 +253,67 @@ describe("buildTodaySchedules & Re-dispatch logic", () => {
     assert.equal(result.length, 0);
   });
 
+  test("excludes direct SCHEDULED entry when vehicle already has an IN_PROGRESS or RETURNED trip", () => {
+    for (const status of ["IN_PROGRESS", "RETURNED"]) {
+      const result = buildTodaySchedules({
+        schedules: [
+          {
+            id: "sched-direct-1",
+            scheduledDate: TODAY_WED,
+            truckId: "truck-1",
+            status: "SCHEDULED",
+          },
+        ],
+        templates: [],
+        trips: [
+          {
+            id: "trip-active-1",
+            truckId: "truck-1",
+            status,
+            rawStatus: status,
+            departureTime: `${TODAY_WED}T08:00:00+08:00`,
+          },
+        ],
+        vehicles: VEHICLES,
+        zones: ZONES,
+        salesUsers: SALES_USERS,
+        drivers: DRIVERS,
+        todayPht: TODAY_WED,
+      });
+
+      assert.equal(result.length, 0, `Expected direct SCHEDULED to be suppressed when trip is ${status}`);
+    }
+  });
+
+  test("deduplicates multiple direct SCHEDULED entries for the same truckId", () => {
+    const result = buildTodaySchedules({
+      schedules: [
+        {
+          id: "sched-a",
+          scheduledDate: TODAY_WED,
+          truckId: "truck-1",
+          status: "SCHEDULED",
+        },
+        {
+          id: "sched-b",
+          scheduledDate: TODAY_WED,
+          truckId: "truck-1",
+          status: "SCHEDULED",
+        },
+      ],
+      templates: [],
+      trips: [],
+      vehicles: VEHICLES,
+      zones: ZONES,
+      salesUsers: SALES_USERS,
+      drivers: DRIVERS,
+      todayPht: TODAY_WED,
+    });
+
+    assert.equal(result.length, 1);
+    assert.equal(result[0].id, "sched-a");
+  });
+
   test("helper predicates classify trip states accurately", () => {
     assert.equal(isTripActiveOrReturned({ rawStatus: "IN_PROGRESS", status: "IN_PROGRESS" }), true);
     assert.equal(isTripActiveOrReturned({ rawStatus: "RETURNED", status: "RETURNED" }), true);

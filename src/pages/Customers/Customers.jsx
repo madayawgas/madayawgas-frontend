@@ -35,8 +35,6 @@ export default function Customers() {
   const [isLoading, setIsLoading] = useState(customers.length === 0);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [activeDetailCustomer, setActiveDetailCustomer] = useState(null);
-  const [isClosingPanel, setIsClosingPanel] = useState(false);
-  const closeTimerRef = useRef(null);
 
   // Modal and Action States
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
@@ -135,13 +133,6 @@ export default function Customers() {
     setPage(1); // Auto reset page = 1
   };
 
-  // Clean up timer on unmount
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    };
-  }, []);
-
   // Helper to sync local state changes to localStorage
   const updateCustomersState = (updater) => {
     setCustomers((prev) => {
@@ -151,25 +142,17 @@ export default function Customers() {
     });
   };
 
-  // Close panel with smooth exit animation (left-to-right off screen)
+  // Close panel
   const handleCloseDetail = () => {
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    setIsClosingPanel(true);
     setSelectedCustomer(null);
-    closeTimerRef.current = setTimeout(() => {
-      setActiveDetailCustomer(null);
-      setIsClosingPanel(false);
-    }, 250);
+    setActiveDetailCustomer(null);
   };
 
   // Handlers for Selection, Sorting & Server Pagination
   const handleSelectCustomer = (customer) => {
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-
     if (selectedCustomer?.id === customer.id) {
       handleCloseDetail();
     } else {
-      setIsClosingPanel(false);
       setSelectedCustomer(customer);
       setActiveDetailCustomer(customer);
     }

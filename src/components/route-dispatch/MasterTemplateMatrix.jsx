@@ -139,8 +139,14 @@ export default function MasterTemplateMatrix({
                                       Inactive
                                     </span>
                                   ) : t.salesName ? (
-                                    <span className="block text-[9px] font-normal text-[#6D8AA2] truncate max-w-[65px]">
-                                      {t.salesName.split(" ")[0]}
+                                    <span
+                                      className={`block text-[9px] truncate max-w-[65px] ${
+                                        t.salesName === "Unassigned"
+                                          ? "font-normal italic text-slate-400"
+                                          : "font-normal text-[#6D8AA2]"
+                                      }`}
+                                    >
+                                      {t.salesName === "Unassigned" ? "Unassigned" : t.salesName.split(" ")[0]}
                                     </span>
                                   ) : null}
                                 </button>

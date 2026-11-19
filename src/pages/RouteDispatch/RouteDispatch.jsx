@@ -137,7 +137,8 @@ export default function RouteDispatch() {
   const [plantInventory, setPlantInventory] = useState([]);
 
   // 2. Filter, View Mode, Sorting, and Pagination States
-  const [statusTab, setStatusTab] = useState("ALL"); // 'ALL' | 'OUT_ON_ROAD' | 'READY' | 'UNAVAILABLE'
+  const [viewSection, setViewSection] = useState("VEHICLES"); // 'VEHICLES' | 'COMPLETED'
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedZone, setSelectedZone] = useState("ALL");
   const [viewMode, setViewMode] = useState(() => {
@@ -174,10 +175,16 @@ export default function RouteDispatch() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
 
+  const handleViewSectionChange = (nextSection) => {
+    setViewSection(nextSection);
+    setStatusFilter("ALL");
+    setPage(1);
+  };
+
   // Reset pagination page when filters change
   useEffect(() => {
     setPage(1);
-  }, [statusTab, searchTerm, selectedZone]);
+  }, [viewSection, statusFilter, searchTerm, selectedZone]);
 
   const [toast, setToast] = useState(null);
   const [selectedEntry, setSelectedEntry] = useState(null);
@@ -400,41 +407,25 @@ export default function RouteDispatch() {
     return { availableSchedules: available, unavailableSchedules: unavailable };
   }, [allTodaySchedules, vehicles, drivers]);
 
-  // Counts for Top Status Filter Tabs & Mission-Control KPI Strip
-  const counts = useMemo(() => {
-    let unitsCount = 0;
-    let cratesCount = 0;
-    activeTrips.forEach((t) => {
-      const cargo = getFullCargoBreakdown(t);
-      unitsCount += (cargo.canisterUnits || 0) + (cargo.cylinderUnits || 0);
-      cratesCount += (cargo.canisterCrates || 0);
-    });
+  // 7. Partitioned Operational Entries:
+  //    - liveVehicleEntries: strictly 1 row per vehicle (OUT_ON_ROAD > RETURNED > READY > UNAVAILABLE)
+  //    - completedRunEntries: reconciled trips today (SETTLED, FLAGGED_VARIANCE, AWAITING_SYNC)
+  const { liveVehicleEntries, completedRunEntries } = useMemo(() => {
+    const vehiclesList = [];
+    const seenTruckIds = new Set();
 
-    return {
-      all:
-        activeTrips.length +
-        returnedTrips.length +
-        completedTodayTrips.length +
-        availableSchedules.length +
-        unavailableSchedules.length,
-      outOnRoad: activeTrips.length,
-      returned: returnedTrips.length,
-      completed: completedTodayTrips.length,
-      ready: availableSchedules.length,
-      unavailable: unavailableSchedules.length,
-      totalUnitsStaged: unitsCount,
-      totalCratesStaged: cratesCount,
+    const pushUniqueVehicle = (entry) => {
+      if (entry.truckId) {
+        if (seenTruckIds.has(entry.truckId)) return;
+        seenTruckIds.add(entry.truckId);
+      }
+      vehiclesList.push(entry);
     };
-  }, [activeTrips, returnedTrips.length, completedTodayTrips.length, availableSchedules.length, unavailableSchedules.length, getFullCargoBreakdown]);
 
-  // 7. Unified Operational Entries Array
-  const allOperationalEntries = useMemo(() => {
-    const list = [];
-
-    // 1. In-progress trips (Out on route)
+    // Priority 1: In-progress trips (Out on route)
     activeTrips.forEach((trip) => {
       const cargo = getFullCargoBreakdown(trip);
-      list.push({
+      pushUniqueVehicle({
         ...trip,
         entryType: "TRIP",
         operationalStatus: "OUT_ON_ROAD",
@@ -442,10 +433,10 @@ export default function RouteDispatch() {
       });
     });
 
-    // 2. Returned trips (Arrived at yard, awaiting dock stock check-in)
+    // Priority 2: Returned trips (Arrived at yard, awaiting dock stock check-in)
     returnedTrips.forEach((trip) => {
       const cargo = getFullCargoBreakdown(trip);
-      list.push({
+      pushUniqueVehicle({
         ...trip,
         entryType: "TRIP",
         operationalStatus: "RETURNED",
@@ -453,38 +444,77 @@ export default function RouteDispatch() {
       });
     });
 
-    // 3. Completed trips (Settled, Flagged Variance, Pending Sales)
-    completedTodayTrips.forEach((trip) => {
-      const cargo = getFullCargoBreakdown(trip);
-      const reconSt = (trip.reconciliation?.status || trip.status || "AWAITING_SYNC").toUpperCase();
-      list.push({
-        ...trip,
-        entryType: "TRIP",
-        operationalStatus: reconSt,
-        cargo,
-      });
-    });
-
-    // 4. Ready to dispatch
+    // Priority 3: Ready to dispatch
     availableSchedules.forEach((sched) => {
-      list.push({
+      pushUniqueVehicle({
         ...sched,
         entryType: "SCHEDULE",
         operationalStatus: "READY",
       });
     });
 
-    // 5. Unavailable vehicles
+    // Priority 4: Unavailable vehicles
     unavailableSchedules.forEach((sched) => {
-      list.push({
+      pushUniqueVehicle({
         ...sched,
         entryType: "SCHEDULE",
         operationalStatus: "UNAVAILABLE",
       });
     });
 
-    return list;
+    // Completed & reconciled trips today
+    const completedList = completedTodayTrips.map((trip) => {
+      const cargo = getFullCargoBreakdown(trip);
+      const reconSt = (trip.reconciliation?.status || trip.status || "AWAITING_SYNC").toUpperCase();
+      return {
+        ...trip,
+        entryType: "TRIP",
+        operationalStatus: reconSt,
+        cargo,
+      };
+    });
+
+    return {
+      liveVehicleEntries: vehiclesList,
+      completedRunEntries: completedList,
+    };
   }, [activeTrips, returnedTrips, completedTodayTrips, availableSchedules, unavailableSchedules, getFullCargoBreakdown]);
+
+  const allOperationalEntries = useMemo(
+    () => [...liveVehicleEntries, ...completedRunEntries],
+    [liveVehicleEntries, completedRunEntries]
+  );
+
+  // Counts for Controls Bar & KPIs
+  const counts = useMemo(() => {
+    let unitsCount = 0;
+    let cratesCount = 0;
+    activeTrips.forEach((t) => {
+      const cargo = getFullCargoBreakdown(t);
+      unitsCount += (cargo.canisterUnits || 0) + (cargo.cylinderUnits || 0);
+      cratesCount += cargo.canisterCrates || 0;
+    });
+
+    const outOnRoad = liveVehicleEntries.filter((e) => e.operationalStatus === "OUT_ON_ROAD").length;
+    const returned = liveVehicleEntries.filter((e) => e.operationalStatus === "RETURNED").length;
+    const ready = liveVehicleEntries.filter((e) => e.operationalStatus === "READY").length;
+    const unavailable = liveVehicleEntries.filter((e) => e.operationalStatus === "UNAVAILABLE").length;
+    const completedAttention = completedRunEntries.filter((e) =>
+      ["FLAGGED_VARIANCE", "AWAITING_SYNC"].includes(e.operationalStatus)
+    ).length;
+
+    return {
+      vehiclesTotal: liveVehicleEntries.length,
+      outOnRoad,
+      returned,
+      ready,
+      unavailable,
+      completedTotal: completedRunEntries.length,
+      completedAttention,
+      totalUnitsStaged: unitsCount,
+      totalCratesStaged: cratesCount,
+    };
+  }, [activeTrips, liveVehicleEntries, completedRunEntries, getFullCargoBreakdown]);
 
   // Keep active SideDrawer selectedEntry synchronized with live operational updates
   useEffect(() => {
@@ -498,19 +528,13 @@ export default function RouteDispatch() {
     }
   }, [allOperationalEntries]);
 
-  // 8. Filter & Sort Unified Entries
+  // 8. Filter & Sort Active Section Entries
   const filteredEntries = useMemo(() => {
-    let result = allOperationalEntries;
+    let result = viewSection === "COMPLETED" ? completedRunEntries : liveVehicleEntries;
 
-    // Filter by Status Tab
-    if (statusTab !== "ALL") {
-      if (statusTab === "COMPLETED") {
-        result = result.filter((entry) =>
-          ["SETTLED", "FLAGGED_VARIANCE", "AWAITING_SYNC"].includes(entry.operationalStatus)
-        );
-      } else {
-        result = result.filter((entry) => entry.operationalStatus === statusTab);
-      }
+    // Filter by Status Dropdown
+    if (statusFilter !== "ALL") {
+      result = result.filter((entry) => entry.operationalStatus === statusFilter);
     }
 
     // Filter by Service Zone
@@ -568,7 +592,7 @@ export default function RouteDispatch() {
     });
 
     return result;
-  }, [allOperationalEntries, statusTab, selectedZone, searchTerm, sortConfig]);
+  }, [viewSection, liveVehicleEntries, completedRunEntries, statusFilter, selectedZone, searchTerm, sortConfig]);
 
   // 9. Paginated Slice for Table View
   const totalItems = filteredEntries.length;
@@ -708,8 +732,10 @@ export default function RouteDispatch() {
 
       {/* Top Header & Interactive Controls Bar */}
       <TodayDispatchesControls
-        statusTab={statusTab}
-        onStatusTabChange={setStatusTab}
+        viewSection={viewSection}
+        onViewSectionChange={handleViewSectionChange}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
         counts={counts}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
@@ -732,6 +758,7 @@ export default function RouteDispatch() {
       <div className="flex-1 min-h-0 w-full h-full flex flex-col overflow-hidden">
         {viewMode === "table" ? (
           <TodayDispatchesTable
+            viewSection={viewSection}
             entries={paginatedEntries}
             sortConfig={sortConfig}
             onSort={handleSort}
@@ -754,6 +781,9 @@ export default function RouteDispatch() {
             onCheckInReturn={(trip) => {
               navigate(`/return-checkin?tripId=${trip.id}`);
             }}
+            onReconcileTrip={(trip) => {
+              navigate(`/return-checkin?tripId=${trip.id}`);
+            }}
             canManage={canManage}
             pagination={{
               page,
@@ -770,7 +800,8 @@ export default function RouteDispatch() {
           />
         ) : (
           <TodayDispatchesCards
-            statusTab={statusTab}
+            viewSection={viewSection}
+            statusFilter={statusFilter}
             activeTrips={filteredCardsData.activeTrips}
             returnedTrips={filteredCardsData.returnedTrips}
             completedTrips={filteredCardsData.completedTrips}
@@ -801,6 +832,9 @@ export default function RouteDispatch() {
               setShowEndTripModal(true);
             }}
             onCheckInReturn={(trip) => {
+              navigate(`/return-checkin?tripId=${trip.id}`);
+            }}
+            onReconcileTrip={(trip) => {
               navigate(`/return-checkin?tripId=${trip.id}`);
             }}
             onCancelTrip={(trip) => {

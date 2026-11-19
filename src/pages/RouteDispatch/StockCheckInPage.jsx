@@ -501,7 +501,8 @@ export default function StockCheckInPage() {
         returnLoads,
       };
 
-      const result = await tripsApi.reconcileTrip(selectedTrip.id, payload);
+      const reconciledId = selectedTrip.id;
+      const result = await tripsApi.reconcileTrip(reconciledId, payload);
       const reconStatus = result?.status || result?.reconciliation?.status;
 
       // Invalidate caches
@@ -520,11 +521,19 @@ export default function StockCheckInPage() {
             : `Trip #${selectedTrip.tripNumber} (${selectedTrip.truckPlate}) stock check-in saved. Bunawan yard stock updated!`,
       });
 
-      // Clear tripId from URL so the just-reconciled trip is removed from Check-In view
-      setSearchParams({}, { replace: true });
+      // Optimistically mark trip as COMPLETED so endedTrips & URL sync never re-select it
+      setTrips((prev) =>
+        prev.map((t) =>
+          t.id === reconciledId
+            ? { ...t, rawStatus: "COMPLETED", status: reconStatus || "SETTLED" }
+            : t
+        )
+      );
+      setSelectedTripDetail(null);
 
-      // Reload trips to reflect completed status
+      // Reload trips to reflect completed status, then clear tripId from URL
       await loadData();
+      setSearchParams({}, { replace: true });
     } catch (err) {
       setError(err.message || "Failed to save return check-in. Please try again.");
       setShowConfirmModal(false);
