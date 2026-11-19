@@ -488,7 +488,7 @@ export default function StockCheckInPage() {
       const payload = {
         ...(supervisorNotes.trim() ? { supervisorNotes: supervisorNotes.trim() } : {}),
         ...(hasSyncedSales
-          ? { useSyncedSales: true }
+          ? { useSyncedSales: true, netCustomerDebtCreated: 0 }
           : { totalSoldFull: totals.totalEmpty, netCustomerDebtCreated: 0 }),
         returnLoads,
       };
