@@ -14,7 +14,7 @@ import { isCanisterProduct, getCanisterCrates } from "../../utils/product.js";
 import { formatPhilippineTime } from "../../utils/date.js";
 import { computeTripAccountability } from "../../utils/reconciliation.js";
 
-function VariancePill({ diff, awaitingLabel = "Pending Sales" }) {
+function VariancePill({ diff, unitLabel = "", awaitingLabel = "Pending Sales" }) {
   if (diff === null || diff === undefined) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
@@ -28,14 +28,19 @@ function VariancePill({ diff, awaitingLabel = "Pending Sales" }) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
         <CheckCircle2 size={11} />
-        <span>Balanced</span>
+        <span>All Accounted</span>
       </span>
     );
   }
+  const unitSuffix = unitLabel ? ` ${unitLabel}` : "";
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
       <AlertTriangle size={11} />
-      <span>{val > 0 ? `${val} Missing` : `+${Math.abs(val)} Extra`}</span>
+      <span>
+        {val > 0
+          ? `${val}${unitSuffix} Missing`
+          : `+${Math.abs(val)} Extra${unitSuffix}`}
+      </span>
     </span>
   );
 }
@@ -115,7 +120,7 @@ export default function TripReconciliationLedger({
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
             <AlertTriangle size={11} />
-            <span>Variance</span>
+            <span>Stock Mismatch</span>
           </span>
         );
       case "AWAITING_SYNC":
@@ -300,25 +305,27 @@ export default function TripReconciliationLedger({
                 {!hasSyncedSales
                   ? "Status"
                   : (metrics.fullDiscrepancy ?? 0) !== 0 && (metrics.emptyDiscrepancy ?? 0) !== 0
-                  ? "Full / Empty Variance"
+                  ? "Stock Check"
                   : (metrics.emptyDiscrepancy ?? 0) !== 0
-                  ? "Empty Return Variance"
-                  : "Variance"}
+                  ? "Empty Return Check"
+                  : "Stock Check"}
               </span>
               {!hasSyncedSales ? (
                 <VariancePill diff={null} />
               ) : (metrics.fullDiscrepancy ?? 0) !== 0 && (metrics.emptyDiscrepancy ?? 0) !== 0 ? (
-                <div className="flex items-center gap-1">
-                  <VariancePill diff={metrics.fullDiscrepancy} />
-                  <VariancePill diff={metrics.emptyDiscrepancy} />
+                <div className="flex items-center gap-1 flex-wrap justify-end">
+                  <VariancePill diff={metrics.fullDiscrepancy} unitLabel="Full" />
+                  <VariancePill
+                    diff={metrics.emptyDiscrepancy}
+                    unitLabel={Math.abs(metrics.emptyDiscrepancy) === 1 ? "Empty" : "Empties"}
+                  />
                 </div>
+              ) : (metrics.fullDiscrepancy ?? 0) !== 0 ? (
+                <VariancePill diff={metrics.fullDiscrepancy} unitLabel="Full" />
               ) : (
                 <VariancePill
-                  diff={
-                    (metrics.fullDiscrepancy ?? 0) !== 0
-                      ? metrics.fullDiscrepancy
-                      : metrics.emptyDiscrepancy
-                  }
+                  diff={metrics.emptyDiscrepancy}
+                  unitLabel={Math.abs(metrics.emptyDiscrepancy ?? 0) === 1 ? "Empty" : "Empties"}
                 />
               )}
             </div>

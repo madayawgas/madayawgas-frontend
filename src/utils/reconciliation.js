@@ -272,7 +272,38 @@ export function computeTripAccountability({
 export function formatVarianceLabel(diff) {
   if (diff === null || diff === undefined) return "Pending Sales";
   const val = Number(diff) || 0;
-  if (val === 0) return "Balanced";
+  if (val === 0) return "All Accounted";
   if (val > 0) return `${val} Missing`;
   return `+${Math.abs(val)} Extra`;
+}
+
+/**
+ * Formats full & empty discrepancies into natural language for the Check Status column.
+ * Positive = missing/short; Negative = extra/overage.
+ */
+export function formatCheckStatusLabel(fullDiscrepancy, emptyDiscrepancy) {
+  if (fullDiscrepancy === null || fullDiscrepancy === undefined) {
+    return "Pending Sales";
+  }
+
+  const full = Number(fullDiscrepancy) || 0;
+  const empty = Number(emptyDiscrepancy) || 0;
+
+  if (full === 0 && empty === 0) return "All Accounted";
+
+  const parts = [];
+  if (full > 0) {
+    parts.push(`${full} Full Missing`);
+  } else if (full < 0) {
+    parts.push(`+${Math.abs(full)} Extra Full`);
+  }
+
+  if (empty > 0) {
+    parts.push(`${empty} ${empty === 1 ? "Empty" : "Empties"} Missing`);
+  } else if (empty < 0) {
+    const abs = Math.abs(empty);
+    parts.push(`+${abs} Extra ${abs === 1 ? "Empty" : "Empties"}`);
+  }
+
+  return parts.join(" · ");
 }
