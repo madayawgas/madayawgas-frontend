@@ -9,8 +9,12 @@ import { fleetApi } from "../../api/fleet.js";
 import { fuelApi } from "../../api/fuel.js";
 import { tripsApi } from "../../api/trips.js";
 import { useRealtimeRefresh } from "../../hooks/useRealtimeRefresh.js";
+import {
+  SALES_PERIOD_OPTIONS,
+  computeSalesPeriodRange,
+} from "../../utils/salesAnalytics.js";
 
-const DASHBOARD_CACHE_KEY = "app_dashboard_cache_v1";
+const DASHBOARD_CACHE_KEY = "app_dashboard_cache_v2";
 
 function readDashboardCache() {
   try {
@@ -38,36 +42,6 @@ const EMPTY_SALES_DATA = {
   monthly: [],
   annually: [],
 };
-
-const TIMEFRAME_OPTIONS = [
-  { key: "weekly", label: "Weekly" },
-  { key: "monthly", label: "Monthly" },
-  { key: "annually", label: "Annually" },
-];
-
-/**
- * Compute rolling date bounds matching SalesAndDelivery.jsx:
- * - weekly   -> Last 7 Days
- * - monthly  -> Last 30 Days
- * - annually -> Last 365 Days
- */
-function getTimeframeBounds(timeframe) {
-  const today = new Date();
-  const start = new Date(today);
-
-  if (timeframe === "weekly") {
-    start.setDate(start.getDate() - 7);
-  } else if (timeframe === "annually") {
-    start.setDate(start.getDate() - 365);
-  } else {
-    start.setDate(start.getDate() - 30);
-  }
-
-  return {
-    startDate: start.toISOString(),
-    endDate: today.toISOString(),
-  };
-}
 
 function formatPeso(val, decimals = 2) {
   const num = Number(val) || 0;
@@ -153,17 +127,24 @@ export default function Dashboard() {
       setIsLoadingMetrics(true);
     }
     try {
-      const { startDate, endDate } = getTimeframeBounds(timeframe);
+      const {
+        startDate,
+        endDate,
+        timeframe: apiTimeframe,
+      } = computeSalesPeriodRange(timeframe);
 
       const salesPromise = canSales
         ? salesApi
-            .getSalesOverview({ timeframe, startDate, endDate })
+            .getSalesOverview({ timeframe: apiTimeframe, startDate, endDate })
             .catch(() => null)
         : Promise.resolve(null);
 
       const fuelPromise = canFuel
         ? fuelApi
-            .getFleetFuelAnalysis({ startDate, endDate })
+            .getFleetFuelAnalysis({
+              ...(startDate ? { startDate } : {}),
+              ...(endDate ? { endDate } : {}),
+            })
             .catch(() => null)
         : Promise.resolve(null);
 
@@ -303,13 +284,13 @@ export default function Dashboard() {
             aria-label="Dashboard timeframe filter"
             className="inline-flex items-center bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-1 self-start sm:self-auto shrink-0"
           >
-            {TIMEFRAME_OPTIONS.map((opt) => {
-              const isActive = timeframe === opt.key;
+            {SALES_PERIOD_OPTIONS.map((opt) => {
+              const isActive = timeframe === opt.value;
               return (
                 <button
-                  key={opt.key}
+                  key={opt.value}
                   type="button"
-                  onClick={() => handleTimeframeChange(opt.key)}
+                  onClick={() => handleTimeframeChange(opt.value)}
                   aria-pressed={isActive}
                   className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
                     isActive
@@ -361,7 +342,7 @@ export default function Dashboard() {
 
           {/* RIGHT SIDE: SALES GRAPH */}
           {canSales && (
-            <div className={`${canFleet ? "lg:col-span-7" : "lg:col-span-12"} flex`}>
+            <div className={`${canFleet ? "lg:col-span-7" : "lg:col-span-12"} flex min-w-0`}>
               <SalesGraph
                 salesData={salesData}
                 timeframe={timeframe}

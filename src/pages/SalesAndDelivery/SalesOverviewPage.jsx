@@ -22,7 +22,11 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { salesApi } from "../../api/sales.js";
-import { getPhilippineTodayString, parsePhilippineDate, PHILIPPINE_TIMEZONE } from "../../utils/date.js";
+import {
+  SALES_PERIOD_OPTIONS,
+  computeSalesPeriodRange,
+  buildSalesChartData,
+} from "../../utils/salesAnalytics.js";
 import { useRealtimeRefresh } from "../../hooks/useRealtimeRefresh.js";
 import SalesPageHeader from "../../components/sales/SalesPageHeader";
 import Card from "../../components/ui/Card";
@@ -41,102 +45,10 @@ function readAnalyticsCache(period) {
   return null;
 }
 
-const SALES_OVERVIEW_PERIODS = [
-  { value: "daily", label: "Daily" },
-  { value: "weekly", label: "Weekly" },
-  { value: "monthly", label: "Monthly" },
-  { value: "yearly", label: "Yearly" },
-];
-
-const MONTH_LABELS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-function formatHourLabel(hour24) {
-  const h = ((hour24 % 24) + 24) % 24;
-  if (h === 0) return "12 AM";
-  if (h < 12) return `${h} AM`;
-  if (h === 12) return "12 PM";
-  return `${h - 12} PM`;
-}
-
-function getPhtParts(dateInput) {
-  const parsed = parsePhilippineDate(dateInput);
-  if (!parsed) return null;
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: PHILIPPINE_TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    hour12: false,
-  }).formatToParts(parsed);
-  const map = parts.reduce((acc, p) => {
-    acc[p.type] = p.value;
-    return acc;
-  }, {});
-  const hourNum = Number(map.hour) === 24 ? 0 : Number(map.hour);
-  return {
-    year: map.year,
-    month: map.month,
-    day: map.day,
-    dateKey: `${map.year}-${map.month}-${map.day}`,
-    hour: Number.isFinite(hourNum) ? hourNum : 0,
-  };
-}
-
-function computeOverviewPeriodRange(period) {
-  const todayStr = getPhilippineTodayString();
-  if (!todayStr || period === "yearly") {
-    return { startDate: null, endDate: null, timeframe: "annually" };
-  }
-
-  const endOfTodayPht = new Date(`${todayStr}T23:59:59.999+08:00`);
-  if (period === "daily") {
-    const startOfTodayPht = new Date(`${todayStr}T00:00:00.000+08:00`);
-    return {
-      startDate: startOfTodayPht.toISOString(),
-      endDate: endOfTodayPht.toISOString(),
-      timeframe: "daily",
-    };
-  }
-
-  if (period === "weekly") {
-    const startPht = new Date(`${todayStr}T00:00:00.000+08:00`);
-    startPht.setUTCDate(startPht.getUTCDate() - 6);
-    return {
-      startDate: startPht.toISOString(),
-      endDate: endOfTodayPht.toISOString(),
-      timeframe: "weekly",
-    };
-  }
-
-  // monthly: full current year so all months with data render per month
-  const [year] = todayStr.split("-");
-  const startOfYearPht = new Date(`${year}-01-01T00:00:00.000+08:00`);
-  return {
-    startDate: startOfYearPht.toISOString(),
-    endDate: endOfTodayPht.toISOString(),
-    timeframe: "monthly",
-  };
-}
-
-function extractRowRevenue(row) {
-  const raw =
-    row?.totalRevenue ??
-    row?.totalSales ??
-    row?.grossSales ??
-    row?.revenue ??
-    row?.totalAmount ??
-    row?.amount;
-  return raw !== undefined && raw !== null ? Number(raw) || 0 : null;
-}
-
 export default function SalesOverviewPage() {
   const navigate = useNavigate();
   const [period, setPeriod] = useState("monthly");
-  const dateFilter = useMemo(() => computeOverviewPeriodRange(period), [period]);
+  const dateFilter = useMemo(() => computeSalesPeriodRange(period), [period]);
 
   const [chartMode, setChartMode] = useState("containerType"); // "containerType" | "total"
   const [analyticsData, setAnalyticsData] = useState(() => readAnalyticsCache("monthly") || {});
@@ -203,211 +115,10 @@ export default function SalesOverviewPage() {
   };
 
   // Transform SKU series into Hourly (daily), 7-Day (weekly), Per-Month (monthly), or Per-Year (yearly) buckets
-  const chartData = useMemo(() => {
-    const legacySeries =
-      period === "weekly"
-        ? analyticsData?.weekly
-        : period === "monthly"
-        ? analyticsData?.monthly
-        : period === "yearly"
-        ? analyticsData?.annually
-        : null;
-    const rawTrends =
-      Array.isArray(analyticsData?.salesTrends) && analyticsData.salesTrends.length > 0
-        ? analyticsData.salesTrends
-        : Array.isArray(legacySeries)
-        ? legacySeries
-        : [];
-
-    if (period === "daily") {
-      const buckets = Array.from({ length: 24 }, (_, h) => ({
-        name: formatHourLabel(h),
-        canisters: 0,
-        cylinders: 0,
-        totalRevenue: 0,
-        hasExplicitRevenue: false,
-      }));
-
-      rawTrends.forEach((row) => {
-        const label = String(row.name ?? row.hour ?? "").trim();
-        let hourIdx = -1;
-        const ampmMatch = label.match(/^(\d{1,2})(?::\d{2})?\s*(AM|PM)$/i);
-        if (ampmMatch) {
-          let h = parseInt(ampmMatch[1], 10) % 12;
-          if (ampmMatch[2].toUpperCase() === "PM") h += 12;
-          hourIdx = h;
-        } else {
-          const numMatch = label.match(/^(\d{1,2})(?::\d{2})?$/);
-          if (numMatch) {
-            const h = parseInt(numMatch[1], 10);
-            if (h >= 0 && h < 24) hourIdx = h;
-          }
-        }
-        if (hourIdx >= 0 && hourIdx < 24) {
-          const canisters = Number(row.canisters ?? row.butane ?? 0);
-          const cylinders = Number(
-            row.cylinders ?? (Number(row.lpg11kg || 0) + Number(row.lpg50kg || 0))
-          );
-          const rev = extractRowRevenue(row);
-          buckets[hourIdx].canisters += canisters;
-          buckets[hourIdx].cylinders += cylinders;
-          if (rev !== null) {
-            buckets[hourIdx].totalRevenue += rev;
-            buckets[hourIdx].hasExplicitRevenue = true;
-          }
-        }
-      });
-
-      return buckets.map(({ name, canisters, cylinders, totalRevenue }) => ({
-        name,
-        canisters,
-        cylinders,
-        totalRevenue,
-      }));
-    }
-
-    if (period === "weekly") {
-      const todayStr = getPhilippineTodayString();
-      const buckets = [];
-      const bucketByKey = new Map();
-      const bucketByLabel = new Map();
-
-      if (todayStr) {
-        const base = new Date(`${todayStr}T00:00:00.000+08:00`);
-        for (let offset = 6; offset >= 0; offset -= 1) {
-          const d = new Date(base);
-          d.setUTCDate(d.getUTCDate() - offset);
-          const pht = getPhtParts(d);
-          const label = new Intl.DateTimeFormat("en-US", {
-            timeZone: PHILIPPINE_TIMEZONE,
-            month: "short",
-            day: "numeric",
-          }).format(d);
-          const entry = {
-            name: label,
-            dateKey: pht?.dateKey,
-            canisters: 0,
-            cylinders: 0,
-            totalRevenue: 0,
-            hasExplicitRevenue: false,
-          };
-          buckets.push(entry);
-          if (pht?.dateKey) bucketByKey.set(pht.dateKey, entry);
-          bucketByLabel.set(label.toLowerCase(), entry);
-        }
-      }
-
-      rawTrends.forEach((row) => {
-        const rawKey = String(row.date || row.name || "").trim();
-        let target =
-          bucketByKey.get(rawKey) || bucketByLabel.get(rawKey.toLowerCase());
-        if (!target && rawKey) {
-          const parsed = parsePhilippineDate(rawKey);
-          const pht = parsed ? getPhtParts(parsed) : null;
-          if (pht?.dateKey) target = bucketByKey.get(pht.dateKey);
-        }
-        if (target) {
-          const canisters = Number(row.canisters ?? row.butane ?? 0);
-          const cylinders = Number(
-            row.cylinders ?? (Number(row.lpg11kg || 0) + Number(row.lpg50kg || 0))
-          );
-          const rev = extractRowRevenue(row);
-          target.canisters += canisters;
-          target.cylinders += cylinders;
-          if (rev !== null) {
-            target.totalRevenue += rev;
-            target.hasExplicitRevenue = true;
-          }
-        }
-      });
-
-      return buckets.map(({ name, canisters, cylinders, totalRevenue }) => ({
-        name,
-        canisters,
-        cylinders,
-        totalRevenue,
-      }));
-    }
-
-    if (period === "monthly") {
-      const buckets = MONTH_LABELS.map((label) => ({
-        name: label,
-        canisters: 0,
-        cylinders: 0,
-        totalRevenue: 0,
-        hasExplicitRevenue: false,
-      }));
-
-      rawTrends.forEach((row) => {
-        const label = String(row.name ?? row.month ?? "").trim();
-        let monthIdx = MONTH_LABELS.findIndex(
-          (m) => label.toLowerCase().startsWith(m.toLowerCase())
-        );
-        if (monthIdx === -1) {
-          const isoMatch = label.match(/^\d{4}-(\d{2})/);
-          if (isoMatch) monthIdx = parseInt(isoMatch[1], 10) - 1;
-        }
-        if (monthIdx >= 0 && monthIdx < 12) {
-          const canisters = Number(row.canisters ?? row.butane ?? 0);
-          const cylinders = Number(
-            row.cylinders ?? (Number(row.lpg11kg || 0) + Number(row.lpg50kg || 0))
-          );
-          const rev = extractRowRevenue(row);
-          buckets[monthIdx].canisters += canisters;
-          buckets[monthIdx].cylinders += cylinders;
-          if (rev !== null) {
-            buckets[monthIdx].totalRevenue += rev;
-            buckets[monthIdx].hasExplicitRevenue = true;
-          }
-        }
-      });
-
-      return buckets.map(({ name, canisters, cylinders, totalRevenue }) => ({
-        name,
-        canisters,
-        cylinders,
-        totalRevenue,
-      }));
-    }
-
-    // yearly: each year with data
-    const yearMap = new Map();
-    rawTrends.forEach((row) => {
-      const label = String(row.name ?? row.year ?? "").trim();
-      const yearMatch = label.match(/\b(\d{4})\b/);
-      const yearKey = yearMatch ? yearMatch[1] : label;
-      if (!yearKey) return;
-      const canisters = Number(row.canisters ?? row.butane ?? 0);
-      const cylinders = Number(
-        row.cylinders ?? (Number(row.lpg11kg || 0) + Number(row.lpg50kg || 0))
-      );
-      const rev = extractRowRevenue(row);
-      const entry = yearMap.get(yearKey) || {
-        name: yearKey,
-        canisters: 0,
-        cylinders: 0,
-        totalRevenue: 0,
-        hasExplicitRevenue: false,
-      };
-      entry.canisters += canisters;
-      entry.cylinders += cylinders;
-      if (rev !== null) {
-        entry.totalRevenue += rev;
-        entry.hasExplicitRevenue = true;
-      }
-      yearMap.set(yearKey, entry);
-    });
-
-    return Array.from(yearMap.values())
-      .filter((y) => y.canisters > 0 || y.cylinders > 0 || y.totalRevenue > 0)
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(({ name, canisters, cylinders, totalRevenue }) => ({
-        name,
-        canisters,
-        cylinders,
-        totalRevenue,
-      }));
-  }, [analyticsData, period]);
+  const chartData = useMemo(
+    () => buildSalesChartData(analyticsData, period),
+    [analyticsData, period]
+  );
 
   const totalGrossSales = Number(summary.totalGrossSales) || 0;
   const completedOrders = summary.completedTransactions || 0;
@@ -462,7 +173,7 @@ export default function SalesOverviewPage() {
         pills={headerPills}
         dateRangePreset={period}
         onDateRangeChange={handlePeriodChange}
-        dateRangeOptions={SALES_OVERVIEW_PERIODS}
+        dateRangeOptions={SALES_PERIOD_OPTIONS}
         onRefresh={() => fetchOverview(true)}
         isRefreshing={isRefreshing}
       />
@@ -671,7 +382,11 @@ export default function SalesOverviewPage() {
           </div>
 
           {/* Chart Container with Horizontal Scroll Guard */}
-          <div className="w-full border border-slate-200 rounded-xl h-[260px] overflow-x-auto custom-scrollbar p-2 flex items-center justify-center">
+          <div
+            className={`w-full border border-slate-200 rounded-xl h-[260px] overflow-x-auto custom-scrollbar p-2 flex items-center ${
+              isLoading || chartData.length === 0 ? "justify-center" : "justify-start"
+            }`}
+          >
             {isLoading ? (
               <p className="text-xs text-slate-500 font-medium">
                 Loading sales analytics...
@@ -681,7 +396,10 @@ export default function SalesOverviewPage() {
                 No sales records for this date range
               </p>
             ) : (
-              <div style={{ minWidth: chartMinWidth, width: "100%", height: "100%" }}>
+              <div
+                className="shrink-0"
+                style={{ minWidth: chartMinWidth, width: "100%", height: "100%" }}
+              >
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={chartData}
