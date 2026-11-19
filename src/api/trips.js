@@ -86,6 +86,14 @@ export function normalizeTrip(raw) {
     distanceDrivenKm: distanceKm,
     loads: normalizedLoads,
     reconciliation: normalizedRecon,
+    salesSummary: raw.salesSummary
+      ? {
+          completedTransactions: parseInt(raw.salesSummary.completedTransactions, 10) || 0,
+          totalSoldFull: parseInt(raw.salesSummary.totalSoldFull, 10) || 0,
+          netCustomerDebtCreated: parseInt(raw.salesSummary.netCustomerDebtCreated, 10) || 0,
+          byProduct: Array.isArray(raw.salesSummary.byProduct) ? raw.salesSummary.byProduct : [],
+        }
+      : null,
     onBoardSummary: raw.onBoardSummary || {
       totalUnits,
       canisterCrates: Math.floor(canisterUnits / DEFAULT_CANISTERS_PER_CRATE),
@@ -125,23 +133,42 @@ export function normalizeLoad(load) {
 
 export function normalizeReconciliation(recon) {
   if (!recon) return null;
+  const isAwaiting = recon.status === "AWAITING_SYNC";
+  const totalLoadedFull = parseInt(recon.totalLoadedFull ?? recon.total_loaded_full, 10) || 0;
+  const totalSoldFull = parseInt(recon.totalSoldFull ?? recon.total_sold_full, 10) || 0;
+  const totalReturnedFull = parseInt(recon.totalReturnedFull ?? recon.total_returned_full, 10) || 0;
+  const totalReturnedEmptyGood =
+    parseInt(recon.totalReturnedEmptyGood ?? recon.total_returned_empty_good, 10) || 0;
+  const totalReturnedDefective =
+    parseInt(recon.totalReturnedDefective ?? recon.total_returned_defective, 10) || 0;
+  const netCustomerDebtCreated =
+    parseInt(recon.netCustomerDebtCreated ?? recon.net_customer_debt_created, 10) || 0;
+
+  const fullDiscrepancy =
+    recon.fullDiscrepancy ??
+    recon.full_discrepancy ??
+    (isAwaiting
+      ? null
+      : totalLoadedFull - totalSoldFull - totalReturnedFull - totalReturnedDefective);
+  const emptyDiscrepancy =
+    recon.emptyDiscrepancy ??
+    recon.empty_discrepancy ??
+    (isAwaiting ? null : totalSoldFull - (totalReturnedEmptyGood + netCustomerDebtCreated));
+
   return {
     ...recon,
     id: recon.id,
     tripId: recon.tripId || recon.trip_id,
     status: recon.status,
     isSettled: recon.status === "SETTLED" || recon.isSettled || recon.is_settled,
-    totalLoadedFull: parseInt(recon.totalLoadedFull ?? recon.total_loaded_full, 10) || 0,
-    totalSoldFull: parseInt(recon.totalSoldFull ?? recon.total_sold_full, 10) || 0,
-    totalReturnedFull: parseInt(recon.totalReturnedFull ?? recon.total_returned_full, 10) || 0,
-    totalReturnedEmptyGood:
-      parseInt(recon.totalReturnedEmptyGood ?? recon.total_returned_empty_good, 10) || 0,
-    totalReturnedDefective:
-      parseInt(recon.totalReturnedDefective ?? recon.total_returned_defective, 10) || 0,
-    netCustomerDebtCreated:
-      parseInt(recon.netCustomerDebtCreated ?? recon.net_customer_debt_created, 10) || 0,
-    fullDiscrepancy: recon.fullDiscrepancy ?? recon.full_discrepancy ?? null,
-    emptyDiscrepancy: recon.emptyDiscrepancy ?? recon.empty_discrepancy ?? null,
+    totalLoadedFull,
+    totalSoldFull,
+    totalReturnedFull,
+    totalReturnedEmptyGood,
+    totalReturnedDefective,
+    netCustomerDebtCreated,
+    fullDiscrepancy,
+    emptyDiscrepancy,
     supervisorNotes: recon.supervisorNotes || recon.supervisor_notes || null,
     reconciledAt: recon.reconciledAt || recon.reconciled_at || null,
   };

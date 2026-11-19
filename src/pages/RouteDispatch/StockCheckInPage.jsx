@@ -23,6 +23,8 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { PERMISSIONS } from "../../utils/permissions.js";
 import VehicleSearchDropdown from "../../components/route-dispatch/VehicleSearchDropdown.jsx";
 import EndTripModal from "../../components/route-dispatch/EndTripModal.jsx";
+import TripReconciliationLedger from "../../components/route-dispatch/TripReconciliationLedger.jsx";
+import { computeTripAccountability, formatVarianceLabel } from "../../utils/reconciliation.js";
 import Modal from "../../components/ui/Modal.jsx";
 import Button from "../../components/ui/Button.jsx";
 import ToastNotification from "../../components/ui/ToastNotifications.jsx";
@@ -126,7 +128,7 @@ export default function StockCheckInPage() {
   });
 
   // 3. Trips Partitioning:
-  // 3a. Ended Trips strictly eligible for Post-Trip Stock Reconciliation: status === "RETURNED"
+  // 3a. Ended Trips awaiting initial Post-Trip Stock Reconciliation: rawStatus === "RETURNED"
   const endedTrips = useMemo(() => {
     return trips.filter((t) => {
       const s = (t.rawStatus || t.status || "").toUpperCase();
@@ -147,7 +149,7 @@ export default function StockCheckInPage() {
     return [...endedTrips, ...inProgressTrips];
   }, [endedTrips, inProgressTrips]);
 
-  // Target trip selected by URL ID or defaulted to first eligible
+  // Target trip selected by URL ID (for explicit Re-Reconcile links) or defaulted to first eligible
   const targetTrip = useMemo(() => {
     if (currentTripIdFromUrl) {
       const found = trips.find((t) => t.id === currentTripIdFromUrl);
@@ -163,11 +165,11 @@ export default function StockCheckInPage() {
     return s === "IN_PROGRESS";
   }, [targetTrip]);
 
-  // Active Selected Trip (strictly from ended trips awaiting reconciliation)
+  // Active Selected Trip (RETURNED trips or COMPLETED trips eligible for review/re-reconciliation)
   const selectedTrip = useMemo(() => {
     if (!targetTrip) return null;
-    const s = (targetTrip.rawStatus || targetTrip.status || "").toUpperCase();
-    return s === "RETURNED" ? targetTrip : null;
+    const raw = (targetTrip.rawStatus || targetTrip.status || "").toUpperCase();
+    return raw === "RETURNED" || raw === "COMPLETED" ? targetTrip : null;
   }, [targetTrip]);
 
   // Sync selected trip with URL: update when valid targetTrip exists, or clear invalid tripId if no trips
@@ -210,13 +212,18 @@ export default function StockCheckInPage() {
     };
   }, [selectedTrip?.id]);
 
-  // 5. Products Loaded on the Selected Trip (Resolved from authoritative detail or trip loads)
+  const activeTrip = selectedTripDetail || selectedTrip;
+
+  // 5. Products Loaded on the Selected Trip (Strictly DISPATCH_LOAD + MIDDAY_RELOAD)
   const loadedProducts = useMemo(() => {
-    const activeTrip = selectedTripDetail || selectedTrip;
     if (!activeTrip) return [];
     const loads = activeTrip.loads || [];
-    const allItems = loads.flatMap((l) => l.items || []);
-    const filledItems = allItems.filter((i) => (i.condition || "FILLED") === "FILLED");
+    const outboundLoads = loads.filter(
+      (l) => l.transferType === "DISPATCH_LOAD" || l.transferType === "MIDDAY_RELOAD"
+    );
+    const filledItems = outboundLoads
+      .flatMap((l) => l.items || [])
+      .filter((i) => (i.condition || "FILLED") === "FILLED");
 
     const map = new Map();
     filledItems.forEach((it) => {
@@ -234,7 +241,27 @@ export default function StockCheckInPage() {
     });
 
     return Array.from(map.values());
-  }, [selectedTripDetail, selectedTrip]);
+  }, [activeTrip]);
+
+  const existingReturnUnloads = useMemo(() => {
+    if (!activeTrip) return [];
+    return (activeTrip.loads || []).filter((l) => l.transferType === "RETURN_UNLOAD");
+  }, [activeTrip]);
+
+  const hasExistingReturnUnload = existingReturnUnloads.length > 0;
+
+  const salesSummary = activeTrip?.salesSummary || null;
+  const salesByProductMap = useMemo(() => {
+    const map = new Map();
+    if (salesSummary?.byProduct) {
+      salesSummary.byProduct.forEach((entry) => {
+        if (entry.productId) {
+          map.set(entry.productId, entry);
+        }
+      });
+    }
+    return map;
+  }, [salesSummary]);
 
   // 6. Counts State Map: { [productId]: { returnedFull, returnedEmptyGood, returnedDefective, defectNotes } }
   const [counts, setCounts] = useState({});
@@ -243,24 +270,38 @@ export default function StockCheckInPage() {
   useEffect(() => {
     if (selectedTrip) {
       setError(null);
-      setSupervisorNotes(
-        selectedTrip.notes
-          ? `Gate return verified. ${selectedTrip.notes}`
-          : "Physical return counts verified at Bunawan yard gate."
-      );
+      setSupervisorNotes(activeTrip?.reconciliation?.supervisorNotes || "");
+
+      const existingMap = new Map();
+      if (hasExistingReturnUnload) {
+        existingReturnUnloads.flatMap((l) => l.items || []).forEach((it) => {
+          if (!it.productId) return;
+          const prev = existingMap.get(it.productId) || {
+            returnedFull: 0,
+            returnedEmptyGood: 0,
+            returnedDefective: 0,
+            defectNotes: "",
+          };
+          const qty = parseInt(it.quantityUnits, 10) || 0;
+          if (it.condition === "FILLED") prev.returnedFull += qty;
+          else if (it.condition === "EMPTY_GOOD") prev.returnedEmptyGood += qty;
+          else if (it.condition === "DEFECTIVE") prev.returnedDefective += qty;
+          existingMap.set(it.productId, prev);
+        });
+      }
 
       const initial = {};
       loadedProducts.forEach((p) => {
-        initial[p.productId] = {
+        initial[p.productId] = existingMap.get(p.productId) || {
           returnedFull: 0,
-          returnedEmptyGood: p.loadedUnits || 0,
+          returnedEmptyGood: 0,
           returnedDefective: 0,
           defectNotes: "",
         };
       });
       setCounts(initial);
     }
-  }, [selectedTrip?.id, loadedProducts]);
+  }, [selectedTrip?.id, loadedProducts, hasExistingReturnUnload]);
 
   const handleSelectTrip = (tripId) => {
     setSearchParams({ tripId }, { replace: true });
@@ -350,11 +391,31 @@ export default function StockCheckInPage() {
     { totalLoaded: 0, totalFull: 0, totalEmpty: 0, totalDefect: 0, totalReturned: 0 }
   );
 
-  const varianceFromLoaded = totals.totalReturned - totals.totalLoaded;
+  const hasSyncedSales = Boolean(salesSummary && salesSummary.completedTransactions > 0);
+  const totalSoldFull = hasSyncedSales ? salesSummary?.totalSoldFull || 0 : totals.totalEmpty;
+  const totalCustomerDebt = hasSyncedSales ? salesSummary?.netCustomerDebtCreated || 0 : 0;
+
+  const accountability = computeTripAccountability({
+    loadedFull: totals.totalLoaded,
+    soldFull: totalSoldFull,
+    returnedFull: totals.totalFull,
+    returnedEmptyGood: totals.totalEmpty,
+    returnedDefective: totals.totalDefect,
+    netCustomerDebtCreated: totalCustomerDebt,
+    hasSyncedSales: true,
+  });
+
+  const requiresSupervisorNotes = accountability.hasVariance;
+  const isNotesMissing = requiresSupervisorNotes && !supervisorNotes.trim();
 
   // Final check-in submission
   const handleFinalSubmit = async () => {
     if (!selectedTrip) return;
+    if (isNotesMissing) {
+      setError("Supervisor notes are required when a stock variance exists.");
+      return;
+    }
+
     setError(null);
     setIsSubmitting(true);
 
@@ -390,11 +451,15 @@ export default function StockCheckInPage() {
       });
 
       const payload = {
-        supervisorNotes: supervisorNotes.trim() || "Physical yard return intake verified.",
+        ...(supervisorNotes.trim() ? { supervisorNotes: supervisorNotes.trim() } : {}),
+        ...(hasSyncedSales
+          ? { useSyncedSales: true }
+          : { totalSoldFull: totals.totalEmpty, netCustomerDebtCreated: 0 }),
         returnLoads,
       };
 
-      await tripsApi.reconcileTrip(selectedTrip.id, payload);
+      const result = await tripsApi.reconcileTrip(selectedTrip.id, payload);
+      const reconStatus = result?.status || result?.reconciliation?.status;
 
       // Invalidate caches
       localStorage.removeItem(TRIPS_CACHE_KEY);
@@ -402,14 +467,20 @@ export default function StockCheckInPage() {
 
       setShowConfirmModal(false);
       setToast({
-        type: "success",
-        message: `Trip #${selectedTrip.tripNumber} (${selectedTrip.truckPlate}) stock reconciliation completed. Bunawan yard stock updated!`,
+        type: reconStatus === "FLAGGED_VARIANCE" ? "warning" : "success",
+        message:
+          reconStatus === "FLAGGED_VARIANCE"
+            ? `Trip #${selectedTrip.tripNumber} saved with variance and supervisor notes.`
+            : `Trip #${selectedTrip.tripNumber} (${selectedTrip.truckPlate}) stock check-in saved. Bunawan yard stock updated!`,
       });
+
+      // Clear tripId from URL so the just-reconciled trip is removed from Check-In view
+      setSearchParams({}, { replace: true });
 
       // Reload trips to reflect completed status
       await loadData();
     } catch (err) {
-      setError(err.message || "Failed to complete return check-in. Please try again.");
+      setError(err.message || "Failed to save return check-in. Please try again.");
       setShowConfirmModal(false);
     } finally {
       setIsSubmitting(false);
@@ -468,7 +539,9 @@ export default function StockCheckInPage() {
 
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-bold text-xs shadow-2xs h-[32px]">
                 <Clock size={12} className="text-amber-600" />
-                <span>Ended · Ready for Reconciliation</span>
+                <span>
+                  {hasExistingReturnUnload ? "Review & Update Check-In" : "Ready for Check-In"}
+                </span>
               </span>
 
               {selectedTrip.returnOdometer && (
@@ -559,8 +632,8 @@ export default function StockCheckInPage() {
                   <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[130px]">
                     Damaged
                   </th>
-                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[120px]">
-                    Total Counted
+                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[130px]">
+                    Variance
                   </th>
                   <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[100px]">
                     Action
@@ -605,8 +678,25 @@ export default function StockCheckInPage() {
                     const rowFull = Number(pCounts.returnedFull) || 0;
                     const rowEmpty = Number(pCounts.returnedEmptyGood) || 0;
                     const rowDefect = Number(pCounts.returnedDefective) || 0;
-                    const rowTotal = rowFull + rowEmpty + rowDefect;
-                    const isBalanced = rowTotal === p.loadedUnits;
+                    const salesEntry = salesByProductMap.get(p.productId);
+                    const rowSold = hasSyncedSales ? Number(salesEntry?.quantitySold) || 0 : rowEmpty;
+                    const rowDebt = hasSyncedSales ? Number(salesEntry?.netCustomerDebtCreated) || 0 : 0;
+
+                    const rowAccountability = computeTripAccountability({
+                      loadedFull: p.loadedUnits,
+                      soldFull: rowSold,
+                      returnedFull: rowFull,
+                      returnedEmptyGood: rowEmpty,
+                      returnedDefective: rowDefect,
+                      netCustomerDebtCreated: rowDebt,
+                      hasSyncedSales: true,
+                    });
+
+                    const rowVarianceValue =
+                      (rowAccountability.fullDiscrepancy ?? 0) !== 0
+                        ? rowAccountability.fullDiscrepancy
+                        : rowAccountability.emptyDiscrepancy;
+                    const isRowBalanced = rowVarianceValue === 0;
                     const hasDefects = rowDefect > 0;
 
                     return (
@@ -666,32 +756,20 @@ export default function StockCheckInPage() {
                             />
                           </td>
 
-                          {/* 6. Total Counted */}
+                          {/* 6. Variance */}
                           <td className="py-3 px-3 text-center">
-                            <div className="flex items-center justify-center gap-1 font-bold">
-                              <span
-                                className={`text-xs ${
-                                  isBalanced
-                                    ? "text-emerald-700 font-bold"
-                                    : rowTotal > p.loadedUnits
-                                    ? "text-blue-700"
-                                    : "text-amber-700"
-                                }`}
-                              >
-                                {rowTotal}
-                              </span>
-                              {isBalanced ? (
-                                <Check size={14} className="text-emerald-600 stroke-[2.5]" />
-                              ) : rowTotal < p.loadedUnits ? (
-                                <span className="text-[10px] text-amber-600 font-semibold">
-                                  ({rowTotal - p.loadedUnits})
-                                </span>
-                              ) : (
-                                <span className="text-[10px] text-blue-600 font-semibold">
-                                  (+{rowTotal - p.loadedUnits})
-                                </span>
-                              )}
-                            </div>
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                                isRowBalanced
+                                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                  : rowVarianceValue > 0
+                                  ? "bg-rose-50 text-rose-800 border-rose-200"
+                                  : "bg-blue-50 text-blue-800 border-blue-200"
+                              }`}
+                            >
+                              {isRowBalanced && <Check size={11} className="text-emerald-600 stroke-[2.5]" />}
+                              <span>{formatVarianceLabel(rowVarianceValue)}</span>
+                            </span>
                           </td>
 
                           {/* 7. Action */}
@@ -809,19 +887,21 @@ export default function StockCheckInPage() {
               </span>
             </span>
             <span className="text-slate-300">|</span>
-            {totals.totalReturned === totals.totalLoaded ? (
+            {!accountability.hasVariance ? (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                 <Check size={12} className="text-emerald-700 stroke-[3]" />
                 <span>Balanced</span>
               </span>
-            ) : totals.totalReturned > totals.totalLoaded ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
-                <span>+{totals.totalReturned - totals.totalLoaded} Extra</span>
-              </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                <AlertTriangle size={12} className="text-amber-700" />
-                <span>{totals.totalReturned - totals.totalLoaded} Short</span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                <AlertTriangle size={12} className="text-rose-700" />
+                <span>
+                  {formatVarianceLabel(
+                    (accountability.fullDiscrepancy ?? 0) !== 0
+                      ? accountability.fullDiscrepancy
+                      : accountability.emptyDiscrepancy
+                  )}
+                </span>
               </span>
             )}
           </div>
@@ -835,7 +915,9 @@ export default function StockCheckInPage() {
               className="flex items-center justify-center gap-1.5 bg-[#FFDF2C] hover:bg-[#ebd024] disabled:opacity-50 disabled:cursor-not-allowed text-[#0A4B6E] font-bold text-xs uppercase tracking-wider px-5 py-2.5 rounded-full shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
               title={loadedProducts.length === 0 ? "No dispatched products to reconcile" : "Confirm and complete stock reconciliation"}
             >
-              <span>Confirm & Complete Reconciliation</span>
+              <span>
+                {hasExistingReturnUnload ? "Update Check-In" : "Confirm & Complete Check-In"}
+              </span>
               <ArrowRight size={14} strokeWidth={2.5} />
             </button>
           )}
@@ -846,7 +928,7 @@ export default function StockCheckInPage() {
       <Modal
         isOpen={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}
-        title="Confirm Post-Trip Stock Reconciliation"
+        title={hasExistingReturnUnload ? "Update Return Stock Check-In" : "Confirm Return Stock Check-In"}
         subtitle={selectedTrip ? `${selectedTrip.truckPlate} · Trip #${selectedTrip.tripNumber}` : "Reconciliation"}
         icon={PackageCheck}
         maxWidth="max-w-md"
@@ -864,51 +946,79 @@ export default function StockCheckInPage() {
               type="button"
               variant="primary"
               onClick={handleFinalSubmit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isNotesMissing}
               className="flex items-center gap-1.5"
             >
-              <span>{isSubmitting ? "Settling..." : "Complete Reconciliation"}</span>
+              <span>{isSubmitting ? "Saving..." : "Confirm & Save"}</span>
               <CheckCircle2 size={14} strokeWidth={2.5} />
             </Button>
           </div>
         }
       >
         <div className="space-y-3.5 text-xs">
-          <p className="text-slate-600">
-            Confirming this intake will immediately update the Bunawan yard inventory balances:
-          </p>
-
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-3 bg-[#E8F3F8] border border-[#BCE1F1] rounded-xl">
+            <div className="p-2.5 bg-[#E8F3F8] border border-[#BCE1F1] rounded-xl">
               <span className="text-[10px] font-bold text-[#0A4B6E] uppercase block">Sale-Ready</span>
               <p className="text-base font-bold text-[#0A4B6E] mt-0.5">{totals.totalFull}</p>
-              <span className="text-[10px] text-slate-500">Unsold full units</span>
+              <span className="text-[10px] text-slate-500">Unsold full</span>
             </div>
 
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
               <span className="text-[10px] font-bold text-emerald-800 uppercase block">Refill Dock</span>
               <p className="text-base font-bold text-emerald-800 mt-0.5">{totals.totalEmpty}</p>
-              <span className="text-[10px] text-slate-500">Good empty returns</span>
+              <span className="text-[10px] text-slate-500">Good empties</span>
             </div>
 
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+            <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl">
               <span className="text-[10px] font-bold text-rose-800 uppercase block">Quarantine</span>
               <p className="text-base font-bold text-rose-800 mt-0.5">{totals.totalDefect}</p>
-              <span className="text-[10px] text-slate-500">Damaged / defects</span>
+              <span className="text-[10px] text-slate-500">Damaged</span>
             </div>
           </div>
 
+          {activeTrip && (
+            <TripReconciliationLedger
+              trip={activeTrip}
+              showLoadSlips={false}
+              liveMetrics={{
+                loadedFull: totals.totalLoaded,
+                soldFull: totalSoldFull,
+                returnedFull: totals.totalFull,
+                returnedEmptyGood: totals.totalEmpty,
+                returnedDefective: totals.totalDefect,
+                netCustomerDebtCreated: totalCustomerDebt,
+                hasSyncedSales: true,
+                showSalesRow: hasSyncedSales,
+              }}
+            />
+          )}
+
           <div>
             <label className="block text-[11px] font-semibold text-[#0A4B6E] mb-1">
-              Supervisor Notes (Optional)
+              {requiresSupervisorNotes
+                ? "Supervisor Notes (Required for Variance) *"
+                : "Supervisor Notes (Optional)"}
             </label>
-            <input
-              type="text"
+            <textarea
+              rows={2}
               value={supervisorNotes}
               onChange={(e) => setSupervisorNotes(e.target.value)}
-              placeholder="e.g. Verified at Bunawan gate..."
-              className="w-full px-3 py-2 text-xs bg-[#F4F8FA] border border-slate-300 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0A4B6E] focus:bg-white"
+              placeholder={
+                requiresSupervisorNotes
+                  ? "Explain the missing/extra units..."
+                  : "e.g. Verified at Bunawan gate..."
+              }
+              className={`w-full px-3 py-2 text-xs bg-[#F4F8FA] border rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white ${
+                isNotesMissing
+                  ? "border-rose-400 focus:border-rose-500"
+                  : "border-slate-300 focus:border-[#0A4B6E]"
+              }`}
             />
+            {isNotesMissing && (
+              <p className="text-[11px] text-rose-700 font-semibold mt-1">
+                Please enter supervisor notes explaining the stock variance.
+              </p>
+            )}
           </div>
         </div>
       </Modal>
