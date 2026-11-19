@@ -21,6 +21,10 @@ export default function MasterTemplateMatrix({
   canManage = true,
 }) {
   const currentIsoDay = useMemo(() => getPhilippineDayOfWeek(new Date()), []);
+  const activeCount = useMemo(
+    () => templates.filter((t) => t.isActive !== false).length,
+    [templates]
+  );
 
   // Map templates by truckId and dayOfWeek, with plateNumber fallback
   const templateMap = {};
@@ -43,7 +47,7 @@ export default function MasterTemplateMatrix({
               <span>Weekly Route Schedules</span>
             </h2>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1]">
-              {templates.length} Active Schedules
+              {activeCount} Active Schedules
             </span>
           </div>
           <p className="text-xs text-[#6D8AA2] mt-0.5">
@@ -111,36 +115,51 @@ export default function MasterTemplateMatrix({
                         }`}
                       >
                         {t ? (
-                          <div className="group relative inline-flex items-center justify-center">
-                            <button
-                              type="button"
-                              onClick={() => onEditTemplate && onEditTemplate(t)}
-                              title={`Click to edit route schedule for ${v.plateNumber} on ${d.full}${
-                                t.salesName ? ` (Assigned: ${t.salesName})` : ""
-                              }`}
-                              className="bg-[#E8F3F8] hover:bg-[#D5EAF4] text-[#0A4B6E] border border-[#BCE1F1] px-2 py-1 rounded-md font-bold text-[11px] block min-w-[68px] text-center shadow-2xs cursor-pointer transition-all active:scale-95"
-                            >
-                              <span>{t.zoneCode || "Zone"}</span>
-                              {t.salesName && (
-                                <span className="block text-[9px] font-normal text-[#6D8AA2] truncate max-w-[65px]">
-                                  {t.salesName.split(" ")[0]}
-                                </span>
-                              )}
-                            </button>
-                            {canManage && onDeleteTemplate && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onDeleteTemplate(t.id);
-                                }}
-                                className="hidden group-hover:flex absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-500 hover:bg-rose-600 text-white rounded-full items-center justify-center text-[10px] cursor-pointer shadow-xs transition-colors"
-                                title="Delete route schedule"
-                              >
-                                &times;
-                              </button>
-                            )}
-                          </div>
+                          (() => {
+                            const isInactive = t.isActive === false;
+                            return (
+                              <div className="group relative inline-flex items-center justify-center">
+                                <button
+                                  type="button"
+                                  onClick={() => onEditTemplate && onEditTemplate(t)}
+                                  title={`${isInactive ? "Inactive route schedule" : "Click to edit route schedule"} for ${v.plateNumber} on ${d.full}${
+                                    t.salesName ? ` (Assigned: ${t.salesName})` : ""
+                                  }${isInactive ? " — click to edit or re-activate" : ""}`}
+                                  className={`px-2 py-1 rounded-md font-bold text-[11px] block min-w-[68px] text-center shadow-2xs cursor-pointer transition-all active:scale-95 ${
+                                    isInactive
+                                      ? "bg-slate-100 hover:bg-slate-200/80 text-slate-500 border border-dashed border-slate-300 opacity-80"
+                                      : "bg-[#E8F3F8] hover:bg-[#D5EAF4] text-[#0A4B6E] border border-[#BCE1F1]"
+                                  }`}
+                                >
+                                  <span className={isInactive ? "line-through decoration-slate-400" : ""}>
+                                    {t.zoneCode || "Zone"}
+                                  </span>
+                                  {isInactive ? (
+                                    <span className="block text-[9px] font-semibold text-slate-400">
+                                      Inactive
+                                    </span>
+                                  ) : t.salesName ? (
+                                    <span className="block text-[9px] font-normal text-[#6D8AA2] truncate max-w-[65px]">
+                                      {t.salesName.split(" ")[0]}
+                                    </span>
+                                  ) : null}
+                                </button>
+                                {canManage && onDeleteTemplate && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onDeleteTemplate(t.id);
+                                    }}
+                                    className="hidden group-hover:flex absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-500 hover:bg-rose-600 text-white rounded-full items-center justify-center text-[10px] cursor-pointer shadow-xs transition-colors"
+                                    title="Delete route schedule"
+                                  >
+                                    &times;
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()
                         ) : canManage && onAddTemplate ? (
                           <button
                             type="button"

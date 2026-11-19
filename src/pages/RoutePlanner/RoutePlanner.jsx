@@ -6,6 +6,11 @@ import { PERMISSIONS } from "../../utils/permissions.js";
 
 import { schedulesApi } from "../../api/schedules.js";
 import { fleetApi } from "../../api/fleet.js";
+import {
+  getPhilippineTodayString,
+  getPhilippineDayOfWeek,
+  toPhilippineDateInputString,
+} from "../../utils/date.js";
 
 import MasterTemplateMatrix from "../../components/route-dispatch/MasterTemplateMatrix";
 import TemplateModal from "../../components/route-dispatch/TemplateModal";
@@ -129,11 +134,56 @@ export default function RoutePlanner() {
     setShowTemplateModal(true);
   };
 
+  /**
+   * Cancels any pending (SCHEDULED) operational daily schedule for today
+   * matching the given truckId when its weekly template for today is deactivated or removed.
+   */
+  const cancelTodayOperationalScheduleIfPending = useCallback(async (truckId, reason) => {
+    if (!truckId) return false;
+    const todayPht = getPhilippineTodayString();
+    try {
+      const todaySchedules = await schedulesApi.getSchedules({ date: todayPht });
+      const pendingToday = (Array.isArray(todaySchedules) ? todaySchedules : []).filter(
+        (s) =>
+          s.truckId === truckId &&
+          (s.status || "").toUpperCase() === "SCHEDULED" &&
+          toPhilippineDateInputString(s.scheduledDate) === todayPht
+      );
+      if (pendingToday.length === 0) return false;
+
+      await Promise.all(
+        pendingToday.map((s) => schedulesApi.cancelSchedule(s.id, { reason }))
+      );
+      try {
+        localStorage.removeItem("app_schedules_cache");
+      } catch {
+        // ignore storage errors
+      }
+      return true;
+    } catch (err) {
+      console.warn("Failed to cancel today's pending operational schedule:", err);
+      return false;
+    }
+  }, []);
+
   const handleSaveTemplate = async (payload) => {
     try {
+      const todayIsoDay = getPhilippineDayOfWeek(getPhilippineTodayString());
       if (payload.id) {
         await schedulesApi.updateTemplate(payload.id, payload);
-        showToast("success", "Weekly route schedule updated successfully");
+        let cancelledToday = false;
+        if (payload.isActive === false && Number(payload.dayOfWeek) === Number(todayIsoDay)) {
+          cancelledToday = await cancelTodayOperationalScheduleIfPending(
+            payload.truckId,
+            "Weekly route schedule deactivated"
+          );
+        }
+        showToast(
+          "success",
+          cancelledToday
+            ? "Weekly route schedule deactivated and today's pending dispatch cancelled"
+            : "Weekly route schedule updated successfully"
+        );
       } else {
         await schedulesApi.createTemplate(payload);
         showToast("success", "Weekly route schedule created successfully");
@@ -147,13 +197,32 @@ export default function RoutePlanner() {
 
   const handleDeleteTemplate = async (id) => {
     try {
+      const existing = templates.find((t) => t.id === id);
       await schedulesApi.deleteTemplate(id);
-      showToast("success", "Weekly route schedule deleted successfully");
+      const todayIsoDay = getPhilippineDayOfWeek(getPhilippineTodayString());
+      let cancelledToday = false;
+      if (existing && Number(existing.dayOfWeek) === Number(todayIsoDay)) {
+        cancelledToday = await cancelTodayOperationalScheduleIfPending(
+          existing.truckId,
+          "Weekly route schedule removed"
+        );
+      }
+      showToast(
+        "success",
+        cancelledToday
+          ? "Weekly route schedule deleted and today's pending dispatch cancelled"
+          : "Weekly route schedule deleted successfully"
+      );
       loadData();
     } catch (err) {
       showToast("error", err.message || "Failed to delete route schedule");
     }
   };
+
+  const activeTemplatesCount = useMemo(
+    () => templates.filter((t) => t.isActive !== false).length,
+    [templates]
+  );
 
   const filteredVehicles = useMemo(() => {
     if (!vehicleSearch.trim()) return vehicles;
@@ -195,7 +264,7 @@ export default function RoutePlanner() {
 
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1] font-bold text-xs shadow-2xs">
             <Calendar size={13} className="text-[#0A4B6E]" />
-            <span>{templates.length} Active Route Schedules</span>
+            <span>{activeTemplatesCount} Active Route Schedules</span>
           </span>
         </div>
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Calendar, X, Trash2, CheckCircle2, ArrowRight } from "lucide-react";
+import { Calendar, X, Trash2, CheckCircle2, ArrowRight, AlertCircle } from "lucide-react";
+import { getPhilippineDayOfWeek } from "../../utils/date.js";
 
 const DAYS_OF_WEEK = [
   { num: 1, label: "Mon", full: "Monday" },
@@ -248,17 +249,27 @@ export default function TemplateModal({
           </div>
 
           {/* 5. Active Status */}
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              type="checkbox"
-              id="templateIsActive"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-              className="w-4 h-4 text-[#0A4B6E] rounded focus:ring-0 cursor-pointer"
-            />
-            <label htmlFor="templateIsActive" className="text-xs text-[#0A4B6E] font-semibold cursor-pointer">
-              Active route schedule
-            </label>
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="templateIsActive"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="w-4 h-4 text-[#0A4B6E] rounded focus:ring-0 cursor-pointer"
+              />
+              <label htmlFor="templateIsActive" className="text-xs text-[#0A4B6E] font-semibold cursor-pointer">
+                Active route schedule
+              </label>
+            </div>
+            {isEditing && !isActive && Number(dayOfWeek) === getPhilippineDayOfWeek(new Date()) && (
+              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-start gap-2">
+                <AlertCircle size={14} className="text-amber-700 shrink-0 mt-0.5" />
+                <span>
+                  Deactivating today&apos;s route schedule will also cancel any pending (not yet dispatched) schedule for this vehicle today, freeing the assigned sales representative.
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Constraint note */}
