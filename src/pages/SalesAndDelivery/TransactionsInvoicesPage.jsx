@@ -38,6 +38,32 @@ const STATUS_FILTER_OPTIONS = [
   { value: "CANCELLED", label: "Cancelled" },
 ];
 
+const matchesStatusFilter = (row, statusFilter) => {
+  if (!statusFilter) return true;
+  const orderStatus = (row.status || "COMPLETED").toUpperCase();
+  const payMethod = (
+    row.payment_method ||
+    row.paymentMethod ||
+    "CASH"
+  ).toUpperCase();
+  const payStatus = (
+    row.payment_status ||
+    row.paymentStatus ||
+    ""
+  ).toUpperCase();
+  const isPendingReview =
+    orderStatus !== "CANCELLED" &&
+    payMethod === "GCASH" &&
+    payStatus === "PAID_UNVERIFIED";
+
+  if (statusFilter === "PAID_UNVERIFIED") return isPendingReview;
+  if (statusFilter === "COMPLETED") {
+    return orderStatus !== "CANCELLED" && !isPendingReview;
+  }
+  if (statusFilter === "CANCELLED") return orderStatus === "CANCELLED";
+  return true;
+};
+
 export default function TransactionsInvoicesPage() {
   const { can } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -67,6 +93,7 @@ export default function TransactionsInvoicesPage() {
 
   const [selectedTx, setSelectedTx] = useState(null);
   const [invoiceToVerify, setInvoiceToVerify] = useState(null);
+  const [drawerRefreshKey, setDrawerRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState("");
@@ -85,7 +112,8 @@ export default function TransactionsInvoicesPage() {
           startDate: dateFilter.startDate,
           endDate: dateFilter.endDate,
           search: searchTerm || undefined,
-          paymentMethod: paymentMethodFilter || undefined,
+          paymentMethod:
+            paymentMethodFilter || (isPendingQueue ? "GCASH" : undefined),
           ...(isPendingQueue
             ? { paymentStatus: "PAID_UNVERIFIED" }
             : { status: statusFilter || undefined }),
@@ -105,11 +133,23 @@ export default function TransactionsInvoicesPage() {
           totalPages: Math.ceil(items.length / limit) || 1,
         };
 
-        setRecords(items);
+        const filteredItems = statusFilter
+          ? items.filter((row) => matchesStatusFilter(row, statusFilter))
+          : items;
+        const removedCount = items.length - filteredItems.length;
+        const rawTotal = resMeta.total ?? items.length;
+        const adjustedTotal = Math.max(
+          filteredItems.length,
+          rawTotal - removedCount
+        );
+
+        setRecords(filteredItems);
         setMeta({
-          total: resMeta.total ?? items.length,
+          total: adjustedTotal,
           totalPages:
-            resMeta.totalPages ?? (Math.ceil(items.length / limit) || 1),
+            removedCount > 0 && adjustedTotal <= limit
+              ? 1
+              : resMeta.totalPages ?? (Math.ceil(adjustedTotal / limit) || 1),
         });
 
         if (
@@ -167,11 +207,24 @@ export default function TransactionsInvoicesPage() {
     setSearchParams(next, { replace: true });
   };
 
-  const handleInvoiceVerified = () => {
+  const handleInvoiceVerified = (updatedInvoice) => {
     setToast({
       type: "success",
       message: "GCash payment verified and recorded.",
     });
+    setSelectedTx((prev) =>
+      prev
+        ? {
+            ...prev,
+            payment_status: "VERIFIED",
+            paymentStatus: "VERIFIED",
+            ...(updatedInvoice
+              ? { invoice: { ...(prev.invoice || {}), ...updatedInvoice } }
+              : {}),
+          }
+        : null
+    );
+    setDrawerRefreshKey((prev) => prev + 1);
     fetchRecords(false);
   };
 
@@ -193,9 +246,6 @@ export default function TransactionsInvoicesPage() {
     }
     if (payMethod === "GCASH" && payStatus === "PAID_UNVERIFIED") {
       return { label: "Pending Review", variant: "warning" };
-    }
-    if (payStatus === "VERIFIED") {
-      return { label: "Verified", variant: "success" };
     }
     return { label: "Completed", variant: "success" };
   };
@@ -433,6 +483,7 @@ export default function TransactionsInvoicesPage() {
         onClose={() => setSelectedTx(null)}
         canVerify={canVerifyInvoice}
         onRequestVerify={(inv) => setInvoiceToVerify(inv)}
+        refreshKey={drawerRefreshKey}
       />
 
       <VerifyPaymentModal

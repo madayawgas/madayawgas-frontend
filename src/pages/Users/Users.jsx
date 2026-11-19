@@ -632,6 +632,10 @@ export default function Users() {
           setEditingUser(null);
           handleInitiateResetPassword(u);
         }}
+        onDeactivate={(u) => {
+          setEditingUser(null);
+          handleInitiateDeactivate(u);
+        }}
       />
 
       {/* Deactivate User Modal with Inline Password Authorization */}

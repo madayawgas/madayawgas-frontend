@@ -193,6 +193,11 @@ export default function Fleet() {
   const [workOrderForFinalize, setWorkOrderForFinalize] = useState(null);
   const [workOrderForDetail, setWorkOrderForDetail] = useState(null);
 
+  // Close work order detail side panel when switching pages/sub-tabs
+  useEffect(() => {
+    setWorkOrderForDetail(null);
+  }, [activeSubTab]);
+
   // Modal & Toast States
   const [isAddingTruck, setIsAddingTruck] = useState(false);
   const [toast, setToast] = useState(null); // { type: "success" | "error" | "info" | "warning", message: string }

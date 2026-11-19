@@ -861,7 +861,7 @@ export default function DispatchModal({
                         value={item.productId}
                         onChange={(e) => handleItemChange(idx, "productId", e.target.value)}
                         aria-label={`Product item ${idx + 1}`}
-                        className="flex-1 bg-white border border-slate-300 rounded-lg p-2 text-xs text-[#0A4B6E] font-semibold"
+                        className="flex-1 min-w-0 bg-white border border-slate-300 rounded-lg p-2 text-xs text-[#0A4B6E] font-semibold"
                       >
                         {products.map((p) => (
                           <option key={p.id} value={p.id}>
@@ -870,7 +870,7 @@ export default function DispatchModal({
                         ))}
                       </select>
 
-                      <div className="w-24 shrink-0">
+                      <div className="w-20 sm:w-24 shrink-0">
                         <input
                           type="number"
                           min="1"
@@ -887,7 +887,7 @@ export default function DispatchModal({
                         />
                       </div>
 
-                      <div className="w-18 text-right text-[11px] text-[#3E5C76] font-semibold shrink-0">
+                      <div className="w-16 text-right text-[11px] text-[#3E5C76] font-semibold shrink-0 whitespace-nowrap">
                         {isCan && crates > 0 ? `${crates} crates` : ""}
                       </div>
 

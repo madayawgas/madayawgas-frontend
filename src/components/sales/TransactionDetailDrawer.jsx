@@ -21,19 +21,19 @@ const ORDER_STATUS_META = {
   CANCELLED: { label: "Cancelled", variant: "danger" },
 };
 
-const PAYMENT_STATUS_META = {
-  VERIFIED: { label: "Verified", variant: "success" },
-  PAID_UNVERIFIED: { label: "Pending Review", variant: "warning" },
-};
-
 export default function TransactionDetailDrawer({
   transaction,
   isOpen = false,
   onClose,
   canVerify = false,
   onRequestVerify,
+  refreshKey = 0,
 }) {
-  const [detailsState, setDetailsState] = useState({ id: null, data: null });
+  const [detailsState, setDetailsState] = useState({
+    id: null,
+    data: null,
+    refreshKey: 0,
+  });
   const [loadedId, setLoadedId] = useState(null);
   const [selectedProofKey, setSelectedProofKey] = useState(null);
 
@@ -45,7 +45,7 @@ export default function TransactionDetailDrawer({
     salesApi
       .getTransactionById(targetId)
       .then((data) => {
-        if (isMounted) setDetailsState({ id: targetId, data });
+        if (isMounted) setDetailsState({ id: targetId, data, refreshKey });
       })
       .catch((err) => {
         console.error("Failed to load transaction details:", err);
@@ -57,22 +57,56 @@ export default function TransactionDetailDrawer({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, transaction?.id]);
+  }, [isOpen, transaction?.id, refreshKey]);
 
   const details =
     detailsState.id === transaction?.id ? detailsState.data : null;
   const isLoading = Boolean(isOpen && transaction?.id && loadedId !== transaction.id);
 
-  const tx = details || transaction || {};
+  const isOptimisticallyVerified =
+    details &&
+    detailsState.refreshKey !== refreshKey &&
+    (
+      transaction?.payment_status ||
+      transaction?.paymentStatus ||
+      ""
+    ).toUpperCase() === "VERIFIED";
+
+  const baseTx = details || transaction || {};
+  const tx = isOptimisticallyVerified
+    ? {
+        ...baseTx,
+        payment_status: "VERIFIED",
+        paymentStatus: "VERIFIED",
+        ...(baseTx.invoice
+          ? {
+              invoice: {
+                ...baseTx.invoice,
+                payment_status: "VERIFIED",
+                paymentStatus: "VERIFIED",
+              },
+            }
+          : {}),
+      }
+    : baseTx;
   const items = tx.items || [];
   const invoice = tx.invoice || null;
-  const orderStatus = (tx.status || "COMPLETED").toUpperCase();
+  const orderStatus = (
+    tx.status ||
+    tx.order_status ||
+    tx.orderStatus ||
+    transaction?.status ||
+    "COMPLETED"
+  ).toUpperCase();
   const isCancelled = orderStatus === "CANCELLED";
-  const orderBadge = ORDER_STATUS_META[orderStatus] || {
-    label: orderStatus.replace(/_/g, " "),
-    variant: "neutral",
-  };
 
+  const payMethod = (
+    invoice?.payment_method ||
+    invoice?.paymentMethod ||
+    tx.payment_method ||
+    tx.paymentMethod ||
+    "CASH"
+  ).toUpperCase();
   const invoicePaymentStatus = (
     invoice?.payment_status ||
     invoice?.paymentStatus ||
@@ -81,14 +115,18 @@ export default function TransactionDetailDrawer({
     ""
   ).toUpperCase();
   const isUnverifiedGcash =
-    invoice &&
-    (invoice.payment_method || invoice.paymentMethod || "").toUpperCase() === "GCASH" &&
-    invoicePaymentStatus === "PAID_UNVERIFIED";
+    payMethod === "GCASH" && invoicePaymentStatus === "PAID_UNVERIFIED";
 
-  const paymentBadge = PAYMENT_STATUS_META[invoicePaymentStatus] || {
-    label: invoicePaymentStatus ? invoicePaymentStatus.replace(/_/g, " ") : "Recorded",
-    variant: "neutral",
-  };
+  const headerBadge = isCancelled
+    ? ORDER_STATUS_META.CANCELLED
+    : isUnverifiedGcash
+    ? { label: "Pending Review", variant: "warning" }
+    : ORDER_STATUS_META[orderStatus] || {
+        label: orderStatus.replace(/_/g, " "),
+        variant: "neutral",
+      };
+
+  const paymentBadge = headerBadge;
 
   const proofTarget =
     invoice?.payment_proof_url ||
@@ -136,7 +174,7 @@ export default function TransactionDetailDrawer({
             : "Sales Transaction Record"
         }
         icon={Receipt}
-        badge={<Badge variant={orderBadge.variant}>{orderBadge.label}</Badge>}
+        badge={<Badge variant={headerBadge.variant}>{headerBadge.label}</Badge>}
         footer={footer}
         width="max-w-md sm:max-w-lg"
       >

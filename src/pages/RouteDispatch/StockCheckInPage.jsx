@@ -292,12 +292,20 @@ export default function StockCheckInPage() {
 
       const initial = {};
       loadedProducts.forEach((p) => {
-        initial[p.productId] = existingMap.get(p.productId) || {
-          returnedFull: 0,
-          returnedEmptyGood: 0,
-          returnedDefective: 0,
-          defectNotes: "",
-        };
+        const existing = existingMap.get(p.productId);
+        initial[p.productId] = existing
+          ? {
+              returnedFull: existing.returnedFull > 0 ? existing.returnedFull : "",
+              returnedEmptyGood: existing.returnedEmptyGood > 0 ? existing.returnedEmptyGood : "",
+              returnedDefective: existing.returnedDefective > 0 ? existing.returnedDefective : "",
+              defectNotes: existing.defectNotes || "",
+            }
+          : {
+              returnedFull: "",
+              returnedEmptyGood: "",
+              returnedDefective: "",
+              defectNotes: "",
+            };
       });
       setCounts(initial);
     }
@@ -309,11 +317,11 @@ export default function StockCheckInPage() {
   };
 
   const handleCountChange = (productId, field, rawValue) => {
-    const val = rawValue === "" ? 0 : Math.max(0, parseInt(rawValue, 10) || 0);
+    const val = rawValue === "" ? "" : Math.max(0, parseInt(rawValue, 10) || 0);
     setCounts((prev) => ({
       ...prev,
       [productId]: {
-        ...(prev[productId] || { returnedFull: 0, returnedEmptyGood: 0, returnedDefective: 0, defectNotes: "" }),
+        ...(prev[productId] || { returnedFull: "", returnedEmptyGood: "", returnedDefective: "", defectNotes: "" }),
         [field]: val,
       },
     }));
@@ -323,7 +331,7 @@ export default function StockCheckInPage() {
     setCounts((prev) => ({
       ...prev,
       [productId]: {
-        ...(prev[productId] || { returnedFull: 0, returnedEmptyGood: 0, returnedDefective: 0, defectNotes: "" }),
+        ...(prev[productId] || { returnedFull: "", returnedEmptyGood: "", returnedDefective: "", defectNotes: "" }),
         defectNotes: notesValue,
       },
     }));
@@ -392,15 +400,15 @@ export default function StockCheckInPage() {
     });
   };
 
-  // Bulk action: Reset all inputs to 0
+  // Bulk action: Reset all inputs to empty (placeholder 0)
   const handleResetAllToZero = () => {
     setCounts((prev) => {
       const next = { ...prev };
       loadedProducts.forEach((p) => {
         next[p.productId] = {
-          returnedFull: 0,
-          returnedEmptyGood: 0,
-          returnedDefective: 0,
+          returnedFull: "",
+          returnedEmptyGood: "",
+          returnedDefective: "",
           defectNotes: "",
         };
       });
@@ -722,9 +730,9 @@ export default function StockCheckInPage() {
                 ) : (
                   loadedProducts.map((p) => {
                     const pCounts = counts[p.productId] || {
-                      returnedFull: 0,
-                      returnedEmptyGood: 0,
-                      returnedDefective: 0,
+                      returnedFull: "",
+                      returnedEmptyGood: "",
+                      returnedDefective: "",
                       defectNotes: "",
                     };
                     const rowFull = Number(pCounts.returnedFull) || 0;
@@ -789,9 +797,10 @@ export default function StockCheckInPage() {
                             <input
                               type="number"
                               min="0"
-                              value={pCounts.returnedFull}
+                              placeholder="0"
+                              value={pCounts.returnedFull ?? ""}
                               onChange={(e) => handleCountChange(p.productId, "returnedFull", e.target.value)}
-                              className="w-22 text-center py-1.5 px-2 bg-white border border-[#CBD5E1] rounded-xl text-xs font-bold text-[#0A4B6E] focus:outline-none focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/20"
+                              className="w-22 text-center py-1.5 px-2 bg-white border border-[#CBD5E1] rounded-xl text-xs font-bold text-[#0A4B6E] placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/20"
                             />
                           </td>
 
@@ -800,9 +809,10 @@ export default function StockCheckInPage() {
                             <input
                               type="number"
                               min="0"
-                              value={pCounts.returnedEmptyGood}
+                              placeholder="0"
+                              value={pCounts.returnedEmptyGood ?? ""}
                               onChange={(e) => handleCountChange(p.productId, "returnedEmptyGood", e.target.value)}
-                              className="w-22 text-center py-1.5 px-2 bg-white border border-[#CBD5E1] rounded-xl text-xs font-bold text-[#0A4B6E] focus:outline-none focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/20"
+                              className="w-22 text-center py-1.5 px-2 bg-white border border-[#CBD5E1] rounded-xl text-xs font-bold text-[#0A4B6E] placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/20"
                             />
                           </td>
 
@@ -811,9 +821,10 @@ export default function StockCheckInPage() {
                             <input
                               type="number"
                               min="0"
-                              value={pCounts.returnedDefective}
+                              placeholder="0"
+                              value={pCounts.returnedDefective ?? ""}
                               onChange={(e) => handleCountChange(p.productId, "returnedDefective", e.target.value)}
-                              className={`w-22 text-center py-1.5 px-2 rounded-xl text-xs font-bold transition-all focus:outline-none ${
+                              className={`w-22 text-center py-1.5 px-2 border rounded-xl text-xs font-bold placeholder:text-slate-400 placeholder:font-normal transition-all focus:outline-none ${
                                 hasDefects
                                   ? "bg-rose-50 border-rose-400 text-rose-800 focus:ring-2 focus:ring-rose-400/20"
                                   : "bg-white border-[#CBD5E1] text-[#0A4B6E] focus:border-[#0A4B6E] focus:ring-2 focus:ring-[#0A4B6E]/20"
