@@ -24,7 +24,7 @@ import { PERMISSIONS } from "../../utils/permissions.js";
 import VehicleSearchDropdown from "../../components/route-dispatch/VehicleSearchDropdown.jsx";
 import EndTripModal from "../../components/route-dispatch/EndTripModal.jsx";
 import TripReconciliationLedger from "../../components/route-dispatch/TripReconciliationLedger.jsx";
-import { computeTripAccountability, formatVarianceLabel } from "../../utils/reconciliation.js";
+import { computeTripAccountability, formatCheckStatusLabel } from "../../utils/reconciliation.js";
 import Modal from "../../components/ui/Modal.jsx";
 import Button from "../../components/ui/Button.jsx";
 import ToastNotification from "../../components/ui/ToastNotifications.jsx";
@@ -329,7 +329,7 @@ export default function StockCheckInPage() {
     }));
   };
 
-  // Row-level fast shortcut: All units sold with empty returns
+  // Row-level fast shortcut: All units sold with empty returns (used when app sales aren't synced)
   const applyRowAllSold = (productId, loadedUnits) => {
     setCounts((prev) => ({
       ...prev,
@@ -342,7 +342,22 @@ export default function StockCheckInPage() {
     }));
   };
 
-  // Bulk action: Mark all products sold out
+  // Row-level smart shortcut: Match synced app sales (Unsold = Dispatched - Sold, Good Empties = Sold)
+  const applyRowMatchAppSales = (productId, loadedUnits, soldUnits) => {
+    const sold = Math.max(0, Number(soldUnits) || 0);
+    const unsold = Math.max(0, (Number(loadedUnits) || 0) - sold);
+    setCounts((prev) => ({
+      ...prev,
+      [productId]: {
+        returnedFull: unsold,
+        returnedEmptyGood: sold,
+        returnedDefective: 0,
+        defectNotes: "",
+      },
+    }));
+  };
+
+  // Bulk action: Mark all products sold out (used when app sales aren't synced)
   const handleMarkAllSoldOut = () => {
     setCounts((prev) => {
       const next = { ...prev };
@@ -350,6 +365,25 @@ export default function StockCheckInPage() {
         next[p.productId] = {
           returnedFull: 0,
           returnedEmptyGood: p.loadedUnits,
+          returnedDefective: 0,
+          defectNotes: "",
+        };
+      });
+      return next;
+    });
+  };
+
+  // Bulk action: Match all products to synced app sales
+  const handleMatchAppSales = () => {
+    setCounts((prev) => {
+      const next = { ...prev };
+      loadedProducts.forEach((p) => {
+        const salesEntry = salesByProductMap.get(p.productId);
+        const sold = Math.max(0, Number(salesEntry?.quantitySold) || 0);
+        const unsold = Math.max(0, p.loadedUnits - sold);
+        next[p.productId] = {
+          returnedFull: unsold,
+          returnedEmptyGood: sold,
           returnedDefective: 0,
           defectNotes: "",
         };
@@ -393,7 +427,8 @@ export default function StockCheckInPage() {
 
   const hasSyncedSales = Boolean(salesSummary && salesSummary.completedTransactions > 0);
   const totalSoldFull = hasSyncedSales ? salesSummary?.totalSoldFull || 0 : totals.totalEmpty;
-  const totalCustomerDebt = hasSyncedSales ? salesSummary?.netCustomerDebtCreated || 0 : 0;
+  // Bought canisters/products always assume empty containers are returned
+  const totalCustomerDebt = 0;
 
   const accountability = computeTripAccountability({
     loadedFull: totals.totalLoaded,
@@ -412,7 +447,7 @@ export default function StockCheckInPage() {
   const handleFinalSubmit = async () => {
     if (!selectedTrip) return;
     if (isNotesMissing) {
-      setError("Supervisor notes are required when a stock variance exists.");
+      setError("Please add an explanation note when stock counts don't match.");
       return;
     }
 
@@ -470,7 +505,7 @@ export default function StockCheckInPage() {
         type: reconStatus === "FLAGGED_VARIANCE" ? "warning" : "success",
         message:
           reconStatus === "FLAGGED_VARIANCE"
-            ? `Trip #${selectedTrip.tripNumber} saved with variance and supervisor notes.`
+            ? `Trip #${selectedTrip.tripNumber} saved with stock mismatch note.`
             : `Trip #${selectedTrip.tripNumber} (${selectedTrip.truckPlate}) stock check-in saved. Bunawan yard stock updated!`,
       });
 
@@ -549,6 +584,13 @@ export default function StockCheckInPage() {
                   <span>Return Odo: {Number(selectedTrip.returnOdometer).toLocaleString()} km</span>
                 </span>
               )}
+
+              {!isLoadingDetail && !hasSyncedSales && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-medium text-xs shadow-2xs h-[32px]">
+                  <Clock size={12} className="text-slate-500" />
+                  <span>App sales not synced yet — counting physical returns</span>
+                </span>
+              )}
             </div>
           )}
 
@@ -579,13 +621,17 @@ export default function StockCheckInPage() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={handleMarkAllSoldOut}
+              onClick={hasSyncedSales ? handleMatchAppSales : handleMarkAllSoldOut}
               disabled={isSubmitting}
               className="flex items-center gap-1.5 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] font-bold text-xs uppercase tracking-wider px-3.5 py-1.5 rounded-full shadow-2xs transition-all active:scale-95 cursor-pointer h-[32px]"
-              title="Automatically count all dispatched units as good empty returns"
+              title={
+                hasSyncedSales
+                  ? "Auto-fill Unsold (Full) and Good Empties to match synced app sales"
+                  : "Automatically count all dispatched units as good empty returns"
+              }
             >
               <Sparkles size={13} className="text-[#0A4B6E]" />
-              <span>Mark All Sold Out</span>
+              <span>{hasSyncedSales ? "Match App Sales" : "Mark All Sold Out"}</span>
             </button>
 
             <button
@@ -620,22 +666,25 @@ export default function StockCheckInPage() {
                   <th className="py-3 px-4 font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap">
                     Product Name
                   </th>
-                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[110px]">
+                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[105px]">
                     Dispatched
                   </th>
-                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[130px]">
+                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[110px]">
+                    Sold (App)
+                  </th>
+                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[125px]">
                     Unsold (Full)
                   </th>
-                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[130px]">
+                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[125px]">
                     Good Empties
                   </th>
-                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[130px]">
+                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[120px]">
                     Damaged
                   </th>
-                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[130px]">
-                    Variance
+                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[160px]">
+                    Check Status
                   </th>
-                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[100px]">
+                  <th className="py-3 px-3 text-center font-semibold uppercase tracking-wider text-[11px] whitespace-nowrap w-[130px]">
                     Action
                   </th>
                 </tr>
@@ -644,7 +693,7 @@ export default function StockCheckInPage() {
               <tbody className="divide-y divide-gray-100 text-xs">
                 {isLoadingDetail ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-500">
+                    <td colSpan={8} className="py-12 text-center text-slate-500">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <div className="w-6 h-6 border-2 border-[#0A4B6E] border-t-transparent rounded-full animate-spin" />
                         <p className="font-semibold text-slate-700 text-xs">
@@ -655,7 +704,7 @@ export default function StockCheckInPage() {
                   </tr>
                 ) : loadedProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-500">
+                    <td colSpan={8} className="py-12 text-center text-slate-500">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <PackageCheck size={32} className="text-[#6D8AA2]/50" />
                         <p className="font-semibold text-slate-700 text-sm">
@@ -679,8 +728,8 @@ export default function StockCheckInPage() {
                     const rowEmpty = Number(pCounts.returnedEmptyGood) || 0;
                     const rowDefect = Number(pCounts.returnedDefective) || 0;
                     const salesEntry = salesByProductMap.get(p.productId);
-                    const rowSold = hasSyncedSales ? Number(salesEntry?.quantitySold) || 0 : rowEmpty;
-                    const rowDebt = hasSyncedSales ? Number(salesEntry?.netCustomerDebtCreated) || 0 : 0;
+                    const appSoldUnits = hasSyncedSales ? Number(salesEntry?.quantitySold) || 0 : 0;
+                    const rowSold = hasSyncedSales ? appSoldUnits : rowEmpty;
 
                     const rowAccountability = computeTripAccountability({
                       loadedFull: p.loadedUnits,
@@ -688,15 +737,15 @@ export default function StockCheckInPage() {
                       returnedFull: rowFull,
                       returnedEmptyGood: rowEmpty,
                       returnedDefective: rowDefect,
-                      netCustomerDebtCreated: rowDebt,
+                      netCustomerDebtCreated: 0,
                       hasSyncedSales: true,
                     });
 
-                    const rowVarianceValue =
-                      (rowAccountability.fullDiscrepancy ?? 0) !== 0
-                        ? rowAccountability.fullDiscrepancy
-                        : rowAccountability.emptyDiscrepancy;
-                    const isRowBalanced = rowVarianceValue === 0;
+                    const fullDiff = rowAccountability.fullDiscrepancy ?? 0;
+                    const emptyDiff = rowAccountability.emptyDiscrepancy ?? 0;
+                    const isRowBalanced = fullDiff === 0 && emptyDiff === 0;
+                    const hasRowMissing = fullDiff > 0 || emptyDiff > 0;
+                    const checkStatusLabel = formatCheckStatusLabel(fullDiff, emptyDiff);
                     const hasDefects = rowDefect > 0;
 
                     return (
@@ -717,6 +766,19 @@ export default function StockCheckInPage() {
                             <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#E8F3F8] text-[#0A4B6E] border border-[#BCE1F1]">
                               {p.loadedUnits}
                             </span>
+                          </td>
+
+                          {/* 3. Sold (App) */}
+                          <td className="py-3 px-3 text-center">
+                            {hasSyncedSales ? (
+                              <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                                {appSoldUnits}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-slate-400 italic font-medium">
+                                Not synced
+                              </span>
+                            )}
                           </td>
 
                           {/* 3. Unsold Full */}
@@ -756,39 +818,50 @@ export default function StockCheckInPage() {
                             />
                           </td>
 
-                          {/* 6. Variance */}
+                          {/* 7. Check Status */}
                           <td className="py-3 px-3 text-center">
                             <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border whitespace-nowrap ${
                                 isRowBalanced
                                   ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                  : rowVarianceValue > 0
+                                  : hasRowMissing
                                   ? "bg-rose-50 text-rose-800 border-rose-200"
                                   : "bg-blue-50 text-blue-800 border-blue-200"
                               }`}
                             >
                               {isRowBalanced && <Check size={11} className="text-emerald-600 stroke-[2.5]" />}
-                              <span>{formatVarianceLabel(rowVarianceValue)}</span>
+                              <span>{checkStatusLabel}</span>
                             </span>
                           </td>
 
-                          {/* 7. Action */}
+                          {/* 8. Action */}
                           <td className="py-3 px-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() => applyRowAllSold(p.productId, p.loadedUnits)}
-                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-[#0A4B6E] hover:bg-[#E8F3F8] border border-slate-200 hover:border-[#0A4B6E]/40 transition cursor-pointer"
-                              title="Set unsold to 0 and empties to loaded count"
-                            >
-                              All Sold
-                            </button>
+                            {hasSyncedSales ? (
+                              <button
+                                type="button"
+                                onClick={() => applyRowMatchAppSales(p.productId, p.loadedUnits, appSoldUnits)}
+                                className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-[#0A4B6E] hover:bg-[#E8F3F8] border border-slate-200 hover:border-[#0A4B6E]/40 transition cursor-pointer whitespace-nowrap"
+                                title="Set Unsold (Full) to Dispatched minus Sold (App), and Good Empties to Sold (App)"
+                              >
+                                Match App Sales
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => applyRowAllSold(p.productId, p.loadedUnits)}
+                                className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-[#0A4B6E] hover:bg-[#E8F3F8] border border-slate-200 hover:border-[#0A4B6E]/40 transition cursor-pointer whitespace-nowrap"
+                                title="Set unsold to 0 and empties to loaded count"
+                              >
+                                All Sold
+                              </button>
+                            )}
                           </td>
                         </tr>
 
                         {/* Expandable Defect Note row if damaged > 0 */}
                         {hasDefects && (
                           <tr className="bg-rose-50/60 border-b border-rose-100">
-                            <td colSpan={7} className="py-2.5 px-4">
+                            <td colSpan={8} className="py-2.5 px-4">
                               <div className="flex items-center gap-2">
                                 <span className="text-[11px] font-bold text-rose-800 shrink-0">
                                   Defect details ({p.productName}):
@@ -879,6 +952,14 @@ export default function StockCheckInPage() {
             <span className="font-semibold text-slate-700">
               Dispatched: <strong className="text-[#0A4B6E]">{totals.totalLoaded}</strong>
             </span>
+            {hasSyncedSales && (
+              <>
+                <span className="text-slate-300">|</span>
+                <span className="font-semibold text-slate-700">
+                  Sold (App): <strong className="text-[#0A4B6E]">{totalSoldFull}</strong>
+                </span>
+              </>
+            )}
             <span className="text-slate-300">|</span>
             <span className="font-semibold text-slate-700">
               Counted: <strong className="text-slate-900">{totals.totalReturned}</strong>
@@ -890,16 +971,28 @@ export default function StockCheckInPage() {
             {!accountability.hasVariance ? (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                 <Check size={12} className="text-emerald-700 stroke-[3]" />
-                <span>Balanced</span>
+                <span>All Accounted</span>
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
-                <AlertTriangle size={12} className="text-rose-700" />
+              <span
+                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                  (accountability.fullDiscrepancy ?? 0) > 0 || (accountability.emptyDiscrepancy ?? 0) > 0
+                    ? "bg-rose-100 text-rose-800 border-rose-300"
+                    : "bg-blue-100 text-blue-800 border-blue-300"
+                }`}
+              >
+                <AlertTriangle
+                  size={12}
+                  className={
+                    (accountability.fullDiscrepancy ?? 0) > 0 || (accountability.emptyDiscrepancy ?? 0) > 0
+                      ? "text-rose-700"
+                      : "text-blue-700"
+                  }
+                />
                 <span>
-                  {formatVarianceLabel(
-                    (accountability.fullDiscrepancy ?? 0) !== 0
-                      ? accountability.fullDiscrepancy
-                      : accountability.emptyDiscrepancy
+                  {formatCheckStatusLabel(
+                    accountability.fullDiscrepancy,
+                    accountability.emptyDiscrepancy
                   )}
                 </span>
               </span>
@@ -986,7 +1079,7 @@ export default function StockCheckInPage() {
                 returnedFull: totals.totalFull,
                 returnedEmptyGood: totals.totalEmpty,
                 returnedDefective: totals.totalDefect,
-                netCustomerDebtCreated: totalCustomerDebt,
+                netCustomerDebtCreated: 0,
                 hasSyncedSales: true,
                 showSalesRow: hasSyncedSales,
               }}
@@ -996,7 +1089,7 @@ export default function StockCheckInPage() {
           <div>
             <label className="block text-[11px] font-semibold text-[#0A4B6E] mb-1">
               {requiresSupervisorNotes
-                ? "Supervisor Notes (Required for Variance) *"
+                ? "Explanation Note (Required when stock doesn't match) *"
                 : "Supervisor Notes (Optional)"}
             </label>
             <textarea
@@ -1005,7 +1098,7 @@ export default function StockCheckInPage() {
               onChange={(e) => setSupervisorNotes(e.target.value)}
               placeholder={
                 requiresSupervisorNotes
-                  ? "Explain the missing/extra units..."
+                  ? "Explain why the physical counts don't match..."
                   : "e.g. Verified at Bunawan gate..."
               }
               className={`w-full px-3 py-2 text-xs bg-[#F4F8FA] border rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white ${
@@ -1016,7 +1109,7 @@ export default function StockCheckInPage() {
             />
             {isNotesMissing && (
               <p className="text-[11px] text-rose-700 font-semibold mt-1">
-                Please enter supervisor notes explaining the stock variance.
+                Please enter an explanation note describing why the stock counts don't match.
               </p>
             )}
           </div>
