@@ -73,8 +73,6 @@ export default function Fleet() {
 
   // Slide-in Drawer Detail Panel States
   const [activeDetailTruck, setActiveDetailTruck] = useState(null);
-  const [isClosingPanel, setIsClosingPanel] = useState(false);
-  const closeTimerRef = useRef(null);
   const [editingTruck, setEditingTruck] = useState(null);
 
   // Operational Modals States
@@ -202,45 +200,24 @@ export default function Fleet() {
   const [isAddingTruck, setIsAddingTruck] = useState(false);
   const [toast, setToast] = useState(null); // { type: "success" | "error" | "info" | "warning", message: string }
 
-  // Cleanup close timer on unmount
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-      }
-    };
-  }, []);
-
   const handleSelectTruck = (truck) => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-
     const isSameTruck =
       (selectedTruck?.id && (selectedTruck.id === truck.id || selectedTruck.id === truck.truckId)) ||
       (selectedTruck?.truckId && (selectedTruck.truckId === truck.truckId || selectedTruck.truckId === truck.id)) ||
       (activeDetailTruck?.id && (activeDetailTruck.id === truck.id || activeDetailTruck.id === truck.truckId)) ||
       (activeDetailTruck?.truckId && (activeDetailTruck.truckId === truck.truckId || activeDetailTruck.truckId === truck.id));
 
-    if (isSameTruck && !isClosingPanel) {
+    if (isSameTruck) {
       handleCloseDetail();
     } else {
-      setIsClosingPanel(false);
       setSelectedTruck(truck);
       setActiveDetailTruck(truck);
     }
   };
 
   const handleCloseDetail = () => {
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    setIsClosingPanel(true);
     setSelectedTruck(null);
-    closeTimerRef.current = setTimeout(() => {
-      setActiveDetailTruck(null);
-      setIsClosingPanel(false);
-      closeTimerRef.current = null;
-    }, 250);
+    setActiveDetailTruck(null);
   };
 
   // Helper to sync local state changes with localStorage

@@ -18,6 +18,7 @@ import Pagination from "../ui/Pagination";
 import { formatPhilippineTime } from "../../utils/date.js";
 
 export default function TodayDispatchesTable({
+  viewSection = "VEHICLES",
   entries = [],
   sortConfig = { key: "truckPlate", direction: "asc" },
   onSort,
@@ -27,6 +28,7 @@ export default function TodayDispatchesTable({
   onDispatchAgain,
   onEndTrip,
   onCheckInReturn,
+  onReconcileTrip,
   canManage = false,
   pagination,
 }) {
@@ -373,19 +375,27 @@ export default function TodayDispatchesTable({
                             </button>
                           )}
 
-                          {/* Completed Trip (Settled / Variance / Pending Sales): Dispatch Again */}
+                          {/* Completed Trip (Settled / Variance / Pending Sales): Re-reconcile */}
                           {(isFlagged || isAwaitingSync || isSettled) && (
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onDispatchAgain && onDispatchAgain(entry);
+                                if (onReconcileTrip) {
+                                  onReconcileTrip(entry);
+                                } else if (onDispatchAgain) {
+                                  onDispatchAgain(entry);
+                                }
                               }}
-                              className="px-3.5 py-1.5 rounded-full text-[11px] font-bold bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 uppercase tracking-wider shrink-0 active:scale-95"
-                              title="Dispatch this vehicle for another route"
+                              className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 uppercase tracking-wider shrink-0 active:scale-95 ${
+                                isFlagged || isAwaitingSync
+                                  ? "bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E]"
+                                  : "bg-white border border-[#CBD5E1] hover:bg-[#F3F5F5] text-[#0A4B6E]"
+                              }`}
+                              title="Open stock check-in to review or re-reconcile this run"
                             >
-                              <Plus size={12} strokeWidth={2.5} />
-                              <span>DISPATCH AGAIN</span>
+                              <RotateCcw size={12} strokeWidth={2.5} />
+                              <span>RE-RECONCILE</span>
                             </button>
                           )}
 
@@ -411,9 +421,13 @@ export default function TodayDispatchesTable({
                     <div className="w-12 h-12 rounded-full bg-[#E8F3F8] text-[#0A4B6E] flex items-center justify-center mb-2">
                       <Truck size={22} />
                     </div>
-                    <p className="font-bold text-xs text-slate-800">No vehicle dispatch records found</p>
+                    <p className="font-bold text-xs text-slate-800">
+                      {viewSection === "COMPLETED"
+                        ? "No completed runs found"
+                        : "No vehicle dispatch records found"}
+                    </p>
                     <p className="text-[11px] text-[#3E5C76] mt-0.5 max-w-sm">
-                      No matching records found for this view. Try adjusting your search query, status tab, or service zone filter.
+                      No matching records found for this view. Try adjusting your search query, status filter, or service zone filter.
                     </p>
                   </div>
                 </td>
@@ -433,7 +447,7 @@ export default function TodayDispatchesTable({
           onPageChange={pagination.onPageChange}
           onLimitChange={pagination.onLimitChange}
           isLoading={pagination.isLoading}
-          itemLabel="vehicles"
+          itemLabel={viewSection === "COMPLETED" ? "runs" : "vehicles"}
         />
       )}
     </div>

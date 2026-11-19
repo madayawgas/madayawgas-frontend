@@ -1,5 +1,5 @@
 // src/components/ui/SideDrawer.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
@@ -22,6 +22,11 @@ export default function SideDrawer({
   backdrop = "mobile-only", // "mobile-only" (default) | "always" | "none" | boolean
 }) {
   const [isClosing, setIsClosing] = useState(false);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   // Handle ESC key press
   useEffect(() => {
@@ -30,7 +35,7 @@ export default function SideDrawer({
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        handleClose();
+        setIsClosing(true);
       }
     };
 
@@ -43,12 +48,13 @@ export default function SideDrawer({
     if (!isClosing) return;
     const timer = setTimeout(() => {
       setIsClosing(false);
-      if (onClose) onClose();
+      if (onCloseRef.current) onCloseRef.current();
     }, 220);
     return () => clearTimeout(timer);
-  }, [isClosing, onClose]);
+  }, [isClosing]);
 
   const handleClose = () => {
+    if (isClosing) return;
     setIsClosing(true);
   };
 

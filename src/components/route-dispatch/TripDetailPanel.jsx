@@ -10,7 +10,6 @@ import {
   Plus,
   CalendarX,
   AlertOctagon,
-  ArrowRight,
   ShieldCheck,
   ShieldAlert,
 } from "lucide-react";
@@ -21,11 +20,7 @@ export default function TripDetailPanel({
   entry,
   trip,
   schedule,
-  onDispatch,
   onMiddayReload,
-  onEndTrip,
-  onReturnCheckIn,
-  onReconciliation,
   onCancelTrip,
   onCancelSchedule,
   canManage = true,
@@ -278,101 +273,42 @@ export default function TripDetailPanel({
         <TripReconciliationLedger trip={tripData} />
       ) : null}
 
-      {/* 6. OPERATIONAL ACTIONS CONTAINER */}
-      {canManage && (
-        <div className="pt-3 border-t border-slate-200 space-y-2.5">
-          {/* Scheduled Run Actions */}
-          {!isTrip && (
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => onDispatch && onDispatch(activeEntry)}
-                disabled={isUnavailable}
-                className="w-full py-2.5 px-4 rounded-full text-[11px] font-bold bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {activeEntry.isRedispatch ? (
-                  <RotateCcw size={14} strokeWidth={2.5} />
-                ) : (
-                  <Plus size={14} strokeWidth={2.5} />
-                )}
-                <span>{activeEntry.isRedispatch ? "Dispatch Again" : "Dispatch Vehicle"}</span>
-              </button>
-
-              {!activeEntry.isRedispatch && (
-                <button
-                  type="button"
-                  onClick={() => onCancelSchedule && onCancelSchedule(activeEntry)}
-                  className="w-full py-2 px-4 rounded-full text-[11px] font-bold bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 text-slate-600 hover:text-rose-700 transition-all cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-widest"
-                >
-                  <CalendarX size={13} />
-                  <span>Cancel Scheduled Run</span>
-                </button>
-              )}
-            </div>
+      {/* 6. CONTEXTUAL & DESTRUCTIVE ACTIONS (Primary CTAs live in SideDrawer sticky footer) */}
+      {canManage && ((!isTrip && !activeEntry.isRedispatch) || (isTrip && isOnRoute)) && (
+        <div className="pt-3 border-t border-slate-200 space-y-2">
+          {/* Scheduled Run Secondary Action */}
+          {!isTrip && !activeEntry.isRedispatch && (
+            <button
+              type="button"
+              onClick={() => onCancelSchedule && onCancelSchedule(activeEntry)}
+              className="w-full py-2 px-4 rounded-full text-[11px] font-bold bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 text-slate-600 hover:text-rose-700 transition-all cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-widest"
+            >
+              <CalendarX size={13} />
+              <span>Cancel Scheduled Run</span>
+            </button>
           )}
 
-          {/* Active Trip Actions */}
+          {/* Active Trip Contextual & Destructive Actions */}
           {isTrip && isOnRoute && (
-            <div className="flex flex-col gap-2">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => onMiddayReload && onMiddayReload(tripData || activeEntry)}
-                  className="w-full py-2.5 px-3 rounded-full text-[11px] font-bold bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#0A4B6E] transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 uppercase tracking-widest"
-                >
-                  <Plus size={13} strokeWidth={2.5} />
-                  <span>+ Midday Reload</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onEndTrip && onEndTrip(tripData || activeEntry)}
-                  className="w-full py-2.5 px-3 rounded-full text-[11px] font-bold bg-[#0A4B6E] hover:bg-[#0E384E] text-[#FFDF2C] transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 uppercase tracking-widest active:scale-95"
-                >
-                  <span>End Trip</span>
-                  <ArrowRight size={13} strokeWidth={2.5} />
-                </button>
-              </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => onMiddayReload && onMiddayReload(tripData || activeEntry)}
+                className="w-full py-2.5 px-3 rounded-full text-[11px] font-bold bg-white hover:bg-slate-50 border border-[#CBD5E1] text-[#0A4B6E] transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 uppercase tracking-widest"
+              >
+                <Plus size={13} strokeWidth={2.5} />
+                <span>Midday Reload</span>
+              </button>
 
               <button
                 type="button"
                 onClick={() => onCancelTrip && onCancelTrip(tripData || activeEntry)}
-                className="w-full py-2 px-4 rounded-full text-[11px] font-bold bg-white hover:bg-rose-50 border border-rose-200 text-rose-700 transition-all cursor-pointer flex items-center justify-center gap-1.5 uppercase tracking-widest"
+                className="w-full py-2.5 px-3 rounded-full text-[11px] font-bold bg-white hover:bg-rose-50 border border-rose-200 text-rose-700 transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 uppercase tracking-widest"
               >
                 <AlertOctagon size={13} />
                 <span>Cancel Active Trip</span>
               </button>
             </div>
-          )}
-
-          {/* Returned Trip Awaiting Dock Check-In */}
-          {isTrip && isReturned && (
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => onReturnCheckIn && onReturnCheckIn(tripData || activeEntry)}
-                className="w-full py-2.5 px-4 rounded-full text-[11px] font-bold bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E] transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 uppercase tracking-widest active:scale-95"
-              >
-                <span>Check-In Stock & Reconcile</span>
-                <ArrowRight size={13} strokeWidth={2.5} />
-              </button>
-            </div>
-          )}
-
-          {/* Completed Trip Secondary Option: Re-Reconcile / Update Check-In */}
-          {isTrip && !isReturned && !isOnRoute && (isSettled || isPendingRecon) && (
-            <button
-              type="button"
-              onClick={() =>
-                onReturnCheckIn
-                  ? onReturnCheckIn(tripData || activeEntry)
-                  : onReconciliation && onReconciliation(tripData || activeEntry)
-              }
-              className="w-full py-2 px-4 rounded-full text-[11px] font-bold bg-white hover:bg-slate-50 border border-slate-300 text-[#0A4B6E] transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 uppercase tracking-widest"
-            >
-              <RotateCcw size={12} />
-              <span>Re-Reconcile / Update Check-In</span>
-            </button>
           )}
         </div>
       )}

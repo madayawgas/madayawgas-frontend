@@ -41,8 +41,6 @@ export default function Users() {
   const [isLoading, setIsLoading] = useState(users.length === 0);
   const [selectedUser, setSelectedUser] = useState(null);
   const [activeDetailUser, setActiveDetailUser] = useState(null);
-  const [isClosingPanel, setIsClosingPanel] = useState(false);
-  const closeTimerRef = useRef(null);
 
   // System Roles State
   const [roles, setRoles] = useState([]);
@@ -92,13 +90,6 @@ export default function Users() {
       }
     }
     loadData();
-  }, []);
-
-  // Clean up timer on unmount
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    };
   }, []);
 
   // Helper to sync local state changes to localStorage
@@ -190,21 +181,14 @@ export default function Users() {
     return processedUsers.slice(start, start + limit);
   }, [processedUsers, page, limit]);
 
-  // Close panel with smooth exit animation (left-to-right off screen)
+  // Close panel
   const handleCloseDetail = () => {
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    setIsClosingPanel(true);
     setSelectedUser(null);
-    closeTimerRef.current = setTimeout(() => {
-      setActiveDetailUser(null);
-      setIsClosingPanel(false);
-    }, 250);
+    setActiveDetailUser(null);
   };
 
   // Select user row handler
   const handleSelectUser = (user) => {
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-
     const isSameUser =
       (selectedUser?.id && (selectedUser.id === user.id || selectedUser.id === user.userId)) ||
       (selectedUser?.userId && (selectedUser.userId === user.userId || selectedUser.userId === user.id));
@@ -213,7 +197,6 @@ export default function Users() {
       // Toggle off if already selected
       handleCloseDetail();
     } else {
-      setIsClosingPanel(false);
       setSelectedUser(user);
       setActiveDetailUser(user);
     }

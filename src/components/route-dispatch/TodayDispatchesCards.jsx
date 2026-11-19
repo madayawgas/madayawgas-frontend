@@ -12,11 +12,13 @@ import {
   CalendarX,
   AlertOctagon,
   RotateCcw,
+  CheckCircle2,
 } from "lucide-react";
 import { formatPhilippineDate, formatPhilippineTime } from "../../utils/date.js";
 
 export default function TodayDispatchesCards({
-  statusTab = "ALL",
+  viewSection = "VEHICLES",
+  statusFilter = "ALL",
   activeTrips = [],
   returnedTrips = [],
   completedTrips = [],
@@ -30,16 +32,26 @@ export default function TodayDispatchesCards({
   onMiddayReload,
   onEndTrip,
   onCheckInReturn,
+  onReconcileTrip,
   onCancelTrip,
   canManage = false,
   getFullCargoBreakdown,
   todayPht,
 }) {
-  const showOutOnRoad = statusTab === "ALL" || statusTab === "OUT_ON_ROAD";
-  const showReturned = statusTab === "ALL" || statusTab === "RETURNED";
-  const showCompleted = statusTab === "ALL" || statusTab === "COMPLETED";
-  const showReady = statusTab === "ALL" || statusTab === "READY";
-  const showUnavailable = statusTab === "ALL" || statusTab === "UNAVAILABLE";
+  const isCompletedView = viewSection === "COMPLETED";
+  const showOutOnRoad = !isCompletedView && (statusFilter === "ALL" || statusFilter === "OUT_ON_ROAD");
+  const showReturned = !isCompletedView && (statusFilter === "ALL" || statusFilter === "RETURNED");
+  const showCompleted = isCompletedView;
+  const showReady = !isCompletedView && (statusFilter === "ALL" || statusFilter === "READY");
+  const showUnavailable = !isCompletedView && (statusFilter === "ALL" || statusFilter === "UNAVAILABLE");
+
+  const visibleCompletedTrips =
+    statusFilter === "ALL"
+      ? completedTrips
+      : completedTrips.filter((t) => {
+          const st = (t.reconciliation?.status || t.status || "AWAITING_SYNC").toUpperCase();
+          return st === statusFilter;
+        });
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-6 pr-1 pb-4">
@@ -179,7 +191,7 @@ export default function TodayDispatchesCards({
       )}
 
       {/* SECTION: RETURNED TO YARD (AWAITING CHECK-IN) */}
-      {showReturned && (returnedTrips.length > 0 || statusTab === "RETURNED") && (
+      {showReturned && (returnedTrips.length > 0 || statusFilter === "RETURNED") && (
         <div>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -310,28 +322,28 @@ export default function TodayDispatchesCards({
       )}
 
       {/* SECTION 2B: COMPLETED & RECONCILED */}
-      {showCompleted && (completedTrips.length > 0 || statusTab === "COMPLETED") && (
+      {showCompleted && (
         <div>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#0A4B6E]" />
               <h3 className="text-sm font-bold text-[#0A4B6E] uppercase tracking-wide">
-                Completed & Reconciled ({completedTrips.length})
+                Completed Runs Today ({visibleCompletedTrips.length})
               </h3>
             </div>
             <span className="text-[11px] text-[#3E5C76]">
-              Settled runs and flagged variances
+              Reconciled runs, variances, and pending sales
             </span>
           </div>
 
-          {completedTrips.length === 0 ? (
+          {visibleCompletedTrips.length === 0 ? (
             <div className="bg-[#F8FAFC] border border-dashed border-[#CBD5E1] rounded-2xl p-8 text-center">
               <CheckCircle2 size={28} className="mx-auto text-[#3E5C76] mb-2 opacity-50" />
-              <p className="text-xs font-semibold text-[#0A4B6E]">No completed trips yet today</p>
+              <p className="text-xs font-semibold text-[#0A4B6E]">No completed runs found</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {completedTrips.map((trip) => {
+              {visibleCompletedTrips.map((trip) => {
                 const recon = trip.reconciliation || {};
                 const reconSt = (recon.status || trip.status || "AWAITING_SYNC").toUpperCase();
                 const isFlagged = reconSt === "FLAGGED_VARIANCE";
@@ -408,12 +420,20 @@ export default function TodayDispatchesCards({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDispatchAgain && onDispatchAgain(trip);
+                          if (onReconcileTrip) {
+                            onReconcileTrip(trip);
+                          } else if (onDispatchAgain) {
+                            onDispatchAgain(trip);
+                          }
                         }}
-                        className="w-full py-2 px-3 rounded-full text-[11px] font-bold uppercase tracking-widest transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 active:scale-95 bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E]"
+                        className={`w-full py-2 px-3 rounded-full text-[11px] font-bold uppercase tracking-widest transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5 active:scale-95 ${
+                          isFlagged || isAwaiting
+                            ? "bg-[#FFDF2C] hover:bg-[#ebd024] text-[#0A4B6E]"
+                            : "bg-white border border-[#CBD5E1] hover:bg-[#F3F5F5] text-[#0A4B6E]"
+                        }`}
                       >
-                        <Plus size={12} strokeWidth={2.5} />
-                        <span>Dispatch Again</span>
+                        <RotateCcw size={12} strokeWidth={2.5} />
+                        <span>Re-reconcile</span>
                       </button>
                     )}
                   </div>
