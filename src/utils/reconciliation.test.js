@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   computeTripReconciliation,
   formatVarianceSummary,
+  formatCheckStatusLabel,
   buildInitialReturnCounts,
 } from "./reconciliation.js";
 
@@ -83,5 +84,24 @@ test("reconciliation.js dual reconciliation math & QA scenario", async (t) => {
       returnedDefective: 5,
       loadedUnits: 25,
     });
+  });
+
+  await t.test("formatCheckStatusLabel distinguishes Extra Damaged from Extra Full", () => {
+    // 2 unsold (full) + 5 damaged overage => fullDiscrepancy = -7, returnedDefective = 5
+    assert.equal(
+      formatCheckStatusLabel(-7, 0, { returnedDefective: 5 }),
+      "+2 Extra Full · +5 Extra Damaged"
+    );
+    // Damaged-only overage
+    assert.equal(
+      formatCheckStatusLabel(-5, 0, { returnedDefective: 5 }),
+      "+5 Extra Damaged"
+    );
+    // Backward compatibility when returnedDefective is omitted
+    assert.equal(formatCheckStatusLabel(-3, 0), "+3 Extra Full");
+    // Missing, balanced, and pending sales cases
+    assert.equal(formatCheckStatusLabel(5, 0, { returnedDefective: 5 }), "5 Full Missing");
+    assert.equal(formatCheckStatusLabel(0, 0, { returnedDefective: 5 }), "All Accounted");
+    assert.equal(formatCheckStatusLabel(null, null), "Pending Sales");
   });
 });

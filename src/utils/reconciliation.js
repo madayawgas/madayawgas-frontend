@@ -281,7 +281,11 @@ export function formatVarianceLabel(diff) {
  * Formats full & empty discrepancies into natural language for the Check Status column.
  * Positive = missing/short; Negative = extra/overage.
  */
-export function formatCheckStatusLabel(fullDiscrepancy, emptyDiscrepancy) {
+export function formatCheckStatusLabel(
+  fullDiscrepancy,
+  emptyDiscrepancy,
+  { returnedDefective = 0 } = {}
+) {
   if (fullDiscrepancy === null || fullDiscrepancy === undefined) {
     return "Pending Sales";
   }
@@ -295,7 +299,17 @@ export function formatCheckStatusLabel(fullDiscrepancy, emptyDiscrepancy) {
   if (full > 0) {
     parts.push(`${full} Full Missing`);
   } else if (full < 0) {
-    parts.push(`+${Math.abs(full)} Extra Full`);
+    const extra = Math.abs(full);
+    const defectCount = Math.max(0, Number(returnedDefective) || 0);
+    const extraDamaged = Math.min(extra, defectCount);
+    const extraFull = extra - extraDamaged;
+
+    if (extraFull > 0) {
+      parts.push(`+${extraFull} Extra Full`);
+    }
+    if (extraDamaged > 0) {
+      parts.push(`+${extraDamaged} Extra Damaged`);
+    }
   }
 
   if (empty > 0) {
