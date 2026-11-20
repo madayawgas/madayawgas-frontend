@@ -516,7 +516,8 @@ export default function StockCheckInPage() {
           reconStatus === "FLAGGED_VARIANCE"
             ? `Trip #${selectedTrip.tripNumber} saved with stock mismatch (${formatCheckStatusLabel(
                 result?.fullDiscrepancy ?? 0,
-                result?.emptyDiscrepancy ?? 0
+                result?.emptyDiscrepancy ?? 0,
+                { returnedDefective: totals.totalDefect }
               )}).`
             : `Trip #${selectedTrip.tripNumber} (${selectedTrip.truckPlate}) stock check-in saved. Bunawan yard stock updated!`,
       });
@@ -765,7 +766,9 @@ export default function StockCheckInPage() {
                     const emptyDiff = rowAccountability.emptyDiscrepancy ?? 0;
                     const isRowBalanced = fullDiff === 0 && emptyDiff === 0;
                     const hasRowMissing = fullDiff > 0 || emptyDiff > 0;
-                    const checkStatusLabel = formatCheckStatusLabel(fullDiff, emptyDiff);
+                    const checkStatusLabel = formatCheckStatusLabel(fullDiff, emptyDiff, {
+                      returnedDefective: rowDefect,
+                    });
                     const hasDefects = rowDefect > 0;
 
                     return (
@@ -1015,7 +1018,8 @@ export default function StockCheckInPage() {
                 <span>
                   {formatCheckStatusLabel(
                     accountability.fullDiscrepancy,
-                    accountability.emptyDiscrepancy
+                    accountability.emptyDiscrepancy,
+                    { returnedDefective: totals.totalDefect }
                   )}
                 </span>
               </span>
